@@ -26,8 +26,11 @@ pnpm check
 - `CLIENT_ORIGIN`: default allowed browser origin.
 - `CORS_ORIGINS`: comma-separated allowed origins. Use `*` only for local throwaway testing.
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`: local Docker Postgres credentials.
-- `DATABASE_URL`: PostgreSQL connection string for non-Docker API runs.
-- `DATABASE_SSL`: set to `true` for SSL databases.
+- `DATABASE_URL`: PostgreSQL connection string. For RDS, prefer the RDS endpoint hostname over a private IP.
+- `DATABASE_SSL`: set to `true` for SSL databases such as RDS.
+- `DATABASE_SSL_REJECT_UNAUTHORIZED`: set to `true` only when the runtime trusts the RDS CA certificate. Defaults to `false`.
+- `DATABASE_CONNECT_TIMEOUT_MS`: Postgres connection timeout, defaults to `10000`.
+- `DATABASE_POOL_MAX`, `DATABASE_POOL_MIN`, `DATABASE_POOL_ACQUIRE_MS`, `DATABASE_POOL_IDLE_MS`: optional Sequelize pool tuning.
 - `WEB_SESSION_SECRET`: session signing secret.
 - `WEB_USERS` or `WEB_USERNAME` / `WEB_PASSWORD`: first-run admin seed users, created only when `web_users` is empty.
 - `TAILOR_SERVICE_URL`: optional resume tailoring service endpoint.

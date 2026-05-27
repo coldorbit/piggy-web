@@ -34,6 +34,8 @@ Required:
 Optional:
 
 - `DATABASE_SSL`, defaults to `false`
+- `DATABASE_SSL_REJECT_UNAUTHORIZED`, defaults to `false`
+- `DATABASE_CONNECT_TIMEOUT_MS`, defaults to `10000`
 - `WEB_USERNAME` and `WEB_PASSWORD`: first-run admin seed credentials.
 - `WEB_USERS`: comma-separated seed users, such as `admin@example.com:password:admin`.
 - `TAILOR_SERVICE_URL`
@@ -70,6 +72,16 @@ Optional:
 Install Docker on the EC2 instance. The deploy workflow logs Docker into GHCR during the restart step so it can pull the API image.
 
 The workflow expects the API env file to already exist on EC2 and runs the API container on `API_HOST_PORT`.
+
+For RDS, use the RDS endpoint hostname in `DATABASE_URL` and enable SSL:
+
+```env
+DATABASE_URL=postgres://user:password@your-rds-endpoint.us-east-1.rds.amazonaws.com:5432/applypilot
+DATABASE_SSL=true
+DATABASE_SSL_REJECT_UNAUTHORIZED=false
+```
+
+The RDS security group must allow inbound PostgreSQL `5432` from the API EC2 security group.
 
 ## S3 Prerequisites
 
