@@ -1,0 +1,114 @@
+name: Deploy API
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  EC2_HOST: ${{ vars.EC2_HOST }}
+  EC2_USER: ${{ vars.EC2_USER }}
+  API_GHCR_IMAGE_NAME: ${{ vars.API_GHCR_IMAGE_NAME || 'applypilot-api' }}
+  API_CONTAINER_NAME: ${{ vars.API_CONTAINER_NAME || 'applypilot-api' }}
+  API_HOST_PORT: ${{ vars.API_HOST_PORT || '4000' }}
+  API_ENV_FILE: ${{ vars.API_ENV_FILE || '/home/ubuntu/.env' }}
+
+jobs:
+  deploy-api:
+    name: Deploy API to EC2
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deployment config
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in EC2_HOST EC2_USER API_GHCR_IMAGE_NAME API_CONTAINER_NAME API_HOST_PORT API_ENV_FILE; do
+            if [ -z "${!key:-}" ]; then
+              echo "::error::${key} repository variable is required."
+              exit 1
+            fi
+          done
+
+      - name: Set image metadata
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          registry="ghcr.io"
+          owner="$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          image_name="$(printf '%s' "${API_GHCR_IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')"
+          repository="${owner}/${image_name}"
+          image="${registry}/${repository}:${GITHUB_SHA}"
+
+          echo "registry=${registry}" >> "$GITHUB_OUTPUT"
+          echo "repository=${repository}" >> "$GITHUB_OUTPUT"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "${{ github.token }}" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Build and push API image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build \
+            --file api/Dockerfile \
+            --tag "${{ steps.image.outputs.image }}" \
+            --tag "${{ steps.image.outputs.registry }}/${{ steps.image.outputs.repository }}:latest" \
+            api
+          docker push "${{ steps.image.outputs.image }}"
+          docker push "${{ steps.image.outputs.registry }}/${{ steps.image.outputs.repository }}:latest"
+
+      - name: Install SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Restart API container on EC2
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/ec2_key "${EC2_USER}@${EC2_HOST}" \
+            "GHCR_REGISTRY='${{ steps.image.outputs.registry }}' \
+             GHCR_USERNAME='${{ github.actor }}' \
+             GHCR_TOKEN='${{ github.token }}' \
+             API_IMAGE='${{ steps.image.outputs.image }}' \
+             API_CONTAINER_NAME='${API_CONTAINER_NAME}' \
+             API_HOST_PORT='${API_HOST_PORT}' \
+             API_ENV_FILE='${API_ENV_FILE}' \
+             bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          if [ ! -f "$API_ENV_FILE" ]; then
+            echo "API env file not found: $API_ENV_FILE" >&2
+            exit 1
+          fi
+
+          printf '%s' "$GHCR_TOKEN" | docker login "$GHCR_REGISTRY" --username "$GHCR_USERNAME" --password-stdin
+          docker pull "$API_IMAGE"
+          docker rm -f "$API_CONTAINER_NAME" 2>/dev/null || true
+          docker run -d \
+            --name "$API_CONTAINER_NAME" \
+            --restart unless-stopped \
+            --env-file "$API_ENV_FILE" \
+            -p "${API_HOST_PORT}:4000" \
+            "$API_IMAGE"
+          docker image prune -f
+          REMOTE

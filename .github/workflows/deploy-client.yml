@@ -1,0 +1,80 @@
+name: Deploy Client
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  NODE_VERSION: '24'
+  PNPM_VERSION: '9.15.9'
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+  CLIENT_S3_BUCKET: ${{ vars.CLIENT_S3_BUCKET }}
+  VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+
+jobs:
+  deploy-client:
+    name: Deploy client to S3
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deployment config
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in AWS_REGION AWS_ROLE_TO_ASSUME CLIENT_S3_BUCKET VITE_API_BASE_URL; do
+            if [ -z "${!key:-}" ]; then
+              echo "::error::${key} repository variable is required."
+              exit 1
+            fi
+          done
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build client
+        run: pnpm --filter applypilot-client build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload static assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync client/dist "s3://${CLIENT_S3_BUCKET}" \
+            --delete \
+            --exclude "index.html" \
+            --cache-control "public,max-age=31536000,immutable"
+
+      - name: Upload HTML entrypoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp client/dist/index.html "s3://${CLIENT_S3_BUCKET}/index.html" \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache,no-store,must-revalidate"
