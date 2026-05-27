@@ -1,0 +1,18 @@
+{
+  "name": "applypilot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ApplyPilot web workspace with separate React client and Express API apps.",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm --parallel --filter applypilot-api --filter applypilot-client dev",
+    "build": "pnpm --filter applypilot-client build",
+    "start": "pnpm --filter applypilot-api start",
+    "check": "pnpm --recursive check"
+  },
+  "workspaces": [
+    "api",
+    "client"
+  ]
+}

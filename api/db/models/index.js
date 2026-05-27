@@ -1,0 +1,39 @@
+export { getBidProfileModel } from './bidProfile.js';
+export { getJobBidModel } from './jobBid.js';
+export { getProfileShareRequestModel } from './profileShareRequest.js';
+export { getScrapedJobModel } from './scrapedJob.js';
+export { getTailoredResumeModel } from './tailoredResume.js';
+export { getWebUserModel } from './webUser.js';
+
+import { getBidProfileModel } from './bidProfile.js';
+import { getJobBidModel } from './jobBid.js';
+import { getProfileShareRequestModel } from './profileShareRequest.js';
+import { getScrapedJobModel } from './scrapedJob.js';
+import { getTailoredResumeModel } from './tailoredResume.js';
+import { getWebUserModel } from './webUser.js';
+
+export function setupWebAssociations() {
+  const WebUserModel = getWebUserModel();
+  const ScrapedJobModel = getScrapedJobModel();
+  const BidProfileModel = getBidProfileModel();
+  const JobBidModel = getJobBidModel();
+  const ProfileShareRequestModel = getProfileShareRequestModel();
+  const TailoredResumeModel = getTailoredResumeModel();
+
+  if (BidProfileModel.associations.user) return;
+
+  WebUserModel.hasMany(BidProfileModel, { foreignKey: 'userId', as: 'bidProfiles' });
+  BidProfileModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'user' });
+  BidProfileModel.hasMany(JobBidModel, { foreignKey: 'profileId', as: 'bids' });
+  JobBidModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  BidProfileModel.hasMany(TailoredResumeModel, { foreignKey: 'profileId', as: 'tailoredResumes' });
+  TailoredResumeModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  BidProfileModel.hasMany(ProfileShareRequestModel, { foreignKey: 'profileId', as: 'shareRequests' });
+  ProfileShareRequestModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  WebUserModel.hasMany(ProfileShareRequestModel, { foreignKey: 'ownerUserId', as: 'sentProfileShares' });
+  WebUserModel.hasMany(ProfileShareRequestModel, { foreignKey: 'recipientUserId', as: 'receivedProfileShares' });
+  ProfileShareRequestModel.belongsTo(WebUserModel, { foreignKey: 'ownerUserId', as: 'owner' });
+  ProfileShareRequestModel.belongsTo(WebUserModel, { foreignKey: 'recipientUserId', as: 'recipient' });
+  ScrapedJobModel.hasMany(JobBidModel, { foreignKey: 'jobId', as: 'bids' });
+  JobBidModel.belongsTo(ScrapedJobModel, { foreignKey: 'jobId', as: 'job' });
+}

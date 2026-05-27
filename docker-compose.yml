@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-applypilot}
+    ports:
+      - 0.0.0.0:${DB_PORT:-5432}:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    init: true
+
+  api:
+    build:
+      context: ./api
+    environment:
+      NODE_ENV: production
+      WEB_PORT: 4000
+      CLIENT_ORIGIN: http://localhost:${CLIENT_PORT:-3000}
+      CORS_ORIGINS: http://localhost:${CLIENT_PORT:-3000}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-applypilot}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-dev-only-change-me}
+      WEB_USERS: ${WEB_USERS:-}
+      WEB_USERNAME: ${WEB_USERNAME}
+      WEB_PASSWORD: ${WEB_PASSWORD}
+      TAILOR_SERVICE_URL: ${TAILOR_SERVICE_URL:-http://resume-tailor:5000}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_SQS_ENDPOINT: ${AWS_SQS_ENDPOINT:-}
+      TAILORING_QUEUE_URL: ${TAILORING_QUEUE_URL:-}
+    ports:
+      - 0.0.0.0:${API_PORT:-4000}:4000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    init: true
+
+  client:
+    build:
+      context: ./client
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:${API_PORT:-4000}}
+    ports:
+      - 0.0.0.0:${CLIENT_PORT:-3000}:80
+    depends_on:
+      - api
+    init: true
+
+volumes:
+  postgres-data:

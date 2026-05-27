@@ -1,0 +1,21 @@
+{
+  "name": "applypilot-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Express API for ApplyPilot.",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "WEB_PORT=${WEB_PORT:-4000} node server.js",
+    "start": "NODE_ENV=production WEB_PORT=${WEB_PORT:-4000} node server.js",
+    "check": "node --check server.js && node --check auth.js && node --check env.js && node --check server/services/tailoringQueue.js && node --check server/controllers/admin.js && node --check server/controllers/auth.js && node --check server/controllers/bids.js && node --check server/controllers/jobs.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.1054.0",
+    "axios": "^1.16.1",
+    "dotenv": "^16.4.7",
+    "express": "^5.2.1",
+    "pg": "^8.21.0",
+    "sequelize": "^6.37.8"
+  }
+}
