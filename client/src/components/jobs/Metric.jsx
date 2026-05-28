@@ -23,7 +23,7 @@ export default function Metric({ icon, label, value, action }) {
       }}
     >
       <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="space-between">
-        <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
+        <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0} sx={{ flex: 1 }}>
           <Box
             sx={{
               width: 42,
@@ -47,7 +47,7 @@ export default function Metric({ icon, label, value, action }) {
             </Typography>
           </Stack>
         </Stack>
-        {action ? <Box sx={{ flexShrink: 0 }}>{action}</Box> : null}
+        {action ? <Box sx={{ ml: 'auto', flexShrink: 0 }}>{action}</Box> : null}
       </Stack>
     </Paper>
   );
