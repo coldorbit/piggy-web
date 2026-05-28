@@ -5,7 +5,7 @@ import SpamBadge from './SpamBadge.jsx';
 import { formatDate } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
 
-export default function JobList({ filters, importAction, jobs, loading, selectedJob, total, onPage, onPageSize, onSelectJob }) {
+export default function JobList({ filters, jobs, loading, selectedJob, total, onPage, onPageSize, onSelectJob }) {
   return (
     <Paper
       variant="outlined"
@@ -108,7 +108,7 @@ export default function JobList({ filters, importAction, jobs, loading, selected
           );
         })}
       </List>
-      <Pagination filters={filters} total={total} importAction={importAction} onPage={onPage} onPageSize={onPageSize} />
+      <Pagination filters={filters} total={total} onPage={onPage} onPageSize={onPageSize} />
     </Paper>
   );
 }

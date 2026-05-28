@@ -11,6 +11,7 @@
     "check": "node --check server.js && node --check auth.js && node --check env.js && node --check server/services/tailoringQueue.js && node --check server/controllers/admin.js && node --check server/controllers/auth.js && node --check server/controllers/bids.js && node --check server/controllers/jobs.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1054.0",
     "@aws-sdk/client-sqs": "^3.1054.0",
     "axios": "^1.16.1",
     "dotenv": "^16.4.7",

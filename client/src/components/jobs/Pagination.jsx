@@ -1,7 +1,7 @@
 import { Box, FormControl, MenuItem, Pagination as MuiPagination, Select, Stack, Typography } from '@mui/material';
 import { PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../../lib/constants.js';
 
-export default function Pagination({ filters, importAction, total, onPage, onPageSize }) {
+export default function Pagination({ filters, total, onPage, onPageSize }) {
   const pageSize = Number(filters.limit || PAGE_SIZE);
   const pages = Math.max(Math.ceil(total / pageSize), 1);
   return (
@@ -10,7 +10,7 @@ export default function Pagination({ filters, importAction, total, onPage, onPag
         p: 1,
         display: 'flex',
         flexDirection: { xs: 'column', md: 'row' },
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         alignItems: 'center',
         gap: 1,
         textAlign: 'center',
@@ -48,18 +48,6 @@ export default function Pagination({ filters, importAction, total, onPage, onPag
           Page {filters.page} of {pages}
         </Typography>
       </Stack>
-      <Box
-        sx={{
-          alignSelf: { xs: 'stretch', md: 'center' },
-          '& .MuiButton-root': {
-            width: { xs: '100%', md: 'auto' },
-            minHeight: 32,
-            py: 0.5,
-          },
-        }}
-      >
-        {importAction}
-      </Box>
     </Box>
   );
 }

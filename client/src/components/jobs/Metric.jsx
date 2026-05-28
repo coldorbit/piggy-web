@@ -1,6 +1,6 @@
 import { Box, Paper, Stack, Typography } from '@mui/material';
 
-export default function Metric({ icon, label, value }) {
+export default function Metric({ icon, label, value, action }) {
   return (
     <Paper
       variant="outlined"
@@ -22,29 +22,32 @@ export default function Metric({ icon, label, value }) {
         },
       }}
     >
-      <Stack direction="row" spacing={1.25} alignItems="center">
-        <Box
-          sx={{
-            width: 42,
-            height: 42,
-            display: 'grid',
-            placeItems: 'center',
-            borderRadius: 2,
-            color: 'primary.dark',
-            bgcolor: 'rgba(95, 91, 216, 0.1)',
-            flexShrink: 0,
-          }}
-        >
-          {icon}
-        </Box>
-        <Stack spacing={0.25} minWidth={0}>
-          <Typography variant="caption" color="text.secondary" fontWeight={800} textTransform="uppercase">
-            {label}
-          </Typography>
-          <Typography variant="h5" fontWeight={900} noWrap>
-            {value}
-          </Typography>
+      <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="space-between">
+        <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
+          <Box
+            sx={{
+              width: 42,
+              height: 42,
+              display: 'grid',
+              placeItems: 'center',
+              borderRadius: 2,
+              color: 'primary.dark',
+              bgcolor: 'rgba(95, 91, 216, 0.1)',
+              flexShrink: 0,
+            }}
+          >
+            {icon}
+          </Box>
+          <Stack spacing={0.25} minWidth={0}>
+            <Typography variant="caption" color="text.secondary" fontWeight={800} textTransform="uppercase">
+              {label}
+            </Typography>
+            <Typography variant="h5" fontWeight={900} noWrap>
+              {value}
+            </Typography>
+          </Stack>
         </Stack>
+        {action ? <Box sx={{ flexShrink: 0 }}>{action}</Box> : null}
       </Stack>
     </Paper>
   );

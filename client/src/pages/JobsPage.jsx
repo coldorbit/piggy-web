@@ -108,7 +108,18 @@ export default function JobsPage({ currentUser }) {
     <Box sx={{ minHeight: 0, display: 'grid', gap: 1.75, gridTemplateRows: 'auto auto auto auto 1fr' }}>
       <Grid container spacing={1.25}>
         <Grid size={{ xs: 12, md: 4 }}>
-          <Metric icon={<WorkIcon />} label="Total" value={meta.total.toLocaleString()} />
+          <Metric
+            icon={<WorkIcon />}
+            label="Total"
+            value={meta.total.toLocaleString()}
+            action={
+              canImportJobs ? (
+                <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setIsImportOpen(true)}>
+                  Import CSV
+                </Button>
+              ) : null
+            }
+          />
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <Metric icon={<FilterAltIcon />} label="Shown" value={total.toLocaleString()} />
@@ -148,13 +159,6 @@ export default function JobsPage({ currentUser }) {
           loading={loading}
           selectedJob={selectedJob}
           total={total}
-          importAction={
-            canImportJobs ? (
-              <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setIsImportOpen(true)}>
-                Import CSV
-              </Button>
-            ) : null
-          }
           onPage={(page) => updateFilter('page', page)}
           onPageSize={(limit) => updateFilter('limit', limit)}
           onSelectJob={setSelectedId}

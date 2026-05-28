@@ -89,6 +89,9 @@ export default function BidJobsPanel({
           component="a"
           disabled={!readyResumeIds.length}
           href={readyResumeIds.length ? downloadAllUrl : undefined}
+          download="tailored-resumes.zip"
+          target="_blank"
+          rel="noopener noreferrer"
           size="small"
           startIcon={<ArchiveIcon />}
           variant="outlined"

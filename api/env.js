@@ -11,6 +11,7 @@ export const ENV = {
   DATABASE_URL: process.env.DATABASE_URL,
   TAILOR_SERVICE_URL: process.env.TAILOR_SERVICE_URL || 'http://resume-tailor:5000',
   AWS_REGION: process.env.AWS_REGION || 'us-east-1',
+  AWS_S3_BUCKET: process.env.AWS_S3_BUCKET,
   AWS_SQS_ENDPOINT: process.env.AWS_SQS_ENDPOINT,
   TAILORING_QUEUE_URL: process.env.TAILORING_QUEUE_URL,
 };

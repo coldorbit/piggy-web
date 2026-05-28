@@ -10,6 +10,8 @@ import {
   repositories,
 } from '../../db.js';
 import axios from 'axios';
+import { Readable } from 'node:stream';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../env.js';
 import {
   bidAttributesFromBody,
@@ -438,6 +440,69 @@ async function readyTailoredResumeForUser(req, id) {
 }
 
 async function fetchTailoredResumeFile(tailoredResume) {
+  const filePath = String(tailoredResume.filePath);
+
+  const s3Details = getS3Details(filePath);
+  if (s3Details) {
+    return fetchTailoredResumeFromS3(s3Details.bucket, s3Details.key, tailoredResume);
+  }
+
+  if (isHttpUrl(filePath)) {
+    return fetchTailoredResumeFromHttp(filePath, tailoredResume);
+  }
+
+  return fetchTailoredResumeFromTailorService(tailoredResume);
+}
+
+function getS3Details(filePath) {
+  if (!filePath) return null;
+
+  if (filePath.startsWith('s3://')) {
+    try {
+      const url = new URL(filePath);
+      const bucket = url.hostname;
+      const key = url.pathname.replace(/^\//, '');
+      return bucket && key ? { bucket, key } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  if (ENV.AWS_S3_BUCKET) {
+    return { bucket: ENV.AWS_S3_BUCKET, key: filePath.replace(/^\//, '') };
+  }
+
+  return null;
+}
+
+async function fetchTailoredResumeFromS3(bucket, key, tailoredResume) {
+  const response = await getS3Client().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const body = response.Body;
+  if (!body) {
+    throw new NotFoundError('Resume file not found');
+  }
+
+  const data = await streamToBuffer(body);
+  return {
+    filename: filenameFromPath(key),
+    contentType: response.ContentType || 'application/pdf',
+    data,
+  };
+}
+
+async function fetchTailoredResumeFromHttp(path, tailoredResume) {
+  const response = await axios.get(path, {
+    responseType: 'arraybuffer',
+    timeout: 60000,
+  });
+  return {
+    filename: filenameFromContentDisposition(response.headers['content-disposition']) || filenameFromPath(tailoredResume.filePath),
+    contentType: response.headers['content-type'] || 'application/pdf',
+    data: Buffer.from(response.data),
+  };
+}
+
+async function fetchTailoredResumeFromTailorService(tailoredResume) {
   const encodedKey = String(tailoredResume.filePath).split('/').map(encodeURIComponent).join('/');
   let response;
   try {
@@ -455,6 +520,30 @@ async function fetchTailoredResumeFile(tailoredResume) {
     contentType: response.headers['content-type'] || 'application/pdf',
     data: Buffer.from(response.data),
   };
+}
+
+async function streamToBuffer(body) {
+  if (body instanceof Buffer) return body;
+  if (body instanceof Readable) {
+    const chunks = [];
+    for await (const chunk of body) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  const chunks = [];
+  for await (const chunk of body) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+let s3Client;
+function getS3Client() {
+  if (s3Client) return s3Client;
+  s3Client = new S3Client({ region: ENV.AWS_REGION });
+  return s3Client;
 }
 
 function filenameFromPath(filePath) {
