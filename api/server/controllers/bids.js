@@ -475,6 +475,16 @@ function getS3Details(filePath) {
   return null;
 }
 
+function isHttpUrl(value) {
+  if (!value || typeof value !== 'string') return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 async function fetchTailoredResumeFromS3(bucket, key, tailoredResume) {
   const response = await getS3Client().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   const body = response.Body;
