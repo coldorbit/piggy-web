@@ -14,7 +14,7 @@ import { addMissingColumns, removeExistingColumns } from './utils.js';
 
 let initializationPromise;
 
-export async function ensureWebModels() {
+export async function ensureWebModels({ runBackfills = true } = {}) {
   if (!initializationPromise) {
     initializationPromise = (async () => {
       await getScrapedJobModel().sync();
@@ -27,7 +27,7 @@ export async function ensureWebModels() {
       await ensureWebUserSessionColumns();
       await ensureBidProfileColumns();
       await ensureTailoredResumeStatusColumns();
-      await runTailoredResumeFilePathBackfill();
+      if (runBackfills) await runTailoredResumeFilePathBackfill();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
       await ensureSpamReviewColumns();
