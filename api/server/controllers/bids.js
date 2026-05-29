@@ -376,6 +376,7 @@ export async function downloadTailoredResume(req, res, next) {
 
     res.setHeader('content-type', file.contentType);
     res.setHeader('content-disposition', `attachment; filename="${escapeHeaderValue(file.filename)}"`);
+    res.setHeader('content-length', String(file.data.length));
     res.send(file.data);
   } catch (error) {
     handleInputError(error, res, next);
@@ -396,21 +397,43 @@ export async function downloadTailoredResumesZip(req, res, next) {
     }
 
     const files = [];
+    const failures = [];
     for (const id of ids) {
-      const tailoredResume = await readyTailoredResumeForUser(req, id);
-      const file = await fetchTailoredResumeFile(tailoredResume);
-      files.push(file);
+      try {
+        const tailoredResume = await readyTailoredResumeForUser(req, id);
+        const file = await fetchTailoredResumeFile(tailoredResume);
+        files.push(file);
+      } catch (error) {
+        failures.push({ id, message: error.message || 'Download failed' });
+      }
     }
 
     if (!files.length) {
-      res.status(404).json({ error: 'No ready resumes found' });
+      res.status(404).json({
+        error: failures.length ? `No resumes could be downloaded: ${failures.map((failure) => failure.message).join('; ')}` : 'No ready resumes found',
+      });
       return;
     }
 
     const nameCounts = new Map();
-    const zip = buildZip(files.map((file) => ({ name: uniqueZipName(file.filename, nameCounts), data: file.data })));
+    const zipFiles = files.map((file) => ({ name: uniqueZipName(file.filename, nameCounts), data: file.data }));
+    if (failures.length) {
+      zipFiles.push({
+        name: 'download-errors.txt',
+        data: Buffer.from(
+          [
+            'Some resumes could not be included in this download.',
+            '',
+            ...failures.map((failure) => `Resume ${failure.id}: ${failure.message}`),
+            '',
+          ].join('\n'),
+        ),
+      });
+    }
+    const zip = buildZip(zipFiles);
     res.setHeader('content-type', 'application/zip');
     res.setHeader('content-disposition', 'attachment; filename="tailored-resumes.zip"');
+    res.setHeader('content-length', String(zip.length));
     res.send(zip);
   } catch (error) {
     handleInputError(error, res, next);
@@ -461,7 +484,7 @@ async function readyTailoredResumeForUser(req, id) {
 async function fetchTailoredResumeFile(tailoredResume) {
   const filePath = String(tailoredResume.filePath);
 
-  const s3Details = getS3Details(filePath);
+  const s3Details = getExplicitS3Details(filePath);
   if (s3Details) {
     return fetchTailoredResumeFromS3(s3Details.bucket, s3Details.key, tailoredResume);
   }
@@ -470,28 +493,35 @@ async function fetchTailoredResumeFile(tailoredResume) {
     return fetchTailoredResumeFromHttp(filePath, tailoredResume);
   }
 
-  return fetchTailoredResumeFromTailorService(tailoredResume);
-}
-
-function getS3Details(filePath) {
-  if (!filePath) return null;
-
-  if (filePath.startsWith('s3://')) {
+  const configuredS3Details = getConfiguredS3Details(filePath);
+  if (configuredS3Details) {
     try {
-      const url = new URL(filePath);
-      const bucket = url.hostname;
-      const key = url.pathname.replace(/^\//, '');
-      return bucket && key ? { bucket, key } : null;
-    } catch {
-      return null;
+      return await fetchTailoredResumeFromS3(configuredS3Details.bucket, configuredS3Details.key, tailoredResume);
+    } catch (error) {
+      if (!isMissingStorageObjectError(error)) throw error;
     }
   }
 
-  if (ENV.AWS_S3_BUCKET) {
-    return { bucket: ENV.AWS_S3_BUCKET, key: filePath.replace(/^\//, '') };
-  }
+  return fetchTailoredResumeFromTailorService(tailoredResume);
+}
 
-  return null;
+function getExplicitS3Details(filePath) {
+  if (!filePath) return null;
+  if (!filePath.startsWith('s3://')) return null;
+
+  try {
+    const url = new URL(filePath);
+    const bucket = url.hostname;
+    const key = url.pathname.replace(/^\//, '');
+    return bucket && key ? { bucket, key } : null;
+  } catch {
+    return null;
+  }
+}
+
+function getConfiguredS3Details(filePath) {
+  if (!filePath || !ENV.AWS_S3_BUCKET) return null;
+  return { bucket: ENV.AWS_S3_BUCKET, key: filePath.replace(/^\//, '') };
 }
 
 function isHttpUrl(value) {
@@ -505,7 +535,13 @@ function isHttpUrl(value) {
 }
 
 async function fetchTailoredResumeFromS3(bucket, key, tailoredResume) {
-  const response = await getS3Client().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  let response;
+  try {
+    response = await getS3Client().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  } catch (error) {
+    if (isMissingStorageObjectError(error)) throw new NotFoundError('Resume file not found');
+    throw error;
+  }
   const body = response.Body;
   if (!body) {
     throw new NotFoundError('Resume file not found');
@@ -517,6 +553,15 @@ async function fetchTailoredResumeFromS3(bucket, key, tailoredResume) {
     contentType: response.ContentType || 'application/pdf',
     data,
   };
+}
+
+function isMissingStorageObjectError(error) {
+  return (
+    error instanceof NotFoundError ||
+    error?.name === 'NoSuchKey' ||
+    error?.name === 'NotFound' ||
+    error?.$metadata?.httpStatusCode === 404
+  );
 }
 
 async function fetchTailoredResumeFromHttp(path, tailoredResume) {
