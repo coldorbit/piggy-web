@@ -45,10 +45,9 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
 }
 
 async function runTailoredResumeFilePathBackfill() {
+  console.log('Running tailored resume file_path backfill.');
   const updatedCount = await backfillTailoredResumeFilePaths();
-  if (updatedCount > 0) {
-    console.log(`Backfilled file_path for ${updatedCount} tailored resume record${updatedCount === 1 ? '' : 's'}.`);
-  }
+  console.log(`Tailored resume file_path backfill completed; updated ${updatedCount} record${updatedCount === 1 ? '' : 's'}.`);
 }
 
 async function ensureProfileShareIndexes() {

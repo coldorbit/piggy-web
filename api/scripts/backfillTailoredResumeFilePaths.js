@@ -5,9 +5,11 @@ import { getSequelize } from '../db/connection.js';
 const tailoredResumeId = parseTailoredResumeId(process.argv[2]);
 
 try {
+  const scope = tailoredResumeId ? ` for tailored resume ${tailoredResumeId}` : '';
+  console.log(`Running tailored resume file_path backfill${scope}.`);
   await ensureWebModels({ runBackfills: false });
   const updatedCount = await backfillTailoredResumeFilePaths({ tailoredResumeId });
-  console.log(`Backfilled file_path for ${updatedCount} tailored resume record${updatedCount === 1 ? '' : 's'}.`);
+  console.log(`Tailored resume file_path backfill completed; updated ${updatedCount} record${updatedCount === 1 ? '' : 's'}.`);
   await getSequelize().close();
 } catch (error) {
   console.error('Failed to backfill tailored resume file paths:', error);
