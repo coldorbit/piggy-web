@@ -64,6 +64,7 @@ export default function BidJobCard({
   isTailoring,
   job,
   statusDefault,
+  showBidStatusChip = true,
   showStatusControl = true,
   showAppliedAction = false,
   showTailorAction = false,
@@ -166,15 +167,17 @@ export default function BidJobCard({
               size="small"
               sx={{ bgcolor: '#f7ead1', color: '#70400d', fontWeight: 700 }}
             />
-            <Chip
-              label={bidChipLabel}
-              size="small"
-              sx={
-                job.bid || draft.status !== 'planned'
-                  ? { bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }
-                  : { bgcolor: '#e7ecf0', color: '#303942', fontWeight: 700 }
-              }
-            />
+            {showBidStatusChip ? (
+              <Chip
+                label={bidChipLabel}
+                size="small"
+                sx={
+                  job.bid || draft.status !== 'planned'
+                    ? { bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }
+                    : { bgcolor: '#e7ecf0', color: '#303942', fontWeight: 700 }
+                }
+              />
+            ) : null}
             {tailoredStatus ? (
               <Chip
                 label={tailoredStatusLabel(tailoredStatus)}

@@ -131,6 +131,7 @@ export default function BidJobsPanel({
               onStatusChange={onStatusChange}
               onHiddenChange={onHiddenChange}
               onTailorResume={onTailorResume}
+              showBidStatusChip={activeTab !== BID_TABS.tailored}
               showStatusControl={activeTab === BID_TABS.done}
               showAppliedAction={activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready'}
               showTailorAction={activeTab === BID_TABS.todo || job.tailoredResume?.status === 'dead_letter'}
