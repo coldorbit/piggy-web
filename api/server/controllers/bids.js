@@ -86,6 +86,25 @@ export async function listProfileShareRequests(req, res, next) {
   }
 }
 
+export async function listProfileShareRecipients(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const users = await repositories.listUsers();
+    res.json({
+      users: users
+        .filter((row) => String(row.id) !== String(user.id))
+        .map((row) => ({
+          id: row.id,
+          username: row.username,
+          role: row.role,
+        })),
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 export async function shareProfile(req, res, next) {
   try {
     await ensureWebModels();

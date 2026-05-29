@@ -98,6 +98,13 @@ export function useProfileShareRequests() {
   });
 }
 
+export function useProfileShareRecipients() {
+  return useQuery({
+    queryKey: ['bid', 'profile-share-recipients'],
+    queryFn: () => api('/api/bid/profile-share-recipients').then((data) => data.users),
+  });
+}
+
 export function useBidJobs(profileId, filters = {}) {
   const params = new URLSearchParams({ ...filters, profileId: String(profileId || ''), limit: String(filters.limit || 10) });
   return useQuery({

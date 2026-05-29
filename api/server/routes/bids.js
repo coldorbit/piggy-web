@@ -8,6 +8,7 @@ import {
   downloadTailoredResumesZip,
   listBidJobs,
   listProfileShareRequests,
+  listProfileShareRecipients,
   listProfiles,
   respondToProfileShare,
   shareProfile,
@@ -20,6 +21,7 @@ import { subscribeTailoredResumeEvents } from '../services/tailoringQueue.js';
 export function registerBidRoutes(app) {
   app.get('/api/bid/profiles', requireAuth, listProfiles);
   app.get('/api/bid/profile-shares', requireAuth, listProfileShareRequests);
+  app.get('/api/bid/profile-share-recipients', requireAuth, listProfileShareRecipients);
   app.post('/api/bid/profiles', requireAuth, createProfile);
   app.patch('/api/bid/profiles/:id', requireAuth, updateProfile);
   app.patch('/api/bid/profiles/:id/status', requireAuth, updateProfileStatus);

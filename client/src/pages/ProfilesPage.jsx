@@ -10,6 +10,10 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Typography,
@@ -21,6 +25,7 @@ import {
   useBidProfiles,
   useCreateBidProfile,
   useDeleteBidProfile,
+  useProfileShareRecipients,
   useProfileShareRequests,
   useRespondToProfileShare,
   useShareBidProfile,
@@ -42,6 +47,7 @@ export default function ProfilesPage({ currentUser }) {
     currentUser?.role === 'admin' ? { scope: 'manage' } : {},
   );
   const { data: shareRequests = {}, error: sharesError } = useProfileShareRequests();
+  const { data: shareRecipients = [], isLoading: recipientsLoading, error: recipientsError } = useProfileShareRecipients();
   const { mutate: createProfile, isPending: creating } = useCreateBidProfile();
   const { mutate: updateProfile, isPending: updating } = useUpdateBidProfile();
   const { mutate: deleteProfile, isPending: deleting } = useDeleteBidProfile();
@@ -146,7 +152,7 @@ export default function ProfilesPage({ currentUser }) {
 
   function submitShare(event) {
     event.preventDefault();
-    if (!sharingProfile) return;
+    if (!sharingProfile || !shareUsername) return;
     setError('');
     shareProfile(
       { profileId: sharingProfile.id, username: shareUsername },
@@ -168,7 +174,10 @@ export default function ProfilesPage({ currentUser }) {
   }
 
   const incomingShares = shareRequests.incoming || [];
-  const pageError = error || loadError?.message || sharesError?.message || '';
+  const shareRecipientOptions = shareRecipients.filter(
+    (user) => String(user.id) !== String(currentUser?.id) && String(user.id) !== String(sharingProfile?.userId),
+  );
+  const pageError = error || loadError?.message || sharesError?.message || recipientsError?.message || '';
   const canManageProfiles = !['bidder', 'readonly_bidder', 'editable_bidder'].includes(currentUser?.role);
   const canUpdateProfileStatus = ['admin', 'user'].includes(currentUser?.role);
   const canRestoreProfiles = currentUser?.role === 'admin';
@@ -278,21 +287,35 @@ export default function ProfilesPage({ currentUser }) {
         <form onSubmit={submitShare}>
           <DialogTitle>Share profile</DialogTitle>
           <DialogContent sx={{ pt: 1 }}>
-            <TextField
-              autoFocus
-              fullWidth
-              label="User email"
-              value={shareUsername}
-              onChange={(event) => setShareUsername(event.target.value)}
-              required
-            />
+            <FormControl fullWidth required>
+              <InputLabel>User email</InputLabel>
+              <Select
+                autoFocus
+                label="User email"
+                value={shareUsername}
+                onChange={(event) => setShareUsername(event.target.value)}
+                disabled={recipientsLoading || !shareRecipientOptions.length}
+              >
+                {shareRecipientOptions.map((user) => (
+                  <MenuItem key={user.id} value={user.username}>
+                    {user.username}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {sharingProfile ? `Sharing ${sharingProfile.name}` : ''}
+              {shareRecipientOptions.length
+                ? sharingProfile
+                  ? `Sharing ${sharingProfile.name}`
+                  : ''
+                : recipientsLoading
+                  ? 'Loading users...'
+                  : 'No other users are available to share with.'}
             </Typography>
           </DialogContent>
           <DialogActions>
             <Button onClick={closeShareDialog}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={sharing}>
+            <Button type="submit" variant="contained" disabled={sharing || !shareUsername}>
               Share
             </Button>
           </DialogActions>
