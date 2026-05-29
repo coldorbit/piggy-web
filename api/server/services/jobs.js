@@ -154,15 +154,14 @@ function companyLogoUrl(rawJob) {
     rawJob.company_logo,
     rawJob.employerLogoUrl,
     rawJob.employer_logo_url,
-    rawJob.logoUrl,
-    rawJob.logo_url,
-    rawJob.logo,
-    rawJob.imageUrl,
-    rawJob.image_url,
-    rawJob.image,
-    rawJob.thumbnailUrl,
-    rawJob.thumbnail_url,
-    rawJob.thumbnail,
+    rawJob.organizationLogoUrl,
+    rawJob.organization_logo_url,
+    rawJob.organizationLogo,
+    rawJob.organization_logo,
+    rawJob.hiringOrganizationLogoUrl,
+    rawJob.hiring_organization_logo_url,
+    rawJob.hiringOrganizationLogo,
+    rawJob.hiring_organization_logo,
     rawJob.company?.logoUrl,
     rawJob.company?.logo_url,
     rawJob.company?.logo,
@@ -195,7 +194,7 @@ function nestedCompanyLogoUrl(value, depth = 0) {
   }
 
   for (const [key, item] of Object.entries(value)) {
-    if (/^(company|employer|organization|hiringorganization)?.*logo(url)?$/i.test(key)) {
+    if (/^(company|employer|organization|hiringorganization|hiring_organization).*logo(url)?$/i.test(key)) {
       const url = imageUrlFromValue(item);
       if (url) return url;
     }

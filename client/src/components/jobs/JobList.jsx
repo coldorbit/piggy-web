@@ -1,9 +1,35 @@
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { Avatar, Box, ButtonBase, CircularProgress, IconButton, List, ListItem, Paper, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, ButtonBase, Chip, CircularProgress, IconButton, List, ListItem, Paper, Tooltip, Typography } from '@mui/material';
 import Pagination from './Pagination.jsx';
 import SpamBadge from './SpamBadge.jsx';
 import { formatDate } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
+
+const SOURCE_CHIP_STYLES = {
+  builtin: { bgcolor: '#e8f2ff', color: '#174379' },
+  'built in': { bgcolor: '#e8f2ff', color: '#174379' },
+  diversityjobs: { bgcolor: '#fde9e5', color: '#8a2f1d' },
+  hiringcafe: { bgcolor: '#fff1d6', color: '#70400d' },
+  jobright: { bgcolor: '#e6f4ee', color: '#14583f' },
+  linkedin: { bgcolor: '#e5f1fb', color: '#075b8f' },
+  remotehunter: { bgcolor: '#edf0ff', color: '#343f91' },
+  remoteyeah: { bgcolor: '#e2f6f5', color: '#17615e' },
+  simplify: { bgcolor: '#f1eafb', color: '#4f357e' },
+};
+
+const SOURCE_CHIP_FALLBACK = { bgcolor: '#f3f5f7', color: '#303942' };
+
+const SOURCE_DOMAINS = {
+  builtin: 'builtin.com',
+  'built in': 'builtin.com',
+  diversityjobs: 'diversityjobs.com',
+  hiringcafe: 'hiring.cafe',
+  jobright: 'jobright.ai',
+  linkedin: 'linkedin.com',
+  remotehunter: 'remotehunter.io',
+  remoteyeah: 'remoteyeah.com',
+  simplify: 'simplify.jobs',
+};
 
 export default function JobList({ filters, jobs, loading, selectedJob, total, onPage, onPageSize, onSelectJob }) {
   return (
@@ -99,9 +125,12 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                       </Tooltip>
                       <SpamBadge job={job} />
                     </Box>
-                    <Typography color="text.secondary" variant="caption" fontWeight={700} noWrap>
-                      {[job.source, formatDate(job.postedAt || job.scrapedAt)].filter(Boolean).join(' · ')}
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                      {job.source ? <SourceBadge source={job.source} sourceUrl={job.sourceUrl} /> : null}
+                      <Typography color="text.secondary" variant="caption" fontWeight={700} noWrap>
+                        {formatDate(job.postedAt || job.scrapedAt)}
+                      </Typography>
+                    </Box>
                   </Box>
                 </Box>
               </ButtonBase>
@@ -112,6 +141,59 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       <Pagination filters={filters} total={total} onPage={onPage} onPageSize={onPageSize} />
     </Paper>
   );
+}
+
+function SourceBadge({ source, sourceUrl }) {
+  const logoUrl = sourceLogoUrl(source, sourceUrl);
+
+  return (
+    <Chip
+      avatar={<Avatar alt={`${source} logo`} src={logoUrl}>{sourceInitial(source)}</Avatar>}
+      label={source}
+      size="small"
+      sx={{
+        ...(SOURCE_CHIP_STYLES[String(source).toLowerCase()] || SOURCE_CHIP_FALLBACK),
+        height: 20,
+        maxWidth: 112,
+        fontSize: 11,
+        fontWeight: 800,
+        '& .MuiChip-label': {
+          px: 0.75,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
+        '& .MuiChip-avatar': {
+          width: 16,
+          height: 16,
+          ml: 0.55,
+          mr: -0.35,
+          bgcolor: 'background.paper',
+          color: 'inherit',
+          fontSize: 9,
+          fontWeight: 900,
+        },
+      }}
+    />
+  );
+}
+
+function sourceLogoUrl(source, sourceUrl) {
+  const domain = domainFromUrl(sourceUrl) || SOURCE_DOMAINS[String(source).toLowerCase()];
+  if (!domain) return '';
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
+}
+
+function domainFromUrl(value) {
+  if (!value) return '';
+  try {
+    return new URL(value).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function sourceInitial(source) {
+  return String(source || '?').trim().charAt(0).toUpperCase();
 }
 
 function CompanyLogo({ job }) {

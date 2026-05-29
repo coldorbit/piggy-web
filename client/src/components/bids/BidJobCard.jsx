@@ -6,6 +6,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import {
   Box,
+  Avatar,
   Button,
   Card,
   CardActions,
@@ -43,6 +44,18 @@ const SOURCE_CHIP_FALLBACKS = [
   { bgcolor: '#e7ecf0', color: '#52606d' },
   { bgcolor: '#f7ead1', color: '#70400d' },
 ];
+
+const SOURCE_DOMAINS = {
+  builtin: 'builtin.com',
+  'built in': 'builtin.com',
+  diversityjobs: 'diversityjobs.com',
+  hiringcafe: 'hiring.cafe',
+  jobright: 'jobright.ai',
+  linkedin: 'linkedin.com',
+  remotehunter: 'remotehunter.io',
+  remoteyeah: 'remoteyeah.com',
+  simplify: 'simplify.jobs',
+};
 
 export default function BidJobCard({
   accent,
@@ -147,7 +160,7 @@ export default function BidJobCard({
               minWidth: 0,
             }}
           >
-            <Chip label={job.source} size="small" sx={sourceChipSx} />
+            <SourceChip source={job.source} sourceUrl={job.sourceUrl} sx={sourceChipSx} />
             <Chip
               label={formatDate(job.postedAt || job.scrapedAt)}
               size="small"
@@ -295,6 +308,34 @@ function tailoredStatusSx(status) {
   return { bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 };
 }
 
+function SourceChip({ source, sourceUrl, sx }) {
+  return (
+    <Chip
+      avatar={<Avatar alt={`${source} logo`} src={sourceLogoUrl(source, sourceUrl)}>{sourceInitial(source)}</Avatar>}
+      label={source}
+      size="small"
+      sx={{
+        ...sx,
+        maxWidth: 132,
+        '& .MuiChip-label': {
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
+        '& .MuiChip-avatar': {
+          width: 18,
+          height: 18,
+          ml: 0.6,
+          mr: -0.35,
+          bgcolor: 'background.paper',
+          color: 'inherit',
+          fontSize: 10,
+          fontWeight: 900,
+        },
+      }}
+    />
+  );
+}
+
 function sourceChipStyles(source) {
   const sourceKey = String(source || '').trim().toLowerCase();
   const fallbackIndex = [...sourceKey].reduce((sum, char) => sum + char.charCodeAt(0), 0) % SOURCE_CHIP_FALLBACKS.length;
@@ -303,4 +344,23 @@ function sourceChipStyles(source) {
     ...(SOURCE_CHIP_STYLES[sourceKey] || SOURCE_CHIP_FALLBACKS[fallbackIndex]),
     fontWeight: 800,
   };
+}
+
+function sourceLogoUrl(source, sourceUrl) {
+  const domain = domainFromUrl(sourceUrl) || SOURCE_DOMAINS[String(source || '').toLowerCase()];
+  if (!domain) return '';
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
+}
+
+function domainFromUrl(value) {
+  if (!value) return '';
+  try {
+    return new URL(value).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function sourceInitial(source) {
+  return String(source || '?').trim().charAt(0).toUpperCase();
 }
