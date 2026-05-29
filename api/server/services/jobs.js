@@ -14,6 +14,14 @@ const JOB_CSV_COLUMNS = {
   listingText: ['listingtext', 'listing_text', 'listing text', 'description', 'job_description', 'job description'],
 };
 const VALID_JOB_CATEGORIES = new Set(['software', 'data', 'ai_ml']);
+const JUNIOR_LEVEL_TITLE_PATTERN = [
+  '\\mjunior\\M',
+  '\\mjr\\M\\.?',
+  '\\mentry[-[:space:]]level\\M',
+  '\\mnew[-[:space:]]grad(uate)?\\M',
+  '\\mintern(ship)?\\M',
+  '\\mapprentice\\M',
+].join('|');
 
 export function buildJobQuery(query) {
   const where = {};
@@ -30,6 +38,7 @@ export function buildJobQuery(query) {
 
   if (source && source !== 'all') where.source = source;
   applyRoleFamilyFilter(where, roleFamily);
+  applyExperienceLevelFilter(where);
   if (spam === 'spam') where.isSpam = true;
   if (spam === 'not_spam') where.isSpam = false;
   if (spam === 'unreviewed') where.isSpam = { [Op.is]: null };
@@ -58,6 +67,12 @@ export function buildJobQuery(query) {
 
 function applyRoleFamilyFilter(where, roleFamily) {
   if (['software', 'data', 'ai_ml'].includes(roleFamily)) where.category = roleFamily;
+}
+
+function applyExperienceLevelFilter(where) {
+  appendAndCondition(where, {
+    [Op.or]: [{ title: { [Op.is]: null } }, { title: { [Op.notIRegexp]: JUNIOR_LEVEL_TITLE_PATTERN } }],
+  });
 }
 
 function applyVisibilityFilter(where, visibility) {

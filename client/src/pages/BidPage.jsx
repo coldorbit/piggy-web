@@ -42,7 +42,6 @@ export default function BidPage() {
   const { data: metaData, isLoading: metaLoading, error: metaError, refetch: refetchMeta } = useJobsMeta();
   const {
     data: bidJobsData,
-    isFetching: jobsFetching,
     isLoading: jobsLoading,
     error: jobsError,
     refetch: refetchJobs,
@@ -120,7 +119,7 @@ export default function BidPage() {
     if (!activeProfile) return;
     const bidData = { ...draftFor(job), ...(bidDataOverride || {}), profileId: activeProfile.id };
     const mutation = job.bid ? updateBid : createBid;
-    const payload = job.bid ? { bidId: job.bid.id, bidData } : { jobId: job.id, bidData };
+    const payload = job.bid ? { bidId: job.bid.id, jobId: job.id, bidData } : { jobId: job.id, bidData };
 
     setError('');
     mutation(payload, {
@@ -164,7 +163,7 @@ export default function BidPage() {
   const visibleJobs = jobs.filter((job) => isJobVisibleForTab(job, activeBidTab, draftFor(job)));
   const total = bidJobsData?.total || 0;
   const pageError = error || profilesError?.message || jobsError?.message || metaError?.message || '';
-  const loading = profilesLoading || jobsLoading || jobsFetching || metaLoading;
+  const loading = profilesLoading || jobsLoading || metaLoading;
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>

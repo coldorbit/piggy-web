@@ -300,6 +300,126 @@ function matchesVisibility(job, visibility = 'visible') {
   return job.isHidden !== true;
 }
 
+function restoreQueries(queryClient, queryEntries = []) {
+  queryEntries.forEach(([queryKey, data]) => {
+    queryClient.setQueryData(queryKey, data);
+  });
+}
+
+function updateCachedBidQueries(queryClient, jobId, updates) {
+  const queryEntries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
+  const cachedJob = findCachedJob(queryEntries, jobId);
+  const tabDelta = bidTabDelta(cachedJob, cachedJob ? optimisticBidJob(cachedJob, updates) : null);
+
+  queryEntries.forEach(([queryKey, data]) => {
+    queryClient.setQueryData(queryKey, updateCachedBidJob(data, queryFiltersFromKey(queryKey), jobId, updates, cachedJob, tabDelta));
+  });
+}
+
+function updateCachedBidJob(oldData, filters, jobId, updates, cachedJob, tabDelta) {
+  if (!oldData?.jobs || !jobId) return oldData;
+
+  let countDelta = 0;
+  let found = false;
+  const jobs = oldData.jobs
+    .map((job) => {
+      if (String(job.id) !== String(jobId)) return job;
+      found = true;
+
+      const nextJob = optimisticBidJob(job, updates);
+      const nextTab = bidTabForJob(nextJob);
+      if (nextTab !== filters.bidTab) countDelta -= 1;
+      return nextJob;
+    })
+    .filter((job) => bidTabForJob(job) === filters.bidTab);
+
+  if (!found && cachedJob) {
+    const nextJob = optimisticBidJob(cachedJob, updates);
+    if (bidTabForJob(nextJob) === filters.bidTab) {
+      countDelta += 1;
+      if (Number(filters.page || 1) === 1) jobs.unshift(nextJob);
+    }
+  }
+
+  return {
+    ...oldData,
+    jobs,
+    total: typeof oldData.total === 'number' ? Math.max(oldData.total + countDelta, 0) : oldData.total,
+    tabCounts: updateBidTabCounts(oldData.tabCounts, tabDelta),
+  };
+}
+
+function bidTabDelta(previousJob, nextJob) {
+  const delta = { todo: 0, tailored: 0, done: 0 };
+  if (!previousJob || !nextJob) return delta;
+
+  const previousTab = bidTabForJob(previousJob);
+  const nextTab = bidTabForJob(nextJob);
+  if (previousTab !== nextTab) {
+    delta[previousTab] -= 1;
+    delta[nextTab] += 1;
+  }
+  return delta;
+}
+
+function optimisticBidJob(job, updates) {
+  return {
+    ...job,
+    ...(updates || {}),
+    bid: updates?.bid ? { ...(job.bid || {}), ...updates.bid } : job.bid,
+    tailoredResume: updates?.tailoredResume
+      ? { ...(job.tailoredResume || {}), ...updates.tailoredResume }
+      : job.tailoredResume,
+  };
+}
+
+function bidTabForJob(job) {
+  const status = job?.bid?.status || 'planned';
+  if (['submitted', 'interviewing', 'won', 'lost'].includes(status)) return 'done';
+  if (['requested', 'processing', 'ready', 'dead_letter'].includes(job?.tailoredResume?.status)) return 'tailored';
+  return 'todo';
+}
+
+function updateBidTabCounts(tabCounts, tabDelta) {
+  if (!tabCounts) return tabCounts;
+  return Object.fromEntries(
+    Object.entries(tabCounts).map(([tab, count]) => [tab, Math.max(Number(count || 0) + Number(tabDelta[tab] || 0), 0)]),
+  );
+}
+
+function optimisticBid({ id, jobId, bidData }) {
+  const now = new Date().toISOString();
+  return {
+    id: id || `optimistic-${jobId}`,
+    profileId: bidData?.profileId,
+    jobId,
+    status: bidData?.status || 'planned',
+    bidAmount: bidData?.bidAmount || null,
+    coverLetter: bidData?.coverLetter || null,
+    notes: bidData?.notes || null,
+    bidAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function optimisticTailoredResume({ jobId, profileId }) {
+  const now = new Date().toISOString();
+  return {
+    id: `optimistic-${jobId}`,
+    profileId,
+    status: 'requested',
+    filePath: null,
+    readyAt: null,
+    attempts: 0,
+    maxAttempts: 3,
+    lastError: null,
+    deadLetterAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -435,7 +555,19 @@ export function useCreateJobBid() {
         method: 'POST',
         body: JSON.stringify(bidData),
       }).then((data) => data.bid),
-    onSuccess: () => {
+    onMutate: async ({ jobId, bidData }) => {
+      await queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] });
+      const previousBidJobsQueries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
+      updateCachedBidQueries(queryClient, jobId, {
+        bid: optimisticBid({ jobId, bidData }),
+      });
+      return { previousBidJobsQueries };
+    },
+    onError: (_error, _variables, context) => {
+      restoreQueries(queryClient, context?.previousBidJobsQueries);
+    },
+    onSuccess: (bid, { jobId }) => {
+      updateCachedBidQueries(queryClient, jobId, { bid });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
     },
   });
@@ -449,7 +581,19 @@ export function useUpdateJobBid() {
         method: 'PATCH',
         body: JSON.stringify(bidData),
       }).then((data) => data.bid),
-    onSuccess: () => {
+    onMutate: async ({ jobId, bidId, bidData }) => {
+      await queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] });
+      const previousBidJobsQueries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
+      updateCachedBidQueries(queryClient, jobId, {
+        bid: optimisticBid({ id: bidId, jobId, bidData }),
+      });
+      return { previousBidJobsQueries };
+    },
+    onError: (_error, _variables, context) => {
+      restoreQueries(queryClient, context?.previousBidJobsQueries);
+    },
+    onSuccess: (bid, { jobId }) => {
+      updateCachedBidQueries(queryClient, jobId, { bid });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
     },
   });
@@ -463,7 +607,19 @@ export function useRequestTailoredResume() {
         method: 'POST',
         body: JSON.stringify({ profileId }),
       }).then((data) => data.tailoredResume),
-    onSuccess: () => {
+    onMutate: async ({ jobId, profileId }) => {
+      await queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] });
+      const previousBidJobsQueries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
+      updateCachedBidQueries(queryClient, jobId, {
+        tailoredResume: optimisticTailoredResume({ jobId, profileId }),
+      });
+      return { previousBidJobsQueries };
+    },
+    onError: (_error, _variables, context) => {
+      restoreQueries(queryClient, context?.previousBidJobsQueries);
+    },
+    onSuccess: (tailoredResume, { jobId }) => {
+      updateCachedBidQueries(queryClient, jobId, { tailoredResume });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
     },
   });

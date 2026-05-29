@@ -11,6 +11,7 @@ import {
   CardActions,
   CardContent,
   Chip,
+  CircularProgress,
   FormControl,
   IconButton,
   InputLabel,
@@ -203,7 +204,7 @@ export default function BidJobCard({
                 variant="contained"
                 sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
               >
-                Applied
+                Mark as applied
               </Button>
             ) : null}
             {downloadUrl ? (
@@ -247,7 +248,7 @@ export default function BidJobCard({
                 disabled={isTailoring || hasTailoringRequest}
                 onClick={() => onTailorResume(job)}
                 size="small"
-                startIcon={<AutoAwesomeIcon />}
+                startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
                 variant="outlined"
                 sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
               >
