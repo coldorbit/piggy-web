@@ -11,6 +11,7 @@ import {
 } from './models/index.js';
 import {
   backfillTailoredResumeFilePaths,
+  ensureTailoredResumeFilePathNormalizer,
   selectTailoredResumeFilePathRows,
 } from './backfills/tailoredResumeFilePaths.js';
 import { addMissingColumns, removeExistingColumns } from './utils.js';
@@ -49,6 +50,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
 
 async function runTailoredResumeFilePathBackfill() {
   console.log('Running tailored resume file_path backfill.');
+  await ensureTailoredResumeFilePathNormalizer();
   console.log(
     'tailored_resumes rows before file_path backfill:',
     JSON.stringify(await selectTailoredResumeFilePathRows(), null, 2),

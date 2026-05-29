@@ -1,5 +1,6 @@
 import {
   backfillTailoredResumeFilePaths,
+  ensureTailoredResumeFilePathNormalizer,
   selectTailoredResumeFilePathRows,
 } from '../db/backfills/tailoredResumeFilePaths.js';
 import { ensureWebModels } from '../db/schema.js';
@@ -11,6 +12,7 @@ try {
   const scope = tailoredResumeId ? ` for tailored resume ${tailoredResumeId}` : '';
   console.log(`Running tailored resume file_path backfill${scope}.`);
   await ensureWebModels({ runBackfills: false });
+  await ensureTailoredResumeFilePathNormalizer();
   console.log(
     'tailored_resumes rows before file_path backfill:',
     JSON.stringify(await selectTailoredResumeFilePathRows({ tailoredResumeId }), null, 2),

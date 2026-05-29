@@ -38,10 +38,27 @@ export async function selectTailoredResumeFilePathRows({ tailoredResumeId = null
 export async function backfillTailoredResumeFilePaths({ tailoredResumeId = null } = {}) {
   const rows = await getSequelize().query(
     `
-    WITH candidate_updates AS (
+    WITH existing_normalizations AS (
+      SELECT
+        id,
+        normalize_tailored_resume_file_path(file_path) AS file_path
+      FROM tailored_resumes
+      WHERE NULLIF(BTRIM(file_path), '') IS NOT NULL
+        AND normalize_tailored_resume_file_path(file_path) <> file_path
+        AND (CAST(:tailoredResumeId AS bigint) IS NULL OR id = CAST(:tailoredResumeId AS bigint))
+    ),
+    normalized AS (
+      UPDATE tailored_resumes target
+      SET file_path = existing_normalizations.file_path,
+          updated_at = now()
+      FROM existing_normalizations
+      WHERE target.id = existing_normalizations.id
+      RETURNING target.id
+    ),
+    candidate_updates AS (
       SELECT
         target.id,
-        source.file_path
+        normalize_tailored_resume_file_path(source.file_path) AS file_path
       FROM tailored_resumes target
       CROSS JOIN LATERAL (
         SELECT candidate.file_path
@@ -80,7 +97,11 @@ export async function backfillTailoredResumeFilePaths({ tailoredResumeId = null 
       RETURNING target.id
     )
     SELECT COUNT(*)::int AS "updatedCount"
-    FROM updated
+    FROM (
+      SELECT id FROM normalized
+      UNION ALL
+      SELECT id FROM updated
+    ) changed
     `,
     {
       replacements: { tailoredResumeId },
@@ -89,4 +110,24 @@ export async function backfillTailoredResumeFilePaths({ tailoredResumeId = null 
   );
 
   return rows[0]?.updatedCount || 0;
+}
+
+export async function ensureTailoredResumeFilePathNormalizer() {
+  await getSequelize().query(`
+    CREATE OR REPLACE FUNCTION normalize_tailored_resume_file_path(value text)
+    RETURNS text
+    LANGUAGE sql
+    IMMUTABLE
+    AS $$
+      SELECT CASE
+        WHEN NULLIF(BTRIM(value), '') IS NULL THEN value
+        WHEN value ~ '^s3://[^/]+/.+' THEN regexp_replace(value, '^s3://[^/]+/', '')
+        WHEN value ~ '^https?://[^/]+\\.s3([.-][a-z0-9-]+)?\\.amazonaws\\.com/.+' THEN
+          regexp_replace(value, '^https?://[^/]+\\.s3([.-][a-z0-9-]+)?\\.amazonaws\\.com/', '')
+        WHEN value ~ '^https?://s3([.-][a-z0-9-]+)?\\.amazonaws\\.com/[^/]+/.+' THEN
+          regexp_replace(value, '^https?://s3([.-][a-z0-9-]+)?\\.amazonaws\\.com/[^/]+/', '')
+        ELSE regexp_replace(value, '^/+', '')
+      END
+    $$;
+  `);
 }

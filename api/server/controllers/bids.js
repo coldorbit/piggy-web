@@ -472,6 +472,18 @@ async function readyTailoredResumeForUser(req, id) {
     where: { id, status: 'ready' },
   });
 
+  await logTailoredResumeDownloadRow(id, tailoredResume);
+  console.log(
+    'Loaded tailored_resume for download:',
+    JSON.stringify({
+      id: tailoredResume?.id || id,
+      status: tailoredResume?.status || null,
+      profileId: tailoredResume?.profileId || null,
+      jobUrl: tailoredResume?.jobUrl || null,
+      filePath: tailoredResume?.filePath || null,
+    }),
+  );
+
   if (!tailoredResume || !tailoredResume.filePath) {
     throw new NotFoundError('Ready resume not found');
   }
@@ -480,24 +492,73 @@ async function readyTailoredResumeForUser(req, id) {
   return tailoredResume;
 }
 
+async function logTailoredResumeDownloadRow(id, tailoredResume) {
+  const [rows] = await getSequelize().query(
+    `
+    SELECT to_jsonb(tailored_resumes) AS row
+    FROM tailored_resumes
+    WHERE id = :id
+    LIMIT 1
+    `,
+    { replacements: { id } },
+  );
+
+  console.log(
+    'Raw tailored_resumes row for download:',
+    JSON.stringify({
+      id,
+      sequelizeFilePath: tailoredResume?.filePath || null,
+      row: rows[0]?.row || null,
+    }),
+  );
+}
+
 async function fetchTailoredResumeFile(tailoredResume) {
   const filePath = String(tailoredResume.filePath);
+  const candidates = getTailoredResumeS3Candidates(filePath);
 
-  const s3Details = getExplicitS3Details(filePath);
-  if (s3Details) {
-    return fetchTailoredResumeFromS3(s3Details.bucket, s3Details.key, tailoredResume);
-  }
+  console.log(
+    'Resolved tailored resume S3 candidates:',
+    JSON.stringify({
+      tailoredResumeId: tailoredResume.id,
+      filePath,
+      candidates,
+    }),
+  );
 
-  const configuredS3Details = getConfiguredS3Details(filePath);
-  if (configuredS3Details) {
+  for (const s3Details of candidates) {
     try {
-      return await fetchTailoredResumeFromS3(configuredS3Details.bucket, configuredS3Details.key, tailoredResume);
+      return await fetchTailoredResumeFromS3(s3Details.bucket, s3Details.key, tailoredResume);
     } catch (error) {
       if (!isMissingStorageObjectError(error)) throw error;
+      console.warn(
+        'Tailored resume S3 candidate was not found:',
+        JSON.stringify({
+          tailoredResumeId: tailoredResume.id,
+          bucket: s3Details.bucket,
+          key: s3Details.key,
+        }),
+      );
     }
   }
 
   throw new NotFoundError('Resume file is not stored in S3');
+}
+
+function getTailoredResumeS3Candidates(filePath) {
+  const candidates = [
+    getExplicitS3Details(filePath),
+    getS3UrlDetails(filePath),
+    ...getConfiguredS3Details(filePath),
+  ].filter(Boolean);
+  const seen = new Set();
+
+  return candidates.filter(({ bucket, key }) => {
+    const candidateKey = `${bucket}/${key}`;
+    if (seen.has(candidateKey)) return false;
+    seen.add(candidateKey);
+    return true;
+  });
 }
 
 function getExplicitS3Details(filePath) {
@@ -514,9 +575,33 @@ function getExplicitS3Details(filePath) {
   }
 }
 
+function getS3UrlDetails(filePath) {
+  if (!filePath || !/^https?:\/\//i.test(filePath)) return null;
+
+  try {
+    const url = new URL(filePath);
+    const virtualHostedMatch = url.hostname.match(/^(.+)\.s3(?:[.-][a-z0-9-]+)?\.amazonaws\.com$/i);
+    if (virtualHostedMatch) {
+      const bucket = virtualHostedMatch[1];
+      const key = decodeURIComponent(url.pathname.replace(/^\//, ''));
+      return bucket && key ? { bucket, key } : null;
+    }
+    if (/^s3(?:[.-][a-z0-9-]+)?\.amazonaws\.com$/i.test(url.hostname)) {
+      const [bucket, ...keyParts] = url.pathname.replace(/^\//, '').split('/');
+      const key = decodeURIComponent(keyParts.join('/'));
+      return bucket && key ? { bucket, key } : null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 function getConfiguredS3Details(filePath) {
-  if (!filePath || !ENV.AWS_S3_BUCKET) return null;
-  return { bucket: ENV.AWS_S3_BUCKET, key: filePath.replace(/^\//, '') };
+  if (!filePath || !ENV.AWS_S3_BUCKET) return [];
+  const key = String(filePath).trim().replace(/^\/+/, '');
+  return key ? [{ bucket: ENV.AWS_S3_BUCKET, key }] : [];
 }
 
 async function fetchTailoredResumeFromS3(bucket, key, tailoredResume) {

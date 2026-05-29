@@ -22,6 +22,30 @@ pnpm check
 
 ## Environment
 
+Create `api/.env` for local API-only development:
+
+```bash
+WEB_PORT=4000
+CLIENT_ORIGIN=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000
+
+DATABASE_URL=postgres://user:password@localhost:5432/applypilot
+DATABASE_SSL=false
+DATABASE_SSL_REJECT_UNAUTHORIZED=false
+
+WEB_SESSION_SECRET=change-me
+WEB_USERNAME=admin@example.com
+WEB_PASSWORD=change-me
+
+TAILOR_SERVICE_URL=http://localhost:5000
+
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=your-private-resume-bucket
+TAILORING_QUEUE_URL=
+```
+
+For Docker Compose from the workspace root, put the shared values in the root `.env` instead. The client uses `client/.env` only for browser build-time values such as `VITE_API_BASE_URL`.
+
 - `WEB_PORT`: API port, defaults to `4000` in package scripts.
 - `CLIENT_ORIGIN`: default allowed browser origin.
 - `CORS_ORIGINS`: comma-separated allowed origins. Use `*` only for local throwaway testing.
@@ -34,6 +58,7 @@ pnpm check
 - `WEB_SESSION_SECRET`: session signing secret.
 - `WEB_USERS` or `WEB_USERNAME` / `WEB_PASSWORD`: first-run admin seed users, created only when `web_users` is empty.
 - `TAILOR_SERVICE_URL`: optional resume tailoring service endpoint.
-- `AWS_REGION`: AWS region for SQS, defaults to `us-east-1`.
+- `AWS_REGION`: AWS region for S3 and SQS, defaults to `us-east-1`.
+- `AWS_S3_BUCKET`: private S3 bucket used to download generated tailored resumes. `tailored_resumes.file_path` should contain the object key inside this bucket, not a public URL.
 - `AWS_SQS_ENDPOINT`: optional SQS-compatible endpoint, such as LocalStack.
 - `TAILORING_QUEUE_URL`: SQS queue URL for tailored resume generation requests.
