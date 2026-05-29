@@ -1,16 +1,12 @@
 # AWS GitHub Actions Deployment
 
-This repository deploys with two independent workflows:
+This repository deploys the API with GitHub Actions:
 
 - `.github/workflows/deploy-api.yml`
-- `.github/workflows/deploy-client.yml`
-
-Both workflows run on pushes to `main`, so API and client deployment can run in parallel.
 
 ## AWS Targets
 
 - API: Docker image pushed to GitHub Container Registry, then restarted on an EC2 host.
-- Client: Vite build uploaded to an S3 bucket configured for static website hosting.
 
 ## EC2 API Env File
 
@@ -26,7 +22,7 @@ Required:
 
 - `NODE_ENV=production`
 - `WEB_PORT=4000`
-- `CLIENT_ORIGIN`: public client origin, for example the S3 website endpoint or a custom domain.
+- `CLIENT_ORIGIN`: public client origin.
 - `CORS_ORIGINS`: comma-separated allowed origins.
 - `DATABASE_URL`: production database URL for the API.
 - `WEB_SESSION_SECRET`: production session signing secret.
@@ -41,6 +37,7 @@ Optional:
 - `TAILOR_SERVICE_URL`
 - `AWS_REGION`
 - `AWS_SQS_ENDPOINT`
+- `AWS_S3_BUCKET`
 - `TAILORING_QUEUE_URL`
 
 ## Repository Variables
@@ -53,8 +50,6 @@ Required:
 - `AWS_ROLE_TO_ASSUME`: IAM role ARN for GitHub OIDC.
 - `EC2_HOST`: public DNS or IP for the API EC2 instance.
 - `EC2_USER`: SSH user, such as `ubuntu` or `ec2-user`.
-- `VITE_API_BASE_URL`: public API base URL used in the client build.
-- `CLIENT_S3_BUCKET`: S3 bucket configured for static website hosting.
 
 Optional:
 
@@ -83,14 +78,6 @@ DATABASE_SSL_REJECT_UNAUTHORIZED=false
 
 The RDS security group must allow inbound PostgreSQL `5432` from the API EC2 security group.
 
-## S3 Prerequisites
-
-Configure the client bucket for static website hosting. Use `index.html` as the index document, and for a client-side routed SPA, use `index.html` as the error document too.
-
-The bucket also needs a public-read bucket policy, or another access setup that lets browsers read the uploaded site files directly from S3.
-
 ## IAM Permissions For GitHub Role
 
-The GitHub OIDC role needs permissions for:
-
-- S3 object sync to the client bucket.
+The GitHub OIDC role no longer needs S3 permissions for client deployment. Keep only the permissions needed to run the API deployment workflow.
