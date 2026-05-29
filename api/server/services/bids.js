@@ -2,8 +2,8 @@ import { Op, Sequelize } from 'sequelize';
 import axios from 'axios';
 import { ENV } from '../../env.js';
 import { formatJob } from './jobs.js';
-import { clean } from '../utils/index.js';
 import { InputError } from '../utils/errors.js';
+import { clean } from '../utils/index.js';
 
 export function buildBidTabQuery({ where, tab, profileId, JobBid, sequelize }) {
   const tabWhere = { ...where };
@@ -103,8 +103,8 @@ export async function generateTailoredResumeWithService({ job, profile }) {
       },
     );
     const data = response.data || {};
-    if (!data.s3Key && !data.filename) {
-      throw new InputError('Tailor service did not return an uploaded resume path');
+    if (!data.s3Key) {
+      throw new InputError('Tailor service did not return an S3 resume key');
     }
     return data;
   } catch (error) {

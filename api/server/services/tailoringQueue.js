@@ -166,7 +166,7 @@ async function processTailoredResume(tailoredResume) {
     const tailorResult = await generateTailoredResumeWithService({ job, profile });
     await tailoredResume.update({
       status: 'ready',
-      filePath: tailorResult.s3Key || tailorResult.filename || null,
+      filePath: tailorResult.s3Key,
       readyAt: new Date(),
       lastError: null,
       deadLetterAt: null,

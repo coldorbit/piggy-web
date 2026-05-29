@@ -9,7 +9,6 @@ import {
   getWebUserModel,
   repositories,
 } from '../../db.js';
-import axios from 'axios';
 import { Readable } from 'node:stream';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../env.js';
@@ -489,10 +488,6 @@ async function fetchTailoredResumeFile(tailoredResume) {
     return fetchTailoredResumeFromS3(s3Details.bucket, s3Details.key, tailoredResume);
   }
 
-  if (isHttpUrl(filePath)) {
-    return fetchTailoredResumeFromHttp(filePath, tailoredResume);
-  }
-
   const configuredS3Details = getConfiguredS3Details(filePath);
   if (configuredS3Details) {
     try {
@@ -502,7 +497,7 @@ async function fetchTailoredResumeFile(tailoredResume) {
     }
   }
 
-  return fetchTailoredResumeFromTailorService(tailoredResume);
+  throw new NotFoundError('Resume file is not stored in S3');
 }
 
 function getExplicitS3Details(filePath) {
@@ -522,16 +517,6 @@ function getExplicitS3Details(filePath) {
 function getConfiguredS3Details(filePath) {
   if (!filePath || !ENV.AWS_S3_BUCKET) return null;
   return { bucket: ENV.AWS_S3_BUCKET, key: filePath.replace(/^\//, '') };
-}
-
-function isHttpUrl(value) {
-  if (!value || typeof value !== 'string') return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
 }
 
 async function fetchTailoredResumeFromS3(bucket, key, tailoredResume) {
@@ -564,38 +549,6 @@ function isMissingStorageObjectError(error) {
   );
 }
 
-async function fetchTailoredResumeFromHttp(path, tailoredResume) {
-  const response = await axios.get(path, {
-    responseType: 'arraybuffer',
-    timeout: 60000,
-  });
-  return {
-    filename: filenameFromContentDisposition(response.headers['content-disposition']) || filenameFromPath(tailoredResume.filePath),
-    contentType: response.headers['content-type'] || 'application/pdf',
-    data: Buffer.from(response.data),
-  };
-}
-
-async function fetchTailoredResumeFromTailorService(tailoredResume) {
-  const encodedKey = String(tailoredResume.filePath).split('/').map(encodeURIComponent).join('/');
-  let response;
-  try {
-    response = await axios.get(`${ENV.TAILOR_SERVICE_URL.replace(/\/+$/, '')}/download/${encodedKey}`, {
-      responseType: 'arraybuffer',
-      timeout: 60000,
-    });
-  } catch (error) {
-    if (error.response?.status === 404) throw new NotFoundError('Resume file not found');
-    throw error;
-  }
-
-  return {
-    filename: filenameFromContentDisposition(response.headers['content-disposition']) || filenameFromPath(tailoredResume.filePath),
-    contentType: response.headers['content-type'] || 'application/pdf',
-    data: Buffer.from(response.data),
-  };
-}
-
 async function streamToBuffer(body) {
   if (body instanceof Buffer) return body;
   if (body instanceof Readable) {
@@ -622,11 +575,6 @@ function getS3Client() {
 
 function filenameFromPath(filePath) {
   return sanitizeFilename(String(filePath).split('/').pop() || 'resume.pdf');
-}
-
-function filenameFromContentDisposition(value) {
-  const match = String(value || '').match(/filename="?([^";]+)"?/i);
-  return match ? sanitizeFilename(match[1]) : '';
 }
 
 function sanitizeFilename(value) {
