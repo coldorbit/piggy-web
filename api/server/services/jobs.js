@@ -136,11 +136,96 @@ export function formatJob(row) {
     scrapedAt: row.scrapedAt,
     listingText: row.listingText,
     rawJob: row.rawJob,
+    companyLogoUrl: companyLogoUrl(row.rawJob),
     isSpam: row.isSpam,
     spamReviewedAt: row.spamReviewedAt,
     isHidden: row.isHidden,
     hiddenAt: row.hiddenAt,
   };
+}
+
+function companyLogoUrl(rawJob) {
+  if (!rawJob || typeof rawJob !== 'object') return null;
+
+  const directCandidates = [
+    rawJob.companyLogoUrl,
+    rawJob.company_logo_url,
+    rawJob.companyLogo,
+    rawJob.company_logo,
+    rawJob.employerLogoUrl,
+    rawJob.employer_logo_url,
+    rawJob.logoUrl,
+    rawJob.logo_url,
+    rawJob.logo,
+    rawJob.imageUrl,
+    rawJob.image_url,
+    rawJob.image,
+    rawJob.thumbnailUrl,
+    rawJob.thumbnail_url,
+    rawJob.thumbnail,
+    rawJob.company?.logoUrl,
+    rawJob.company?.logo_url,
+    rawJob.company?.logo,
+    rawJob.employer?.logoUrl,
+    rawJob.employer?.logo_url,
+    rawJob.employer?.logo,
+    rawJob.organization?.logoUrl,
+    rawJob.organization?.logo_url,
+    rawJob.organization?.logo,
+    rawJob.hiringOrganization?.logo,
+  ];
+
+  for (const candidate of directCandidates) {
+    const url = imageUrlFromValue(candidate);
+    if (url) return url;
+  }
+
+  return nestedCompanyLogoUrl(rawJob);
+}
+
+function nestedCompanyLogoUrl(value, depth = 0) {
+  if (!value || typeof value !== 'object' || depth > 3) return null;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const url = nestedCompanyLogoUrl(item, depth + 1);
+      if (url) return url;
+    }
+    return null;
+  }
+
+  for (const [key, item] of Object.entries(value)) {
+    if (/^(company|employer|organization|hiringorganization)?.*logo(url)?$/i.test(key)) {
+      const url = imageUrlFromValue(item);
+      if (url) return url;
+    }
+  }
+
+  for (const item of Object.values(value)) {
+    const url = nestedCompanyLogoUrl(item, depth + 1);
+    if (url) return url;
+  }
+
+  return null;
+}
+
+function imageUrlFromValue(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return validImageUrl(value);
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const url = imageUrlFromValue(item);
+      if (url) return url;
+    }
+  }
+  if (typeof value === 'object') return imageUrlFromValue(value.url || value.src || value.href);
+  return null;
+}
+
+function validImageUrl(value) {
+  const url = clean(value);
+  if (!url) return null;
+  return /^(https?:)?\/\//i.test(url) || /^data:image\//i.test(url) ? url : null;
 }
 
 export function canImportJobs(user) {

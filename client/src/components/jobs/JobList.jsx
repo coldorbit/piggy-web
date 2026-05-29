@@ -1,5 +1,5 @@
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { Box, ButtonBase, CircularProgress, IconButton, List, ListItem, Paper, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, ButtonBase, CircularProgress, IconButton, List, ListItem, Paper, Tooltip, Typography } from '@mui/material';
 import Pagination from './Pagination.jsx';
 import SpamBadge from './SpamBadge.jsx';
 import { formatDate } from '../../lib/formatters.js';
@@ -49,11 +49,12 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                   sx={{
                     width: '100%',
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(0, 1fr) max-content',
+                    gridTemplateColumns: job.companyLogoUrl ? '36px minmax(0, 1fr) max-content' : 'minmax(0, 1fr) max-content',
                     gap: 1,
                     alignItems: 'center',
                   }}
                 >
+                  {job.companyLogoUrl ? <CompanyLogo job={job} /> : null}
                   <Box minWidth={0}>
                     <Typography fontWeight={900} variant="body2" noWrap>
                       {job.title || 'Untitled role'}
@@ -110,6 +111,29 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       </List>
       <Pagination filters={filters} total={total} onPage={onPage} onPageSize={onPageSize} />
     </Paper>
+  );
+}
+
+function CompanyLogo({ job }) {
+  return (
+    <Avatar
+      alt={`${job.company || 'Company'} logo`}
+      src={job.companyLogoUrl}
+      variant="rounded"
+      imgProps={{ referrerPolicy: 'no-referrer', loading: 'lazy' }}
+      sx={{
+        width: 36,
+        height: 36,
+        bgcolor: 'background.default',
+        border: 1,
+        borderColor: 'divider',
+        color: 'text.secondary',
+        fontSize: 13,
+        fontWeight: 900,
+      }}
+    >
+      {(job.company || job.title || '?').trim().charAt(0).toUpperCase()}
+    </Avatar>
   );
 }
 
