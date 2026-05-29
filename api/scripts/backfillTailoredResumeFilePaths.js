@@ -1,4 +1,7 @@
-import { backfillTailoredResumeFilePaths } from '../db/backfills/tailoredResumeFilePaths.js';
+import {
+  backfillTailoredResumeFilePaths,
+  selectTailoredResumeFilePathRows,
+} from '../db/backfills/tailoredResumeFilePaths.js';
 import { ensureWebModels } from '../db/schema.js';
 import { getSequelize } from '../db/connection.js';
 
@@ -8,8 +11,16 @@ try {
   const scope = tailoredResumeId ? ` for tailored resume ${tailoredResumeId}` : '';
   console.log(`Running tailored resume file_path backfill${scope}.`);
   await ensureWebModels({ runBackfills: false });
+  console.log(
+    'tailored_resumes rows before file_path backfill:',
+    JSON.stringify(await selectTailoredResumeFilePathRows({ tailoredResumeId }), null, 2),
+  );
   const updatedCount = await backfillTailoredResumeFilePaths({ tailoredResumeId });
   console.log(`Tailored resume file_path backfill completed; updated ${updatedCount} record${updatedCount === 1 ? '' : 's'}.`);
+  console.log(
+    'tailored_resumes rows after file_path backfill:',
+    JSON.stringify(await selectTailoredResumeFilePathRows({ tailoredResumeId }), null, 2),
+  );
   await getSequelize().close();
 } catch (error) {
   console.error('Failed to backfill tailored resume file paths:', error);

@@ -9,7 +9,10 @@ import {
   getWebUserModel,
   setupWebAssociations,
 } from './models/index.js';
-import { backfillTailoredResumeFilePaths } from './backfills/tailoredResumeFilePaths.js';
+import {
+  backfillTailoredResumeFilePaths,
+  selectTailoredResumeFilePathRows,
+} from './backfills/tailoredResumeFilePaths.js';
 import { addMissingColumns, removeExistingColumns } from './utils.js';
 
 let initializationPromise;
@@ -46,8 +49,16 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
 
 async function runTailoredResumeFilePathBackfill() {
   console.log('Running tailored resume file_path backfill.');
+  console.log(
+    'tailored_resumes rows before file_path backfill:',
+    JSON.stringify(await selectTailoredResumeFilePathRows(), null, 2),
+  );
   const updatedCount = await backfillTailoredResumeFilePaths();
   console.log(`Tailored resume file_path backfill completed; updated ${updatedCount} record${updatedCount === 1 ? '' : 's'}.`);
+  console.log(
+    'tailored_resumes rows after file_path backfill:',
+    JSON.stringify(await selectTailoredResumeFilePathRows(), null, 2),
+  );
 }
 
 async function ensureProfileShareIndexes() {

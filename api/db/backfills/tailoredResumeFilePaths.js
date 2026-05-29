@@ -2,6 +2,39 @@ import { QueryTypes } from 'sequelize';
 
 import { getSequelize } from '../connection.js';
 
+const DEFAULT_SELECT_LIMIT = 25;
+
+export async function selectTailoredResumeFilePathRows({ tailoredResumeId = null, limit = DEFAULT_SELECT_LIMIT } = {}) {
+  return getSequelize().query(
+    `
+    SELECT
+      id,
+      user_id AS "userId",
+      profile_id AS "profileId",
+      job_url AS "jobUrl",
+      status,
+      file_path AS "filePath",
+      ready_at AS "readyAt",
+      updated_at AS "updatedAt"
+    FROM tailored_resumes
+    WHERE (
+        CAST(:tailoredResumeId AS bigint) IS NOT NULL
+        AND id = CAST(:tailoredResumeId AS bigint)
+      )
+      OR (
+        CAST(:tailoredResumeId AS bigint) IS NULL
+        AND NULLIF(BTRIM(file_path), '') IS NULL
+      )
+    ORDER BY updated_at DESC NULLS LAST, id DESC
+    LIMIT :limit
+    `,
+    {
+      replacements: { tailoredResumeId, limit },
+      type: QueryTypes.SELECT,
+    },
+  );
+}
+
 export async function backfillTailoredResumeFilePaths({ tailoredResumeId = null } = {}) {
   const rows = await getSequelize().query(
     `
