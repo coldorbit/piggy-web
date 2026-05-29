@@ -163,7 +163,7 @@ async function processTailoredResume(tailoredResume) {
     if (!job) throw new Error('Job not found for tailoring request');
     if (!profile) throw new Error('Profile not found for tailoring request');
 
-    const tailorResult = await generateTailoredResumeWithService({ job, profile });
+    const tailorResult = await generateTailoredResumeWithService({ job, profile, tailoredResume });
     await tailoredResume.update({
       status: 'ready',
       filePath: tailorResult.s3Key,

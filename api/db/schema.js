@@ -9,6 +9,7 @@ import {
   getWebUserModel,
   setupWebAssociations,
 } from './models/index.js';
+import { backfillTailoredResumeFilePaths } from './backfills/tailoredResumeFilePaths.js';
 import { addMissingColumns, removeExistingColumns } from './utils.js';
 
 let initializationPromise;
@@ -26,6 +27,7 @@ export async function ensureWebModels() {
       await ensureWebUserSessionColumns();
       await ensureBidProfileColumns();
       await ensureTailoredResumeStatusColumns();
+      await runTailoredResumeFilePathBackfill();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
       await ensureSpamReviewColumns();
@@ -40,6 +42,13 @@ export async function ensureWebModels() {
   }
 
   await initializationPromise;
+}
+
+async function runTailoredResumeFilePathBackfill() {
+  const updatedCount = await backfillTailoredResumeFilePaths();
+  if (updatedCount > 0) {
+    console.log(`Backfilled file_path for ${updatedCount} tailored resume record${updatedCount === 1 ? '' : 's'}.`);
+  }
 }
 
 async function ensureProfileShareIndexes() {

@@ -88,7 +88,7 @@ export function formatTailoredResume(row) {
   };
 }
 
-export async function generateTailoredResumeWithService({ job, profile }) {
+export async function generateTailoredResumeWithService({ job, profile, tailoredResume = null }) {
   try {
     const response = await axios.post(
       `${ENV.TAILOR_SERVICE_URL.replace(/\/+$/, '')}/api/generate`,
@@ -96,6 +96,10 @@ export async function generateTailoredResumeWithService({ job, profile }) {
         jobDescription: buildTailorJobDescription(job),
         profileResume: profile.resumeText || '',
         profile: profileForTailorService(profile),
+        tailoredResumeId: tailoredResume?.id,
+        userId: tailoredResume?.userId,
+        profileId: profile.id,
+        jobUrl: job.url,
       },
       {
         headers: { 'content-type': 'application/json' },

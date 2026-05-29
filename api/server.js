@@ -1,5 +1,6 @@
 import express from 'express';
 import http from 'node:http';
+import { ensureWebModels } from './db.js';
 import { ENV } from './env.js';
 import { registerAdminRoutes } from './server/routes/admin.js';
 import { registerAuthRoutes } from './server/routes/auth.js';
@@ -31,7 +32,6 @@ registerAuthRoutes(app);
 registerAdminRoutes(app);
 registerJobRoutes(app);
 registerBidRoutes(app);
-startTailoringQueueWorker();
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
@@ -41,6 +41,9 @@ app.use((error, _req, res, _next) => {
   console.error(error);
   res.status(500).json({ error: error.message || 'Unexpected server error' });
 });
+
+await ensureWebModels();
+startTailoringQueueWorker();
 
 const port = ENV.WEB_PORT;
 server.listen(port, '0.0.0.0', () => {
