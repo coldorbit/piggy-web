@@ -232,7 +232,7 @@ export default function BidJobCard({
                   sx={{ bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }}
                 />
               ) : null}
-              {tailoredStatus ? (
+              {activeTab !== BID_TABS.done && tailoredStatus ? (
                 <Chip
                   label={tailoredStatusLabel(tailoredStatus)}
                   size="small"
@@ -360,10 +360,10 @@ function statusLabel(status) {
 }
 
 function tailoredStatusLabel(status) {
-  if (status === 'ready') return 'Tailored ready';
+  if (status === 'ready') return 'Ready';
   if (status === 'processing') return 'Tailoring now';
-  if (status === 'dead_letter') return 'Tailoring failed';
-  return 'Tailoring requested';
+  if (status === 'dead_letter') return 'Failed';
+  return 'Requested';
 }
 
 function tailoredStatusSx(status) {

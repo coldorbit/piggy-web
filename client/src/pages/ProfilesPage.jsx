@@ -73,8 +73,6 @@ export default function ProfilesPage({ currentUser }) {
       email: profile.email || '',
       linkedin: profile.linkedin || '',
       yearsOfExperience: profile.yearsOfExperience || '',
-      companies: JSON.stringify(profile.companies || [], null, 2),
-      education: JSON.stringify(profile.education || [], null, 2),
       resumeText: profile.resumeText || '',
       colorScheme: profile.colorScheme || 'green',
       profileBadge: profile.profileBadge || 'SWE',
@@ -380,8 +378,6 @@ function ProfileReadOnlyDialog({ profile, onClose }) {
           </Box>
 
           <Divider />
-          <ReadOnlySection label="Companies" value={profile.companies} />
-          <ReadOnlySection label="Education" value={profile.education} />
           <ReadOnlySection label="Resume text" value={profile.resumeText} preserveText />
         </Box>
       </DialogContent>

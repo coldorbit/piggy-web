@@ -103,11 +103,11 @@ export default function ProfileCard({
             sx={{ ...(PROFILE_BADGE_COLORS[profile.profileBadge || 'SWE'] || {}), fontWeight: 400 }}
           />
         </Stack>
-        <Stack direction="row" spacing={1} flexWrap="wrap">
-          {profile.yearsOfExperience ? <Chip label={`${profile.yearsOfExperience} yrs`} size="small" /> : null}
-          {profile.companies?.length ? <Chip label={`${profile.companies.length} companies`} size="small" /> : null}
-          {profile.education?.length ? <Chip label={`${profile.education.length} education`} size="small" /> : null}
-        </Stack>
+        {profile.yearsOfExperience ? (
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Chip label={`${profile.yearsOfExperience} yrs`} size="small" />
+          </Stack>
+        ) : null}
       </CardContent>
       {showActions ? (
         <CardActions

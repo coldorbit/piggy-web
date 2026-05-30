@@ -5,8 +5,6 @@ export const EMPTY_PROFILE = {
   email: '',
   linkedin: '',
   yearsOfExperience: '',
-  companies: '[]',
-  education: '[]',
   resumeText: '',
   colorScheme: 'blue',
   profileBadge: 'SWE',

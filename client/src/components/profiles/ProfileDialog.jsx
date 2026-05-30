@@ -89,22 +89,6 @@ export default function ProfileDialog({ form, isOpen, isSaving, mode = 'create',
               <FormHelperText>Choose the primary role family for this profile.</FormHelperText>
             </FormControl>
             <TextField
-              label="Companies JSON"
-              multiline
-              minRows={6}
-              value={form.companies}
-              onChange={(event) => onChange((current) => ({ ...current, companies: event.target.value }))}
-              sx={{ gridColumn: { xs: 'auto', md: 'span 2' } }}
-            />
-            <TextField
-              label="Education JSON"
-              multiline
-              minRows={5}
-              value={form.education}
-              onChange={(event) => onChange((current) => ({ ...current, education: event.target.value }))}
-              sx={{ gridColumn: { xs: 'auto', md: 'span 2' } }}
-            />
-            <TextField
               label="Resume text"
               multiline
               minRows={6}

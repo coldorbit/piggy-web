@@ -1,5 +1,5 @@
 import { getBidProfileModel, getProfileShareRequestModel, getWebUserModel, repositories } from '../../db.js';
-import { clean, parseJsonArray } from '../utils/index.js';
+import { clean } from '../utils/index.js';
 import { InputError, NotFoundError } from '../utils/errors.js';
 
 export async function currentDbUser(req) {
@@ -49,8 +49,6 @@ export function formatProfile(row) {
     email: row.email,
     linkedin: row.linkedin,
     yearsOfExperience: row.yearsOfExperience,
-    companies: row.companies || [],
-    education: row.education || [],
     resumeText: row.resumeText,
     colorScheme: row.colorScheme,
     profileBadge: row.profileBadge || 'SWE',
@@ -111,8 +109,6 @@ export async function profilesVisibleToUser(user) {
 export function profileAttributesFromBody(body) {
   const name = clean(body?.name);
   const colorScheme = clean(body?.colorScheme || 'green');
-  const companies = parseJsonArray(body?.companies, 'Companies');
-  const education = parseJsonArray(body?.education, 'Education');
   const profileBadge = profileBadgeFromBody(body?.profileBadge);
   const allowedColors = new Set(['green', 'blue', 'violet', 'amber', 'rose', 'slate']);
 
@@ -126,8 +122,6 @@ export function profileAttributesFromBody(body) {
     email: clean(body?.email) || null,
     linkedin: clean(body?.linkedin) || null,
     yearsOfExperience: clean(body?.yearsOfExperience) || null,
-    companies,
-    education,
     resumeText: clean(body?.resumeText) || null,
     colorScheme,
     profileBadge,

@@ -185,8 +185,6 @@ async function ensureBidProfileColumns() {
     email: { type: DataTypes.TEXT, allowNull: true },
     linkedin: { type: DataTypes.TEXT, allowNull: true },
     years_of_experience: { type: DataTypes.TEXT, allowNull: true },
-    companies: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
-    education: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
     resume_text: { type: DataTypes.TEXT, allowNull: true },
     profile_badge: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'SWE' },
     profile_status: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'active' },
@@ -216,6 +214,8 @@ async function removeDeprecatedBidProfileColumns() {
     'summary',
     'skills',
     'profile_badges',
+    'companies',
+    'education',
   ]);
 }
 

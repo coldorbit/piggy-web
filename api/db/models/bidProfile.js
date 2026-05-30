@@ -31,16 +31,6 @@ export function getBidProfileModel() {
         type: DataTypes.TEXT,
         field: 'years_of_experience',
       },
-      companies: {
-        type: DataTypes.JSONB,
-        allowNull: false,
-        defaultValue: [],
-      },
-      education: {
-        type: DataTypes.JSONB,
-        allowNull: false,
-        defaultValue: [],
-      },
       resumeText: {
         type: DataTypes.TEXT,
         field: 'resume_text',

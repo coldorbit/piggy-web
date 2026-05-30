@@ -132,8 +132,6 @@ function profileForTailorService(profile) {
     email: profile.email || '',
     linkedin: profile.linkedin || '',
     years_of_experience: profile.yearsOfExperience || '',
-    companies: profile.companies || [],
-    education: profile.education || [],
     resume_text: profile.resumeText || '',
   };
 }
