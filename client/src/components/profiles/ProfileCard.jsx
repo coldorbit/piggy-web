@@ -16,6 +16,7 @@ export default function ProfileCard({
   onCloseProfile,
   onDelete,
   onEdit,
+  onView = () => {},
   onReopenProfile,
   onShare,
 }) {
@@ -25,9 +26,18 @@ export default function ProfileCard({
   return (
     <Card
       variant="outlined"
+      onClick={() => onView(profile)}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        onView(profile);
+      }}
+      role="button"
+      tabIndex={0}
       sx={{
         borderTop: `4px solid ${color.main}`,
         boxShadow: 1,
+        cursor: 'pointer',
         minHeight: 246,
         display: 'flex',
         flexDirection: 'column',
@@ -35,6 +45,10 @@ export default function ProfileCard({
         '&:hover': {
           boxShadow: 2,
           transform: 'translateY(-1px)',
+        },
+        '&:focus-visible': {
+          outline: `2px solid ${color.main}`,
+          outlineOffset: 2,
         },
       }}
     >
@@ -96,7 +110,11 @@ export default function ProfileCard({
         </Stack>
       </CardContent>
       {showActions ? (
-        <CardActions sx={{ mt: 'auto', px: 1.25, pb: 1.25, gap: 0.5, flexWrap: 'wrap' }}>
+        <CardActions
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+          sx={{ mt: 'auto', px: 1.25, pb: 1.25, gap: 0.5, flexWrap: 'wrap' }}
+        >
           <>
             <Tooltip title="Edit profile">
               <IconButton aria-label="Edit profile" onClick={() => onEdit(profile)} sx={actionIconSx}>

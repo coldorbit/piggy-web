@@ -87,7 +87,24 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         </Select>
       </FormControl>
       <Tooltip title="Refresh jobs">
-        <IconButton type="button" onClick={onRefresh} aria-label="Refresh jobs" sx={{ justifySelf: { lg: 'end' } }}>
+        <IconButton
+          type="button"
+          onClick={onRefresh}
+          aria-label="Refresh jobs"
+          sx={{
+            justifySelf: variant === 'panel' ? 'end' : { lg: 'end' },
+            width: 38,
+            height: 38,
+            border: 1,
+            borderColor: 'primary.main',
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+            '&:hover': {
+              bgcolor: 'primary.dark',
+              borderColor: 'primary.dark',
+            },
+          }}
+        >
           <RefreshIcon />
         </IconButton>
       </Tooltip>
@@ -96,18 +113,27 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
 
   const sx = {
     display: 'grid',
-    gridTemplateColumns: {
-      xs: '1fr',
-      lg: 'minmax(220px, 1fr) 200px 180px 140px 140px 140px 150px auto',
-    },
+    gridTemplateColumns:
+      variant === 'panel'
+        ? '1fr'
+        : {
+            xs: '1fr',
+            lg: 'minmax(220px, 1fr) 200px 180px 140px 140px 140px 150px auto',
+          },
     gap: 1,
-    alignItems: 'center',
+    alignItems: variant === 'panel' ? 'stretch' : 'center',
     '& .MuiInputBase-root': {
       bgcolor: 'background.paper',
     },
+    '& .MuiFormControl-root, & .MuiTextField-root': {
+      minWidth: 0,
+    },
+    '& .MuiOutlinedInput-root': {
+      minHeight: 40,
+    },
   };
 
-  if (variant === 'inline') {
+  if (variant === 'inline' || variant === 'panel') {
     return (
       <Box component="section" aria-label={ariaLabel} sx={sx}>
         {content}

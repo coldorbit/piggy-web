@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import {
   Box,
   Button,
@@ -41,14 +45,56 @@ export default function BidJobsPanel({
   onTailorResume,
 }) {
   const isSaving = creatingBid || updatingBid;
+  const [selectedJobIds, setSelectedJobIds] = useState(() => new Set());
   const readyResumeIds = jobs
     .map((job) => job.tailoredResume)
     .filter((resume) => resume?.status === 'ready' && resume.filePath)
     .map((resume) => resume.id);
   const downloadAllUrl = authUrl(`/api/bid/tailored-resumes/download?ids=${readyResumeIds.map(encodeURIComponent).join(',')}`);
+  const visibleJobIds = jobs.map((job) => job.id);
+  const selectedVisibleJobs = jobs.filter((job) => selectedJobIds.has(job.id));
+  const allVisibleJobsSelected = visibleJobIds.length > 0 && visibleJobIds.every((jobId) => selectedJobIds.has(jobId));
+
+  function toggleJobSelected(jobId) {
+    setSelectedJobIds((current) => {
+      const next = new Set(current);
+      if (next.has(jobId)) {
+        next.delete(jobId);
+      } else {
+        next.add(jobId);
+      }
+      return next;
+    });
+  }
+
+  function toggleAllVisibleJobs() {
+    setSelectedJobIds((current) => {
+      const next = new Set(current);
+      if (allVisibleJobsSelected) {
+        visibleJobIds.forEach((jobId) => next.delete(jobId));
+      } else {
+        visibleJobIds.forEach((jobId) => next.add(jobId));
+      }
+      return next;
+    });
+  }
+
+  function tailorSelectedJobs() {
+    selectedVisibleJobs.forEach((job) => onTailorResume(job));
+  }
 
   return (
-    <Paper variant="outlined" sx={{ overflow: 'hidden', boxShadow: 1 }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        overflow: 'hidden',
+        boxShadow: 1,
+        height: { xs: 'auto', md: '100%' },
+        minHeight: { md: 0 },
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       <Box
         sx={{
           display: 'flex',
@@ -58,6 +104,7 @@ export default function BidJobsPanel({
           gap: 1,
           px: 1.25,
           py: 0.5,
+          flexShrink: 0,
         }}
       >
         <Tabs
@@ -85,20 +132,45 @@ export default function BidJobsPanel({
             sx={{ fontWeight: 800, '&.Mui-selected': { color: activeColor.dark } }}
           />
         </Tabs>
-        <Button
-          component="a"
-          disabled={!readyResumeIds.length}
-          href={readyResumeIds.length ? downloadAllUrl : undefined}
-          download="tailored-resumes.zip"
-          target="_blank"
-          rel="noopener noreferrer"
-          size="small"
-          startIcon={<ArchiveIcon />}
-          variant="outlined"
-          sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
-        >
-          Download all
-        </Button>
+        <Stack direction="row" spacing={0.75} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
+          <Button
+            disabled={!jobs.length}
+            onClick={toggleAllVisibleJobs}
+            size="small"
+            startIcon={allVisibleJobsSelected ? <CheckBoxIcon /> : <CheckBoxOutlineBlankIcon />}
+            variant="outlined"
+            sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+          >
+            {allVisibleJobsSelected ? 'Clear selection' : 'Select all'}
+          </Button>
+          {activeTab === BID_TABS.todo ? (
+            <Button
+              disabled={!selectedVisibleJobs.length}
+              onClick={tailorSelectedJobs}
+              size="small"
+              startIcon={<AutoAwesomeIcon />}
+              variant="contained"
+              sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+            >
+              Tailor selected
+            </Button>
+          ) : (
+            <Button
+              component="a"
+              disabled={!readyResumeIds.length}
+              href={readyResumeIds.length ? downloadAllUrl : undefined}
+              download="tailored-resumes.zip"
+              target="_blank"
+              rel="noopener noreferrer"
+              size="small"
+              startIcon={<ArchiveIcon />}
+              variant="outlined"
+              sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+            >
+              Download all
+            </Button>
+          )}
+        </Stack>
       </Box>
 
       <Box
@@ -108,13 +180,15 @@ export default function BidJobsPanel({
           borderTop: 1,
           borderColor: 'divider',
           p: { xs: 1, sm: 1.5 },
-          minHeight: 320,
+          minHeight: { xs: 320, md: 0 },
+          flex: 1,
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
         {loading && jobs.length ? <LoadingOverlay label="Loading bid workspace..." /> : null}
-        <Stack spacing={0.75} aria-busy={loading} sx={{ flex: 1 }}>
+        <Stack spacing={0.75} aria-busy={loading} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
           {loading && !jobs.length ? <LoadingState label="Loading bid workspace..." /> : null}
           {!loading && jobs.length === 0 ? (
             <EmptyState>No {tabLabel(activeTab)} jobs match this search.</EmptyState>
@@ -126,10 +200,12 @@ export default function BidJobsPanel({
               draft={draftsForJob(job)}
               isSaving={isSaving}
               job={job}
+              isSelected={selectedJobIds.has(job.id)}
               statusDefault={activeTab === BID_TABS.done ? 'submitted' : undefined}
               onDraftChange={onDraftChange}
               onStatusChange={onStatusChange}
               onHiddenChange={onHiddenChange}
+              onSelectedChange={toggleJobSelected}
               onTailorResume={onTailorResume}
               showBidStatusChip={activeTab !== BID_TABS.tailored}
               showStatusControl={activeTab === BID_TABS.done}
@@ -140,7 +216,7 @@ export default function BidJobsPanel({
           ))}
         </Stack>
         {!loading ? (
-          <Box sx={{ pt: 1.5, mt: 'auto' }}>
+          <Box sx={{ pt: 1.5, mt: 'auto', flexShrink: 0 }}>
             <Paper
               variant="outlined"
               sx={{

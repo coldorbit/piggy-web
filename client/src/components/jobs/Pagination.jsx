@@ -10,18 +10,22 @@ export default function Pagination({ filters, total, onPage, onPageSize }) {
         p: 1,
         display: 'flex',
         flexDirection: { xs: 'column', md: 'row' },
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: 'flex-start',
+        alignItems: { xs: 'stretch', md: 'center' },
         gap: 1,
         textAlign: 'center',
+        flexShrink: 0,
+        borderTop: 1,
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
       }}
     >
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
-        justifyContent={{ xs: 'center', md: 'flex-start' }}
+        justifyContent="flex-start"
         alignItems="center"
         spacing={1}
-        sx={{ width: { xs: '100%', md: 'auto' } }}
+        sx={{ width: '100%' }}
       >
         <FormControl size="small" sx={{ minWidth: 76 }}>
           <Select

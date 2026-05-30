@@ -1,17 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import WorkIcon from '@mui/icons-material/Work';
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Typography } from '@mui/material';
 import JobDetail from '../components/jobs/JobDetail.jsx';
-import JobFiltersToolbar from '../components/jobs/JobFiltersToolbar.jsx';
+import JobFiltersDrawer from '../components/jobs/JobFiltersDrawer.jsx';
 import JobList from '../components/jobs/JobList.jsx';
 import Metric from '../components/jobs/Metric.jsx';
 import { useImportJobsCsv, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
 import { PAGE_SIZE } from '../lib/constants.js';
 import { formatDateTime } from '../lib/formatters.js';
 import { matchesSpamFilter, matchesVisibilityFilter } from '../lib/jobFilters.js';
+import { readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
+
+const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'sort', 'page', 'limit'];
+const JOB_FILTERS_STORAGE_KEY = 'applypilot.jobs.filters';
 
 const DEFAULT_FILTERS = {
   search: '',
@@ -26,8 +30,9 @@ const DEFAULT_FILTERS = {
 };
 
 export default function JobsPage({ currentUser }) {
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState(() => readPersistedFilters(JOB_FILTERS_STORAGE_KEY, DEFAULT_FILTERS, JOB_FILTER_KEYS));
   const [selectedId, setSelectedId] = useState(null);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
   const [importMessage, setImportMessage] = useState('');
@@ -56,6 +61,10 @@ export default function JobsPage({ currentUser }) {
     () => jobs.find((job) => String(job.id) === String(selectedId)) || jobs[0] || null,
     [jobs, selectedId],
   );
+
+  useEffect(() => {
+    writePersistedFilters(JOB_FILTERS_STORAGE_KEY, filters, JOB_FILTER_KEYS);
+  }, [filters]);
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: key === 'page' ? value : 1 }));
@@ -105,7 +114,7 @@ export default function JobsPage({ currentUser }) {
   const loading = jobsLoading || jobsFetching || metaLoading;
 
   return (
-    <Box sx={{ minHeight: 0, display: 'grid', gap: 1.75, gridTemplateRows: 'auto auto auto auto 1fr' }}>
+    <Box sx={{ minHeight: 0, display: 'grid', gap: 1.75, gridTemplateRows: 'auto auto auto 1fr' }}>
       <Grid container spacing={1.25}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Metric
@@ -129,10 +138,13 @@ export default function JobsPage({ currentUser }) {
         </Grid>
       </Grid>
 
-      <JobFiltersToolbar
+      <JobFiltersDrawer
+        isOpen={isFilterPanelOpen}
         filters={filters}
         meta={meta}
+        onClose={() => setIsFilterPanelOpen(false)}
         onFilterChange={updateFilter}
+        onOpen={() => setIsFilterPanelOpen(true)}
         onRefresh={() => {
           refetchMeta();
           refetchJobs();
@@ -146,7 +158,7 @@ export default function JobsPage({ currentUser }) {
         component="section"
         sx={{
           minHeight: 0,
-          height: { lg: 'calc(100vh - 310px)' },
+          height: { lg: 'calc(100vh - 230px)' },
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', lg: 'minmax(360px, 0.9fr) minmax(420px, 1.1fr)' },
           gap: 1.5,

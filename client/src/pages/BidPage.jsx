@@ -18,6 +18,10 @@ import {
   useTailoredResumeEvents,
   useUpdateJobBid,
 } from '../lib/api.js';
+import { mergeKnownFilters, readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
+
+const BID_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'sort', 'page', 'limit'];
+const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters';
 
 export default function BidPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -28,6 +32,7 @@ export default function BidPage() {
   const [filters, setFilters] = useState(() => bidFiltersFromParams(searchParams));
   const [drafts, setDrafts] = useState({});
   const [error, setError] = useState('');
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [tailoringByJobId, setTailoringByJobId] = useState({});
 
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles();
@@ -78,6 +83,10 @@ export default function BidPage() {
       setSearchParams(nextParams, { replace: true });
     }
   }, [activeProfileId, activeBidTab, filters, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    writePersistedFilters(BID_FILTERS_STORAGE_KEY, filters, BID_FILTER_KEYS);
+  }, [filters]);
 
   function submitProfile(event) {
     event.preventDefault();
@@ -167,14 +176,6 @@ export default function BidPage() {
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
-      <BidProfileTabs
-        activeColor={activeColor}
-        activeProfile={activeProfile}
-        isLoading={profilesLoading}
-        profiles={activeProfiles}
-        onProfileChange={setActiveProfileId}
-      />
-
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
       {!activeProfiles.length && !profilesLoading ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
@@ -182,39 +183,72 @@ export default function BidPage() {
         </Paper>
       ) : null}
 
-      {activeProfile ? (
-        <Box sx={{ display: 'grid', gap: 1.5 }}>
-          <BidProfileSummary
-            filters={filters}
-            meta={metaData || { sources: [] }}
-            onFilterChange={updateFilter}
-            onRefresh={() => {
-              refetchMeta();
-              refetchJobs();
-            }}
-          />
-          <BidJobsPanel
+      {profilesLoading || activeProfiles.length ? (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)', xl: '240px minmax(0, 1fr)' },
+            gap: 1.5,
+            alignItems: 'stretch',
+            height: { xs: 'auto', md: 'calc(100vh - 108px)', xl: 'calc(100vh - 124px)' },
+            minHeight: { md: 0 },
+            minWidth: 0,
+          }}
+        >
+          <BidProfileTabs
             activeColor={activeColor}
-            activeTab={activeBidTab}
-            creatingBid={creatingBid}
-            draftsForJob={draftFor}
-            jobs={visibleJobs}
-            loading={loading}
-            page={filters.page}
-            pageSize={filters.limit}
-            pages={Math.max(Math.ceil(total / filters.limit), 1)}
-            tabCounts={bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0 }}
-            total={total}
-            updatingBid={updatingBid}
-            onDraftChange={updateDraft}
-            onPageChange={(page) => updateFilter('page', page)}
-            onPageSizeChange={(limit) => updateFilter('limit', limit)}
-            onStatusChange={saveBid}
-            onTabChange={updateBidTab}
-            tailoringByJobId={tailoringByJobId}
-            onHiddenChange={updateHiddenState}
-            onTailorResume={tailorResume}
+            activeProfile={activeProfile}
+            isLoading={profilesLoading}
+            profiles={activeProfiles}
+            onProfileChange={setActiveProfileId}
           />
+
+          {activeProfile ? (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                minHeight: 0,
+                minWidth: 0,
+              }}
+            >
+              <BidProfileSummary
+                filters={filters}
+                isOpen={isFilterPanelOpen}
+                meta={metaData || { sources: [] }}
+                onClose={() => setIsFilterPanelOpen(false)}
+                onFilterChange={updateFilter}
+                onOpen={() => setIsFilterPanelOpen(true)}
+                onRefresh={() => {
+                  refetchMeta();
+                  refetchJobs();
+                }}
+              />
+              <BidJobsPanel
+                activeColor={activeColor}
+                activeTab={activeBidTab}
+                creatingBid={creatingBid}
+                draftsForJob={draftFor}
+                jobs={visibleJobs}
+                loading={loading}
+                page={filters.page}
+                pageSize={filters.limit}
+                pages={Math.max(Math.ceil(total / filters.limit), 1)}
+                tabCounts={bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0 }}
+                total={total}
+                updatingBid={updatingBid}
+                onDraftChange={updateDraft}
+                onPageChange={(page) => updateFilter('page', page)}
+                onPageSizeChange={(limit) => updateFilter('limit', limit)}
+                onStatusChange={saveBid}
+                onTabChange={updateBidTab}
+                tailoringByJobId={tailoringByJobId}
+                onHiddenChange={updateHiddenState}
+                onTailorResume={tailorResume}
+              />
+            </Box>
+          ) : null}
         </Box>
       ) : null}
 
@@ -235,18 +269,13 @@ function bidTabFromParam(value) {
 }
 
 function bidFiltersFromParams(params) {
-  return {
-    ...DEFAULT_BID_FILTERS,
-    search: params.get('search') || DEFAULT_BID_FILTERS.search,
-    roleFamily: params.get('roleFamily') || DEFAULT_BID_FILTERS.roleFamily,
-    source: params.get('source') || DEFAULT_BID_FILTERS.source,
-    since: params.get('since') || DEFAULT_BID_FILTERS.since,
-    spam: params.get('spam') || DEFAULT_BID_FILTERS.spam,
-    visibility: params.get('visibility') || DEFAULT_BID_FILTERS.visibility,
-    sort: params.get('sort') || DEFAULT_BID_FILTERS.sort,
-    page: positiveNumberParam(params.get('page'), DEFAULT_BID_FILTERS.page),
-    limit: positiveNumberParam(params.get('limit'), DEFAULT_BID_FILTERS.limit),
-  };
+  const persistedFilters = readPersistedFilters(BID_FILTERS_STORAGE_KEY, DEFAULT_BID_FILTERS, BID_FILTER_KEYS);
+  const paramFilters = {};
+  BID_FILTER_KEYS.forEach((key) => {
+    const value = params.get(key);
+    if (value !== null) paramFilters[key] = value;
+  });
+  return mergeKnownFilters(persistedFilters, paramFilters, BID_FILTER_KEYS);
 }
 
 function bidParamsFromState({ activeProfileId, activeBidTab, filters }) {
@@ -264,13 +293,8 @@ function bidParamsFromState({ activeProfileId, activeBidTab, filters }) {
   return params;
 }
 
-function positiveNumberParam(value, fallback) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
 function areBidFiltersEqual(left, right) {
-  return ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'sort', 'page', 'limit'].every(
+  return BID_FILTER_KEYS.every(
     (key) => String(left[key]) === String(right[key]),
   );
 }

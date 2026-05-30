@@ -11,6 +11,7 @@ import {
   Card,
   CardActions,
   CardContent,
+  Checkbox,
   Chip,
   CircularProgress,
   FormControl,
@@ -62,6 +63,7 @@ export default function BidJobCard({
   draft,
   isSaving,
   isTailoring,
+  isSelected = false,
   job,
   statusDefault,
   showBidStatusChip = true,
@@ -70,6 +72,7 @@ export default function BidJobCard({
   showTailorAction = false,
   onDraftChange,
   onHiddenChange,
+  onSelectedChange,
   onStatusChange,
   onTailorResume,
 }) {
@@ -100,186 +103,227 @@ export default function BidJobCard({
     onStatusChange(job, { ...draft, status });
   }
 
+  function handleCardClick(event) {
+    if (isInteractiveTarget(event.target, event.currentTarget)) return;
+    onSelectedChange(job.id);
+  }
+
+  function handleCardKeyDown(event) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (isInteractiveTarget(event.target, event.currentTarget)) return;
+    event.preventDefault();
+    onSelectedChange(job.id);
+  }
+
   return (
-    <Card
-      variant="outlined"
+    <Box
       sx={{
-        borderLeft: job.bid ? `4px solid ${accent.main}` : '4px solid transparent',
-        boxShadow: 1,
-        transition: 'border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease',
-        '&:hover': {
-          boxShadow: 2,
-          transform: 'translateY(-1px)',
-        },
+        display: 'grid',
+        gridTemplateColumns: '34px minmax(0, 1fr)',
+        gap: 0.75,
+        alignItems: 'center',
       }}
     >
-      <CardContent sx={{ display: 'grid', gap: 0.65, px: 1, py: 0.85, '&:last-child': { pb: 0.85 } }}>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(190px, auto) max-content' },
-            gap: 1,
-            alignItems: 'center',
-          }}
-        >
-          <Box minWidth={0} sx={{ display: 'grid', gap: 0.25 }}>
-            <Typography
-              component="a"
-              href={job.url}
-              target="_blank"
-              rel="noreferrer"
-              variant="body2"
-              fontWeight={900}
-              sx={{
-                color: 'text.primary',
-                display: 'inline-block',
-                maxWidth: '100%',
-                textDecoration: 'none',
-                '&:hover': { color: 'primary.main', textDecoration: 'underline' },
-              }}
-            >
-              {job.title || 'Untitled role'}
-            </Typography>
-            <Typography color="text.secondary" variant="caption" sx={{ display: 'block', mt: 0.45 }}>
-              {job.company ? (
-                <Box component="span" sx={{ color: 'text.primary', fontWeight: 800 }}>
-                  {job.company}
-                </Box>
-              ) : (
-                'Unknown company'
-              )}
-              {job.location ? ` · ${job.location}` : null}
-            </Typography>
-          </Box>
+      <Checkbox
+        checked={isSelected}
+        onChange={() => onSelectedChange(job.id)}
+        inputProps={{ 'aria-label': `Select ${job.title || 'job'}` }}
+        sx={{
+          p: 0.5,
+          color: 'text.secondary',
+          '&.Mui-checked': { color: accent.main },
+        }}
+      />
+      <Card
+        variant="outlined"
+        onClick={handleCardClick}
+        onKeyDown={handleCardKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-pressed={isSelected}
+        sx={{
+          borderColor: isSelected ? accent.main : 'divider',
+          borderLeft: job.bid || isSelected ? `4px solid ${accent.main}` : '4px solid transparent',
+          bgcolor: isSelected ? accent.soft : 'background.paper',
+          boxShadow: isSelected ? 2 : 1,
+          cursor: 'pointer',
+          transition: 'background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease',
+          '&:hover': {
+            boxShadow: 2,
+            transform: 'translateY(-1px)',
+          },
+          '&:focus-visible': {
+            outline: `2px solid ${accent.main}`,
+            outlineOffset: 2,
+          },
+        }}
+      >
+        <CardContent sx={{ display: 'grid', gap: 0.65, px: 1, py: 0.85, '&:last-child': { pb: 0.85 } }}>
           <Box
             sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: { xs: 'flex-start', md: 'flex-end' },
-              columnGap: 0.65,
-              rowGap: 0.45,
-              minWidth: 0,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(190px, auto) max-content' },
+              gap: 1,
+              alignItems: 'center',
             }}
           >
-            <SourceChip source={job.source} sourceUrl={job.sourceUrl} sx={sourceChipSx} />
-            <Chip
-              label={formatDate(job.postedAt || job.scrapedAt)}
-              size="small"
-              sx={{ bgcolor: '#f7ead1', color: '#70400d', fontWeight: 700 }}
-            />
-            {showBidStatusChip ? (
-              <Chip
-                label={bidChipLabel}
-                size="small"
-                sx={
-                  job.bid || draft.status !== 'planned'
-                    ? { bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }
-                    : { bgcolor: '#e7ecf0', color: '#303942', fontWeight: 700 }
-                }
-              />
-            ) : null}
-            {tailoredStatus ? (
-              <Chip
-                label={tailoredStatusLabel(tailoredStatus)}
-                size="small"
-                sx={tailoredStatusSx(tailoredStatus)}
-              />
-            ) : null}
-          </Box>
-          <Stack
-            direction="row"
-            spacing={0.65}
-            justifyContent={{ xs: 'flex-start', md: 'flex-end' }}
-            alignItems="center"
-            justifySelf={{ xs: 'stretch', md: 'end' }}
-            flexShrink={0}
-          >
-            {showStatusControl ? (
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  label="Status"
-                  value={draft.status || statusDefault || 'planned'}
-                  onChange={handleStatusChange}
-                  disabled={isSaving}
-                >
-                  {statusDefault !== 'submitted' ? <MenuItem value="planned">Planned</MenuItem> : null}
-                  <MenuItem value="submitted">Submitted</MenuItem>
-                  <MenuItem value="interviewing">Interviewing</MenuItem>
-                  <MenuItem value="won">Won</MenuItem>
-                  <MenuItem value="lost">Lost</MenuItem>
-                </Select>
-              </FormControl>
-            ) : null}
-            {showAppliedAction ? (
-              <Button
-                disabled={draft.status === 'submitted'}
-                onClick={handleApplied}
-                size="small"
-                startIcon={<CheckCircleIcon />}
-                variant="contained"
-                sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-              >
-                Mark as applied
-              </Button>
-            ) : null}
-            {downloadUrl ? (
-              <Button
+            <Box minWidth={0} sx={{ display: 'grid', gap: 0.25 }}>
+              <Typography
                 component="a"
-                href={downloadUrl}
-                download={downloadFilename}
+                href={job.url}
                 target="_blank"
-                rel="noopener noreferrer"
+                rel="noreferrer"
+                variant="body2"
+                fontWeight={900}
+                sx={{
+                  color: 'text.primary',
+                  display: 'inline-block',
+                  justifySelf: 'start',
+                  maxWidth: '100%',
+                  textDecoration: 'none',
+                  width: 'fit-content',
+                  '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+                }}
+              >
+                {job.title || 'Untitled role'}
+              </Typography>
+              <Typography color="text.secondary" variant="caption" sx={{ display: 'block', mt: 0.45 }}>
+                {job.company ? (
+                  <Box component="span" sx={{ color: 'text.primary', fontWeight: 800 }}>
+                    {job.company}
+                  </Box>
+                ) : (
+                  'Unknown company'
+                )}
+                {job.location ? ` · ${job.location}` : null}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: { xs: 'flex-start', md: 'flex-end' },
+                columnGap: 0.65,
+                rowGap: 0.45,
+                minWidth: 0,
+              }}
+            >
+              <SourceChip source={job.source} sourceUrl={job.sourceUrl} sx={sourceChipSx} />
+              <Chip
+                label={formatDate(job.postedAt || job.scrapedAt)}
                 size="small"
-                startIcon={<DownloadIcon />}
-                variant="outlined"
-                sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-              >
-                Download
-              </Button>
-            ) : null}
-            <Tooltip title={job.isHidden ? 'Unhide job' : 'Hide job'}>
-              <IconButton
-                onClick={() => onHiddenChange(job, !job.isHidden)}
-                aria-label={job.isHidden ? 'Unhide job' : 'Hide job'}
-                sx={iconButtonSx}
-              >
-                {job.isHidden ? <VisibilityIcon /> : <VisibilityOffIcon />}
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Copy description">
-              <span>
+                sx={{ bgcolor: '#f7ead1', color: '#70400d', fontWeight: 700 }}
+              />
+              {showBidStatusChip && (job.bid || draft.status !== 'planned') ? (
+                <Chip
+                  label={bidChipLabel}
+                  size="small"
+                  sx={{ bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }}
+                />
+              ) : null}
+              {tailoredStatus ? (
+                <Chip
+                  label={tailoredStatusLabel(tailoredStatus)}
+                  size="small"
+                  sx={tailoredStatusSx(tailoredStatus)}
+                />
+              ) : null}
+            </Box>
+            <Stack
+              direction="row"
+              spacing={0.65}
+              justifyContent={{ xs: 'flex-start', md: 'flex-end' }}
+              alignItems="center"
+              justifySelf={{ xs: 'stretch', md: 'end' }}
+              flexShrink={0}
+            >
+              {showStatusControl ? (
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    label="Status"
+                    value={draft.status || statusDefault || 'planned'}
+                    onChange={handleStatusChange}
+                    disabled={isSaving}
+                  >
+                    {statusDefault !== 'submitted' ? <MenuItem value="planned">Planned</MenuItem> : null}
+                    <MenuItem value="submitted">Submitted</MenuItem>
+                    <MenuItem value="interviewing">Interviewing</MenuItem>
+                    <MenuItem value="won">Won</MenuItem>
+                    <MenuItem value="lost">Lost</MenuItem>
+                  </Select>
+                </FormControl>
+              ) : null}
+              {showAppliedAction ? (
+                <Button
+                  disabled={draft.status === 'submitted'}
+                  onClick={handleApplied}
+                  size="small"
+                  startIcon={<CheckCircleIcon />}
+                  variant="contained"
+                  sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                >
+                  Mark as applied
+                </Button>
+              ) : null}
+              {downloadUrl ? (
+                <Button
+                  component="a"
+                  href={downloadUrl}
+                  download={downloadFilename}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  size="small"
+                  startIcon={<DownloadIcon />}
+                  variant="outlined"
+                  sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                >
+                  Download
+                </Button>
+              ) : null}
+              <Tooltip title={job.isHidden ? 'Unhide job' : 'Hide job'}>
                 <IconButton
-                  disabled={!jobDescriptionText(job)}
-                  onClick={() => copyJobDescription(job)}
-                  aria-label="Copy job description"
+                  onClick={() => onHiddenChange(job, !job.isHidden)}
+                  aria-label={job.isHidden ? 'Unhide job' : 'Hide job'}
                   sx={iconButtonSx}
                 >
-                <ContentCopyIcon />
-              </IconButton>
-            </span>
-          </Tooltip>
-            {showTailorAction ? (
-              <Button
-                disabled={isTailoring || hasTailoringRequest}
-                onClick={() => onTailorResume(job)}
-                size="small"
-                startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
-                variant="outlined"
-                sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-              >
-                {tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor'}
-              </Button>
-            ) : null}
-          </Stack>
-        </Box>
-      </CardContent>
-      {job.bid ? (
-        <CardActions sx={{ px: 1, py: 0.5, pt: 0, color: 'text.secondary' }}>
-          <Typography variant="caption">This profile has already bid on this job. Updates edit the existing bid.</Typography>
-        </CardActions>
-      ) : null}
-    </Card>
+                  {job.isHidden ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Copy description">
+                <span>
+                  <IconButton
+                    disabled={!jobDescriptionText(job)}
+                    onClick={() => copyJobDescription(job)}
+                    aria-label="Copy job description"
+                    sx={iconButtonSx}
+                  >
+                    <ContentCopyIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              {showTailorAction ? (
+                <Button
+                  disabled={isTailoring || hasTailoringRequest}
+                  onClick={() => onTailorResume(job)}
+                  size="small"
+                  startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
+                  variant="outlined"
+                  sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                >
+                  {tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor'}
+                </Button>
+              ) : null}
+            </Stack>
+          </Box>
+        </CardContent>
+        {job.bid ? (
+          <CardActions sx={{ px: 1, py: 0.5, pt: 0, color: 'text.secondary' }}>
+            <Typography variant="caption">This profile has already bid on this job. Updates edit the existing bid.</Typography>
+          </CardActions>
+        ) : null}
+      </Card>
+    </Box>
   );
 }
 
@@ -309,6 +353,13 @@ function tailoredStatusSx(status) {
   if (status === 'dead_letter') return { bgcolor: '#fde9e5', color: '#8a2f1d', fontWeight: 800 };
   if (status === 'processing') return { bgcolor: '#fff1d6', color: '#70400d', fontWeight: 800 };
   return { bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 };
+}
+
+function isInteractiveTarget(target, cardElement) {
+  const interactiveElement = target.closest(
+    'a, button, input, textarea, select, [role="button"], [role="checkbox"], [role="combobox"], .MuiSelect-select',
+  );
+  return Boolean(interactiveElement && interactiveElement !== cardElement);
 }
 
 function SourceChip({ source, sourceUrl, sx }) {

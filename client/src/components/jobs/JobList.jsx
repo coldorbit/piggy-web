@@ -49,7 +49,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       {loading && jobs.length ? <LoadingOverlay label="Loading jobs..." /> : null}
       {loading && !jobs.length ? <LoadingState label="Loading jobs..." /> : null}
       {!loading && jobs.length === 0 ? <EmptyState>No jobs match the current filters.</EmptyState> : null}
-      <List disablePadding sx={{ overflow: 'auto', flex: '0 1 auto' }}>
+      <List disablePadding sx={{ overflow: 'auto', flex: '1 1 auto', minHeight: 0 }}>
         {jobs.map((job) => {
           const selected = String(selectedJob?.id) === String(job.id);
           return (

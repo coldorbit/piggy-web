@@ -1,17 +1,16 @@
-import { Paper } from '@mui/material';
-import JobFiltersToolbar from '../jobs/JobFiltersToolbar.jsx';
+import JobFiltersDrawer from '../jobs/JobFiltersDrawer.jsx';
 
-export default function BidProfileSummary({ filters, meta, onFilterChange, onRefresh }) {
+export default function BidProfileSummary({ filters, isOpen, meta, onClose, onFilterChange, onOpen, onRefresh }) {
   return (
-    <Paper variant="outlined" sx={{ p: 1.5, boxShadow: 1 }}>
-      <JobFiltersToolbar
-        ariaLabel="Bid job filters"
-        filters={filters}
-        meta={meta}
-        onFilterChange={onFilterChange}
-        onRefresh={onRefresh}
-        variant="inline"
-      />
-    </Paper>
+    <JobFiltersDrawer
+      ariaLabel="Bid job filters"
+      filters={filters}
+      isOpen={isOpen}
+      meta={meta}
+      onClose={onClose}
+      onFilterChange={onFilterChange}
+      onOpen={onOpen}
+      onRefresh={onRefresh}
+    />
   );
 }

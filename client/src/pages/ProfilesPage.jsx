@@ -10,6 +10,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
   InputLabel,
   MenuItem,
@@ -38,6 +39,7 @@ export default function ProfilesPage({ currentUser }) {
   const [editingProfileId, setEditingProfileId] = useState(null);
   const [sharingProfile, setSharingProfile] = useState(null);
   const [closingProfile, setClosingProfile] = useState(null);
+  const [viewingProfile, setViewingProfile] = useState(null);
   const [shareUsername, setShareUsername] = useState('');
   const [closeReason, setCloseReason] = useState('');
   const [form, setForm] = useState(EMPTY_PROFILE);
@@ -184,21 +186,17 @@ export default function ProfilesPage({ currentUser }) {
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', '& .MuiChip-root': { fontWeight: 400 } }}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between"
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        spacing={1.5}
-      >
-        <Typography color="text.secondary" fontWeight={800}>
-          {isLoading ? 'Loading profiles...' : `${profiles.length.toLocaleString()} profiles`}
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
         {canManageProfiles ? (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={openCreateDialog}
+          >
             Add profile
           </Button>
         ) : null}
-      </Stack>
+      </Box>
 
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
 
@@ -254,7 +252,14 @@ export default function ProfilesPage({ currentUser }) {
         </Card>
       ) : null}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 1.5 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 360px))',
+          justifyContent: 'start',
+          gap: 1.5,
+        }}
+      >
         {profiles.map((profile) => (
           <ProfileCard
             key={profile.id}
@@ -269,6 +274,7 @@ export default function ProfilesPage({ currentUser }) {
             onEdit={openEditDialog}
             onReopenProfile={reopenProfile}
             onShare={openShareDialog}
+            onView={setViewingProfile}
           />
         ))}
       </Box>
@@ -348,6 +354,88 @@ export default function ProfilesPage({ currentUser }) {
           </DialogActions>
         </form>
       </Dialog>
+
+      <ProfileReadOnlyDialog profile={viewingProfile} onClose={() => setViewingProfile(null)} />
     </Box>
   );
+}
+
+function ProfileReadOnlyDialog({ profile, onClose }) {
+  if (!profile) return null;
+
+  return (
+    <Dialog open={Boolean(profile)} onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle>{profile.name || 'Profile'}</DialogTitle>
+      <DialogContent dividers>
+        <Box sx={{ display: 'grid', gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+            <ReadOnlyField label="Location" value={profile.location} />
+            <ReadOnlyField label="Email" value={profile.email} />
+            <ReadOnlyField label="Phone" value={profile.phone} />
+            <ReadOnlyField label="LinkedIn" value={profile.linkedin} />
+            <ReadOnlyField label="Years of experience" value={profile.yearsOfExperience} />
+            <ReadOnlyField label="Badge" value={profile.profileBadge || 'SWE'} />
+            <ReadOnlyField label="Color" value={profile.colorScheme} />
+            <ReadOnlyField label="Status" value={profile.profileStatus || 'active'} />
+          </Box>
+
+          <Divider />
+          <ReadOnlySection label="Companies" value={profile.companies} />
+          <ReadOnlySection label="Education" value={profile.education} />
+          <ReadOnlySection label="Resume text" value={profile.resumeText} preserveText />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function ReadOnlyField({ label, value }) {
+  return (
+    <Box sx={{ display: 'grid', gap: 0.25 }}>
+      <Typography variant="caption" color="text.secondary" fontWeight={800}>
+        {label}
+      </Typography>
+      <Typography variant="body2">{formatProfileValue(value)}</Typography>
+    </Box>
+  );
+}
+
+function ReadOnlySection({ label, value, preserveText = false }) {
+  return (
+    <Box sx={{ display: 'grid', gap: 0.75 }}>
+      <Typography variant="subtitle2" fontWeight={900}>
+        {label}
+      </Typography>
+      <Box
+        sx={{
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1,
+          bgcolor: 'rgba(247, 249, 251, 0.72)',
+          p: 1.25,
+          maxHeight: 260,
+          overflow: 'auto',
+        }}
+      >
+        <Typography
+          component="pre"
+          variant="body2"
+          sx={{ m: 0, whiteSpace: preserveText ? 'pre-wrap' : 'pre-wrap', fontFamily: preserveText ? 'inherit' : 'monospace' }}
+        >
+          {formatProfileValue(value, true)}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function formatProfileValue(value, multiline = false) {
+  if (value === undefined || value === null || value === '') return 'Not set';
+  if (Array.isArray(value) || typeof value === 'object') {
+    return multiline ? JSON.stringify(value, null, 2) : JSON.stringify(value);
+  }
+  return String(value);
 }
