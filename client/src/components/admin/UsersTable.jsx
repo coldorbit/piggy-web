@@ -107,7 +107,6 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
               onChange={(event) => onEditingChange((current) => ({ ...current, role: event.target.value }))}
             >
               <MenuItem value="user">User</MenuItem>
-              <MenuItem value="bidder">Readonly bidder</MenuItem>
               <MenuItem value="readonly_bidder">Readonly bidder</MenuItem>
               <MenuItem value="editable_bidder">Editable bidder</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>

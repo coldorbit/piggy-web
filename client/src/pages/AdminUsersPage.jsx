@@ -7,6 +7,10 @@ import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '../l
 
 const EMPTY_FORM = { username: '', password: '', role: 'user' };
 
+function normalizeRole(role) {
+  return role === 'bidder' ? 'readonly_bidder' : role;
+}
+
 export default function AdminUsersPage({ currentUser }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
@@ -51,7 +55,7 @@ export default function AdminUsersPage({ currentUser }) {
 
   function startEditing(user) {
     setEditingId(user.id);
-    setEditing({ username: user.username, password: '', role: user.role });
+    setEditing({ username: user.username, password: '', role: normalizeRole(user.role) });
   }
 
   return (
