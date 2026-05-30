@@ -26,6 +26,7 @@ import {
 import { formatDate } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
 import { authUrl } from '../../lib/api.js';
+import { BID_TABS } from './bidConstants.js';
 
 const SOURCE_CHIP_STYLES = {
   builtin: { bgcolor: '#e8f2ff', color: '#174379' },
@@ -60,6 +61,8 @@ const SOURCE_DOMAINS = {
 
 export default function BidJobCard({
   accent,
+  activeTab,
+  currentUser,
   draft,
   isSaving,
   isTailoring,
@@ -83,6 +86,7 @@ export default function BidJobCard({
       : `Bid ${statusLabel(draft.status)}`;
   const sourceChipSx = sourceChipStyles(job.source);
   const tailoredStatus = job.tailoredResume?.status || '';
+  const appliedByLabel = appliedByChipLabel(job.bid, currentUser);
   const tailoringInFlight = tailoredStatus === 'requested' || tailoredStatus === 'processing';
   const hasTailoringRequest = tailoringInFlight || tailoredStatus === 'ready';
   const downloadUrl =
@@ -235,6 +239,13 @@ export default function BidJobCard({
                   sx={tailoredStatusSx(tailoredStatus)}
                 />
               ) : null}
+              {activeTab === BID_TABS.done && appliedByLabel ? (
+                <Chip
+                  label={appliedByLabel}
+                  size="small"
+                  sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 }}
+                />
+              ) : null}
             </Box>
             <Stack
               direction="row"
@@ -360,6 +371,12 @@ function tailoredStatusSx(status) {
   if (status === 'dead_letter') return { bgcolor: '#fde9e5', color: '#8a2f1d', fontWeight: 800 };
   if (status === 'processing') return { bgcolor: '#fff1d6', color: '#70400d', fontWeight: 800 };
   return { bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 };
+}
+
+function appliedByChipLabel(bid, currentUser) {
+  if (!bid?.userId) return '';
+  if (String(bid.userId) === String(currentUser?.id)) return 'by me';
+  return `by ${bid.user?.username || 'unknown'}`;
 }
 
 function isInteractiveTarget(target, cardElement) {

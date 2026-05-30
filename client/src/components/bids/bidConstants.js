@@ -6,6 +6,7 @@ export const DEFAULT_BID_FILTERS = {
   search: '',
   roleFamily: 'all',
   source: 'all',
+  appliedByUserId: 'all',
   since: '24h',
   spam: 'all',
   visibility: 'visible',

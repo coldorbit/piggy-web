@@ -27,6 +27,7 @@ export default function BidJobsPanel({
   activeColor,
   activeTab,
   creatingBid,
+  currentUser,
   draftsForJob,
   jobs,
   loading,
@@ -213,6 +214,8 @@ export default function BidJobsPanel({
             <BidJobCard
               key={job.id}
               accent={activeColor}
+              activeTab={activeTab}
+              currentUser={currentUser}
               draft={draftsForJob(job)}
               isSaving={isSaving}
               job={job}

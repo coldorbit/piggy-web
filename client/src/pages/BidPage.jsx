@@ -20,10 +20,10 @@ import {
 } from '../lib/api.js';
 import { mergeKnownFilters, readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 
-const BID_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
+const BID_FILTER_KEYS = ['search', 'roleFamily', 'source', 'appliedByUserId', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters';
 
-export default function BidPage() {
+export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
@@ -216,7 +216,7 @@ export default function BidPage() {
               <BidProfileSummary
                 filters={filters}
                 isOpen={isFilterPanelOpen}
-                meta={metaData || { sources: [] }}
+                meta={{ ...(metaData || { sources: [] }), bidUsers: bidJobsData?.bidUsers || [] }}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onFilterChange={updateFilter}
                 onOpen={() => setIsFilterPanelOpen(true)}
@@ -229,6 +229,7 @@ export default function BidPage() {
                 activeColor={activeColor}
                 activeTab={activeBidTab}
                 creatingBid={creatingBid}
+                currentUser={bidJobsData?.currentUser || currentUser}
                 draftsForJob={draftFor}
                 jobs={visibleJobs}
                 loading={loading}

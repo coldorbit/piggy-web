@@ -20,7 +20,7 @@ export default function App() {
         <Route element={<AppLayout user={user} />}>
           <Route index element={<Navigate to="/jobs" replace />} />
           <Route path="/jobs" element={<JobsPage currentUser={user} />} />
-          <Route path="/bids" element={<BidPage />} />
+          <Route path="/bids" element={<BidPage currentUser={user} />} />
           <Route path="/profiles" element={<ProfilesPage currentUser={user} />} />
           <Route
             path="/admin/users"

@@ -266,6 +266,7 @@ async function adminManagedProfile(req, profileId) {
 export async function listBidJobs(req, res, next) {
   try {
     await ensureWebModels();
+    const user = await currentDbUser(req);
     const profile = await accessibleProfile(req, req.query.profileId);
     const ScrapedJob = getScrapedJobModel();
     const JobBid = getJobBidModel();
@@ -273,10 +274,19 @@ export async function listBidJobs(req, res, next) {
     const sequelize = getSequelize();
     const { where, order, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
     const bidTab = clean(req.query.bidTab || 'todo');
-    const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, JobBid, sequelize });
+    const bidUsers = await bidUsersForProfile(profile);
+    const appliedByUserId = bidUserFilter(req.query.appliedByUserId, bidUsers);
+    const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, appliedByUserId, JobBid, sequelize });
 
     const countBidTab = (tab) => {
-      const countQuery = buildBidTabQuery({ where, tab, profileId: profile.id, JobBid, sequelize });
+      const countQuery = buildBidTabQuery({
+        where,
+        tab,
+        profileId: profile.id,
+        appliedByUserId: tab === bidTab ? appliedByUserId : '',
+        JobBid,
+        sequelize,
+      });
       return ScrapedJob.count({
         where: countQuery.where,
         distinct: true,
@@ -306,13 +316,16 @@ export async function listBidJobs(req, res, next) {
       jobs: rows,
       profileId: profile.id,
     });
+    const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
 
     res.json({
       jobs: rows.map((job) => ({
         ...formatJob(job),
-        bid: job.bids?.[0] ? formatBid(job.bids[0]) : null,
+        bid: job.bids?.[0] ? formatBidWithUser(job.bids[0], bidUsersById) : null,
         tailoredResume: tailoredResumesByUrl.get(job.url) || null,
       })),
+      bidUsers,
+      currentUser: { id: user.id, username: user.username },
       total: count,
       tabCounts: {
         todo: todoCount,
@@ -325,6 +338,45 @@ export async function listBidJobs(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+async function bidUsersForProfile(profile) {
+  const WebUser = getWebUserModel();
+  const ProfileShareRequest = getProfileShareRequestModel();
+  const [owner, acceptedShares] = await Promise.all([
+    WebUser.findByPk(profile.userId),
+    ProfileShareRequest.findAll({
+      where: { profileId: profile.id, status: 'accepted' },
+      include: [{ model: WebUser, as: 'recipient', required: true }],
+      order: [['updatedAt', 'ASC']],
+    }),
+  ]);
+
+  const usersById = new Map();
+  if (owner) usersById.set(String(owner.id), owner);
+  for (const share of acceptedShares) {
+    if (share.recipient) usersById.set(String(share.recipient.id), share.recipient);
+  }
+
+  return [...usersById.values()]
+    .map((row) => ({ id: row.id, username: row.username }))
+    .sort((left, right) => String(left.username).localeCompare(String(right.username)));
+}
+
+function bidUserFilter(value, bidUsers) {
+  const userId = clean(value);
+  if (!userId || userId === 'all') return '';
+  const allowedUserIds = new Set(bidUsers.map((bidUser) => String(bidUser.id)));
+  return allowedUserIds.has(String(userId)) ? userId : '';
+}
+
+function formatBidWithUser(row, bidUsersById) {
+  const bid = formatBid(row);
+  const bidUser = bidUsersById.get(String(row.userId));
+  return {
+    ...bid,
+    user: bidUser || null,
+  };
 }
 
 export async function createTailoredResume(req, res, next) {

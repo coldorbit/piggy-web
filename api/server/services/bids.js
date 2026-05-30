@@ -5,7 +5,7 @@ import { formatJob } from './jobs.js';
 import { InputError } from '../utils/errors.js';
 import { clean } from '../utils/index.js';
 
-export function buildBidTabQuery({ where, tab, profileId, JobBid, sequelize }) {
+export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', JobBid, sequelize }) {
   const tabWhere = { ...where };
   const isDoneTab = tab === 'done';
   const isTailoredTab = tab === 'tailored';
@@ -17,6 +17,7 @@ export function buildBidTabQuery({ where, tab, profileId, JobBid, sequelize }) {
       where: {
         profileId,
         ...(isDoneTab ? { status: { [Op.in]: ['submitted', 'interviewing', 'won', 'lost'] } } : {}),
+        ...(isDoneTab && appliedByUserId ? { userId: appliedByUserId } : {}),
       },
     },
   ];

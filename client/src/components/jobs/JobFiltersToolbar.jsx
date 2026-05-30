@@ -14,6 +14,10 @@ import {
 } from '@mui/material';
 
 export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
+  const bidUsers = meta?.bidUsers || [];
+  const appliedByValue = bidUsers.some((user) => String(user.id) === String(filters.appliedByUserId))
+    ? String(filters.appliedByUserId)
+    : 'all';
   const content = (
     <>
       <TextField
@@ -51,6 +55,23 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
           ))}
         </Select>
       </FormControl>
+      {bidUsers.length ? (
+        <FormControl size="small">
+          <InputLabel>Applied by</InputLabel>
+          <Select
+            label="Applied by"
+            value={appliedByValue}
+            onChange={(event) => onFilterChange('appliedByUserId', event.target.value)}
+          >
+            <MenuItem value="all">All users</MenuItem>
+            {bidUsers.map((user) => (
+              <MenuItem key={user.id} value={String(user.id)}>
+                {user.username}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      ) : null}
       <FormControl size="small">
         <InputLabel>Age</InputLabel>
         <Select label="Age" value={filters.since} onChange={(event) => onFilterChange('since', event.target.value)}>
