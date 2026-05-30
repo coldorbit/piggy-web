@@ -9,6 +9,7 @@ export const DEFAULT_BID_FILTERS = {
   since: '24h',
   spam: 'all',
   visibility: 'visible',
+  origin: 'all',
   sort: 'scraped_desc',
   page: 1,
   limit: 10,

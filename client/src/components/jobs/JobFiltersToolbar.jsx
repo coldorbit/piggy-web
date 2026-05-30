@@ -79,6 +79,14 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         </Select>
       </FormControl>
       <FormControl size="small">
+        <InputLabel>Origin</InputLabel>
+        <Select label="Origin" value={filters.origin || 'all'} onChange={(event) => onFilterChange('origin', event.target.value)}>
+          <MenuItem value="all">Manual & scraped</MenuItem>
+          <MenuItem value="manual">Manual jobs</MenuItem>
+          <MenuItem value="scraped">Scraped jobs</MenuItem>
+        </Select>
+      </FormControl>
+      <FormControl size="small">
         <InputLabel>Sort</InputLabel>
         <Select label="Sort" value={filters.sort} onChange={(event) => onFilterChange('sort', event.target.value)}>
           <MenuItem value="scraped_desc">Newest scraped</MenuItem>
@@ -118,9 +126,9 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         ? '1fr'
         : {
             xs: '1fr',
-            lg: 'minmax(220px, 1fr) 200px 180px 140px 140px 140px 150px auto',
+            lg: 'minmax(220px, 1fr) 180px 170px 140px 140px 140px 150px 150px auto',
           },
-    gap: 1,
+    gap: variant === 'panel' ? 1.25 : 1,
     alignItems: variant === 'panel' ? 'stretch' : 'center',
     '& .MuiInputBase-root': {
       bgcolor: 'background.paper',

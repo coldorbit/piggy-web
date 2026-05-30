@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { literal, Op } from 'sequelize';
 import { clean } from '../utils/index.js';
 import { InputError } from '../utils/errors.js';
 
@@ -31,6 +31,7 @@ export function buildJobQuery(query) {
   const since = clean(query.since || '24h');
   const spam = clean(query.spam || 'all');
   const visibility = clean(query.visibility || 'visible');
+  const origin = clean(query.origin || 'all');
   const sort = clean(query.sort || 'scraped_desc');
   const page = Math.max(Number(query.page || 1), 1);
   const limit = Math.min(Math.max(Number(query.limit || 50), 1), 100);
@@ -43,6 +44,7 @@ export function buildJobQuery(query) {
   if (spam === 'not_spam') where.isSpam = false;
   if (spam === 'unreviewed') where.isSpam = { [Op.is]: null };
   applyVisibilityFilter(where, visibility);
+  applyOriginFilter(where, origin);
   if (since !== 'all') {
     const sinceDate = sinceToDate(since);
     if (sinceDate) where.postedAt = { [Op.gte]: sinceDate };
@@ -87,6 +89,17 @@ function applyVisibilityFilter(where, visibility) {
   });
 }
 
+function applyOriginFilter(where, origin) {
+  if (origin === 'manual') {
+    appendAndCondition(where, literal("raw_job->>'importType' = 'manual'"));
+    return;
+  }
+
+  if (origin === 'scraped') {
+    appendAndCondition(where, literal("COALESCE(raw_job->>'importType', '') <> 'manual'"));
+  }
+}
+
 function appendAndCondition(where, condition) {
   where[Op.and] = [...(Array.isArray(where[Op.and]) ? where[Op.and] : []), condition];
 }
@@ -123,6 +136,7 @@ export function parseHiddenState(value) {
 }
 
 export function formatJob(row) {
+  const rawJob = row.rawJob || {};
   return {
     id: row.id,
     title: row.title,
@@ -135,8 +149,9 @@ export function formatJob(row) {
     postedAt: row.postedAt,
     scrapedAt: row.scrapedAt,
     listingText: row.listingText,
-    rawJob: row.rawJob,
-    companyLogoUrl: companyLogoUrl(row.rawJob),
+    rawJob,
+    companyLogoUrl: companyLogoUrl(rawJob),
+    isManual: rawJob.importType === 'manual' || rawJob.isManualImport === true,
     isSpam: row.isSpam,
     spamReviewedAt: row.spamReviewedAt,
     isHidden: row.isHidden,
@@ -236,6 +251,7 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
   if (rows.length < 2) throw new InputError('CSV must include a header row and at least one job row');
 
   const headers = rows[0].map(normalizeHeader);
+  validateCsvHeaders(headers);
   const importedAt = new Date();
   const jobs = [];
   const errors = [];
@@ -251,8 +267,12 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
       errors.push(`Row ${rowNumber}: missing url`);
       return;
     }
+    if (!validJobUrl(url)) {
+      errors.push(`Row ${rowNumber}: invalid url`);
+      return;
+    }
 
-    const category = categoryFromCsvValue(csvValue(raw, 'category'));
+    const category = categoryFromCsvValue(csvValue(raw, 'category'), rowNumber, errors);
     const postedAt = dateFromCsvValue(csvValue(raw, 'postedAt'), rowNumber, errors) || importedAt;
     const listingText = csvValue(raw, 'listingText');
 
@@ -272,6 +292,8 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
         ...raw,
         importedBy: importedBy || null,
         importedAt: importedAt.toISOString(),
+        importType: 'manual',
+        isManualImport: true,
         roleFamily: category,
         category,
       },
@@ -284,6 +306,18 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
   if (errors.length) throw new InputError(errors.slice(0, 10).join('; '));
   if (!jobs.length) throw new InputError('CSV did not contain any importable jobs');
   return jobs;
+}
+
+function validateCsvHeaders(headers) {
+  if (!headers.some((header) => JOB_CSV_COLUMNS.url.map(normalizeHeader).includes(header))) {
+    throw new InputError('CSV must include a url column');
+  }
+
+  const knownHeaders = new Set(Object.values(JOB_CSV_COLUMNS).flat().map(normalizeHeader));
+  const processibleHeaders = headers.filter((header) => knownHeaders.has(header));
+  if (processibleHeaders.length < 2) {
+    throw new InputError('CSV must include url and at least one supported job column');
+  }
 }
 
 function parseCsv(csvText) {
@@ -354,12 +388,23 @@ function normalizeHeader(value) {
   return clean(value).toLowerCase().replace(/[\s-]+/g, '_');
 }
 
-function categoryFromCsvValue(value) {
+function categoryFromCsvValue(value, rowNumber, errors) {
   const normalized = clean(value).toLowerCase().replace(/[\s-]+/g, '_');
+  if (!normalized) return 'software';
   if (VALID_JOB_CATEGORIES.has(normalized)) return normalized;
   if (['ai', 'ml', 'aiml', 'ai/ml', 'ai_ml'].includes(normalized)) return 'ai_ml';
   if (normalized.includes('data')) return 'data';
+  errors.push(`Row ${rowNumber}: invalid category`);
   return 'software';
+}
+
+function validJobUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 function dateFromCsvValue(value, rowNumber, errors) {

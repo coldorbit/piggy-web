@@ -8,13 +8,13 @@ import JobDetail from '../components/jobs/JobDetail.jsx';
 import JobFiltersDrawer from '../components/jobs/JobFiltersDrawer.jsx';
 import JobList from '../components/jobs/JobList.jsx';
 import Metric from '../components/jobs/Metric.jsx';
-import { useImportJobsCsv, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
+import { useDeleteJob, useImportJobsCsv, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
 import { PAGE_SIZE } from '../lib/constants.js';
 import { formatDateTime } from '../lib/formatters.js';
 import { matchesSpamFilter, matchesVisibilityFilter } from '../lib/jobFilters.js';
 import { readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 
-const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'sort', 'page', 'limit'];
+const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const JOB_FILTERS_STORAGE_KEY = 'applypilot.jobs.filters';
 
 const DEFAULT_FILTERS = {
@@ -24,6 +24,7 @@ const DEFAULT_FILTERS = {
   since: '24h',
   spam: 'all',
   visibility: 'visible',
+  origin: 'all',
   sort: 'scraped_desc',
   page: 1,
   limit: PAGE_SIZE,
@@ -48,6 +49,7 @@ export default function JobsPage({ currentUser }) {
   });
 
   const { data: metaData, isLoading: metaLoading, error: metaError, refetch: refetchMeta } = useJobsMeta();
+  const { mutateAsync: deleteJob, isPending: deletingJob } = useDeleteJob();
   const { mutateAsync: markSpam } = useMarkJobSpam();
   const { mutateAsync: markHidden } = useMarkJobHidden();
   const { mutate: importJobsCsv, isPending: importingCsv } = useImportJobsCsv();
@@ -84,6 +86,11 @@ export default function JobsPage({ currentUser }) {
       setSelectedId((current) => (String(current) === String(jobId) ? null : current));
     }
     return updatedJob;
+  }
+
+  async function deleteJobPermanently(jobId) {
+    await deleteJob({ jobId });
+    setSelectedId((current) => (String(current) === String(jobId) ? null : current));
   }
 
   function importCsv(event) {
@@ -175,7 +182,14 @@ export default function JobsPage({ currentUser }) {
           onPageSize={(limit) => updateFilter('limit', limit)}
           onSelectJob={setSelectedId}
         />
-        <JobDetail job={selectedJob} onHiddenChange={updateHiddenState} onSpamReview={updateSpamReview} />
+        <JobDetail
+          canDelete={currentUser?.role === 'admin'}
+          isDeleting={deletingJob}
+          job={selectedJob}
+          onDelete={deleteJobPermanently}
+          onHiddenChange={updateHiddenState}
+          onSpamReview={updateSpamReview}
+        />
       </Box>
 
       <Dialog open={isImportOpen} onClose={() => setIsImportOpen(false)} fullWidth maxWidth="sm">

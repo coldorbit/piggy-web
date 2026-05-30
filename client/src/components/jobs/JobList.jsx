@@ -123,6 +123,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                           </IconButton>
                         </span>
                       </Tooltip>
+                      {job.isManual ? <ManualJobBadge /> : null}
                       <SpamBadge job={job} />
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
@@ -140,6 +141,23 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       </List>
       <Pagination filters={filters} total={total} onPage={onPage} onPageSize={onPageSize} />
     </Paper>
+  );
+}
+
+function ManualJobBadge() {
+  return (
+    <Chip
+      label="Manual"
+      size="small"
+      sx={{
+        height: 20,
+        bgcolor: '#ECFDF5',
+        color: '#0F766E',
+        fontSize: 11,
+        fontWeight: 900,
+        '& .MuiChip-label': { px: 0.75 },
+      }}
+    />
   );
 }
 

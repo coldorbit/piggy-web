@@ -233,11 +233,67 @@ export function useImportJobsCsv() {
   });
 }
 
+export function useDeleteJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId }) =>
+      api(`/api/jobs/${jobId}`, {
+        method: 'DELETE',
+      }),
+    onMutate: async ({ jobId }) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['jobs'] }),
+        queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] }),
+      ]);
+      const previousJobsQueries = queryClient.getQueriesData({ queryKey: ['jobs'] });
+      const previousBidJobsQueries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
+
+      removeCachedJobQueries(queryClient, ['jobs'], jobId);
+      removeCachedJobQueries(queryClient, ['bid', 'jobs'], jobId);
+
+      return { previousJobsQueries, previousBidJobsQueries };
+    },
+    onError: (_error, _variables, context) => {
+      restoreQueries(queryClient, context?.previousJobsQueries);
+      restoreQueries(queryClient, context?.previousBidJobsQueries);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['meta'] });
+    },
+  });
+}
+
 function updateCachedJob(oldData, jobId, updates) {
   if (!oldData?.jobs) return oldData;
   return {
     ...oldData,
     jobs: oldData.jobs.map((job) => (String(job.id) === String(jobId) ? { ...job, ...updates } : job)),
+  };
+}
+
+function removeCachedJobQueries(queryClient, queryKeyPrefix, jobId) {
+  queryClient.getQueriesData({ queryKey: queryKeyPrefix }).forEach(([queryKey, data]) => {
+    queryClient.setQueryData(queryKey, removeCachedJob(data, queryFiltersFromKey(queryKey), jobId));
+  });
+}
+
+function removeCachedJob(oldData, filters, jobId) {
+  if (!oldData?.jobs) return oldData;
+
+  let removed = 0;
+  const jobs = oldData.jobs.filter((job) => {
+    const keep = String(job.id) !== String(jobId);
+    if (!keep) removed += 1;
+    return keep;
+  });
+
+  return {
+    ...oldData,
+    jobs,
+    total: typeof oldData.total === 'number' ? Math.max(oldData.total - removed, 0) : oldData.total,
+    tabCounts: updateTabCount(oldData.tabCounts, filters.bidTab, -removed),
   };
 }
 

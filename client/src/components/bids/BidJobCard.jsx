@@ -208,6 +208,13 @@ export default function BidJobCard({
                 minWidth: 0,
               }}
             >
+              {job.isManual ? (
+                <Chip
+                  label="Manual"
+                  size="small"
+                  sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
+                />
+              ) : null}
               <SourceChip source={job.source} sourceUrl={job.sourceUrl} sx={sourceChipSx} />
               <Chip
                 label={formatDate(job.postedAt || job.scrapedAt)}

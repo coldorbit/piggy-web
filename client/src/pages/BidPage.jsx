@@ -20,7 +20,7 @@ import {
 } from '../lib/api.js';
 import { mergeKnownFilters, readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 
-const BID_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'sort', 'page', 'limit'];
+const BID_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters';
 
 export default function BidPage() {
@@ -283,7 +283,7 @@ function bidParamsFromState({ activeProfileId, activeBidTab, filters }) {
   if (activeProfileId) params.set('profileId', String(activeProfileId));
   params.set('tab', activeBidTab);
 
-  for (const key of ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'sort', 'page', 'limit']) {
+  for (const key of BID_FILTER_KEYS) {
     const value = filters[key];
     if (value !== undefined && value !== null && String(value) !== '') {
       params.set(key, String(value));

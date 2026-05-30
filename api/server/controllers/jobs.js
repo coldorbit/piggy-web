@@ -1,4 +1,4 @@
-import { ensureWebModels, getScrapedJobModel, getSequelize } from '../../db.js';
+import { ensureWebModels, getJobBidModel, getScrapedJobModel, getSequelize, getTailoredResumeModel } from '../../db.js';
 import { Op } from 'sequelize';
 import { buildJobQuery, canImportJobs, formatJob, jobsFromCsv, parseHiddenState, parseSpamReview } from '../services/jobs.js';
 import { InputError } from '../utils/errors.js';
@@ -124,6 +124,41 @@ export async function importJobsCsv(req, res, next) {
       res.status(400).json({ error: error.message });
       return;
     }
+    next(error);
+  }
+}
+
+export async function deleteJob(req, res, next) {
+  try {
+    await ensureWebModels();
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Only admins can delete jobs permanently' });
+      return;
+    }
+
+    const ScrapedJob = getScrapedJobModel();
+    const JobBid = getJobBidModel();
+    const TailoredResume = getTailoredResumeModel();
+    const sequelize = getSequelize();
+
+    const result = await sequelize.transaction(async (transaction) => {
+      const job = await ScrapedJob.findByPk(req.params.id, { transaction });
+      if (!job) return null;
+
+      await JobBid.destroy({ where: { jobId: job.id }, transaction });
+      await TailoredResume.destroy({ where: { jobUrl: job.url }, transaction });
+      await job.destroy({ transaction });
+
+      return { id: job.id, url: job.url };
+    });
+
+    if (!result) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+
+    res.json({ deleted: true, job: result });
+  } catch (error) {
     next(error);
   }
 }

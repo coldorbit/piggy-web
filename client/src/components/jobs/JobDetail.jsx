@@ -2,6 +2,7 @@ import { useState } from 'react';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import LaunchIcon from '@mui/icons-material/Launch';
 import ReportIcon from '@mui/icons-material/Report';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -21,11 +22,12 @@ import {
 import { formatDateTime, spamStatusLabel } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
 
-export default function JobDetail({ job, onHiddenChange, onSpamReview }) {
+export default function JobDetail({ canDelete = false, isDeleting = false, job, onDelete, onHiddenChange, onSpamReview }) {
   const [savingSpam, setSavingSpam] = useState(false);
   const [savingHidden, setSavingHidden] = useState(false);
   const [spamError, setSpamError] = useState('');
   const [hiddenError, setHiddenError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   if (!job) {
     return (
@@ -71,6 +73,18 @@ export default function JobDetail({ job, onHiddenChange, onSpamReview }) {
     }
   }
 
+  async function handleDelete() {
+    const confirmed = window.confirm(`Permanently delete "${job.title || 'this job'}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeleteError('');
+    try {
+      await onDelete(job.id);
+    } catch (deleteJobError) {
+      setDeleteError(deleteJobError.message);
+    }
+  }
+
   return (
     <Paper
       variant="outlined"
@@ -93,11 +107,20 @@ export default function JobDetail({ job, onHiddenChange, onSpamReview }) {
         }}
       >
         <Box minWidth={0}>
-          <Chip
-            label={job.source}
-            size="small"
-            sx={{ mb: 0.75, height: 22, bgcolor: '#EFF6FF', color: 'primary.dark' }}
-          />
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
+            <Chip
+              label={job.source}
+              size="small"
+              sx={{ height: 22, bgcolor: '#EFF6FF', color: 'primary.dark' }}
+            />
+            {job.isManual ? (
+              <Chip
+                label="Manual import"
+                size="small"
+                sx={{ height: 22, bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
+              />
+            ) : null}
+          </Stack>
           <Typography variant="h6" fontWeight={900} lineHeight={1.2}>
             {job.title || 'Untitled role'}
           </Typography>
@@ -187,10 +210,22 @@ export default function JobDetail({ job, onHiddenChange, onSpamReview }) {
         >
           <CancelIcon />
         </IconButton>
+        {canDelete ? (
+          <Button
+            color="error"
+            disabled={isDeleting}
+            onClick={handleDelete}
+            startIcon={<DeleteForeverIcon />}
+            variant="outlined"
+          >
+            Delete permanently
+          </Button>
+        ) : null}
       </Box>
 
       {spamError ? <Alert severity="error" sx={{ mb: 2 }}>{spamError}</Alert> : null}
       {hiddenError ? <Alert severity="error" sx={{ mb: 2 }}>{hiddenError}</Alert> : null}
+      {deleteError ? <Alert severity="error" sx={{ mb: 2 }}>{deleteError}</Alert> : null}
 
       <Box>
         <Typography variant="subtitle2" fontWeight={900} gutterBottom>
