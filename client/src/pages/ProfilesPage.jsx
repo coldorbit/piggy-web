@@ -186,7 +186,7 @@ export default function ProfilesPage({ currentUser }) {
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', '& .MuiChip-root': { fontWeight: 400 } }}>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
         {canManageProfiles ? (
           <Button
             variant="contained"

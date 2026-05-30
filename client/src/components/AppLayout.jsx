@@ -26,6 +26,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout } from '../lib/api.js';
 
 const DRAWER_WIDTH = 248;
+const shellLine = '#E2E8F0';
 
 export default function AppLayout({ user }) {
   const location = useLocation();
@@ -54,20 +55,38 @@ export default function AppLayout({ user }) {
         : 'Discover, review, and prioritize matched roles';
   const drawerContent = (
     <>
-      <Toolbar sx={{ minHeight: 76, gap: 1.25, px: 2 }}>
-        <Avatar
-          src="/assets/applypilot-logo.png"
-          alt="ApplyPilot logo"
-          variant="rounded"
+      <Toolbar
+        sx={{
+          minHeight: 84,
+          gap: 1.25,
+          px: 2,
+          borderBottom: 1,
+          borderColor: shellLine,
+          bgcolor: '#ffffff',
+        }}
+      >
+        <Box
           sx={{
-            width: 42,
-            height: 42,
-            bgcolor: 'background.paper',
-            boxShadow: '0 10px 24px rgba(95, 91, 216, 0.26)',
+            width: 46,
+            height: 46,
+            display: 'grid',
+            placeItems: 'center',
+            border: 1,
+            borderColor: '#DBEAFE',
+            borderRadius: 2,
+            bgcolor: '#EFF6FF',
+            boxShadow: '0 10px 24px rgba(37, 99, 235, 0.14)',
           }}
-        />
+        >
+          <Avatar
+            src="/assets/applypilot-logo.png"
+            alt="ApplyPilot logo"
+            variant="rounded"
+            sx={{ width: 32, height: 32, bgcolor: 'background.paper', borderRadius: 1.5 }}
+          />
+        </Box>
         <Box minWidth={0}>
-          <Typography fontWeight={900} lineHeight={1.1}>
+          <Typography fontWeight={900} lineHeight={1.1} sx={{ color: 'primary.dark', letterSpacing: 0.2 }}>
             ApplyPilot
           </Typography>
           <Typography variant="caption" color="text.secondary">
@@ -75,7 +94,7 @@ export default function AppLayout({ user }) {
           </Typography>
         </Box>
       </Toolbar>
-      <Box sx={{ px: 1.25, pb: 1 }}>
+      <Box sx={{ px: 1.25, py: 1.25 }}>
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.5 }}>
           <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} />
           <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} />
@@ -89,10 +108,10 @@ export default function AppLayout({ user }) {
         <Box
           sx={{
             border: 1,
-            borderColor: 'divider',
-            borderRadius: 2,
+            borderColor: shellLine,
+            borderRadius: 1,
             p: 1.25,
-            bgcolor: 'rgba(255, 255, 255, 0.72)',
+            bgcolor: '#F8FAFC',
           }}
         >
           <Typography variant="caption" color="text.secondary">
@@ -108,7 +127,13 @@ export default function AppLayout({ user }) {
   );
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'flex', bgcolor: 'background.default' }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        bgcolor: 'background.default',
+      }}
+    >
       <Drawer
         variant={isDesktop ? 'permanent' : 'temporary'}
         open={isDesktop || mobileOpen}
@@ -121,10 +146,10 @@ export default function AppLayout({ user }) {
           '& .MuiDrawer-paper': {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',
-            borderRight: 0,
-            background:
-              'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,244,255,0.94))',
-            boxShadow: { xs: 4, md: '8px 0 26px rgba(42, 38, 76, 0.07)' },
+            borderRight: 1,
+            borderColor: shellLine,
+            background: '#ffffff',
+            boxShadow: { xs: 4, md: '8px 0 26px rgba(15, 23, 42, 0.05)' },
             display: 'flex',
           },
         }}
@@ -139,9 +164,9 @@ export default function AppLayout({ user }) {
           elevation={0}
           sx={{
             borderBottom: 1,
-            borderColor: 'divider',
+            borderColor: shellLine,
             backdropFilter: 'blur(18px)',
-            bgcolor: 'rgba(255, 255, 255, 0.84)',
+            bgcolor: 'rgba(255, 255, 255, 0.88)',
           }}
         >
           <Toolbar sx={{ minHeight: 76, justifyContent: 'space-between', gap: 2, px: { xs: 1.5, sm: 2.5 } }}>
@@ -151,8 +176,15 @@ export default function AppLayout({ user }) {
                   <MenuIcon />
                 </IconButton>
               ) : null}
-              <Box minWidth={0}>
-                <Typography variant="h5" fontWeight={900} noWrap>
+              <Box
+                minWidth={0}
+                sx={{
+                  borderLeft: { xs: 0, sm: 2 },
+                  borderColor: 'primary.main',
+                  pl: { xs: 0, sm: 1.25 },
+                }}
+              >
+                <Typography variant="h5" fontWeight={900} noWrap sx={{ color: 'text.primary', letterSpacing: 0.2 }}>
                   {title}
                 </Typography>
                 <Typography color="text.secondary" noWrap sx={{ display: { xs: 'none', sm: 'block' } }}>
@@ -167,13 +199,31 @@ export default function AppLayout({ user }) {
                   {user.username}
                 </Typography>
               </Box>
-              <IconButton type="button" onClick={handleLogout} title="Sign out">
+              <IconButton
+                type="button"
+                onClick={handleLogout}
+                title="Sign out"
+                sx={{
+                  border: 1,
+                  borderColor: shellLine,
+                  bgcolor: 'rgba(255, 255, 255, 0.72)',
+                  '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE' },
+                }}
+              >
                 <LogoutIcon />
               </IconButton>
             </Box>
           </Toolbar>
         </AppBar>
-        <Box sx={{ width: '100%', maxWidth: 1680, mx: 'auto', p: { xs: 1.25, sm: 2, xl: 3 }, minWidth: 0 }}>
+        <Box
+          sx={{
+            width: '100%',
+            maxWidth: 1680,
+            mx: 'auto',
+            p: { xs: 1.25, sm: 2, xl: 3 },
+            minWidth: 0,
+          }}
+        >
           <Outlet />
         </Box>
       </Box>
@@ -189,16 +239,20 @@ function NavItem({ icon, label, onNavigate, to }) {
       onClick={onNavigate}
       sx={{
         minHeight: 46,
-        borderRadius: 2,
+        borderRadius: 1,
+        border: 1,
+        borderColor: 'transparent',
         color: 'text.secondary',
         '& .MuiListItemIcon-root': { color: 'text.secondary' },
         '&:hover': {
-          bgcolor: 'rgba(95, 91, 216, 0.08)',
+          bgcolor: '#EFF6FF',
+          borderColor: '#DBEAFE',
           color: 'primary.dark',
         },
         '&.active': {
           bgcolor: 'primary.main',
-          boxShadow: '0 10px 24px rgba(95, 91, 216, 0.24)',
+          borderColor: 'primary.main',
+          boxShadow: '0 10px 24px rgba(37, 99, 235, 0.22)',
           color: 'primary.contrastText',
           fontWeight: 800,
           '& .MuiListItemIcon-root': { color: 'primary.contrastText' },

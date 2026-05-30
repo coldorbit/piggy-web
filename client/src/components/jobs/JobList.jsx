@@ -66,9 +66,9 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                   textAlign: 'left',
                   borderLeft: 4,
                   borderColor: selected ? 'primary.main' : 'transparent',
-                  bgcolor: selected ? 'rgba(95, 91, 216, 0.08)' : 'transparent',
+                  bgcolor: selected ? '#EFF6FF' : 'transparent',
                   transition: 'background-color 150ms ease, border-color 150ms ease',
-                  '&:hover': { bgcolor: selected ? 'rgba(95, 91, 216, 0.1)' : 'rgba(35, 34, 58, 0.04)' },
+                  '&:hover': { bgcolor: selected ? '#DBEAFE' : '#F8FAFC' },
                 }}
               >
                 <Box

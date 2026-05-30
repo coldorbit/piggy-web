@@ -8,41 +8,41 @@ const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#5f5bd8',
-      light: '#8b88f2',
-      dark: '#37328f',
+      main: '#2563EB',
+      light: '#60A5FA',
+      dark: '#1E40AF',
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#0f9f9a',
-      dark: '#08716f',
+      main: '#0F766E',
+      dark: '#115E59',
     },
     success: {
-      main: '#15855f',
+      main: '#16A34A',
     },
     warning: {
-      main: '#b86d1f',
+      main: '#D97706',
     },
     error: {
-      main: '#b84c5a',
+      main: '#DC2626',
     },
     background: {
-      default: '#f6f4fb',
+      default: '#F8FAFC',
       paper: '#ffffff',
     },
     text: {
-      primary: '#23223a',
-      secondary: '#68657f',
+      primary: '#0F172A',
+      secondary: '#64748B',
     },
-    divider: 'rgba(35, 34, 58, 0.11)',
+    divider: '#E2E8F0',
   },
   shadows: [
     'none',
-    '0 1px 2px rgba(42, 38, 76, 0.06), 0 1px 3px rgba(42, 38, 76, 0.08)',
-    '0 4px 12px rgba(42, 38, 76, 0.08)',
-    '0 8px 22px rgba(42, 38, 76, 0.09)',
-    '0 12px 30px rgba(42, 38, 76, 0.1)',
-    ...Array(20).fill('0 18px 42px rgba(42, 38, 76, 0.12)'),
+    '0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06)',
+    '0 4px 12px rgba(15, 23, 42, 0.07)',
+    '0 8px 22px rgba(15, 23, 42, 0.08)',
+    '0 12px 30px rgba(15, 23, 42, 0.09)',
+    ...Array(20).fill('0 18px 42px rgba(15, 23, 42, 0.1)'),
   ],
   shape: {
     borderRadius: 8,
@@ -67,7 +67,7 @@ const theme = createTheme({
       styleOverrides: {
         body: {
           background:
-            'radial-gradient(circle at top left, rgba(95, 91, 216, 0.16), transparent 28rem), radial-gradient(circle at 90% 15%, rgba(15, 159, 154, 0.12), transparent 22rem), #f6f4fb',
+            'radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 26rem), radial-gradient(circle at 90% 12%, rgba(15, 118, 110, 0.08), transparent 24rem), #F8FAFC',
         },
         '*': {
           boxSizing: 'border-box',
@@ -78,7 +78,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          borderColor: 'rgba(35, 34, 58, 0.11)',
+          borderColor: '#E2E8F0',
         },
       },
     },
@@ -89,7 +89,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          borderColor: 'rgba(35, 34, 58, 0.11)',
+          borderColor: '#E2E8F0',
         },
       },
     },
@@ -103,7 +103,7 @@ const theme = createTheme({
           borderRadius: 8,
         },
         contained: {
-          boxShadow: '0 8px 18px rgba(95, 91, 216, 0.24)',
+          boxShadow: '0 8px 18px rgba(37, 99, 235, 0.22)',
         },
       },
     },
@@ -136,7 +136,7 @@ const theme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         head: {
-          color: '#68657f',
+          color: '#64748B',
           fontSize: 12,
           fontWeight: 800,
           textTransform: 'uppercase',

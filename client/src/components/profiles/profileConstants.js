@@ -8,7 +8,7 @@ export const EMPTY_PROFILE = {
   companies: '[]',
   education: '[]',
   resumeText: '',
-  colorScheme: 'violet',
+  colorScheme: 'blue',
   profileBadge: 'SWE',
 };
 
@@ -21,16 +21,16 @@ export const PROFILE_BADGE_OPTIONS = [
 ];
 
 export const PROFILE_BADGE_COLORS = {
-  ML: { bgcolor: '#ebe9ff', color: '#37328f' },
-  DE: { bgcolor: '#dff7f5', color: '#08716f' },
-  SWE: { bgcolor: '#fff0e9', color: '#8b422c' },
+  ML: { bgcolor: '#EFF6FF', color: '#1E40AF' },
+  DE: { bgcolor: '#ECFDF5', color: '#0F766E' },
+  SWE: { bgcolor: '#F8FAFC', color: '#0F172A' },
 };
 
 export const PROFILE_COLORS = {
-  green: { main: '#0f9f9a', dark: '#08716f', soft: '#dff7f5' },
-  blue: { main: '#4776d8', dark: '#29458f', soft: '#e5edff' },
-  violet: { main: '#5f5bd8', dark: '#37328f', soft: '#ebe9ff' },
-  amber: { main: '#c98228', dark: '#7a4a12', soft: '#fff2d8' },
-  rose: { main: '#c85d75', dark: '#843548', soft: '#ffe7ee' },
-  slate: { main: '#68657f', dark: '#3c394f', soft: '#eceaf4' },
+  green: { main: '#16A34A', dark: '#166534', soft: '#ECFDF5' },
+  blue: { main: '#2563EB', dark: '#1E40AF', soft: '#EFF6FF' },
+  violet: { main: '#6366F1', dark: '#4338CA', soft: '#EEF2FF' },
+  amber: { main: '#D97706', dark: '#92400E', soft: '#FFFBEB' },
+  rose: { main: '#DC2626', dark: '#991B1B', soft: '#FEF2F2' },
+  slate: { main: '#64748B', dark: '#334155', soft: '#F1F5F9' },
 };

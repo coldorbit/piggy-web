@@ -78,7 +78,7 @@ export function LoginScreen() {
               width: 50,
               height: 50,
               bgcolor: 'background.paper',
-              boxShadow: '0 12px 28px rgba(95, 91, 216, 0.28)',
+              boxShadow: '0 12px 28px rgba(37, 99, 235, 0.22)',
             }}
           />
           <Typography variant="h4" fontWeight={900}>
@@ -116,5 +116,5 @@ const authPageSx = {
   placeItems: 'center',
   p: 3,
   background:
-    'radial-gradient(circle at 20% 10%, rgba(95, 91, 216, 0.24), transparent 24rem), radial-gradient(circle at 80% 80%, rgba(15, 159, 154, 0.16), transparent 22rem), radial-gradient(circle at 45% 95%, rgba(238, 154, 123, 0.18), transparent 20rem), #f6f4fb',
+    'radial-gradient(circle at 20% 10%, rgba(37, 99, 235, 0.12), transparent 24rem), radial-gradient(circle at 80% 80%, rgba(15, 118, 110, 0.12), transparent 22rem), #F8FAFC',
 };

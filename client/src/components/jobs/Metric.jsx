@@ -18,11 +18,13 @@ export default function Metric({ icon, label, value, action }) {
           width: 86,
           height: 86,
           borderRadius: '50%',
-          bgcolor: 'rgba(95, 91, 216, 0.08)',
+          bgcolor: '#EFF6FF',
+          pointerEvents: 'none',
+          zIndex: 0,
         },
       }}
     >
-      <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="space-between">
+      <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="space-between" sx={{ position: 'relative', zIndex: 1 }}>
         <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0} sx={{ flex: 1 }}>
           <Box
             sx={{
@@ -32,7 +34,7 @@ export default function Metric({ icon, label, value, action }) {
               placeItems: 'center',
               borderRadius: 2,
               color: 'primary.dark',
-              bgcolor: 'rgba(95, 91, 216, 0.1)',
+              bgcolor: '#EFF6FF',
               flexShrink: 0,
             }}
           >

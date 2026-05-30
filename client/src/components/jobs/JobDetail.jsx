@@ -96,7 +96,7 @@ export default function JobDetail({ job, onHiddenChange, onSpamReview }) {
           <Chip
             label={job.source}
             size="small"
-            sx={{ mb: 0.75, height: 22, bgcolor: 'rgba(95, 91, 216, 0.1)', color: 'primary.dark' }}
+            sx={{ mb: 0.75, height: 22, bgcolor: '#EFF6FF', color: 'primary.dark' }}
           />
           <Typography variant="h6" fontWeight={900} lineHeight={1.2}>
             {job.title || 'Untitled role'}
