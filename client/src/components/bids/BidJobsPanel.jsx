@@ -2,6 +2,7 @@ import { useState } from 'react';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import {
   Box,
   Button,
@@ -83,6 +84,11 @@ export default function BidJobsPanel({
     selectedVisibleJobs.forEach((job) => onTailorResume(job));
   }
 
+  function exportActiveTabCsv() {
+    const csv = activeTab === BID_TABS.tailored ? tailoredJobsCsv(jobs) : jobsInfoCsv(jobs);
+    downloadCsv(csv, `${tabLabel(activeTab)}-jobs.csv`);
+  }
+
   return (
     <Paper
       variant="outlined"
@@ -142,6 +148,16 @@ export default function BidJobsPanel({
             sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
           >
             {allVisibleJobsSelected ? 'Clear selection' : 'Select all'}
+          </Button>
+          <Button
+            disabled={!jobs.length}
+            onClick={exportActiveTabCsv}
+            size="small"
+            startIcon={<FileDownloadIcon />}
+            variant="outlined"
+            sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+          >
+            Export CSV
           </Button>
           {activeTab === BID_TABS.todo ? (
             <Button
@@ -275,6 +291,68 @@ export default function BidJobsPanel({
 function tabLabel(tab) {
   if (tab === BID_TABS.tailored) return 'tailored';
   return tab === BID_TABS.todo ? 'todo' : 'done';
+}
+
+function jobsInfoCsv(jobs) {
+  return csvFromRows(
+    ['jobLink', 'title', 'company', 'location', 'category', 'source', 'postedAt', 'scrapedAt', 'manualJob', 'bidStatus', 'resumeStatus', 'listingText'],
+    jobs.map((job) => ({
+      jobLink: job.url || '',
+      title: job.title || '',
+      company: job.company || '',
+      location: job.location || '',
+      category: job.category || '',
+      source: job.source || '',
+      postedAt: job.postedAt || '',
+      scrapedAt: job.scrapedAt || '',
+      manualJob: job.isManual ? 'yes' : 'no',
+      bidStatus: job.bid?.status || '',
+      resumeStatus: job.tailoredResume?.status || '',
+      listingText: job.listingText || '',
+    })),
+  );
+}
+
+function tailoredJobsCsv(jobs) {
+  return csvFromRows(
+    ['jobLink', 'title', 'company', 'resumeFileName'],
+    jobs.map((job) => ({
+      jobLink: job.url || '',
+      title: job.title || '',
+      company: job.company || '',
+      resumeFileName: resumeFileName(job.tailoredResume?.filePath),
+    })),
+  );
+}
+
+function csvFromRows(headers, rows) {
+  return [
+    headers.join(','),
+    ...rows.map((row) => headers.map((header) => csvCell(row[header])).join(',')),
+  ].join('\n');
+}
+
+function csvCell(value) {
+  const text = String(value ?? '');
+  if (!/[",\n\r]/.test(text)) return text;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function resumeFileName(filePath) {
+  if (!filePath) return '';
+  return String(filePath).split('/').pop() || '';
+}
+
+function downloadCsv(csv, filename) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function EmptyState({ children }) {
