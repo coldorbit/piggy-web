@@ -59,6 +59,10 @@ export function getTailoredResumeModel() {
         type: DataTypes.DATE,
         field: 'dead_letter_at',
       },
+      downloadedAt: {
+        type: DataTypes.DATE,
+        field: 'downloaded_at',
+      },
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,

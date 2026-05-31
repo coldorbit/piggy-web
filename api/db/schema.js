@@ -116,6 +116,7 @@ async function ensureTailoredResumeStatusColumns() {
     max_attempts: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 3 },
     last_error: { type: DataTypes.TEXT, allowNull: true },
     dead_letter_at: { type: DataTypes.DATE, allowNull: true },
+    downloaded_at: { type: DataTypes.DATE, allowNull: true },
   });
 
   await queryInterface.sequelize.query(

@@ -73,6 +73,7 @@ export default function BidJobCard({
   showTailorAction = false,
   onDraftChange,
   onHiddenChange,
+  onResumeDownload = () => {},
   onSelectedChange,
   onStatusChange,
   onTailorResume,
@@ -87,6 +88,7 @@ export default function BidJobCard({
   const appliedByLabel = appliedByChipLabel(job.bid, currentUser);
   const tailoringInFlight = tailoredStatus === 'requested' || tailoredStatus === 'processing';
   const hasTailoringRequest = tailoringInFlight || tailoredStatus === 'ready';
+  const isResumeDownloaded = Boolean(job.tailoredResume?.downloadedAt);
   const downloadUrl =
     tailoredStatus === 'ready' && job.tailoredResume?.filePath
       ? authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(job.tailoredResume.id)}/download`)
@@ -145,9 +147,9 @@ export default function BidJobCard({
         aria-pressed={isSelected}
         sx={{
           borderColor: isSelected ? accent.main : 'divider',
-          borderLeft: job.bid || isSelected ? `4px solid ${accent.main}` : '4px solid transparent',
-          bgcolor: isSelected ? accent.soft : 'background.paper',
-          boxShadow: isSelected ? 2 : 1,
+          borderLeft: isResumeDownloaded ? '4px solid #15803d' : job.bid || isSelected ? `4px solid ${accent.main}` : '4px solid transparent',
+          bgcolor: isSelected ? accent.soft : isResumeDownloaded ? '#f0fdf4' : 'background.paper',
+          boxShadow: isSelected || isResumeDownloaded ? 2 : 1,
           cursor: 'pointer',
           transition: 'background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease',
           '&:hover': {
@@ -237,6 +239,19 @@ export default function BidJobCard({
                   sx={tailoredStatusSx(tailoredStatus)}
                 />
               ) : null}
+              {isResumeDownloaded ? (
+                <Chip
+                  icon={<CheckCircleIcon />}
+                  label="Downloaded"
+                  size="small"
+                  sx={{
+                    bgcolor: '#dcfce7',
+                    color: '#166534',
+                    fontWeight: 900,
+                    '& .MuiChip-icon': { color: '#15803d' },
+                  }}
+                />
+              ) : null}
               {activeTab === BID_TABS.done && appliedByLabel ? (
                 <Chip
                   label={appliedByLabel}
@@ -289,12 +304,14 @@ export default function BidJobCard({
                   download={downloadFilename}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => onResumeDownload(job.tailoredResume.id)}
                   size="small"
                   startIcon={<DownloadIcon />}
-                  variant="outlined"
+                  variant={isResumeDownloaded ? 'contained' : 'outlined'}
+                  color={isResumeDownloaded ? 'success' : 'primary'}
                   sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
                 >
-                  Download
+                  {isResumeDownloaded ? 'Downloaded' : 'Download'}
                 </Button>
               ) : null}
               <Tooltip title={job.isHidden ? 'Unhide job' : 'Hide job'}>

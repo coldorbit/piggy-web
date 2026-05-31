@@ -383,6 +383,33 @@ function updateCachedBidQueries(queryClient, jobId, updates) {
   });
 }
 
+function updateCachedTailoredResumeDownloadQueries(queryClient, resumeIds, downloadedAt = new Date().toISOString()) {
+  const resumeIdSet = new Set(resumeIds.map((id) => String(id)).filter(Boolean));
+  if (!resumeIdSet.size) return;
+
+  queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] }).forEach(([queryKey, data]) => {
+    queryClient.setQueryData(queryKey, updateCachedTailoredResumeDownloads(data, resumeIdSet, downloadedAt));
+  });
+}
+
+function updateCachedTailoredResumeDownloads(oldData, resumeIdSet, downloadedAt) {
+  if (!oldData?.jobs) return oldData;
+
+  return {
+    ...oldData,
+    jobs: oldData.jobs.map((job) => {
+      if (!resumeIdSet.has(String(job.tailoredResume?.id || ''))) return job;
+      return {
+        ...job,
+        tailoredResume: {
+          ...job.tailoredResume,
+          downloadedAt,
+        },
+      };
+    }),
+  };
+}
+
 function updateCachedBidJob(oldData, filters, jobId, updates, cachedJob, tabDelta) {
   if (!oldData?.jobs || !jobId) return oldData;
 
@@ -526,8 +553,17 @@ function optimisticTailoredResume({ jobId, profileId }) {
     maxAttempts: 3,
     lastError: null,
     deadLetterAt: null,
+    downloadedAt: null,
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+export function useMarkTailoredResumesDownloaded() {
+  const queryClient = useQueryClient();
+
+  return (resumeIds) => {
+    updateCachedTailoredResumeDownloadQueries(queryClient, Array.isArray(resumeIds) ? resumeIds : [resumeIds]);
   };
 }
 

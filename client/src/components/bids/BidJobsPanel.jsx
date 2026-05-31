@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 import ArchiveIcon from '@mui/icons-material/Archive';
 import { PAGE_SIZE_OPTIONS } from '../../lib/constants.js';
-import { authUrl } from '../../lib/api.js';
+import { authUrl, useMarkTailoredResumesDownloaded } from '../../lib/api.js';
 import { BID_TABS } from './bidConstants.js';
 import BidJobCard from './BidJobCard.jsx';
 
@@ -47,6 +47,7 @@ export default function BidJobsPanel({
   onTailorResume,
 }) {
   const isSaving = creatingBid || updatingBid;
+  const markTailoredResumesDownloaded = useMarkTailoredResumesDownloaded();
   const [selectedJobIds, setSelectedJobIds] = useState(() => new Set());
   const readyResumeIds = jobs
     .map((job) => job.tailoredResume)
@@ -176,6 +177,7 @@ export default function BidJobsPanel({
               component="a"
               disabled={!readyResumeIds.length}
               href={readyResumeIds.length ? downloadAllUrl : undefined}
+              onClick={() => markTailoredResumesDownloaded(readyResumeIds)}
               download="tailored-resumes.zip"
               target="_blank"
               rel="noopener noreferrer"
@@ -225,6 +227,7 @@ export default function BidJobsPanel({
               onStatusChange={onStatusChange}
               onHiddenChange={onHiddenChange}
               onSelectedChange={toggleJobSelected}
+              onResumeDownload={markTailoredResumesDownloaded}
               onTailorResume={onTailorResume}
               showBidStatusChip={activeTab !== BID_TABS.tailored}
               showStatusControl={activeTab === BID_TABS.done}

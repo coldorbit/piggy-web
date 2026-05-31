@@ -408,6 +408,7 @@ export async function createTailoredResume(req, res, next) {
       maxAttempts: 3,
       lastError: null,
       deadLetterAt: null,
+      downloadedAt: null,
     };
     const tailoredResume = existing ? await existing.update(attrs) : await TailoredResume.create(attrs);
     await enqueueTailoredResumeRequest({ tailoredResumeId: tailoredResume.id });
@@ -425,6 +426,7 @@ export async function downloadTailoredResume(req, res, next) {
     await ensureWebModels();
     const tailoredResume = await readyTailoredResumeForUser(req, req.params.id);
     const file = await fetchTailoredResumeFile(tailoredResume);
+    await markTailoredResumeDownloaded(tailoredResume);
 
     res.setHeader('content-type', file.contentType);
     res.setHeader('content-disposition', `attachment; filename="${escapeHeaderValue(file.filename)}"`);
@@ -454,6 +456,7 @@ export async function downloadTailoredResumesZip(req, res, next) {
       try {
         const tailoredResume = await readyTailoredResumeForUser(req, id);
         const file = await fetchTailoredResumeFile(tailoredResume);
+        await markTailoredResumeDownloaded(tailoredResume);
         files.push(file);
       } catch (error) {
         failures.push({ id, message: error.message || 'Download failed' });
@@ -489,6 +492,12 @@ export async function downloadTailoredResumesZip(req, res, next) {
     res.send(zip);
   } catch (error) {
     handleInputError(error, res, next);
+  }
+}
+
+async function markTailoredResumeDownloaded(tailoredResume) {
+  if (!tailoredResume.downloadedAt) {
+    await tailoredResume.update({ downloadedAt: new Date() });
   }
 }
 

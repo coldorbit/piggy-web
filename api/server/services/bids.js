@@ -84,6 +84,7 @@ export function formatTailoredResume(row) {
     maxAttempts: row.maxAttempts,
     lastError: row.lastError,
     deadLetterAt: row.deadLetterAt,
+    downloadedAt: row.downloadedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
