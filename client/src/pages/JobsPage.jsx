@@ -8,6 +8,7 @@ import JobDetail from '../components/jobs/JobDetail.jsx';
 import JobFiltersDrawer from '../components/jobs/JobFiltersDrawer.jsx';
 import JobList from '../components/jobs/JobList.jsx';
 import Metric from '../components/jobs/Metric.jsx';
+import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { useDeleteJob, useImportJobsCsv, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
 import { PAGE_SIZE } from '../lib/constants.js';
 import { formatDateTime } from '../lib/formatters.js';
@@ -37,6 +38,7 @@ export default function JobsPage({ currentUser }) {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
   const [importMessage, setImportMessage] = useState('');
+  const { setSearch: setHeaderSearch } = useHeaderSearch();
 
   const {
     data: jobsData,
@@ -71,6 +73,19 @@ export default function JobsPage({ currentUser }) {
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: key === 'page' ? value : 1 }));
   }
+
+  useEffect(() => {
+    setHeaderSearch({
+      isVisible: true,
+      placeholder: 'Search jobs',
+      value: filters.search || '',
+      onChange: (value) => updateFilter('search', value),
+    });
+  }, [filters.search, setHeaderSearch]);
+
+  useEffect(() => {
+    return () => setHeaderSearch(EMPTY_HEADER_SEARCH);
+  }, [setHeaderSearch]);
 
   async function updateSpamReview(jobId, isSpam) {
     const updatedJob = await markSpam({ jobId, isSpam });

@@ -4,6 +4,7 @@ import BadgeIcon from '@mui/icons-material/Badge';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
+import SearchIcon from '@mui/icons-material/Search';
 import WorkIcon from '@mui/icons-material/Work';
 import {
   AppBar,
@@ -12,18 +13,21 @@ import {
   Drawer,
   Chip,
   IconButton,
+  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  TextField,
   Toolbar,
   Typography,
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout } from '../lib/api.js';
+import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
 const shellLine = '#E2E8F0';
@@ -38,6 +42,11 @@ export default function AppLayout({ user }) {
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isBidRoute = location.pathname.startsWith('/bids');
   const isProfileRoute = location.pathname.startsWith('/profiles');
+  const [headerSearch, setHeaderSearch] = useState(EMPTY_HEADER_SEARCH);
+  const headerSearchContext = useMemo(
+    () => ({ search: headerSearch, setSearch: setHeaderSearch }),
+    [headerSearch],
+  );
 
   async function handleLogout() {
     logout(undefined, {
@@ -127,13 +136,14 @@ export default function AppLayout({ user }) {
   );
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        bgcolor: 'background.default',
-      }}
-    >
+    <HeaderSearchProvider value={headerSearchContext}>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          bgcolor: 'background.default',
+        }}
+      >
       <Drawer
         variant={isDesktop ? 'permanent' : 'temporary'}
         open={isDesktop || mobileOpen}
@@ -169,8 +179,17 @@ export default function AppLayout({ user }) {
             bgcolor: 'rgba(255, 255, 255, 0.88)',
           }}
         >
-          <Toolbar sx={{ minHeight: 76, justifyContent: 'space-between', gap: 2, px: { xs: 1.5, sm: 2.5 } }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+          <Toolbar
+            sx={{
+              minHeight: 76,
+              justifyContent: 'space-between',
+              gap: { xs: 1, sm: 2 },
+              px: { xs: 1.5, sm: 2.5 },
+              py: { xs: headerSearch.isVisible ? 1 : 0, sm: 0 },
+              flexWrap: { xs: 'wrap', sm: 'nowrap' },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0, order: 1 }}>
               {!isDesktop ? (
                 <IconButton type="button" onClick={() => setMobileOpen(true)} aria-label="Open navigation">
                   <MenuIcon />
@@ -192,7 +211,30 @@ export default function AppLayout({ user }) {
                 </Typography>
               </Box>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            {headerSearch.isVisible ? (
+              <TextField
+                aria-label="Search jobs"
+                placeholder={headerSearch.placeholder}
+                size="small"
+                value={headerSearch.value}
+                onChange={(event) => headerSearch.onChange(event.target.value)}
+                sx={{
+                  order: { xs: 3, sm: 2 },
+                  width: { xs: '100%', sm: 260, md: 340, lg: 440 },
+                  flexShrink: 1,
+                }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            ) : null}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, order: { xs: 2, sm: 3 } }}>
               <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.75 }}>
                 <AccountCircleIcon color="action" />
                 <Typography color="text.secondary" noWrap>
@@ -227,7 +269,8 @@ export default function AppLayout({ user }) {
           <Outlet />
         </Box>
       </Box>
-    </Box>
+      </Box>
+    </HeaderSearchProvider>
   );
 }
 

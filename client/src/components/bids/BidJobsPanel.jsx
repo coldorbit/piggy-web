@@ -22,31 +22,23 @@ import { PAGE_SIZE_OPTIONS } from '../../lib/constants.js';
 import { authUrl, useMarkTailoredResumesDownloaded } from '../../lib/api.js';
 import { BID_TABS } from './bidConstants.js';
 import BidJobCard from './BidJobCard.jsx';
+import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 
-export default function BidJobsPanel({
-  activeColor,
-  activeTab,
-  creatingBid,
-  currentUser,
-  draftsForJob,
-  jobs,
-  loading,
-  page,
-  pages,
-  pageSize,
-  tabCounts,
-  total,
-  updatingBid,
-  tailoringByJobId = {},
-  onDraftChange,
-  onPageChange,
-  onPageSizeChange,
-  onStatusChange,
-  onTabChange,
-  onHiddenChange,
-  onTailorResume,
-}) {
-  const isSaving = creatingBid || updatingBid;
+export default function BidJobsPanel() {
+  const {
+    activeColor,
+    activeTab,
+    jobs,
+    loading,
+    page,
+    pages,
+    pageSize,
+    tabCounts,
+    onPageChange,
+    onPageSizeChange,
+    onTabChange,
+    onTailorResume,
+  } = useBidWorkspace();
   const markTailoredResumesDownloaded = useMarkTailoredResumesDownloaded();
   const [selectedJobIds, setSelectedJobIds] = useState(() => new Set());
   const readyResumeIds = jobs
@@ -215,25 +207,10 @@ export default function BidJobsPanel({
           {jobs.map((job) => (
             <BidJobCard
               key={job.id}
-              accent={activeColor}
-              activeTab={activeTab}
-              currentUser={currentUser}
-              draft={draftsForJob(job)}
-              isSaving={isSaving}
               job={job}
               isSelected={selectedJobIds.has(job.id)}
-              statusDefault={activeTab === BID_TABS.done ? 'submitted' : undefined}
-              onDraftChange={onDraftChange}
-              onStatusChange={onStatusChange}
-              onHiddenChange={onHiddenChange}
               onSelectedChange={toggleJobSelected}
               onResumeDownload={markTailoredResumesDownloaded}
-              onTailorResume={onTailorResume}
-              showBidStatusChip={activeTab !== BID_TABS.tailored}
-              showStatusControl={activeTab === BID_TABS.done}
-              showAppliedAction={activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready'}
-              showTailorAction={activeTab === BID_TABS.todo || job.tailoredResume?.status === 'dead_letter'}
-              isTailoring={Boolean(tailoringByJobId[job.id])}
             />
           ))}
         </Stack>

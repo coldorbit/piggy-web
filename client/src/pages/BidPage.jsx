@@ -4,6 +4,8 @@ import { useSearchParams } from 'react-router-dom';
 import BidJobsPanel from '../components/bids/BidJobsPanel.jsx';
 import BidProfileSummary from '../components/bids/BidProfileSummary.jsx';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
+import { BidWorkspaceProvider } from '../components/bids/BidWorkspaceContext.jsx';
+import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { BID_TABS, DEFAULT_BID_FILTERS, DONE_STATUSES, EMPTY_BID } from '../components/bids/bidConstants.js';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import { EMPTY_PROFILE, PROFILE_COLORS } from '../components/profiles/profileConstants.js';
@@ -34,6 +36,7 @@ export default function BidPage({ currentUser }) {
   const [error, setError] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [tailoringByJobId, setTailoringByJobId] = useState({});
+  const { setSearch: setHeaderSearch } = useHeaderSearch();
 
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles();
   const activeProfiles = useMemo(
@@ -119,6 +122,19 @@ export default function BidPage({ currentUser }) {
     setFilters((current) => ({ ...current, [key]: value, page: key === 'page' ? value : 1 }));
   }
 
+  useEffect(() => {
+    setHeaderSearch({
+      isVisible: true,
+      placeholder: 'Search applications',
+      value: filters.search || '',
+      onChange: (value) => updateFilter('search', value),
+    });
+  }, [filters.search, setHeaderSearch]);
+
+  useEffect(() => {
+    return () => setHeaderSearch(EMPTY_HEADER_SEARCH);
+  }, [setHeaderSearch]);
+
   function updateBidTab(value) {
     setActiveBidTab(value);
     setFilters((current) => ({ ...current, page: 1 }));
@@ -173,6 +189,45 @@ export default function BidPage({ currentUser }) {
   const total = bidJobsData?.total || 0;
   const pageError = error || profilesError?.message || jobsError?.message || metaError?.message || '';
   const loading = profilesLoading || jobsLoading || metaLoading;
+  const bidWorkspace = useMemo(
+    () => ({
+      activeColor,
+      activeTab: activeBidTab,
+      currentUser: bidJobsData?.currentUser || currentUser,
+      draftsForJob: draftFor,
+      isSaving: creatingBid || updatingBid,
+      jobs: visibleJobs,
+      loading,
+      page: filters.page,
+      pageSize: filters.limit,
+      pages: Math.max(Math.ceil(total / filters.limit), 1),
+      tabCounts: bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0 },
+      tailoringByJobId,
+      total,
+      onDraftChange: updateDraft,
+      onHiddenChange: updateHiddenState,
+      onPageChange: (page) => updateFilter('page', page),
+      onPageSizeChange: (limit) => updateFilter('limit', limit),
+      onStatusChange: saveBid,
+      onTabChange: updateBidTab,
+      onTailorResume: tailorResume,
+    }),
+    [
+      activeBidTab,
+      activeColor,
+      bidJobsData?.currentUser,
+      bidJobsData?.tabCounts,
+      creatingBid,
+      currentUser,
+      filters.limit,
+      filters.page,
+      loading,
+      tailoringByJobId,
+      total,
+      updatingBid,
+      visibleJobs,
+    ],
+  );
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
@@ -225,29 +280,9 @@ export default function BidPage({ currentUser }) {
                   refetchJobs();
                 }}
               />
-              <BidJobsPanel
-                activeColor={activeColor}
-                activeTab={activeBidTab}
-                creatingBid={creatingBid}
-                currentUser={bidJobsData?.currentUser || currentUser}
-                draftsForJob={draftFor}
-                jobs={visibleJobs}
-                loading={loading}
-                page={filters.page}
-                pageSize={filters.limit}
-                pages={Math.max(Math.ceil(total / filters.limit), 1)}
-                tabCounts={bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0 }}
-                total={total}
-                updatingBid={updatingBid}
-                onDraftChange={updateDraft}
-                onPageChange={(page) => updateFilter('page', page)}
-                onPageSizeChange={(limit) => updateFilter('limit', limit)}
-                onStatusChange={saveBid}
-                onTabChange={updateBidTab}
-                tailoringByJobId={tailoringByJobId}
-                onHiddenChange={updateHiddenState}
-                onTailorResume={tailorResume}
-              />
+              <BidWorkspaceProvider value={bidWorkspace}>
+                <BidJobsPanel />
+              </BidWorkspaceProvider>
             </Box>
           ) : null}
         </Box>

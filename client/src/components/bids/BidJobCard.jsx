@@ -25,6 +25,7 @@ import {
 import { formatDate } from '../../lib/formatters.js';
 import { authUrl } from '../../lib/api.js';
 import { BID_TABS } from './bidConstants.js';
+import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 
 const SOURCE_CHIP_STYLES = {
   builtin: { bgcolor: '#e8f2ff', color: '#174379' },
@@ -58,26 +59,30 @@ const SOURCE_DOMAINS = {
 };
 
 export default function BidJobCard({
-  accent,
-  activeTab,
-  currentUser,
-  draft,
-  isSaving,
-  isTailoring,
   isSelected = false,
   job,
-  statusDefault,
-  showBidStatusChip = true,
-  showStatusControl = true,
-  showAppliedAction = false,
-  showTailorAction = false,
-  onDraftChange,
-  onHiddenChange,
   onResumeDownload = () => {},
   onSelectedChange,
-  onStatusChange,
-  onTailorResume,
 }) {
+  const {
+    activeColor: accent,
+    activeTab,
+    currentUser,
+    draftsForJob,
+    isSaving,
+    tailoringByJobId = {},
+    onDraftChange,
+    onHiddenChange,
+    onStatusChange,
+    onTailorResume,
+  } = useBidWorkspace();
+  const draft = draftsForJob(job);
+  const isTailoring = Boolean(tailoringByJobId[job.id]);
+  const statusDefault = activeTab === BID_TABS.done ? 'submitted' : undefined;
+  const showBidStatusChip = activeTab !== BID_TABS.tailored;
+  const showStatusControl = activeTab === BID_TABS.done;
+  const showAppliedAction = activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready';
+  const showTailorAction = activeTab === BID_TABS.todo || job.tailoredResume?.status === 'dead_letter';
   const bidChipLabel = job.bid
     ? `Bid ${formatDate(job.bid.bidAt)}`
     : draft.status === 'planned'

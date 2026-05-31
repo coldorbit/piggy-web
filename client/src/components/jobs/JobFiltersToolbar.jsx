@@ -1,15 +1,12 @@
 import RefreshIcon from '@mui/icons-material/Refresh';
-import SearchIcon from '@mui/icons-material/Search';
 import {
   Box,
   FormControl,
   IconButton,
-  InputAdornment,
   InputLabel,
   MenuItem,
   Paper,
   Select,
-  TextField,
   Tooltip,
 } from '@mui/material';
 
@@ -20,21 +17,6 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
     : 'all';
   const content = (
     <>
-      <TextField
-        size="small"
-        placeholder="Search title, company, location"
-        value={filters.search}
-        onChange={(event) => onFilterChange('search', event.target.value)}
-        slotProps={{
-          input: {
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          },
-        }}
-      />
       <FormControl size="small">
         <InputLabel>Role</InputLabel>
         <Select label="Role" value={filters.roleFamily || 'all'} onChange={(event) => onFilterChange('roleFamily', event.target.value)}>
@@ -147,7 +129,7 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         ? '1fr'
         : {
             xs: '1fr',
-            lg: 'minmax(220px, 1fr) 180px 170px 140px 140px 140px 150px 150px auto',
+            lg: '180px 170px 140px 140px 140px 150px 150px auto',
           },
     gap: variant === 'panel' ? 1.25 : 1,
     alignItems: variant === 'panel' ? 'stretch' : 'center',

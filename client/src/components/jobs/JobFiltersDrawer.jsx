@@ -76,7 +76,7 @@ export default function JobFiltersDrawer({ ariaLabel = 'Job filters', filters, i
             }}
           >
             <Typography variant="h6" fontWeight={900}>
-              Search & filters
+              Filters
             </Typography>
           </Stack>
           <Box sx={{ px: { xs: 2, sm: 2.5 } }}>
