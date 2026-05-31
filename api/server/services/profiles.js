@@ -1,4 +1,12 @@
-import { getBidProfileModel, getProfileShareRequestModel, getWebUserModel, repositories } from '../../db.js';
+import {
+  getBidProfileModel,
+  getJobBidModel,
+  getProfileShareRequestModel,
+  getSequelize,
+  getTailoredResumeModel,
+  getWebUserModel,
+  repositories,
+} from '../../db.js';
 import { clean } from '../utils/index.js';
 import { InputError, NotFoundError } from '../utils/errors.js';
 
@@ -59,9 +67,90 @@ export function formatProfile(row) {
     shareStatus: row.get?.('shareStatus') || null,
     sharedBy: row.get?.('sharedBy') || null,
     ownerUsername: row.user?.username || row.get?.('ownerUsername') || null,
+    progress: row.get?.('progress') || {
+      tailored: 0,
+      bids: 0,
+      planned: 0,
+      done: 0,
+    },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+export async function profilesWithProgress(profiles) {
+  const profileIds = [...new Set(profiles.map((profile) => String(profile.id)).filter(Boolean))];
+  if (!profileIds.length) return profiles;
+
+  const [bidRows, tailoredRows] = await Promise.all([
+    getJobBidModel().findAll({
+      attributes: [
+        'profileId',
+        [getSequelize().fn('COUNT', getSequelize().col('id')), 'bids'],
+        [
+          getSequelize().fn(
+            'SUM',
+            getSequelize().literal("CASE WHEN status = 'planned' THEN 1 ELSE 0 END"),
+          ),
+          'planned',
+        ],
+        [
+          getSequelize().fn(
+            'SUM',
+            getSequelize().literal("CASE WHEN status IN ('submitted', 'interviewing', 'won', 'lost') THEN 1 ELSE 0 END"),
+          ),
+          'done',
+        ],
+      ],
+      where: { profileId: profileIds },
+      group: ['profileId'],
+      raw: true,
+    }),
+    getTailoredResumeModel().findAll({
+      attributes: [
+        'profileId',
+        [getSequelize().fn('COUNT', getSequelize().fn('DISTINCT', getSequelize().col('job_url'))), 'tailored'],
+      ],
+      where: {
+        profileId: profileIds,
+        status: ['requested', 'processing', 'ready', 'dead_letter'],
+      },
+      group: ['profileId'],
+      raw: true,
+    }),
+  ]);
+
+  const progressByProfileId = new Map(
+    profileIds.map((profileId) => [
+      profileId,
+      {
+        tailored: 0,
+        bids: 0,
+        planned: 0,
+        done: 0,
+      },
+    ]),
+  );
+
+  for (const row of bidRows) {
+    const progress = progressByProfileId.get(String(row.profileId));
+    if (!progress) continue;
+    progress.bids = Number(row.bids || 0);
+    progress.planned = Number(row.planned || 0);
+    progress.done = Number(row.done || 0);
+  }
+
+  for (const row of tailoredRows) {
+    const progress = progressByProfileId.get(String(row.profileId));
+    if (!progress) continue;
+    progress.tailored = Number(row.tailored || 0);
+  }
+
+  for (const profile of profiles) {
+    profile.setDataValue('progress', progressByProfileId.get(String(profile.id)));
+  }
+
+  return profiles;
 }
 
 export async function profilesManagedByUser(user) {

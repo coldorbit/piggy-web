@@ -632,6 +632,7 @@ export function useCreateJobBid() {
     onSuccess: (bid, { jobId }) => {
       updateCachedBidQueries(queryClient, jobId, { bid });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
     },
   });
 }
@@ -658,6 +659,7 @@ export function useUpdateJobBid() {
     onSuccess: (bid, { jobId }) => {
       updateCachedBidQueries(queryClient, jobId, { bid });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
     },
   });
 }
@@ -684,6 +686,7 @@ export function useRequestTailoredResume() {
     onSuccess: (tailoredResume, { jobId }) => {
       updateCachedBidQueries(queryClient, jobId, { tailoredResume });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
     },
   });
 }
@@ -696,7 +699,10 @@ export function useTailoredResumeEvents(profileId) {
 
     const params = new URLSearchParams({ profileId: String(profileId) });
     const source = new EventSource(authUrl(`/api/bid/tailored-resume-events?${params}`));
-    const refetchBidJobs = () => queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+    const refetchBidJobs = () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+    };
 
     source.addEventListener('tailored-resume', refetchBidJobs);
 

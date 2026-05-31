@@ -108,6 +108,7 @@ export default function ProfileCard({
             <Chip label={`${profile.yearsOfExperience} yrs`} size="small" />
           </Stack>
         ) : null}
+        <ProfileProgress progress={profile.progress} />
       </CardContent>
       {showActions ? (
         <CardActions
@@ -156,6 +157,22 @@ export default function ProfileCard({
         </CardActions>
       ) : null}
     </Card>
+  );
+}
+
+function ProfileProgress({ progress = {} }) {
+  const tailored = Number(progress.tailored || 0);
+  const bids = Number(progress.bids || 0);
+  const done = Number(progress.done || 0);
+  const planned = Number(progress.planned || 0);
+
+  return (
+    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+      <Chip label={`${tailored.toLocaleString()} tailored`} size="small" variant="outlined" />
+      <Chip label={`${bids.toLocaleString()} bids`} size="small" variant="outlined" />
+      <Chip label={`${done.toLocaleString()} done`} size="small" variant="outlined" />
+      {planned ? <Chip label={`${planned.toLocaleString()} planned`} size="small" variant="outlined" /> : null}
+    </Stack>
   );
 }
 
