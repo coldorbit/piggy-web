@@ -214,6 +214,10 @@ export function useMarkJobHidden() {
       updateCachedJobVisibilityQueries(queryClient, ['jobs'], updatedJob.id, updatedJob);
       updateCachedJobVisibilityQueries(queryClient, ['bid', 'jobs'], updatedJob.id, updatedJob);
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+    },
   });
 }
 
@@ -390,15 +394,14 @@ function updateCachedBidJob(oldData, filters, jobId, updates, cachedJob, tabDelt
       found = true;
 
       const nextJob = optimisticBidJob(job, updates);
-      const nextTab = bidTabForJob(nextJob);
-      if (nextTab !== filters.bidTab) countDelta -= 1;
+      if (!matchesBidJobFilters(nextJob, filters)) countDelta -= 1;
       return nextJob;
     })
-    .filter((job) => bidTabForJob(job) === filters.bidTab);
+    .filter((job) => matchesBidJobFilters(job, filters));
 
   if (!found && cachedJob) {
     const nextJob = optimisticBidJob(cachedJob, updates);
-    if (bidTabForJob(nextJob) === filters.bidTab) {
+    if (matchesBidJobFilters(nextJob, filters)) {
       countDelta += 1;
       if (Number(filters.page || 1) === 1) jobs.unshift(nextJob);
     }
@@ -441,6 +444,51 @@ function bidTabForJob(job) {
   if (['submitted', 'interviewing', 'won', 'lost'].includes(status)) return 'done';
   if (['requested', 'processing', 'ready', 'dead_letter'].includes(job?.tailoredResume?.status)) return 'tailored';
   return 'todo';
+}
+
+function matchesBidJobFilters(job, filters = {}) {
+  if (bidTabForJob(job) !== filters.bidTab) return false;
+  if (!matchesVisibility(job, filters.visibility)) return false;
+  if (!matchesSpam(job, filters.spam)) return false;
+  if (!matchesRoleFamily(job, filters.roleFamily)) return false;
+  if (!matchesSource(job, filters.source)) return false;
+  if (!matchesOrigin(job, filters.origin)) return false;
+  if (!matchesAppliedBy(job, filters.appliedByUserId)) return false;
+  return matchesSearch(job, filters.search);
+}
+
+function matchesSpam(job, spam = 'all') {
+  if (spam === 'spam') return job.isSpam === true;
+  if (spam === 'not_spam') return job.isSpam === false;
+  if (spam === 'unreviewed') return job.isSpam === null;
+  return true;
+}
+
+function matchesRoleFamily(job, roleFamily = 'all') {
+  return !roleFamily || roleFamily === 'all' || job.category === roleFamily;
+}
+
+function matchesSource(job, source = 'all') {
+  return !source || source === 'all' || job.source === source;
+}
+
+function matchesOrigin(job, origin = 'all') {
+  if (origin === 'manual') return job.isManual === true;
+  if (origin === 'scraped') return job.isManual !== true;
+  return true;
+}
+
+function matchesAppliedBy(job, appliedByUserId = 'all') {
+  if (!appliedByUserId || appliedByUserId === 'all') return true;
+  return String(job.bid?.userId || '') === String(appliedByUserId);
+}
+
+function matchesSearch(job, search = '') {
+  const pattern = String(search || '').trim().toLowerCase();
+  if (!pattern) return true;
+  return [job.title, job.company, job.location, job.listingText]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase().includes(pattern));
 }
 
 function updateBidTabCounts(tabCounts, tabDelta) {

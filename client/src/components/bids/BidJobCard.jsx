@@ -1,6 +1,5 @@
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DownloadIcon from '@mui/icons-material/Download';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
@@ -24,7 +23,6 @@ import {
   Typography,
 } from '@mui/material';
 import { formatDate } from '../../lib/formatters.js';
-import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
 import { authUrl } from '../../lib/api.js';
 import { BID_TABS } from './bidConstants.js';
 
@@ -307,18 +305,6 @@ export default function BidJobCard({
                 >
                   {job.isHidden ? <VisibilityIcon /> : <VisibilityOffIcon />}
                 </IconButton>
-              </Tooltip>
-              <Tooltip title="Copy description">
-                <span>
-                  <IconButton
-                    disabled={!jobDescriptionText(job)}
-                    onClick={() => copyJobDescription(job)}
-                    aria-label="Copy job description"
-                    sx={iconButtonSx}
-                  >
-                    <ContentCopyIcon />
-                  </IconButton>
-                </span>
               </Tooltip>
               {showTailorAction ? (
                 <Button
