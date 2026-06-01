@@ -273,7 +273,7 @@ export async function listBidJobs(req, res, next) {
     const JobBid = getJobBidModel();
     const TailoredResume = getTailoredResumeModel();
     const sequelize = getSequelize();
-    const { where, order, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
+    const { where, order: jobOrder, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
     const bidTab = clean(req.query.bidTab || 'todo');
     const bidUsers = await bidUsersForProfile(profile);
     const appliedByUserId = bidUserFilter(req.query.appliedByUserId, bidUsers);
@@ -300,7 +300,7 @@ export async function listBidJobs(req, res, next) {
     const [rows, count, todoCount, tailoredCount, doneCount] = await Promise.all([
       ScrapedJob.findAll({
         where: activeTabQuery.where,
-        order,
+        order: activeTabQuery.order || jobOrder,
         limit,
         offset,
         subQuery: false,
@@ -512,12 +512,14 @@ export async function createJobBid(req, res, next) {
       return;
     }
 
+    const now = new Date();
     const bid = await getJobBidModel().create({
       ...bidAttributesFromBody(req.body),
       userId: user.id,
       profileId: profile.id,
       jobId: job.id,
-      bidAt: new Date(),
+      bidAt: now,
+      updatedAt: now,
     });
     res.status(201).json({ bid: formatBid(bid) });
   } catch (error) {
@@ -766,7 +768,7 @@ export async function updateJobBid(req, res, next) {
       res.status(404).json({ error: 'Bid not found' });
       return;
     }
-    await bid.update(bidAttributesFromBody(req.body));
+    await bid.update({ ...bidAttributesFromBody(req.body), updatedAt: new Date() });
     res.json({ bid: formatBid(bid) });
   } catch (error) {
     handleInputError(error, res, next);

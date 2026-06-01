@@ -9,6 +9,12 @@ export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', 
   const tabWhere = { ...where };
   const isDoneTab = tab === 'done';
   const isTailoredTab = tab === 'tailored';
+  const order = isDoneTab
+    ? [
+        [{ model: JobBid, as: 'bids' }, 'updatedAt', 'DESC'],
+        [{ model: JobBid, as: 'bids' }, 'id', 'DESC'],
+      ]
+    : null;
   const include = [
     {
       model: JobBid,
@@ -40,7 +46,7 @@ export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', 
     ];
   }
 
-  return { where: tabWhere, include };
+  return { where: tabWhere, include, order };
 }
 
 function tailoredResumeExistsSql({ profileId, sequelize }) {

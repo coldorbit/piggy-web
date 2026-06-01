@@ -167,6 +167,10 @@ async function ensureBidPageIndexes() {
     ON job_bids (profile_id, status, job_id)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS job_bids_profile_status_updated_at_idx
+    ON job_bids (profile_id, status, updated_at DESC)
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS tailored_resumes_profile_job_status_idx
     ON tailored_resumes (profile_id, job_url, status)
   `);
