@@ -7,16 +7,28 @@ import { useMe } from './lib/api.js';
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage.jsx'));
 const BidPage = lazy(() => import('./pages/BidPage.jsx'));
 const JobsPage = lazy(() => import('./pages/JobsPage.jsx'));
+const PricingPage = lazy(() => import('./components/auth/PricingPage.jsx'));
 const ProfilesPage = lazy(() => import('./pages/ProfilesPage.jsx'));
 
 export default function App() {
   const { data: user, isLoading: authChecked } = useMe();
 
   if (authChecked) return <ShellLoading />;
-  if (!user) return <LoginScreen />;
+  if (!user) {
+    return (
+      <Suspense fallback={<ShellLoading />}>
+        <Routes>
+          <Route index element={<LoginScreen />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    );
+  }
   return (
     <Suspense fallback={<ShellLoading />}>
       <Routes>
+        <Route path="/pricing" element={<PricingPage />} />
         <Route element={<AppLayout user={user} />}>
           <Route index element={<Navigate to="/jobs" replace />} />
           <Route path="/jobs" element={<JobsPage currentUser={user} />} />

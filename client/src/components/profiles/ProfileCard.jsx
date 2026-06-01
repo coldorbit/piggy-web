@@ -73,18 +73,18 @@ export default function ProfileCard({
           </Box>
           <Chip
             label={profile.colorScheme}
-            sx={{ bgcolor: color.soft, color: color.dark, fontWeight: 400, justifySelf: 'end' }}
+            sx={{ ...profileChipSx, bgcolor: color.soft, color: color.dark, fontWeight: 400, justifySelf: 'end' }}
           />
         </Box>
         {profile.isShared ? (
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-            <Chip label="Shared" size="small" color="secondary" sx={{ fontWeight: 400 }} />
-            {profile.sharedBy ? <Chip label={`From ${profile.sharedBy}`} size="small" variant="outlined" sx={wrappingChipSx} /> : null}
+            <Chip label="Shared" size="small" color="secondary" sx={{ ...profileChipSx, fontWeight: 400 }} />
+            {profile.sharedBy ? <Chip label={`From ${profile.sharedBy}`} size="small" variant="outlined" sx={profileChipSx} /> : null}
           </Stack>
         ) : null}
         {profile.ownerUsername ? (
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-            <Chip label={`Owner ${profile.ownerUsername}`} size="small" variant="outlined" sx={wrappingChipSx} />
+            <Chip label={`Owner ${profile.ownerUsername}`} size="small" variant="outlined" sx={profileChipSx} />
           </Stack>
         ) : null}
         {sharedWith.length ? (
@@ -95,7 +95,7 @@ export default function ProfileCard({
                 label={`Shared with ${share.username}${share.status === 'pending' ? ' (pending)' : ''}`}
                 size="small"
                 variant="outlined"
-                sx={wrappingChipSx}
+                sx={profileChipSx}
               />
             ))}
           </Stack>
@@ -106,20 +106,20 @@ export default function ProfileCard({
             size="small"
             color={isClosed ? 'default' : 'success'}
             variant={isClosed ? 'outlined' : 'filled'}
-            sx={{ fontWeight: 400 }}
+            sx={{ ...profileChipSx, fontWeight: 400 }}
           />
-          {isClosed && profile.closedReason ? <Chip label={profile.closedReason} size="small" variant="outlined" /> : null}
+          {isClosed && profile.closedReason ? <Chip label={profile.closedReason} size="small" variant="outlined" sx={profileChipSx} /> : null}
         </Stack>
         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
           <Chip
             label={profile.profileBadge || 'SWE'}
             size="small"
-            sx={{ ...(PROFILE_BADGE_COLORS[profile.profileBadge || 'SWE'] || {}), fontWeight: 400 }}
+            sx={{ ...profileChipSx, ...(PROFILE_BADGE_COLORS[profile.profileBadge || 'SWE'] || {}), fontWeight: 400 }}
           />
         </Stack>
         {profile.yearsOfExperience ? (
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Chip label={`${profile.yearsOfExperience} yrs`} size="small" />
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip label={`${profile.yearsOfExperience} yrs`} size="small" sx={profileChipSx} />
           </Stack>
         ) : null}
         <ProfileProgress progress={profile.progress} />
@@ -182,10 +182,10 @@ function ProfileProgress({ progress = {} }) {
 
   return (
     <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-      <Chip label={`${tailored.toLocaleString()} tailored`} size="small" variant="outlined" />
-      <Chip label={`${bids.toLocaleString()} bids`} size="small" variant="outlined" />
-      <Chip label={`${done.toLocaleString()} done`} size="small" variant="outlined" />
-      {planned ? <Chip label={`${planned.toLocaleString()} planned`} size="small" variant="outlined" /> : null}
+      <Chip label={`${tailored.toLocaleString()} tailored`} size="small" variant="outlined" sx={profileChipSx} />
+      <Chip label={`${bids.toLocaleString()} bids`} size="small" variant="outlined" sx={profileChipSx} />
+      <Chip label={`${done.toLocaleString()} done`} size="small" variant="outlined" sx={profileChipSx} />
+      {planned ? <Chip label={`${planned.toLocaleString()} planned`} size="small" variant="outlined" sx={profileChipSx} /> : null}
     </Stack>
   );
 }
@@ -197,14 +197,13 @@ const actionIconSx = {
   borderColor: 'divider',
 };
 
-const wrappingChipSx = {
-  height: 'auto',
-  minHeight: 24,
+const profileChipSx = {
   maxWidth: '100%',
+  flexShrink: 1,
   '& .MuiChip-label': {
-    whiteSpace: 'normal',
-    overflow: 'visible',
-    textOverflow: 'clip',
-    py: 0.25,
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
 };
