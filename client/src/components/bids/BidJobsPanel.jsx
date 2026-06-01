@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import {
   Box,
   Button,
@@ -27,6 +28,7 @@ import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 export default function BidJobsPanel() {
   const {
     activeColor,
+    activeProfileId,
     activeTab,
     jobs,
     loading,
@@ -36,6 +38,7 @@ export default function BidJobsPanel() {
     tabCounts,
     onPageChange,
     onPageSizeChange,
+    onHiddenChange,
     onTabChange,
     onTailorResume,
   } = useBidWorkspace();
@@ -47,8 +50,21 @@ export default function BidJobsPanel() {
     .map((resume) => resume.id);
   const downloadAllUrl = authUrl(`/api/bid/tailored-resumes/download?ids=${readyResumeIds.map(encodeURIComponent).join(',')}`);
   const visibleJobIds = jobs.map((job) => job.id);
+  const visibleJobIdsKey = visibleJobIds.join('|');
   const selectedVisibleJobs = jobs.filter((job) => selectedJobIds.has(job.id));
   const allVisibleJobsSelected = visibleJobIds.length > 0 && visibleJobIds.every((jobId) => selectedJobIds.has(jobId));
+
+  useEffect(() => {
+    setSelectedJobIds(new Set());
+  }, [activeProfileId, activeTab]);
+
+  useEffect(() => {
+    setSelectedJobIds((current) => {
+      const visibleJobIdSet = new Set(visibleJobIds);
+      const next = new Set([...current].filter((jobId) => visibleJobIdSet.has(jobId)));
+      return next.size === current.size ? current : next;
+    });
+  }, [visibleJobIdsKey]);
 
   function toggleJobSelected(jobId) {
     setSelectedJobIds((current) => {
@@ -76,6 +92,15 @@ export default function BidJobsPanel() {
 
   function tailorSelectedJobs() {
     selectedVisibleJobs.forEach((job) => onTailorResume(job));
+  }
+
+  function hideSelectedJobs() {
+    selectedVisibleJobs.forEach((job) => onHiddenChange(job, true));
+    setSelectedJobIds((current) => {
+      const next = new Set(current);
+      selectedVisibleJobs.forEach((job) => next.delete(job.id));
+      return next;
+    });
   }
 
   function exportActiveTabCsv() {
@@ -154,16 +179,28 @@ export default function BidJobsPanel() {
             Export CSV
           </Button>
           {activeTab === BID_TABS.todo ? (
-            <Button
-              disabled={!selectedVisibleJobs.length}
-              onClick={tailorSelectedJobs}
-              size="small"
-              startIcon={<AutoAwesomeIcon />}
-              variant="contained"
-              sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
-            >
-              Tailor selected
-            </Button>
+            <>
+              <Button
+                disabled={!selectedVisibleJobs.length}
+                onClick={hideSelectedJobs}
+                size="small"
+                startIcon={<VisibilityOffIcon />}
+                variant="outlined"
+                sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+              >
+                Hide selected
+              </Button>
+              <Button
+                disabled={!selectedVisibleJobs.length}
+                onClick={tailorSelectedJobs}
+                size="small"
+                startIcon={<AutoAwesomeIcon />}
+                variant="contained"
+                sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+              >
+                Tailor selected
+              </Button>
+            </>
           ) : (
             <Button
               component="a"

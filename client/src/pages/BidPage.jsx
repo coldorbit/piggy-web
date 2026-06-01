@@ -35,7 +35,7 @@ export default function BidPage({ currentUser }) {
   const [drafts, setDrafts] = useState({});
   const [error, setError] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [tailoringByJobId, setTailoringByJobId] = useState({});
+  const [tailoringByProfileJobId, setTailoringByProfileJobId] = useState({});
   const { setSearch: setHeaderSearch } = useHeaderSearch();
 
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles();
@@ -105,14 +105,16 @@ export default function BidPage({ currentUser }) {
   }
 
   function draftFor(job) {
-    return drafts[job.id] || { ...EMPTY_BID, ...(job.bid || {}) };
+    return drafts[profileJobKey(activeProfile?.id, job.id)] || { ...EMPTY_BID, ...(job.bid || {}) };
   }
 
   function updateDraft(jobId, key, value) {
+    if (!activeProfile) return;
+    const scopedJobId = profileJobKey(activeProfile.id, jobId);
     setDrafts((current) => ({
       ...current,
-      [jobId]: {
-        ...(current[jobId] || EMPTY_BID),
+      [scopedJobId]: {
+        ...(current[scopedJobId] || EMPTY_BID),
         [key]: value,
       },
     }));
@@ -154,18 +156,19 @@ export default function BidPage({ currentUser }) {
 
   function tailorResume(job) {
     if (!activeProfile) return;
-    if (tailoringByJobId[job.id]) return;
+    const scopedJobId = profileJobKey(activeProfile.id, job.id);
+    if (tailoringByProfileJobId[scopedJobId]) return;
 
-    setTailoringByJobId((current) => ({ ...current, [job.id]: true }));
+    setTailoringByProfileJobId((current) => ({ ...current, [scopedJobId]: true }));
     setError('');
     requestTailoredResume(
       { jobId: job.id, profileId: activeProfile.id },
       {
         onError: (tailoredResumeError) => setError(tailoredResumeError.message),
         onSettled: () => {
-          setTailoringByJobId((current) => {
+          setTailoringByProfileJobId((current) => {
             const next = { ...current };
-            delete next[job.id];
+            delete next[scopedJobId];
             return next;
           });
         },
@@ -192,6 +195,7 @@ export default function BidPage({ currentUser }) {
   const bidWorkspace = useMemo(
     () => ({
       activeColor,
+      activeProfileId: activeProfile?.id || '',
       activeTab: activeBidTab,
       currentUser: bidJobsData?.currentUser || currentUser,
       draftsForJob: draftFor,
@@ -202,7 +206,7 @@ export default function BidPage({ currentUser }) {
       pageSize: filters.limit,
       pages: Math.max(Math.ceil(total / filters.limit), 1),
       tabCounts: bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0 },
-      tailoringByJobId,
+      tailoringByJobId: tailoringByProfileJobs(tailoringByProfileJobId, activeProfile?.id, visibleJobs),
       total,
       onDraftChange: updateDraft,
       onHiddenChange: updateHiddenState,
@@ -215,14 +219,16 @@ export default function BidPage({ currentUser }) {
     [
       activeBidTab,
       activeColor,
+      activeProfile?.id,
       bidJobsData?.currentUser,
       bidJobsData?.tabCounts,
       creatingBid,
       currentUser,
+      drafts,
       filters.limit,
       filters.page,
       loading,
-      tailoringByJobId,
+      tailoringByProfileJobId,
       total,
       updatingBid,
       visibleJobs,
@@ -281,7 +287,7 @@ export default function BidPage({ currentUser }) {
                 }}
               />
               <BidWorkspaceProvider value={bidWorkspace}>
-                <BidJobsPanel />
+                <BidJobsPanel key={activeProfile.id} />
               </BidWorkspaceProvider>
             </Box>
           ) : null}
@@ -298,6 +304,18 @@ export default function BidPage({ currentUser }) {
       />
     </Box>
   );
+}
+
+function profileJobKey(profileId, jobId) {
+  return `${profileId || 'no-profile'}:${jobId}`;
+}
+
+function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs) {
+  if (!profileId) return {};
+  return jobs.reduce((tailoringByJobId, job) => {
+    tailoringByJobId[job.id] = Boolean(tailoringByProfileJobId[profileJobKey(profileId, job.id)]);
+    return tailoringByJobId;
+  }, {});
 }
 
 function bidTabFromParam(value) {
