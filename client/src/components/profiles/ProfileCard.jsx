@@ -23,6 +23,7 @@ export default function ProfileCard({
   const color = PROFILE_COLORS[profile.colorScheme] || PROFILE_COLORS.green;
   const isClosed = profile.profileStatus === 'closed';
   const showActions = canManage && !profile.isShared;
+  const sharedWith = (profile.sharedWith || []).filter((share) => share.username);
   return (
     <Card
       variant="outlined"
@@ -84,6 +85,18 @@ export default function ProfileCard({
         {profile.ownerUsername ? (
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
             <Chip label={`Owner ${profile.ownerUsername}`} size="small" variant="outlined" />
+          </Stack>
+        ) : null}
+        {sharedWith.length ? (
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+            {sharedWith.map((share) => (
+              <Chip
+                key={share.id || share.userId || share.username}
+                label={`Shared with ${share.username}${share.status === 'pending' ? ' (pending)' : ''}`}
+                size="small"
+                variant="outlined"
+              />
+            ))}
           </Stack>
         ) : null}
         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>

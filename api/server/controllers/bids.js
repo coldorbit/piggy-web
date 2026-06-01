@@ -31,6 +31,7 @@ import {
   profileStatusAttributesFromBody,
   profilesVisibleToUser,
   profilesWithProgress,
+  profilesWithSharing,
 } from '../services/profiles.js';
 import { enqueueTailoredResumeRequest } from '../services/tailoringQueue.js';
 import { clean } from '../utils/index.js';
@@ -44,7 +45,7 @@ export async function listProfiles(req, res, next) {
       clean(req.query?.scope) === 'manage' && user.role === 'admin'
         ? await profilesManagedByUser(user)
         : await profilesVisibleToUser(user);
-    res.json({ profiles: (await profilesWithProgress(profiles)).map(formatProfile) });
+    res.json({ profiles: (await profilesWithSharing(await profilesWithProgress(profiles))).map(formatProfile) });
   } catch (error) {
     handleInputError(error, res, next);
   }

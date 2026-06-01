@@ -683,6 +683,7 @@ export function useShareBidProfile() {
         body: JSON.stringify({ username }),
       }).then((data) => data.share),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profile-shares'] });
     },
   });

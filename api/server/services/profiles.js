@@ -66,6 +66,7 @@ export function formatProfile(row) {
     isShared: Boolean(row.get?.('shareStatus')),
     shareStatus: row.get?.('shareStatus') || null,
     sharedBy: row.get?.('sharedBy') || null,
+    sharedWith: row.get?.('sharedWith') || [],
     ownerUsername: row.user?.username || row.get?.('ownerUsername') || null,
     progress: row.get?.('progress') || {
       tailored: 0,
@@ -148,6 +149,42 @@ export async function profilesWithProgress(profiles) {
 
   for (const profile of profiles) {
     profile.setDataValue('progress', progressByProfileId.get(String(profile.id)));
+  }
+
+  return profiles;
+}
+
+export async function profilesWithSharing(profiles) {
+  const profileIds = [
+    ...new Set(
+      profiles
+        .filter((profile) => !profile.get?.('shareStatus'))
+        .map((profile) => String(profile.id))
+        .filter(Boolean),
+    ),
+  ];
+  if (!profileIds.length) return profiles;
+
+  const shares = await getProfileShareRequestModel().findAll({
+    where: { profileId: profileIds },
+    include: [{ model: getWebUserModel(), as: 'recipient', required: true }],
+    order: [['createdAt', 'ASC']],
+  });
+  const sharesByProfileId = new Map(profileIds.map((profileId) => [profileId, []]));
+
+  for (const share of shares) {
+    const profileShares = sharesByProfileId.get(String(share.profileId));
+    if (!profileShares) continue;
+    profileShares.push({
+      id: share.id,
+      userId: share.recipientUserId,
+      username: share.recipient?.username || '',
+      status: share.status,
+    });
+  }
+
+  for (const profile of profiles) {
+    profile.setDataValue('sharedWith', sharesByProfileId.get(String(profile.id)) || []);
   }
 
   return profiles;
