@@ -79,12 +79,12 @@ export default function ProfileCard({
         {profile.isShared ? (
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
             <Chip label="Shared" size="small" color="secondary" sx={{ fontWeight: 400 }} />
-            {profile.sharedBy ? <Chip label={`From ${profile.sharedBy}`} size="small" variant="outlined" /> : null}
+            {profile.sharedBy ? <Chip label={`From ${profile.sharedBy}`} size="small" variant="outlined" sx={wrappingChipSx} /> : null}
           </Stack>
         ) : null}
         {profile.ownerUsername ? (
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-            <Chip label={`Owner ${profile.ownerUsername}`} size="small" variant="outlined" />
+            <Chip label={`Owner ${profile.ownerUsername}`} size="small" variant="outlined" sx={wrappingChipSx} />
           </Stack>
         ) : null}
         {sharedWith.length ? (
@@ -95,6 +95,7 @@ export default function ProfileCard({
                 label={`Shared with ${share.username}${share.status === 'pending' ? ' (pending)' : ''}`}
                 size="small"
                 variant="outlined"
+                sx={wrappingChipSx}
               />
             ))}
           </Stack>
@@ -194,4 +195,16 @@ const actionIconSx = {
   height: 38,
   border: 1,
   borderColor: 'divider',
+};
+
+const wrappingChipSx = {
+  height: 'auto',
+  minHeight: 24,
+  maxWidth: '100%',
+  '& .MuiChip-label': {
+    whiteSpace: 'normal',
+    overflow: 'visible',
+    textOverflow: 'clip',
+    py: 0.25,
+  },
 };
