@@ -72,6 +72,7 @@ export function formatBid(row) {
   return {
     id: row.id,
     userId: row.userId,
+    callerUserId: row.callerUserId,
     profileId: row.profileId,
     jobId: row.jobId,
     status: row.status,
@@ -289,6 +290,8 @@ for (let i = 0; i < CRC_TABLE.length; i += 1) {
 export function bidAttributesFromBody(body) {
   const status = clean(body?.status || 'planned');
   const bidAmount = clean(body?.bidAmount);
+  const hasCallerUserId = Object.prototype.hasOwnProperty.call(body || {}, 'callerUserId');
+  const callerUserId = hasCallerUserId ? clean(body?.callerUserId) : '';
   const interviewStage = normalizeInterviewStage(clean(body?.interviewStage));
   const interviewNextAt = clean(body?.interviewNextAt);
   const allowedInterviewStages = new Set(['', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
@@ -297,12 +300,14 @@ export function bidAttributesFromBody(body) {
 
   if (!allowedStatuses.has(status)) throw new InputError('Choose a valid bid status');
   if (bidAmount && Number.isNaN(Number(bidAmount))) throw new InputError('Bid amount must be a number');
+  if (callerUserId && Number.isNaN(Number(callerUserId))) throw new InputError('Choose a valid caller');
   if (!allowedInterviewStages.has(normalizedInterviewStage)) throw new InputError('Choose a valid interview stage');
   if (interviewNextAt && Number.isNaN(Date.parse(interviewNextAt))) throw new InputError('Choose a valid interview date');
 
   return {
     status,
     bidAmount: bidAmount ? Number(bidAmount) : null,
+    ...(hasCallerUserId ? { callerUserId: callerUserId ? Number(callerUserId) : null } : {}),
     coverLetter: clean(body?.coverLetter) || null,
     notes: clean(body?.notes) || null,
     interviewStage: normalizedInterviewStage || null,

@@ -23,6 +23,8 @@ import { toDatetimeLocalValue } from './interviewUtils.js';
 
 export default function InterviewCard({
   accent,
+  callerUsers = [],
+  canAssignCallers = false,
   currentUser,
   draft,
   isSaving,
@@ -38,6 +40,12 @@ export default function InterviewCard({
     const interviewStage = event.target.value;
     onDraftChange('interviewStage', interviewStage);
     onSave({ interviewStage, status: 'interviewing' });
+  }
+
+  function handleCallerChange(event) {
+    const callerUserId = event.target.value;
+    onDraftChange('callerUserId', callerUserId);
+    onSave({ callerUserId });
   }
 
   return (
@@ -125,6 +133,22 @@ export default function InterviewCard({
             {INTERVIEW_STAGES.map((stage) => (
               <MenuItem key={stage.value} value={stage.value}>
                 {stage.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small">
+          <InputLabel>Caller</InputLabel>
+          <Select
+            label="Caller"
+            value={draft.callerUserId || ''}
+            onChange={handleCallerChange}
+            disabled={isSaving || !canAssignCallers}
+          >
+            <MenuItem value="">Unassigned</MenuItem>
+            {callerUsers.map((caller) => (
+              <MenuItem key={caller.id} value={caller.id}>
+                {caller.username}
               </MenuItem>
             ))}
           </Select>

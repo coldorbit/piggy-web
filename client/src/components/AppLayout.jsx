@@ -5,6 +5,7 @@ import EventNoteIcon from '@mui/icons-material/EventNote';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
+import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import SearchIcon from '@mui/icons-material/Search';
 import WorkIcon from '@mui/icons-material/Work';
 import {
@@ -42,6 +43,7 @@ export default function AppLayout({ user }) {
   const { mutate: logout } = useLogout();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isBidRoute = location.pathname.startsWith('/bids');
+  const isCallerRoute = location.pathname.startsWith('/callers');
   const isInterviewRoute = location.pathname.startsWith('/interviews');
   const isProfileRoute = location.pathname.startsWith('/profiles');
   const [headerSearch, setHeaderSearch] = useState(EMPTY_HEADER_SEARCH);
@@ -56,9 +58,11 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminRoute ? 'Users' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminRoute ? 'Users' : isCallerRoute ? 'Callers' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminRoute
     ? 'Manage back-office accounts'
+    : isCallerRoute
+      ? 'Track caller assignments and interview workload'
     : isInterviewRoute
       ? 'Manage active interview pipelines by profile'
     : isBidRoute
@@ -112,6 +116,9 @@ export default function AppLayout({ user }) {
           <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} />
           <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} />
           <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" onNavigate={() => setMobileOpen(false)} />
+          {['admin', 'caller'].includes(user.role) ? (
+            <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
+          ) : null}
           <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} />
           {user.role === 'admin' ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" onNavigate={() => setMobileOpen(false)} />
@@ -317,5 +324,6 @@ function NavItem({ icon, label, onNavigate, to }) {
 function roleLabel(role) {
   if (role === 'readonly_bidder' || role === 'bidder') return 'Readonly bidder';
   if (role === 'editable_bidder') return 'Editable bidder';
+  if (role === 'caller') return 'Caller';
   return role;
 }

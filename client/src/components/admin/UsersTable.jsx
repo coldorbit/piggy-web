@@ -107,6 +107,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
               onChange={(event) => onEditingChange((current) => ({ ...current, role: event.target.value }))}
             >
               <MenuItem value="user">User</MenuItem>
+              <MenuItem value="caller">Caller</MenuItem>
               <MenuItem value="readonly_bidder">Readonly bidder</MenuItem>
               <MenuItem value="editable_bidder">Editable bidder</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>
@@ -200,5 +201,6 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
 function roleLabel(role) {
   if (role === 'readonly_bidder' || role === 'bidder') return 'readonly bidder';
   if (role === 'editable_bidder') return 'editable bidder';
+  if (role === 'caller') return 'caller';
   return role;
 }

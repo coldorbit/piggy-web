@@ -19,6 +19,11 @@ export function getJobBidModel() {
         allowNull: false,
         field: 'user_id',
       },
+      callerUserId: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        field: 'caller_user_id',
+      },
       profileId: {
         type: DataTypes.BIGINT,
         allowNull: false,

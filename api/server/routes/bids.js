@@ -6,6 +6,7 @@ import {
   deleteProfile,
   downloadTailoredResume,
   downloadTailoredResumesZip,
+  listCallers,
   listBidJobs,
   listProfileShareRequests,
   listProfileShareRecipients,
@@ -22,6 +23,7 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/profiles', requireAuth, listProfiles);
   app.get('/api/bid/profile-shares', requireAuth, listProfileShareRequests);
   app.get('/api/bid/profile-share-recipients', requireAuth, listProfileShareRecipients);
+  app.get('/api/bid/callers', requireAuth, listCallers);
   app.post('/api/bid/profiles', requireAuth, createProfile);
   app.patch('/api/bid/profiles/:id', requireAuth, updateProfile);
   app.patch('/api/bid/profiles/:id/status', requireAuth, updateProfileStatus);

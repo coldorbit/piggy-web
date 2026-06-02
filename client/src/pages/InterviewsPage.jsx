@@ -209,7 +209,9 @@ export default function InterviewsPage({ currentUser }) {
                 <InterviewKanbanBoard
                   activeColor={activeColor}
                   activeDropStage={activeDropStage}
+                  callerUsers={interviewsData?.callerUsers || []}
                   currentUser={interviewsData?.currentUser || currentUser}
+                  canAssignCallers={currentUser?.role === 'admin'}
                   draftFor={draftFor}
                   isSaving={updatingBid}
                   jobsByStage={jobsByStage}

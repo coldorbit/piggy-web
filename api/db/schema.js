@@ -176,6 +176,10 @@ async function ensureBidPageIndexes() {
     ON job_bids (profile_id, status, interview_next_at ASC NULLS LAST)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS job_bids_caller_status_idx
+    ON job_bids (caller_user_id, status)
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS tailored_resumes_profile_job_status_idx
     ON tailored_resumes (profile_id, job_url, status)
   `);
@@ -191,6 +195,7 @@ async function ensureJobBidInterviewColumns() {
   const table = await queryInterface.describeTable(tableName);
 
   await addMissingColumns(queryInterface, tableName, table, {
+    caller_user_id: { type: DataTypes.BIGINT, allowNull: true },
     interview_stage: { type: DataTypes.TEXT, allowNull: true },
     interview_next_at: { type: DataTypes.DATE, allowNull: true },
     interview_notes: { type: DataTypes.TEXT, allowNull: true },

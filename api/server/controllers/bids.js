@@ -10,6 +10,7 @@ import {
   repositories,
 } from '../../db.js';
 import { Readable } from 'node:stream';
+import { Op } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../env.js';
 import {
@@ -100,6 +101,63 @@ export async function listProfileShareRecipients(req, res, next) {
           username: row.username,
           role: row.role,
         })),
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function listCallers(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const WebUser = getWebUserModel();
+    const JobBid = getJobBidModel();
+    const ScrapedJob = getScrapedJobModel();
+    const BidProfile = getBidProfileModel();
+    const callers = await WebUser.findAll({
+      where: { role: 'caller' },
+      order: [['username', 'ASC']],
+    });
+    const visibleCallers = user.role === 'admin' ? callers : callers.filter((caller) => String(caller.id) === String(user.id));
+    const callerIds = visibleCallers.map((caller) => caller.id);
+    const assignments = callerIds.length
+      ? await JobBid.findAll({
+          where: {
+            callerUserId: { [Op.in]: callerIds },
+            status: 'interviewing',
+          },
+          include: [
+            { model: ScrapedJob, as: 'job', required: true },
+            { model: BidProfile, as: 'profile', required: true },
+          ],
+          order: [
+            ['callerUserId', 'ASC'],
+            ['interviewNextAt', 'ASC'],
+            ['updatedAt', 'DESC'],
+          ],
+        })
+      : [];
+
+    const assignmentsByCallerId = new Map(callerIds.map((callerId) => [String(callerId), []]));
+    for (const assignment of assignments) {
+      const callerAssignments = assignmentsByCallerId.get(String(assignment.callerUserId));
+      if (!callerAssignments) continue;
+      callerAssignments.push(formatCallerAssignment(assignment));
+    }
+
+    res.json({
+      callers: visibleCallers.map((caller) => {
+        const callerAssignments = assignmentsByCallerId.get(String(caller.id)) || [];
+        return {
+          id: caller.id,
+          username: caller.username,
+          role: caller.role,
+          activeInterviews: callerAssignments.length,
+          upcomingInterviews: callerAssignments.filter((assignment) => Boolean(assignment.interviewNextAt)).length,
+          assignments: callerAssignments,
+        };
+      }),
     });
   } catch (error) {
     handleInputError(error, res, next);
@@ -273,6 +331,7 @@ export async function listBidJobs(req, res, next) {
     const ScrapedJob = getScrapedJobModel();
     const JobBid = getJobBidModel();
     const TailoredResume = getTailoredResumeModel();
+    const WebUser = getWebUserModel();
     const sequelize = getSequelize();
     const { where, order: jobOrder, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
     const bidTab = clean(req.query.bidTab || 'todo');
@@ -320,14 +379,20 @@ export async function listBidJobs(req, res, next) {
       profileId: profile.id,
     });
     const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
+    const callerUsers = await WebUser.findAll({
+      where: { role: 'caller' },
+      order: [['username', 'ASC']],
+    });
+    const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
     res.json({
       jobs: rows.map((job) => ({
         ...formatJob(job),
-        bid: job.bids?.[0] ? formatBidWithUser(job.bids[0], bidUsersById) : null,
+        bid: job.bids?.[0] ? formatBidWithUser(job.bids[0], bidUsersById, callerUsersById) : null,
         tailoredResume: tailoredResumesByUrl.get(job.url) || null,
       })),
       bidUsers,
+      callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
       currentUser: { id: user.id, username: user.username },
       total: count,
       tabCounts: {
@@ -374,12 +439,14 @@ function bidUserFilter(value, bidUsers) {
   return allowedUserIds.has(String(userId)) ? userId : '';
 }
 
-function formatBidWithUser(row, bidUsersById) {
+function formatBidWithUser(row, bidUsersById, callerUsersById) {
   const bid = formatBid(row);
   const bidUser = bidUsersById.get(String(row.userId));
+  const caller = callerUsersById?.get(String(row.callerUserId || ''));
   return {
     ...bid,
     user: bidUser || null,
+    caller: caller || null,
   };
 }
 
@@ -516,8 +583,12 @@ export async function createJobBid(req, res, next) {
     }
 
     const now = new Date();
+    const attrs = bidAttributesFromBody(req.body);
+    if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
+    if (req.user?.role !== 'admin') delete attrs.callerUserId;
+
     const bid = await getJobBidModel().create({
-      ...bidAttributesFromBody(req.body),
+      ...attrs,
       userId: user.id,
       profileId: profile.id,
       jobId: job.id,
@@ -771,16 +842,40 @@ export async function updateJobBid(req, res, next) {
       res.status(404).json({ error: 'Bid not found' });
       return;
     }
+    const attrs = bidAttributesFromBody(req.body);
+    if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (req.user?.role !== 'admin') {
       await accessibleProfile(req, bid.profileId);
       if (String(bid.userId) !== String(user.id)) {
         res.status(404).json({ error: 'Bid not found' });
         return;
       }
+      delete attrs.callerUserId;
     }
-    await bid.update({ ...bidAttributesFromBody(req.body), updatedAt: new Date() });
+    await bid.update({ ...attrs, updatedAt: new Date() });
     res.json({ bid: formatBid(bid) });
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+async function ensureCallerUser(callerUserId) {
+  const caller = await getWebUserModel().findOne({ where: { id: callerUserId, role: 'caller' } });
+  if (!caller) throw new NotFoundError('Caller not found');
+  return caller;
+}
+
+function formatCallerAssignment(row) {
+  return {
+    id: row.id,
+    profileId: row.profileId,
+    jobId: row.jobId,
+    status: row.status,
+    interviewStage: row.interviewStage,
+    interviewNextAt: row.interviewNextAt,
+    interviewNotes: row.interviewNotes,
+    updatedAt: row.updatedAt,
+    job: row.job ? formatJob(row.job) : null,
+    profile: row.profile ? formatProfile(row.profile) : null,
+  };
 }

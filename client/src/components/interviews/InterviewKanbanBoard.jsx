@@ -5,6 +5,8 @@ import InterviewColumn from './InterviewColumn.jsx';
 export default function InterviewKanbanBoard({
   activeColor,
   activeDropStage,
+  callerUsers,
+  canAssignCallers,
   currentUser,
   draftFor,
   isSaving,
@@ -34,6 +36,8 @@ export default function InterviewKanbanBoard({
         <InterviewColumn
           key={stage.value}
           accent={activeColor}
+          callerUsers={callerUsers}
+          canAssignCallers={canAssignCallers}
           currentUser={currentUser}
           isActiveDrop={activeDropStage === stage.value}
           isSaving={isSaving}

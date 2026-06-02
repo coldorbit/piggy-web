@@ -116,6 +116,13 @@ export function useBidJobs(profileId, filters = {}) {
   });
 }
 
+export function useCallers() {
+  return useQuery({
+    queryKey: ['bid', 'callers'],
+    queryFn: () => api('/api/bid/callers').then((data) => data.callers),
+  });
+}
+
 // Mutation hooks
 export function useLogin() {
   const queryClient = useQueryClient();
@@ -543,6 +550,7 @@ function optimisticBid({ id, jobId, bidData }) {
     jobId,
     status: bidData?.status || 'planned',
     bidAmount: bidData?.bidAmount || null,
+    callerUserId: bidData?.callerUserId || null,
     coverLetter: bidData?.coverLetter || null,
     notes: bidData?.notes || null,
     interviewStage: bidData?.interviewStage || null,
@@ -590,6 +598,7 @@ export function useCreateUser() {
       }).then((data) => data.user),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
     },
   });
 }
@@ -604,6 +613,7 @@ export function useUpdateUser() {
       }).then((data) => data.user),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
     },
   });
 }
@@ -617,6 +627,7 @@ export function useDeleteUser() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
     },
   });
 }
@@ -731,6 +742,7 @@ export function useCreateJobBid() {
       updateCachedBidQueries(queryClient, jobId, { bid });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
     },
   });
 }
@@ -758,6 +770,7 @@ export function useUpdateJobBid() {
       updateCachedBidQueries(queryClient, jobId, { bid });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
     },
   });
 }

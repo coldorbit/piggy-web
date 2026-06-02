@@ -3,6 +3,8 @@ import InterviewCard from './InterviewCard.jsx';
 
 export default function InterviewColumn({
   accent,
+  callerUsers,
+  canAssignCallers,
   currentUser,
   draftFor,
   isActiveDrop,
@@ -68,6 +70,8 @@ export default function InterviewColumn({
           <InterviewCard
             key={job.id}
             accent={accent}
+            callerUsers={callerUsers}
+            canAssignCallers={canAssignCallers}
             currentUser={currentUser}
             draft={draftFor(job)}
             isSaving={isSaving}
