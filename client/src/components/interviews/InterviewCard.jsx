@@ -80,7 +80,25 @@ export default function InterviewCard({
           <DragIndicatorIcon fontSize="small" color="action" />
         </Box>
 
-        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+        <Stack
+          direction="row"
+          spacing={0.5}
+          flexWrap="wrap"
+          useFlexGap
+          sx={{
+            minWidth: 0,
+            maxWidth: '100%',
+            '& .MuiChip-root': {
+              maxWidth: '100%',
+              minWidth: 0,
+            },
+            '& .MuiChip-label': {
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            },
+          }}
+        >
           <Chip
             icon={<CalendarMonthIcon />}
             label={draft.interviewNextAt ? formatDateTime(draft.interviewNextAt) : 'No next date'}
