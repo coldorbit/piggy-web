@@ -205,12 +205,7 @@ export default function InterviewsPage({ currentUser }) {
 
             <Box sx={{ flex: 1, minHeight: { md: 0 }, overflow: 'hidden', bgcolor: 'background.paper' }}>
               {loading && !jobs.length ? <InterviewLoadingState /> : null}
-              {!loading && jobs.length === 0 ? (
-                <Paper variant="outlined" sx={{ m: 1.5, p: 3 }}>
-                  <Typography color="text.secondary">No interviewing jobs match this profile and search.</Typography>
-                </Paper>
-              ) : null}
-              {jobs.length ? (
+              {!loading || jobs.length ? (
                 <InterviewKanbanBoard
                   activeColor={activeColor}
                   activeDropStage={activeDropStage}
