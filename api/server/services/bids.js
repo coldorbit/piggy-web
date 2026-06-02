@@ -293,10 +293,11 @@ export function bidAttributesFromBody(body) {
   const interviewNextAt = clean(body?.interviewNextAt);
   const allowedInterviewStages = new Set(['', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
   const allowedStatuses = new Set(['planned', 'submitted', 'interviewing', 'won', 'lost']);
+  const normalizedInterviewStage = status === 'interviewing' && !interviewStage ? 'screening' : interviewStage;
 
   if (!allowedStatuses.has(status)) throw new InputError('Choose a valid bid status');
   if (bidAmount && Number.isNaN(Number(bidAmount))) throw new InputError('Bid amount must be a number');
-  if (!allowedInterviewStages.has(interviewStage)) throw new InputError('Choose a valid interview stage');
+  if (!allowedInterviewStages.has(normalizedInterviewStage)) throw new InputError('Choose a valid interview stage');
   if (interviewNextAt && Number.isNaN(Date.parse(interviewNextAt))) throw new InputError('Choose a valid interview date');
 
   return {
@@ -304,7 +305,7 @@ export function bidAttributesFromBody(body) {
     bidAmount: bidAmount ? Number(bidAmount) : null,
     coverLetter: clean(body?.coverLetter) || null,
     notes: clean(body?.notes) || null,
-    interviewStage: interviewStage || null,
+    interviewStage: normalizedInterviewStage || null,
     interviewNextAt: interviewNextAt ? new Date(interviewNextAt) : null,
     interviewNotes: clean(body?.interviewNotes) || null,
   };

@@ -47,7 +47,7 @@ export default function InterviewColumn({
           bgcolor: 'background.paper',
         }}
       >
-        <Typography variant="body2" fontWeight={900} noWrap>
+        <Typography variant="body2" fontWeight={900} noWrap sx={{ fontWeight: 900 }}>
           {stage.label}
         </Typography>
         <Chip

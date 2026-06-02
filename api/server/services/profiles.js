@@ -32,6 +32,7 @@ export async function accessibleProfile(req, profileId) {
 
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
+  if (user.role === 'admin') return profile;
   if (String(profile.userId) === String(user.id)) return profile;
 
   const share = await getProfileShareRequestModel().findOne({

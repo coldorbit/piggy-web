@@ -17,6 +17,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
 import { formatDate, formatDateTime } from '../../lib/formatters.js';
 import { toDatetimeLocalValue } from './interviewUtils.js';
 
@@ -33,10 +34,10 @@ export default function InterviewCard({
 }) {
   const owner = job.bid?.user?.username || (String(job.bid?.userId) === String(currentUser?.id) ? currentUser?.username : '');
 
-  function handleStatusChange(event) {
-    const status = event.target.value;
-    onDraftChange('status', status);
-    onSave({ status });
+  function handleStageChange(event) {
+    const interviewStage = event.target.value;
+    onDraftChange('interviewStage', interviewStage);
+    onSave({ interviewStage, status: 'interviewing' });
   }
 
   return (
@@ -119,12 +120,13 @@ export default function InterviewCard({
           slotProps={{ inputLabel: { shrink: true } }}
         />
         <FormControl size="small">
-          <InputLabel>Status</InputLabel>
-          <Select label="Status" value={draft.status || 'interviewing'} onChange={handleStatusChange} disabled={isSaving}>
-            <MenuItem value="interviewing">Interviewing</MenuItem>
-            <MenuItem value="submitted">Submitted</MenuItem>
-            <MenuItem value="won">Won</MenuItem>
-            <MenuItem value="lost">Lost</MenuItem>
+          <InputLabel>Step</InputLabel>
+          <Select label="Step" value={draft.interviewStage || INTERVIEW_STAGES[0].value} onChange={handleStageChange} disabled={isSaving}>
+            {INTERVIEW_STAGES.map((stage) => (
+              <MenuItem key={stage.value} value={stage.value}>
+                {stage.label}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         <TextField
