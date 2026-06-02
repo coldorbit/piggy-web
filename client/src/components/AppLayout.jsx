@@ -1,6 +1,7 @@
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BadgeIcon from '@mui/icons-material/Badge';
+import EventNoteIcon from '@mui/icons-material/EventNote';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
@@ -41,6 +42,7 @@ export default function AppLayout({ user }) {
   const { mutate: logout } = useLogout();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isBidRoute = location.pathname.startsWith('/bids');
+  const isInterviewRoute = location.pathname.startsWith('/interviews');
   const isProfileRoute = location.pathname.startsWith('/profiles');
   const [headerSearch, setHeaderSearch] = useState(EMPTY_HEADER_SEARCH);
   const headerSearchContext = useMemo(
@@ -54,9 +56,11 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminRoute ? 'Users' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminRoute ? 'Users' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminRoute
     ? 'Manage back-office accounts'
+    : isInterviewRoute
+      ? 'Manage active interview pipelines by profile'
     : isBidRoute
       ? 'Track tailored applications by profile'
       : isProfileRoute
@@ -107,6 +111,7 @@ export default function AppLayout({ user }) {
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.5 }}>
           <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} />
           <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} />
+          <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" onNavigate={() => setMobileOpen(false)} />
           <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} />
           {user.role === 'admin' ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" onNavigate={() => setMobileOpen(false)} />

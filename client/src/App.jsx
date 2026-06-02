@@ -6,6 +6,7 @@ import { useMe } from './lib/api.js';
 
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage.jsx'));
 const BidPage = lazy(() => import('./pages/BidPage.jsx'));
+const InterviewsPage = lazy(() => import('./pages/InterviewsPage.jsx'));
 const JobsPage = lazy(() => import('./pages/JobsPage.jsx'));
 const PricingPage = lazy(() => import('./components/auth/PricingPage.jsx'));
 const ProfilesPage = lazy(() => import('./pages/ProfilesPage.jsx'));
@@ -33,6 +34,7 @@ export default function App() {
           <Route index element={<Navigate to="/jobs" replace />} />
           <Route path="/jobs" element={<JobsPage currentUser={user} />} />
           <Route path="/bids" element={<BidPage currentUser={user} />} />
+          <Route path="/interviews" element={<InterviewsPage currentUser={user} />} />
           <Route path="/profiles" element={<ProfilesPage currentUser={user} />} />
           <Route
             path="/admin/users"

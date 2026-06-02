@@ -6,7 +6,7 @@ import BidProfileSummary from '../components/bids/BidProfileSummary.jsx';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BidWorkspaceProvider } from '../components/bids/BidWorkspaceContext.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
-import { BID_TABS, DEFAULT_BID_FILTERS, DONE_STATUSES, EMPTY_BID } from '../components/bids/bidConstants.js';
+import { BID_TABS, DEFAULT_BID_FILTERS, DONE_STATUSES, EMPTY_BID, INTERVIEW_STATUSES } from '../components/bids/bidConstants.js';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import { EMPTY_PROFILE, PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import {
@@ -24,6 +24,7 @@ import { mergeKnownFilters, readPersistedFilters, writePersistedFilters } from '
 
 const BID_FILTER_KEYS = ['search', 'roleFamily', 'source', 'appliedByUserId', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters';
+const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.done]);
 
 export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -205,7 +206,7 @@ export default function BidPage({ currentUser }) {
       page: filters.page,
       pageSize: filters.limit,
       pages: Math.max(Math.ceil(total / filters.limit), 1),
-      tabCounts: bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0 },
+      tabCounts: bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0, interviews: 0 },
       tailoringByJobId: tailoringByProfileJobs(tailoringByProfileJobId, activeProfile?.id, visibleJobs),
       total,
       onDraftChange: updateDraft,
@@ -319,7 +320,7 @@ function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs) {
 }
 
 function bidTabFromParam(value) {
-  return Object.values(BID_TABS).includes(value) ? value : BID_TABS.todo;
+  return APPLICATION_TABS.has(value) ? value : BID_TABS.todo;
 }
 
 function bidFiltersFromParams(params) {
@@ -355,9 +356,11 @@ function areBidFiltersEqual(left, right) {
 
 function isJobVisibleForTab(job, activeTab, draft) {
   const done = DONE_STATUSES.has(draft.status);
+  const interviewing = INTERVIEW_STATUSES.has(draft.status);
   const hasTailoredRequest = ['requested', 'processing', 'ready', 'dead_letter'].includes(job.tailoredResume?.status);
 
+  if (activeTab === BID_TABS.interviews) return interviewing;
   if (activeTab === BID_TABS.tailored) return hasTailoredRequest && !done;
   if (activeTab === BID_TABS.done) return done;
-  return !done && !hasTailoredRequest;
+  return !done && !interviewing && !hasTailoredRequest;
 }

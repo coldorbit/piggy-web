@@ -78,9 +78,9 @@ export default function BidJobCard({
   } = useBidWorkspace();
   const draft = draftsForJob(job);
   const isTailoring = Boolean(tailoringByJobId[job.id]);
-  const statusDefault = activeTab === BID_TABS.done ? 'submitted' : undefined;
+  const statusDefault = activeTab === BID_TABS.interviews ? 'interviewing' : activeTab === BID_TABS.done ? 'submitted' : undefined;
   const showBidStatusChip = activeTab !== BID_TABS.tailored;
-  const showStatusControl = activeTab === BID_TABS.done;
+  const showStatusControl = activeTab === BID_TABS.done || activeTab === BID_TABS.interviews;
   const showAppliedAction = activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready';
   const showTailorAction = activeTab === BID_TABS.todo || job.tailoredResume?.status === 'dead_letter';
   const bidChipLabel = job.bid
@@ -238,7 +238,7 @@ export default function BidJobCard({
                   sx={{ bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }}
                 />
               ) : null}
-              {activeTab !== BID_TABS.done && tailoredStatus ? (
+              {activeTab !== BID_TABS.done && activeTab !== BID_TABS.interviews && tailoredStatus ? (
                 <Chip
                   label={tailoredStatusLabel(tailoredStatus)}
                   size="small"
@@ -258,7 +258,7 @@ export default function BidJobCard({
                   }}
                 />
               ) : null}
-              {activeTab === BID_TABS.done && appliedByLabel ? (
+              {(activeTab === BID_TABS.done || activeTab === BID_TABS.interviews) && appliedByLabel ? (
                 <Chip
                   label={appliedByLabel}
                   size="small"
@@ -283,7 +283,7 @@ export default function BidJobCard({
                     onChange={handleStatusChange}
                     disabled={isSaving}
                   >
-                    {statusDefault !== 'submitted' ? <MenuItem value="planned">Planned</MenuItem> : null}
+                    {statusDefault !== 'submitted' && statusDefault !== 'interviewing' ? <MenuItem value="planned">Planned</MenuItem> : null}
                     <MenuItem value="submitted">Submitted</MenuItem>
                     <MenuItem value="interviewing">Interviewing</MenuItem>
                     <MenuItem value="won">Won</MenuItem>

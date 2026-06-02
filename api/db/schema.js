@@ -30,6 +30,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await getTailoredResumeModel().sync();
       await ensureWebUserSessionColumns();
       await ensureBidProfileColumns();
+      await ensureJobBidInterviewColumns();
       await ensureTailoredResumeStatusColumns();
       if (runBackfills) await runTailoredResumeFilePathBackfill();
       await removeDeprecatedBidProfileColumns();
@@ -171,6 +172,10 @@ async function ensureBidPageIndexes() {
     ON job_bids (profile_id, status, updated_at DESC)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS job_bids_profile_interview_next_at_idx
+    ON job_bids (profile_id, status, interview_next_at ASC NULLS LAST)
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS tailored_resumes_profile_job_status_idx
     ON tailored_resumes (profile_id, job_url, status)
   `);
@@ -178,6 +183,18 @@ async function ensureBidPageIndexes() {
     CREATE INDEX IF NOT EXISTS tailored_resumes_profile_status_job_idx
     ON tailored_resumes (profile_id, status, job_url)
   `);
+}
+
+async function ensureJobBidInterviewColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'job_bids';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    interview_stage: { type: DataTypes.TEXT, allowNull: true },
+    interview_next_at: { type: DataTypes.DATE, allowNull: true },
+    interview_notes: { type: DataTypes.TEXT, allowNull: true },
+  });
 }
 
 async function ensureBidProfileColumns() {

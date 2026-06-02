@@ -43,6 +43,18 @@ export function getJobBidModel() {
         field: 'cover_letter',
       },
       notes: DataTypes.TEXT,
+      interviewStage: {
+        type: DataTypes.TEXT,
+        field: 'interview_stage',
+      },
+      interviewNextAt: {
+        type: DataTypes.DATE,
+        field: 'interview_next_at',
+      },
+      interviewNotes: {
+        type: DataTypes.TEXT,
+        field: 'interview_notes',
+      },
       bidAt: {
         type: DataTypes.DATE,
         allowNull: false,

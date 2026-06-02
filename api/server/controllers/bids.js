@@ -298,7 +298,7 @@ export async function listBidJobs(req, res, next) {
       });
     };
 
-    const [rows, count, todoCount, tailoredCount, doneCount] = await Promise.all([
+    const [rows, count, todoCount, tailoredCount, doneCount, interviewsCount] = await Promise.all([
       ScrapedJob.findAll({
         where: activeTabQuery.where,
         order: activeTabQuery.order || jobOrder,
@@ -311,6 +311,7 @@ export async function listBidJobs(req, res, next) {
       countBidTab('todo'),
       countBidTab('tailored'),
       countBidTab('done'),
+      countBidTab('interviews'),
     ]);
 
     const tailoredResumesByUrl = await tailoredResumesForJobs({
@@ -333,6 +334,7 @@ export async function listBidJobs(req, res, next) {
         todo: todoCount,
         tailored: tailoredCount,
         done: doneCount,
+        interviews: interviewsCount,
       },
       limit,
       offset,

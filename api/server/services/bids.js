@@ -8,8 +8,14 @@ import { clean } from '../utils/index.js';
 export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', JobBid, sequelize }) {
   const tabWhere = { ...where };
   const isDoneTab = tab === 'done';
+  const isInterviewsTab = tab === 'interviews';
   const isTailoredTab = tab === 'tailored';
-  const order = isDoneTab
+  const order = isInterviewsTab
+    ? [
+        [{ model: JobBid, as: 'bids' }, 'interviewNextAt', 'ASC'],
+        [{ model: JobBid, as: 'bids' }, 'updatedAt', 'DESC'],
+      ]
+    : isDoneTab
     ? [
         [{ model: JobBid, as: 'bids' }, 'updatedAt', 'DESC'],
         [{ model: JobBid, as: 'bids' }, 'id', 'DESC'],
@@ -19,11 +25,12 @@ export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', 
     {
       model: JobBid,
       as: 'bids',
-      required: isDoneTab,
+      required: isDoneTab || isInterviewsTab,
       where: {
         profileId,
-        ...(isDoneTab ? { status: { [Op.in]: ['submitted', 'interviewing', 'won', 'lost'] } } : {}),
-        ...(isDoneTab && appliedByUserId ? { userId: appliedByUserId } : {}),
+        ...(isDoneTab ? { status: { [Op.in]: ['submitted', 'won', 'lost'] } } : {}),
+        ...(isInterviewsTab ? { status: 'interviewing' } : {}),
+        ...((isDoneTab || isInterviewsTab) && appliedByUserId ? { userId: appliedByUserId } : {}),
       },
     },
   ];
@@ -36,7 +43,7 @@ export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', 
         [Op.or]: [{ '$bids.id$': { [Op.is]: null } }, { '$bids.status$': 'planned' }],
       },
     ];
-  } else if (!isDoneTab) {
+  } else if (!isDoneTab && !isInterviewsTab) {
     tabWhere[Op.and] = [
       ...(Array.isArray(tabWhere[Op.and]) ? tabWhere[Op.and] : []),
       Sequelize.literal(`NOT ${tailoredResumeExistsSql({ profileId, sequelize })}`),
@@ -71,6 +78,9 @@ export function formatBid(row) {
     bidAmount: row.bidAmount,
     coverLetter: row.coverLetter,
     notes: row.notes,
+    interviewStage: row.interviewStage,
+    interviewNextAt: row.interviewNextAt,
+    interviewNotes: row.interviewNotes,
     bidAt: row.bidAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -279,15 +289,35 @@ for (let i = 0; i < CRC_TABLE.length; i += 1) {
 export function bidAttributesFromBody(body) {
   const status = clean(body?.status || 'planned');
   const bidAmount = clean(body?.bidAmount);
+  const interviewStage = normalizeInterviewStage(clean(body?.interviewStage));
+  const interviewNextAt = clean(body?.interviewNextAt);
+  const allowedInterviewStages = new Set(['', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
   const allowedStatuses = new Set(['planned', 'submitted', 'interviewing', 'won', 'lost']);
 
   if (!allowedStatuses.has(status)) throw new InputError('Choose a valid bid status');
   if (bidAmount && Number.isNaN(Number(bidAmount))) throw new InputError('Bid amount must be a number');
+  if (!allowedInterviewStages.has(interviewStage)) throw new InputError('Choose a valid interview stage');
+  if (interviewNextAt && Number.isNaN(Date.parse(interviewNextAt))) throw new InputError('Choose a valid interview date');
 
   return {
     status,
     bidAmount: bidAmount ? Number(bidAmount) : null,
     coverLetter: clean(body?.coverLetter) || null,
     notes: clean(body?.notes) || null,
+    interviewStage: interviewStage || null,
+    interviewNextAt: interviewNextAt ? new Date(interviewNextAt) : null,
+    interviewNotes: clean(body?.interviewNotes) || null,
   };
+}
+
+function normalizeInterviewStage(value) {
+  const aliases = {
+    recruiter: 'hiring_manager',
+    technical: 'technical_interview',
+    take_home: 'technical_interview',
+    onsite: 'panel',
+    offer: 'final',
+    follow_up: 'final',
+  };
+  return aliases[value] || value;
 }

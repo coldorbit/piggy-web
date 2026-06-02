@@ -452,7 +452,7 @@ function sortBidJobsByUpdatedAtDesc(jobs) {
 }
 
 function bidTabDelta(previousJob, nextJob) {
-  const delta = { todo: 0, tailored: 0, done: 0 };
+  const delta = { todo: 0, tailored: 0, done: 0, interviews: 0 };
   if (!previousJob || !nextJob) return delta;
 
   const previousTab = bidTabForJob(previousJob);
@@ -477,7 +477,8 @@ function optimisticBidJob(job, updates) {
 
 function bidTabForJob(job) {
   const status = job?.bid?.status || 'planned';
-  if (['submitted', 'interviewing', 'won', 'lost'].includes(status)) return 'done';
+  if (status === 'interviewing') return 'interviews';
+  if (['submitted', 'won', 'lost'].includes(status)) return 'done';
   if (['requested', 'processing', 'ready', 'dead_letter'].includes(job?.tailoredResume?.status)) return 'tailored';
   return 'todo';
 }
@@ -544,6 +545,9 @@ function optimisticBid({ id, jobId, bidData }) {
     bidAmount: bidData?.bidAmount || null,
     coverLetter: bidData?.coverLetter || null,
     notes: bidData?.notes || null,
+    interviewStage: bidData?.interviewStage || null,
+    interviewNextAt: bidData?.interviewNextAt || null,
+    interviewNotes: bidData?.interviewNotes || null,
     bidAt: now,
     createdAt: now,
     updatedAt: now,
