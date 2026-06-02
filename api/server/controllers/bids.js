@@ -164,6 +164,132 @@ export async function listCallers(req, res, next) {
   }
 }
 
+export async function listBidders(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const sequelize = getSequelize();
+    const [bidderRows] = await sequelize.query(`
+      SELECT DISTINCT web_users.id, web_users.username, web_users.role
+      FROM web_users
+      WHERE web_users.role IN ('bidder', 'readonly_bidder', 'editable_bidder')
+         OR EXISTS (
+           SELECT 1
+           FROM job_bids
+           WHERE job_bids.user_id = web_users.id
+         )
+      ORDER BY web_users.username ASC
+    `);
+    const visibleBidders = user.role === 'admin'
+      ? bidderRows
+      : bidderRows.filter((bidder) => String(bidder.id) === String(user.id));
+    const bidderIds = visibleBidders.map((bidder) => Number(bidder.id)).filter((id) => Number.isFinite(id));
+
+    if (!bidderIds.length) {
+      res.json({ bidders: [] });
+      return;
+    }
+
+    const bidderIdSql = bidderIds.join(',');
+    const [summaryRows, dailyRows, interviewRows] = await Promise.all([
+      sequelize.query(`
+        SELECT
+          user_id,
+          COUNT(*)::int AS total_applications,
+          COUNT(*) FILTER (WHERE bid_at >= now() - interval '7 days')::int AS weekly_applications,
+          COUNT(*) FILTER (WHERE bid_at >= now() - interval '30 days')::int AS monthly_applications,
+          COUNT(*) FILTER (WHERE status IN ('interviewing', 'won', 'lost'))::int AS interview_pass_through,
+          COUNT(*) FILTER (WHERE status = 'won')::int AS won,
+          COUNT(*) FILTER (WHERE status = 'lost')::int AS lost
+        FROM job_bids
+        WHERE user_id IN (${bidderIdSql})
+        GROUP BY user_id
+      `),
+      sequelize.query(`
+        SELECT
+          user_id,
+          to_char(bid_at::date, 'YYYY-MM-DD') AS day,
+          COUNT(*)::int AS applications
+        FROM job_bids
+        WHERE user_id IN (${bidderIdSql})
+          AND bid_at >= current_date - interval '13 days'
+        GROUP BY user_id, bid_at::date
+        ORDER BY bid_at::date ASC
+      `),
+      sequelize.query(`
+        SELECT
+          job_bids.id,
+          job_bids.user_id,
+          job_bids.status,
+          job_bids.interview_stage,
+          job_bids.interview_next_at,
+          job_bids.updated_at,
+          scraped_jobs.id AS job_id,
+          scraped_jobs.title,
+          scraped_jobs.company,
+          scraped_jobs.location,
+          scraped_jobs.url,
+          bid_profiles.id AS profile_id,
+          bid_profiles.name AS profile_name
+        FROM job_bids
+        JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+        JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id
+        WHERE job_bids.user_id IN (${bidderIdSql})
+          AND job_bids.status IN ('interviewing', 'won', 'lost')
+        ORDER BY job_bids.updated_at DESC
+        LIMIT 200
+      `),
+    ]);
+
+    const summaryByUserId = new Map(summaryRows[0].map((row) => [String(row.user_id), row]));
+    const dailyByUserId = buildDailyApplications(dailyRows[0]);
+    const interviewsByUserId = new Map(bidderIds.map((id) => [String(id), []]));
+    for (const row of interviewRows[0]) {
+      const interviews = interviewsByUserId.get(String(row.user_id));
+      if (!interviews) continue;
+      interviews.push({
+        id: row.id,
+        status: row.status,
+        interviewStage: row.interview_stage,
+        interviewNextAt: row.interview_next_at,
+        updatedAt: row.updated_at,
+        job: {
+          id: row.job_id,
+          title: row.title,
+          company: row.company,
+          location: row.location,
+          url: row.url,
+        },
+        profile: {
+          id: row.profile_id,
+          name: row.profile_name,
+        },
+      });
+    }
+
+    res.json({
+      bidders: visibleBidders.map((bidder) => {
+        const summary = summaryByUserId.get(String(bidder.id)) || {};
+        return {
+          id: bidder.id,
+          username: bidder.username,
+          role: bidder.role,
+          totalApplications: Number(summary.total_applications || 0),
+          weeklyApplications: Number(summary.weekly_applications || 0),
+          monthlyApplications: Number(summary.monthly_applications || 0),
+          interviewPassThrough: Number(summary.interview_pass_through || 0),
+          won: Number(summary.won || 0),
+          lost: Number(summary.lost || 0),
+          dailyApplications: dailyByUserId.get(String(bidder.id)) || buildEmptyDailyApplications(),
+          interviews: interviewsByUserId.get(String(bidder.id)) || [],
+        };
+      }),
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 export async function shareProfile(req, res, next) {
   try {
     await ensureWebModels();
@@ -831,6 +957,34 @@ function formatProfileShareRequest(row) {
     owner: row.owner ? { id: row.owner.id, username: row.owner.username } : null,
     recipient: row.recipient ? { id: row.recipient.id, username: row.recipient.username } : null,
   };
+}
+
+function buildDailyApplications(rows) {
+  const emptySeries = buildEmptyDailyApplications();
+  const byUserId = new Map();
+  for (const row of rows) {
+    const userId = String(row.user_id);
+    if (!byUserId.has(userId)) {
+      byUserId.set(userId, emptySeries.map((item) => ({ ...item })));
+    }
+    const series = byUserId.get(userId);
+    const day = series.find((item) => item.date === row.day);
+    if (day) day.applications = Number(row.applications || 0);
+  }
+  return byUserId;
+}
+
+function buildEmptyDailyApplications() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Array.from({ length: 14 }, (_item, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (13 - index));
+    return {
+      date: date.toISOString().slice(0, 10),
+      applications: 0,
+    };
+  });
 }
 
 export async function updateJobBid(req, res, next) {

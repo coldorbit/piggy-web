@@ -123,6 +123,13 @@ export function useCallers() {
   });
 }
 
+export function useBidders() {
+  return useQuery({
+    queryKey: ['bid', 'bidders'],
+    queryFn: () => api('/api/bid/bidders').then((data) => data.bidders),
+  });
+}
+
 // Mutation hooks
 export function useLogin() {
   const queryClient = useQueryClient();
@@ -743,6 +750,7 @@ export function useCreateJobBid() {
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'bidders'] });
     },
   });
 }
@@ -771,6 +779,7 @@ export function useUpdateJobBid() {
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'bidders'] });
     },
   });
 }
