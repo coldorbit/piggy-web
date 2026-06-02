@@ -225,6 +225,7 @@ export default function BidJobCard({
                 />
               ) : null}
               <SourceChip source={job.source} sourceUrl={job.sourceUrl} sx={sourceChipSx} />
+              {job.applyMode ? <ApplyModeChip applyMode={job.applyMode} /> : null}
               <Chip
                 label={formatDate(job.postedAt || job.scrapedAt)}
                 size="small"
@@ -416,6 +417,25 @@ function SourceChip({ source, sourceUrl, sx }) {
           color: 'inherit',
           fontSize: 10,
           fontWeight: 900,
+        },
+      }}
+    />
+  );
+}
+
+function ApplyModeChip({ applyMode }) {
+  return (
+    <Chip
+      label={applyMode}
+      size="small"
+      sx={{
+        maxWidth: 156,
+        bgcolor: '#f8e0e7',
+        color: '#7c263a',
+        fontWeight: 800,
+        '& .MuiChip-label': {
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
         },
       }}
     />

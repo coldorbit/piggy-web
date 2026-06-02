@@ -150,6 +150,7 @@ export function formatJob(row) {
     scrapedAt: row.scrapedAt,
     listingText: row.listingText,
     rawJob,
+    applyMode: jobrightApplyMode(row.source, rawJob),
     companyLogoUrl: companyLogoUrl(rawJob),
     isManual: rawJob.importType === 'manual' || rawJob.isManualImport === true,
     isSpam: row.isSpam,
@@ -157,6 +158,11 @@ export function formatJob(row) {
     isHidden: row.isHidden,
     hiddenAt: row.hiddenAt,
   };
+}
+
+function jobrightApplyMode(source, rawJob) {
+  if (String(source || '').trim().toLowerCase() !== 'jobright') return null;
+  return clean(rawJob?.applyMode || rawJob?.apply_mode || rawJob?.applicationMode || rawJob?.application_mode) || null;
 }
 
 function companyLogoUrl(rawJob) {

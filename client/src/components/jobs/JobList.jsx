@@ -128,6 +128,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
                       {job.source ? <SourceBadge source={job.source} sourceUrl={job.sourceUrl} /> : null}
+                      {job.applyMode ? <ApplyModeBadge applyMode={job.applyMode} /> : null}
                       <Typography color="text.secondary" variant="caption" fontWeight={700} noWrap>
                         {formatDate(job.postedAt || job.scrapedAt)}
                       </Typography>
@@ -156,6 +157,28 @@ function ManualJobBadge() {
         fontSize: 11,
         fontWeight: 900,
         '& .MuiChip-label': { px: 0.75 },
+      }}
+    />
+  );
+}
+
+function ApplyModeBadge({ applyMode }) {
+  return (
+    <Chip
+      label={applyMode}
+      size="small"
+      sx={{
+        height: 20,
+        maxWidth: 148,
+        bgcolor: '#f8e0e7',
+        color: '#7c263a',
+        fontSize: 11,
+        fontWeight: 800,
+        '& .MuiChip-label': {
+          px: 0.75,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
       }}
     />
   );
