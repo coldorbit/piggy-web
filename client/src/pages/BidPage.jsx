@@ -39,7 +39,9 @@ export default function BidPage({ currentUser }) {
   const [tailoringByProfileJobId, setTailoringByProfileJobId] = useState({});
   const { setSearch: setHeaderSearch } = useHeaderSearch();
 
-  const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles();
+  const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
+    currentUser?.role === 'admin' ? { scope: 'manage' } : {},
+  );
   const activeProfiles = useMemo(
     () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
     [profiles],

@@ -766,10 +766,17 @@ export async function updateJobBid(req, res, next) {
   try {
     await ensureWebModels();
     const user = await currentDbUser(req);
-    const bid = await getJobBidModel().findOne({ where: { id: req.params.id, userId: user.id } });
+    const bid = await getJobBidModel().findByPk(req.params.id);
     if (!bid) {
       res.status(404).json({ error: 'Bid not found' });
       return;
+    }
+    if (req.user?.role !== 'admin') {
+      await accessibleProfile(req, bid.profileId);
+      if (String(bid.userId) !== String(user.id)) {
+        res.status(404).json({ error: 'Bid not found' });
+        return;
+      }
     }
     await bid.update({ ...bidAttributesFromBody(req.body), updatedAt: new Date() });
     res.json({ bid: formatBid(bid) });
