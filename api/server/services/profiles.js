@@ -74,6 +74,8 @@ export function formatProfile(row) {
       bids: 0,
       planned: 0,
       done: 0,
+      totalInterviews: 0,
+      activeInterviews: 0,
     },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -103,6 +105,20 @@ export async function profilesWithProgress(profiles) {
           ),
           'done',
         ],
+        [
+          getSequelize().fn(
+            'SUM',
+            getSequelize().literal("CASE WHEN status IN ('interviewing', 'won', 'lost') THEN 1 ELSE 0 END"),
+          ),
+          'totalInterviews',
+        ],
+        [
+          getSequelize().fn(
+            'SUM',
+            getSequelize().literal("CASE WHEN status = 'interviewing' THEN 1 ELSE 0 END"),
+          ),
+          'activeInterviews',
+        ],
       ],
       where: { profileId: profileIds },
       group: ['profileId'],
@@ -130,6 +146,8 @@ export async function profilesWithProgress(profiles) {
         bids: 0,
         planned: 0,
         done: 0,
+        totalInterviews: 0,
+        activeInterviews: 0,
       },
     ]),
   );
@@ -140,6 +158,8 @@ export async function profilesWithProgress(profiles) {
     progress.bids = Number(row.bids || 0);
     progress.planned = Number(row.planned || 0);
     progress.done = Number(row.done || 0);
+    progress.totalInterviews = Number(row.totalInterviews || 0);
+    progress.activeInterviews = Number(row.activeInterviews || 0);
   }
 
   for (const row of tailoredRows) {

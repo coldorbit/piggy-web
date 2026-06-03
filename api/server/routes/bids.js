@@ -1,6 +1,7 @@
 import { requireAuth } from '../../auth.js';
 import {
   createJobBid,
+  createManualInterview,
   createProfile,
   createTailoredResume,
   deleteProfile,
@@ -36,6 +37,7 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/jobs', requireAuth, listBidJobs);
   app.get('/api/bid/tailored-resumes/download', requireAuth, downloadTailoredResumesZip);
   app.get('/api/bid/tailored-resumes/:id/download', requireAuth, downloadTailoredResume);
+  app.post('/api/bid/interviews/manual', requireAuth, createManualInterview);
   app.post('/api/bid/jobs/:jobId/tailored-resume', requireAuth, createTailoredResume);
   app.post('/api/bid/jobs/:jobId', requireAuth, createJobBid);
   app.patch('/api/bid/applications/:id', requireAuth, updateJobBid);

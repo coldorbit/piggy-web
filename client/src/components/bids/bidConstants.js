@@ -35,3 +35,10 @@ export const INTERVIEW_STAGES = [
   { value: 'system_design', label: 'System Design' },
   { value: 'final', label: 'Final' },
 ];
+
+export const INTERVIEW_OUTCOME_COLUMNS = [
+  { value: 'lost', label: 'Failed/Lost', status: 'lost' },
+  { value: 'won', label: 'Hired', status: 'won' },
+];
+
+export const INTERVIEW_KANBAN_COLUMNS = [...INTERVIEW_STAGES, ...INTERVIEW_OUTCOME_COLUMNS];

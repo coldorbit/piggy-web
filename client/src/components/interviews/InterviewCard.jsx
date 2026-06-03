@@ -13,7 +13,6 @@ import {
   InputLabel,
   MenuItem,
   Select,
-  Stack,
   TextField,
   Typography,
 } from '@mui/material';
@@ -35,6 +34,7 @@ export default function InterviewCard({
   onSave,
 }) {
   const owner = job.bid?.user?.username || (String(job.bid?.userId) === String(currentUser?.id) ? currentUser?.username : '');
+  const jobUrl = externalJobUrl(job);
 
   function handleStageChange(event) {
     const interviewStage = event.target.value;
@@ -65,10 +65,10 @@ export default function InterviewCard({
         <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) max-content', gap: 0.75, alignItems: 'start' }}>
           <Box minWidth={0}>
             <Typography
-              component="a"
-              href={job.url}
-              target="_blank"
-              rel="noreferrer"
+              component={jobUrl ? 'a' : 'span'}
+              href={jobUrl || undefined}
+              target={jobUrl ? '_blank' : undefined}
+              rel={jobUrl ? 'noreferrer' : undefined}
               variant="body2"
               fontWeight={900}
               sx={{
@@ -88,35 +88,6 @@ export default function InterviewCard({
           </Box>
           <DragIndicatorIcon fontSize="small" color="action" />
         </Box>
-
-        <Stack
-          direction="row"
-          spacing={0.5}
-          flexWrap="wrap"
-          useFlexGap
-          sx={{
-            minWidth: 0,
-            maxWidth: '100%',
-            '& .MuiChip-root': {
-              maxWidth: '100%',
-              minWidth: 0,
-            },
-            '& .MuiChip-label': {
-              minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            },
-          }}
-        >
-          <Chip
-            icon={<CalendarMonthIcon />}
-            label={draft.interviewNextAt ? formatDateTime(draft.interviewNextAt) : 'No next date'}
-            size="small"
-            sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 800, '& .MuiChip-icon': { color: '#0F766E' } }}
-          />
-          {owner ? <Chip label={owner} size="small" sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 }} /> : null}
-          <Chip label={formatDate(job.bid?.updatedAt)} size="small" sx={{ bgcolor: '#f7ead1', color: '#70400d', fontWeight: 800 }} />
-        </Stack>
 
         <TextField
           label="Next interview"
@@ -162,18 +133,22 @@ export default function InterviewCard({
           disabled={isSaving}
         />
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 0.75 }}>
-          <Button
-            component="a"
-            href={job.url}
-            target="_blank"
-            rel="noreferrer"
-            size="small"
-            startIcon={<OpenInNewIcon />}
-            variant="outlined"
-            sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-          >
-            Job
-          </Button>
+          {jobUrl ? (
+            <Button
+              component="a"
+              href={jobUrl}
+              target="_blank"
+              rel="noreferrer"
+              size="small"
+              startIcon={<OpenInNewIcon />}
+              variant="outlined"
+              sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+            >
+              Job
+            </Button>
+          ) : (
+            <Box />
+          )}
           <Button
             disabled={isSaving}
             onClick={() => onSave()}
@@ -185,7 +160,41 @@ export default function InterviewCard({
             Save
           </Button>
         </Box>
+        <Box sx={chipRowSx}>
+          <Chip
+            icon={<CalendarMonthIcon />}
+            label={draft.interviewNextAt ? formatDateTime(draft.interviewNextAt) : 'No next date'}
+            size="small"
+            sx={{ ...chipSx, bgcolor: '#ECFDF5', color: '#0F766E', '& .MuiChip-icon': { color: '#0F766E' } }}
+          />
+          {owner ? <Chip label={owner} size="small" sx={{ ...chipSx, bgcolor: '#edf0ff', color: '#343f91' }} /> : null}
+          <Chip label={formatDate(job.bid?.updatedAt)} size="small" sx={{ ...chipSx, bgcolor: '#f7ead1', color: '#70400d' }} />
+        </Box>
       </CardContent>
     </Card>
   );
+}
+
+const chipRowSx = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 0.5,
+  minWidth: 0,
+  maxWidth: '100%',
+};
+
+const chipSx = {
+  fontWeight: 800,
+  maxWidth: '100%',
+  minWidth: 0,
+  '& .MuiChip-label': {
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+};
+
+function externalJobUrl(job) {
+  const url = job?.rawJob?.originalUrl || job?.url || '';
+  return /^https?:\/\//i.test(String(url)) ? url : '';
 }

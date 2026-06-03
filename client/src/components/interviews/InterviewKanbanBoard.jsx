@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
+import { INTERVIEW_KANBAN_COLUMNS } from '../bids/bidConstants.js';
 import InterviewColumn from './InterviewColumn.jsx';
 
 export default function InterviewKanbanBoard({
@@ -32,7 +32,7 @@ export default function InterviewKanbanBoard({
         p: { xs: 1, sm: 1.5 },
       }}
     >
-      {INTERVIEW_STAGES.map((stage) => (
+      {INTERVIEW_KANBAN_COLUMNS.map((stage) => (
         <InterviewColumn
           key={stage.value}
           accent={activeColor}

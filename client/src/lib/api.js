@@ -498,7 +498,11 @@ function bidTabForJob(job) {
 }
 
 function matchesBidJobFilters(job, filters = {}) {
-  if (bidTabForJob(job) !== filters.bidTab) return false;
+  if (filters.bidTab === 'interviews') {
+    if (!['interviewing', 'won', 'lost'].includes(job?.bid?.status || '')) return false;
+  } else if (bidTabForJob(job) !== filters.bidTab) {
+    return false;
+  }
   if (!matchesVisibility(job, filters.visibility)) return false;
   if (!matchesSpam(job, filters.spam)) return false;
   if (!matchesRoleFamily(job, filters.roleFamily)) return false;
@@ -780,6 +784,20 @@ export function useUpdateJobBid() {
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'bidders'] });
+    },
+  });
+}
+
+export function useCreateManualInterview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (interviewData) =>
+      api('/api/bid/interviews/manual', {
+        method: 'POST',
+        body: JSON.stringify(interviewData),
+      }).then((data) => data.job),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid'] });
     },
   });
 }

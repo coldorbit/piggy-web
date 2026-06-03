@@ -29,7 +29,7 @@ export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', 
       where: {
         profileId,
         ...(isDoneTab ? { status: { [Op.in]: ['submitted', 'won', 'lost'] } } : {}),
-        ...(isInterviewsTab ? { status: 'interviewing' } : {}),
+        ...(isInterviewsTab ? { status: { [Op.in]: ['interviewing', 'won', 'lost'] } } : {}),
         ...((isDoneTab || isInterviewsTab) && appliedByUserId ? { userId: appliedByUserId } : {}),
       },
     },

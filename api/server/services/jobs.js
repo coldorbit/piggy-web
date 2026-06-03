@@ -150,7 +150,7 @@ export function formatJob(row) {
     scrapedAt: row.scrapedAt,
     listingText: row.listingText,
     rawJob,
-    applyMode: jobrightApplyMode(row.source, rawJob),
+    applyMode: applyMode(row.source, rawJob),
     companyLogoUrl: companyLogoUrl(rawJob),
     isManual: rawJob.importType === 'manual' || rawJob.isManualImport === true,
     isSpam: row.isSpam,
@@ -160,9 +160,88 @@ export function formatJob(row) {
   };
 }
 
-function jobrightApplyMode(source, rawJob) {
-  if (String(source || '').trim().toLowerCase() !== 'jobright') return null;
+function applyMode(source, rawJob) {
+  const sourceKey = String(source || '').trim().toLowerCase();
+  if (sourceKey === 'jobright') return jobrightApplyMode(rawJob);
+  if (sourceKey === 'linkedin') return linkedInApplyMode(rawJob);
+  return null;
+}
+
+function jobrightApplyMode(rawJob) {
   return clean(rawJob?.applyMode || rawJob?.apply_mode || rawJob?.applicationMode || rawJob?.application_mode) || null;
+}
+
+function linkedInApplyMode(rawJob) {
+  const value = firstRawJobValue(rawJob, [
+    'applyMode',
+    'apply_mode',
+    'applicationMode',
+    'application_mode',
+    'applyType',
+    'apply_type',
+    'applicationType',
+    'application_type',
+    'jobApplyType',
+    'job_apply_type',
+    'applyMethod',
+    'apply_method',
+    'applicationMethod',
+    'application_method',
+    'easyApply',
+    'easy_apply',
+    'isEasyApply',
+    'is_easy_apply',
+    'easyApplyEnabled',
+    'easy_apply_enabled',
+  ]);
+  const mode = linkedInApplyModeFromValue(value);
+  if (mode) return mode;
+
+  const applyUrl = firstRawJobValue(rawJob, [
+    'applyUrl',
+    'apply_url',
+    'applicationUrl',
+    'application_url',
+    'externalApplyUrl',
+    'external_apply_url',
+    'companyApplyUrl',
+    'company_apply_url',
+  ]);
+  return externalApplyUrl(applyUrl) ? 'External Link' : null;
+}
+
+function linkedInApplyModeFromValue(value) {
+  if (value === true) return 'Easy Apply';
+  if (value === false) return 'External Link';
+  const text = clean(value).toLowerCase();
+  if (!text) return null;
+  if (/easy\s*apply|easyapply|linkedin_apply|in[_\s-]?app|onsite/.test(text)) return 'Easy Apply';
+  if (/external|offsite|company|ats|redirect/.test(text)) return 'External Link';
+  if (externalApplyUrl(text)) return 'External Link';
+  return null;
+}
+
+function firstRawJobValue(rawJob, keys, depth = 0) {
+  if (!rawJob || typeof rawJob !== 'object' || depth > 2) return null;
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(rawJob, key)) return rawJob[key];
+  }
+  for (const value of Object.values(rawJob)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const nestedValue = firstRawJobValue(value, keys, depth + 1);
+    if (nestedValue !== null && nestedValue !== undefined && nestedValue !== '') return nestedValue;
+  }
+  return null;
+}
+
+function externalApplyUrl(value) {
+  const url = clean(value);
+  if (!/^https?:\/\//i.test(url)) return false;
+  try {
+    return !new URL(url).hostname.toLowerCase().endsWith('linkedin.com');
+  } catch {
+    return false;
+  }
 }
 
 function companyLogoUrl(rawJob) {

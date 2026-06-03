@@ -1,14 +1,50 @@
-import { Alert, Box, CircularProgress, Paper, Typography } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
-import { BID_TABS } from '../components/bids/bidConstants.js';
+import { BID_TABS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.jsx';
 import InterviewLoadingState from '../components/interviews/InterviewLoadingState.jsx';
-import { canonicalInterviewStage, groupJobsByStage, INTERVIEW_FILTERS } from '../components/interviews/interviewUtils.js';
+import {
+  canonicalInterviewStage,
+  groupJobsByStage,
+  INTERVIEW_FILTERS,
+  interviewColumnValue,
+  interviewStageForColumn,
+  interviewStatusForColumn,
+  toDatetimeLocalValue,
+} from '../components/interviews/interviewUtils.js';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { useBidJobs, useBidProfiles, useUpdateJobBid } from '../lib/api.js';
+import { useBidJobs, useBidProfiles, useCreateManualInterview, useUpdateJobBid } from '../lib/api.js';
+
+const EMPTY_MANUAL_INTERVIEW = {
+  title: '',
+  company: '',
+  location: '',
+  jobUrl: '',
+  interviewStage: 'screening',
+  interviewNextAt: '',
+  callerUserId: '',
+  interviewNotes: '',
+};
 
 export default function InterviewsPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,6 +53,8 @@ export default function InterviewsPage({ currentUser }) {
   const [drafts, setDrafts] = useState({});
   const [draggedJobId, setDraggedJobId] = useState('');
   const [activeDropStage, setActiveDropStage] = useState('');
+  const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
+  const [manualInterview, setManualInterview] = useState(EMPTY_MANUAL_INTERVIEW);
   const [error, setError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
@@ -44,6 +82,7 @@ export default function InterviewsPage({ currentUser }) {
     error: interviewsError,
   } = useBidJobs(activeProfile?.id, filters);
   const { mutate: updateBid, isPending: updatingBid } = useUpdateJobBid();
+  const { mutate: createManualInterview, isPending: creatingManualInterview } = useCreateManualInterview();
 
   useEffect(() => {
     if (!activeProfiles[0]) return;
@@ -77,6 +116,7 @@ export default function InterviewsPage({ currentUser }) {
     return {
       ...(job.bid || {}),
       ...(drafts[job.bid?.id] || {}),
+      status: drafts[job.bid?.id]?.status || job.bid?.status || 'interviewing',
       interviewStage: canonicalInterviewStage(drafts[job.bid?.id]?.interviewStage || job.bid?.interviewStage),
     };
   }
@@ -129,14 +169,48 @@ export default function InterviewsPage({ currentUser }) {
     setDraggedJobId('');
     setActiveDropStage('');
     if (!job || !job.bid) return;
-    if (canonicalInterviewStage(draftFor(job).interviewStage) === stage) return;
-    updateDraft(job, 'interviewStage', stage);
-    saveInterview(job, { interviewStage: stage, status: 'interviewing' });
+    if (interviewColumnValue(job, draftFor) === stage) return;
+    const status = interviewStatusForColumn(stage);
+    const interviewStage = interviewStageForColumn(stage, draftFor(job).interviewStage);
+    updateDraft(job, 'interviewStage', interviewStage);
+    updateDraft(job, 'status', status);
+    saveInterview(job, { interviewStage, status });
+  }
+
+  function openManualDialog() {
+    setError('');
+    setManualInterview(EMPTY_MANUAL_INTERVIEW);
+    setIsManualDialogOpen(true);
+  }
+
+  function closeManualDialog() {
+    setIsManualDialogOpen(false);
+    setManualInterview(EMPTY_MANUAL_INTERVIEW);
+  }
+
+  function submitManualInterview(event) {
+    event.preventDefault();
+    if (!activeProfile) return;
+    setError('');
+    createManualInterview(
+      {
+        ...manualInterview,
+        profileId: activeProfile.id,
+        interviewNextAt: manualInterview.interviewNextAt ? new Date(manualInterview.interviewNextAt).toISOString() : '',
+      },
+      {
+        onSuccess: closeManualDialog,
+        onError: (interviewError) => setError(interviewError.message),
+      },
+    );
   }
 
   const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'];
   const jobs = interviewsData?.jobs || [];
+  const callerUsers = interviewsData?.callerUsers || [];
   const jobsByStage = groupJobsByStage(jobs, draftFor);
+  const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
+  const totalInterviewCount = Number(activeProfile?.progress?.totalInterviews || interviewsData?.total || 0);
   const loading = profilesLoading || interviewsLoading;
   const pageError = error || profilesError?.message || interviewsError?.message || '';
 
@@ -166,6 +240,7 @@ export default function InterviewsPage({ currentUser }) {
             activeProfile={activeProfile}
             isLoading={profilesLoading}
             profiles={activeProfiles}
+            showInterviewCounts
             onProfileChange={setActiveProfileId}
           />
 
@@ -197,10 +272,22 @@ export default function InterviewsPage({ currentUser }) {
                   {activeProfile?.name || 'Interviews'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {(interviewsData?.total || 0).toLocaleString()} active interview{interviewsData?.total === 1 ? '' : 's'}
+                  {activeInterviewCount.toLocaleString()} active · {totalInterviewCount.toLocaleString()} total
                 </Typography>
               </Box>
-              {loading ? <CircularProgress size={22} /> : null}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {loading ? <CircularProgress size={22} /> : null}
+                <Button
+                  disabled={!activeProfile || creatingManualInterview}
+                  onClick={openManualDialog}
+                  size="small"
+                  startIcon={<AddIcon />}
+                  variant="contained"
+                  sx={{ whiteSpace: 'nowrap' }}
+                >
+                  Register
+                </Button>
+              </Box>
             </Box>
 
             <Box sx={{ flex: 1, minHeight: { md: 0 }, overflow: 'hidden', bgcolor: 'background.paper' }}>
@@ -209,7 +296,7 @@ export default function InterviewsPage({ currentUser }) {
                 <InterviewKanbanBoard
                   activeColor={activeColor}
                   activeDropStage={activeDropStage}
-                  callerUsers={interviewsData?.callerUsers || []}
+                  callerUsers={callerUsers}
                   currentUser={interviewsData?.currentUser || currentUser}
                   canAssignCallers={currentUser?.role === 'admin'}
                   draftFor={draftFor}
@@ -230,6 +317,93 @@ export default function InterviewsPage({ currentUser }) {
           </Paper>
         </Box>
       ) : null}
+
+      <Dialog open={isManualDialogOpen} onClose={closeManualDialog} fullWidth maxWidth="sm">
+        <form onSubmit={submitManualInterview}>
+          <DialogTitle>Register interview</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1 }}>
+            <TextField
+              autoFocus
+              label="Job title"
+              required
+              value={manualInterview.title}
+              onChange={(event) => setManualInterview((current) => ({ ...current, title: event.target.value }))}
+            />
+            <TextField
+              label="Company"
+              required
+              value={manualInterview.company}
+              onChange={(event) => setManualInterview((current) => ({ ...current, company: event.target.value }))}
+            />
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+              <TextField
+                label="Location"
+                value={manualInterview.location}
+                onChange={(event) => setManualInterview((current) => ({ ...current, location: event.target.value }))}
+              />
+              <TextField
+                label="Job link"
+                type="url"
+                value={manualInterview.jobUrl}
+                onChange={(event) => setManualInterview((current) => ({ ...current, jobUrl: event.target.value }))}
+              />
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+              <FormControl>
+                <InputLabel>Step</InputLabel>
+                <Select
+                  label="Step"
+                  value={manualInterview.interviewStage}
+                  onChange={(event) => setManualInterview((current) => ({ ...current, interviewStage: event.target.value }))}
+                >
+                  {INTERVIEW_STAGES.map((stage) => (
+                    <MenuItem key={stage.value} value={stage.value}>
+                      {stage.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <TextField
+                label="Next interview"
+                type="datetime-local"
+                value={toDatetimeLocalValue(manualInterview.interviewNextAt)}
+                onChange={(event) => setManualInterview((current) => ({ ...current, interviewNextAt: event.target.value }))}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Box>
+            {currentUser?.role === 'admin' ? (
+              <FormControl>
+                <InputLabel>Caller</InputLabel>
+                <Select
+                  label="Caller"
+                  value={manualInterview.callerUserId}
+                  onChange={(event) => setManualInterview((current) => ({ ...current, callerUserId: event.target.value }))}
+                >
+                  <MenuItem value="">Unassigned</MenuItem>
+                  {callerUsers.map((caller) => (
+                    <MenuItem key={caller.id} value={caller.id}>
+                      {caller.username}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : null}
+            <TextField
+              label="Notes"
+              multiline
+              minRows={3}
+              value={manualInterview.interviewNotes}
+              onChange={(event) => setManualInterview((current) => ({ ...current, interviewNotes: event.target.value }))}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeManualDialog}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={creatingManualInterview}>
+              Register interview
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Box>
   );
 }

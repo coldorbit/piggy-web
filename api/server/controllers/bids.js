@@ -10,6 +10,7 @@ import {
   repositories,
 } from '../../db.js';
 import { Readable } from 'node:stream';
+import { randomUUID } from 'node:crypto';
 import { Op } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../env.js';
@@ -48,6 +49,10 @@ export async function listProfiles(req, res, next) {
         : await profilesVisibleToUser(user);
     res.json({ profiles: (await profilesWithSharing(await profilesWithProgress(profiles))).map(formatProfile) });
   } catch (error) {
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      res.status(409).json({ error: 'This profile already has a bid for this job' });
+      return;
+    }
     handleInputError(error, res, next);
   }
 }
@@ -84,6 +89,10 @@ export async function listProfileShareRequests(req, res, next) {
       outgoing: outgoing.map(formatProfileShareRequest),
     });
   } catch (error) {
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      res.status(409).json({ error: 'This profile already has a bid for this job' });
+      return;
+    }
     handleInputError(error, res, next);
   }
 }
@@ -785,6 +794,103 @@ export async function createJobBid(req, res, next) {
       return;
     }
     handleInputError(error, res, next);
+  }
+}
+
+export async function createManualInterview(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const profile = await accessibleProfile(req, req.body?.profileId);
+    const title = clean(req.body?.title);
+    const company = clean(req.body?.company);
+    const jobUrl = clean(req.body?.url || req.body?.jobUrl);
+    if (!title) {
+      res.status(400).json({ error: 'Job title is required' });
+      return;
+    }
+    if (!company) {
+      res.status(400).json({ error: 'Company is required' });
+      return;
+    }
+    if (jobUrl && !validHttpUrl(jobUrl)) {
+      res.status(400).json({ error: 'Job link must be a valid URL' });
+      return;
+    }
+
+    const now = new Date();
+    const manualUrl = jobUrl || `manual-interview:${profile.id}:${randomUUID()}`;
+    const attrs = bidAttributesFromBody({ ...req.body, status: 'interviewing' });
+    if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
+    if (req.user?.role !== 'admin') delete attrs.callerUserId;
+
+    const ScrapedJob = getScrapedJobModel();
+    const JobBid = getJobBidModel();
+    const sequelize = getSequelize();
+    const { job, bid } = await sequelize.transaction(async (transaction) => {
+      const existingJob = jobUrl ? await ScrapedJob.findOne({ where: { url: jobUrl }, transaction }) : null;
+      const createdJob = existingJob || await ScrapedJob.create(
+        {
+          url: manualUrl,
+          duplicateKey: manualUrl,
+          source: 'Manual',
+          sourceUrl: null,
+          title,
+          company,
+          location: clean(req.body?.location) || null,
+          category: clean(req.body?.category) || null,
+          postedAt: now,
+          scrapedAt: now,
+          listingText: clean(req.body?.listingText || req.body?.notes || req.body?.interviewNotes) || null,
+          rawJob: {
+            importType: 'manual',
+            isManualImport: true,
+            manualInterview: true,
+            originalUrl: jobUrl || null,
+          },
+          isSpam: false,
+          isHidden: false,
+          firstSeenAt: now,
+          updatedAt: now,
+        },
+        { transaction },
+      );
+      const createdBid = await JobBid.create(
+        {
+          ...attrs,
+          userId: user.id,
+          profileId: profile.id,
+          jobId: createdJob.id,
+          bidAt: now,
+          updatedAt: now,
+        },
+        { transaction },
+      );
+      return { job: createdJob, bid: createdBid };
+    });
+
+    res.status(201).json({
+      job: {
+        ...formatJob(job),
+        bid: formatBid(bid),
+        tailoredResume: null,
+      },
+    });
+  } catch (error) {
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      res.status(409).json({ error: 'This profile already has a bid for this job' });
+      return;
+    }
+    handleInputError(error, res, next);
+  }
+}
+
+function validHttpUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
   }
 }
 
