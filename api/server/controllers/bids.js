@@ -207,14 +207,16 @@ export async function listBidders(req, res, next) {
       `),
       sequelize.query(`
         SELECT
-          user_id,
-          to_char(bid_at::date, 'YYYY-MM-DD') AS day,
+          job_bids.user_id,
+          to_char(job_bids.bid_at::date, 'YYYY-MM-DD') AS day,
+          COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source,
           COUNT(*)::int AS applications
         FROM job_bids
-        WHERE user_id IN (${bidderIdSql})
-          AND bid_at >= current_date - interval '13 days'
-        GROUP BY user_id, bid_at::date
-        ORDER BY bid_at::date ASC
+        JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+        WHERE job_bids.user_id IN (${bidderIdSql})
+          AND job_bids.bid_at >= current_date - interval '13 days'
+        GROUP BY job_bids.user_id, job_bids.bid_at::date, COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')
+        ORDER BY job_bids.bid_at::date ASC, source ASC
       `),
       sequelize.query(`
         SELECT
@@ -965,11 +967,18 @@ function buildDailyApplications(rows) {
   for (const row of rows) {
     const userId = String(row.user_id);
     if (!byUserId.has(userId)) {
-      byUserId.set(userId, emptySeries.map((item) => ({ ...item })));
+      byUserId.set(userId, emptySeries.map((item) => ({ ...item, sources: [...item.sources] })));
     }
     const series = byUserId.get(userId);
     const day = series.find((item) => item.date === row.day);
-    if (day) day.applications = Number(row.applications || 0);
+    if (day) {
+      const applications = Number(row.applications || 0);
+      day.applications += applications;
+      day.sources.push({
+        source: row.source || 'Unknown',
+        applications,
+      });
+    }
   }
   return byUserId;
 }
@@ -983,6 +992,7 @@ function buildEmptyDailyApplications() {
     return {
       date: date.toISOString().slice(0, 10),
       applications: 0,
+      sources: [],
     };
   });
 }
