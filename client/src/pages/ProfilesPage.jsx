@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
@@ -14,6 +15,7 @@ import {
   Divider,
   FormControl,
   InputLabel,
+  ListItemText,
   MenuItem,
   Select,
   Stack,
@@ -42,7 +44,7 @@ export default function ProfilesPage({ currentUser }) {
   const [sharingProfile, setSharingProfile] = useState(null);
   const [closingProfile, setClosingProfile] = useState(null);
   const [viewingProfile, setViewingProfile] = useState(null);
-  const [shareUsername, setShareUsername] = useState('');
+  const [shareUsernames, setShareUsernames] = useState([]);
   const [closeReason, setCloseReason] = useState('');
   const [form, setForm] = useState(EMPTY_PROFILE);
   const [error, setError] = useState('');
@@ -92,12 +94,17 @@ export default function ProfilesPage({ currentUser }) {
   function openShareDialog(profile) {
     setError('');
     setSharingProfile(profile);
-    setShareUsername('');
+    setShareUsernames(
+      (profile.sharedWith || [])
+        .filter((share) => ['accepted', 'pending'].includes(share.status))
+        .map((share) => share.username)
+        .filter(Boolean),
+    );
   }
 
   function closeShareDialog() {
     setSharingProfile(null);
-    setShareUsername('');
+    setShareUsernames([]);
   }
 
   function openCloseDialog(profile) {
@@ -154,10 +161,10 @@ export default function ProfilesPage({ currentUser }) {
 
   function submitShare(event) {
     event.preventDefault();
-    if (!sharingProfile || !shareUsername) return;
+    if (!sharingProfile) return;
     setError('');
     shareProfile(
-      { profileId: sharingProfile.id, username: shareUsername },
+      { profileId: sharingProfile.id, usernames: shareUsernames },
       {
         onSuccess: closeShareDialog,
         onError: (shareError) => setError(shareError.message),
@@ -301,18 +308,24 @@ export default function ProfilesPage({ currentUser }) {
         <form onSubmit={submitShare}>
           <DialogTitle>Share profile</DialogTitle>
           <DialogContent sx={{ pt: 1 }}>
-            <FormControl fullWidth required>
-              <InputLabel>User email</InputLabel>
+            <FormControl fullWidth>
+              <InputLabel>Users</InputLabel>
               <Select
                 autoFocus
-                label="User email"
-                value={shareUsername}
-                onChange={(event) => setShareUsername(event.target.value)}
+                label="Users"
+                multiple
+                value={shareUsernames}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setShareUsernames(typeof value === 'string' ? value.split(',') : value);
+                }}
                 disabled={recipientsLoading || !shareRecipientOptions.length}
+                renderValue={(selected) => selected.join(', ')}
               >
                 {shareRecipientOptions.map((user) => (
                   <MenuItem key={user.id} value={user.username}>
-                    {user.username}
+                    <Checkbox checked={shareUsernames.includes(user.username)} />
+                    <ListItemText primary={user.username} />
                   </MenuItem>
                 ))}
               </Select>
@@ -329,8 +342,8 @@ export default function ProfilesPage({ currentUser }) {
           </DialogContent>
           <DialogActions>
             <Button onClick={closeShareDialog}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={sharing || !shareUsername}>
-              Share
+            <Button type="submit" variant="contained" disabled={sharing || recipientsLoading || !sharingProfile}>
+              Save sharing
             </Button>
           </DialogActions>
         </form>

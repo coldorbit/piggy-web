@@ -699,11 +699,11 @@ export function useDeleteBidProfile() {
 export function useShareBidProfile() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ profileId, username }) =>
+    mutationFn: ({ profileId, username, usernames }) =>
       api(`/api/bid/profiles/${profileId}/share`, {
         method: 'POST',
-        body: JSON.stringify({ username }),
-      }).then((data) => data.share),
+        body: JSON.stringify(Array.isArray(usernames) ? { usernames } : { username }),
+      }).then((data) => data.shares || data.share),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profile-shares'] });

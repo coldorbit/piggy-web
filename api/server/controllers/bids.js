@@ -298,38 +298,64 @@ export async function shareProfile(req, res, next) {
     await ensureWebModels();
     if (!canManageProfiles(req, res)) return;
     const profile = await manageableProfile(req, req.params.id);
-    const recipientUsername = clean(req.body?.username || req.body?.recipient || req.body?.email).toLowerCase();
-    if (!recipientUsername) {
+    const hasRecipientList = Array.isArray(req.body?.usernames) || Array.isArray(req.body?.recipients) || Array.isArray(req.body?.users);
+    const recipientUsernames = recipientUsernamesFromBody(req.body);
+    if (!hasRecipientList && !recipientUsernames.length) {
       res.status(400).json({ error: 'Choose a user to share with' });
       return;
     }
 
-    const recipient = await repositories.findUserByUsernameCaseInsensitive(recipientUsername);
-    if (!recipient) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-    if (String(recipient.id) === String(profile.userId)) {
-      res.status(400).json({ error: 'You cannot share a profile with its owner' });
-      return;
+    const users = await repositories.listUsers();
+    const usersByUsername = new Map(users.map((row) => [String(row.username || '').toLowerCase(), row]));
+    const recipients = recipientUsernames.map((username) => usersByUsername.get(username.toLowerCase())).filter(Boolean);
+    const foundUsernames = new Set(recipients.map((recipient) => String(recipient.username || '').toLowerCase()));
+    const missingUsername = recipientUsernames.find((username) => !foundUsernames.has(username.toLowerCase()));
+    if (missingUsername) return res.status(404).json({ error: `User not found: ${missingUsername}` });
+    if (recipients.some((recipient) => String(recipient.id) === String(profile.userId))) {
+      return res.status(400).json({ error: 'You cannot share a profile with its owner' });
     }
 
     const ProfileShareRequest = getProfileShareRequestModel();
-    const existing = await ProfileShareRequest.findOne({
-      where: { profileId: profile.id, recipientUserId: recipient.id },
+    const existingShares = await ProfileShareRequest.findAll({
+      where: { profileId: profile.id },
+      include: [{ model: getWebUserModel(), as: 'recipient', required: false }],
     });
-    const attrs = {
-      profileId: profile.id,
-      ownerUserId: profile.userId,
-      recipientUserId: recipient.id,
-      status: 'pending',
-      respondedAt: null,
-    };
-    const share = existing ? await existing.update(attrs) : await ProfileShareRequest.create(attrs);
-    share.setDataValue('profile', profile);
-    share.setDataValue('recipient', recipient);
+    const existingByRecipientId = new Map(existingShares.map((share) => [String(share.recipientUserId), share]));
+    const selectedRecipientIds = new Set(recipients.map((recipient) => String(recipient.id)));
+    const removedShareIds = [];
 
-    res.status(existing ? 200 : 201).json({ share: formatProfileShareRequest(share) });
+    await Promise.all(
+      existingShares
+        .filter((share) => !selectedRecipientIds.has(String(share.recipientUserId)))
+        .map(async (share) => {
+          removedShareIds.push(share.id);
+          await share.destroy();
+        }),
+    );
+
+    const shares = [];
+    let createdCount = 0;
+    for (const recipient of recipients) {
+      const existing = existingByRecipientId.get(String(recipient.id));
+      const attrs = {
+        profileId: profile.id,
+        ownerUserId: profile.userId,
+        recipientUserId: recipient.id,
+        status: existing?.status === 'accepted' ? 'accepted' : 'pending',
+        respondedAt: existing?.status === 'accepted' ? existing.respondedAt : null,
+      };
+      const share = existing ? await existing.update(attrs) : await ProfileShareRequest.create(attrs);
+      if (!existing) createdCount += 1;
+      share.setDataValue('profile', profile);
+      share.setDataValue('recipient', recipient);
+      shares.push(share);
+    }
+
+    res.status(createdCount ? 201 : 200).json({
+      share: shares[0] ? formatProfileShareRequest(shares[0]) : null,
+      shares: shares.map(formatProfileShareRequest),
+      removedShareIds,
+    });
   } catch (error) {
     handleInputError(error, res, next);
   }
@@ -362,6 +388,18 @@ export async function respondToProfileShare(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+function recipientUsernamesFromBody(body = {}) {
+  const values = Array.isArray(body.usernames)
+    ? body.usernames
+    : Array.isArray(body.recipients)
+      ? body.recipients
+      : Array.isArray(body.users)
+        ? body.users
+        : [body.username || body.recipient || body.email];
+  const usernames = values.map((value) => clean(value).toLowerCase()).filter(Boolean);
+  return [...new Set(usernames)];
 }
 
 export async function createProfile(req, res, next) {

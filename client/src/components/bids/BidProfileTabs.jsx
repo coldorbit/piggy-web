@@ -100,9 +100,9 @@ function ProfileTabLabel({ profile, onOpenProfilePage }) {
   }
 
   return (
-    <Box sx={{ display: 'grid', gap: 0.5, justifyItems: 'start', minWidth: 0, width: '100%' }}>
-      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.35, minWidth: 0, maxWidth: '100%' }}>
-        <Typography component="span" variant="body2" fontWeight={800} noWrap>
+    <Box sx={{ display: 'grid', gap: 0.5, justifyItems: 'stretch', minWidth: 0, width: '100%' }}>
+      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0, width: '100%' }}>
+        <Typography component="span" variant="body2" fontWeight={800} noWrap sx={{ flex: 1, minWidth: 0 }}>
           {profile.name}
         </Typography>
         <Box

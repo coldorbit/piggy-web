@@ -167,7 +167,7 @@ export async function profilesWithSharing(profiles) {
   if (!profileIds.length) return profiles;
 
   const shares = await getProfileShareRequestModel().findAll({
-    where: { profileId: profileIds },
+    where: { profileId: profileIds, status: ['accepted', 'pending'] },
     include: [{ model: getWebUserModel(), as: 'recipient', required: true }],
     order: [['createdAt', 'ASC']],
   });
