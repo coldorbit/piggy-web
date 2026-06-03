@@ -21,11 +21,12 @@ export default function InterviewKanbanBoard({
   return (
     <Box
       sx={{
+        alignItems: 'stretch',
         display: 'grid',
         gridAutoColumns: { xs: '82vw', sm: 340, xl: 360 },
         gridAutoFlow: 'column',
         gap: 1,
-        height: '100%',
+        height: { xs: 'calc(100vh - 176px)', md: '100%' },
         minHeight: 0,
         overflowX: 'auto',
         overflowY: 'hidden',

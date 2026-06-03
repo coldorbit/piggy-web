@@ -30,6 +30,7 @@ export default function InterviewColumn({
       sx={{
         display: 'flex',
         flexDirection: 'column',
+        height: '100%',
         minHeight: 0,
         overflow: 'hidden',
         bgcolor: isActiveDrop ? accent.soft : '#F8FAFC',

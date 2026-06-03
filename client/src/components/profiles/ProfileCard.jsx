@@ -56,7 +56,7 @@ export default function ProfileCard({
         },
       }}
     >
-      <CardContent sx={{ display: 'grid', gap: 1 }}>
+      <CardContent sx={{ display: 'grid', gap: 1, minWidth: 0 }}>
         <Box
           sx={{
             display: 'grid',
@@ -80,18 +80,18 @@ export default function ProfileCard({
           />
         </Box>
         {profile.isShared ? (
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={chipListSx}>
             <Chip label="Shared" size="small" color="secondary" sx={{ ...profileChipSx, fontWeight: 400 }} />
             {profile.sharedBy ? <Chip label={`From ${profile.sharedBy}`} size="small" variant="outlined" sx={profileChipSx} /> : null}
           </Stack>
         ) : null}
         {profile.ownerUsername ? (
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={chipListSx}>
             <Chip label={`Owner ${profile.ownerUsername}`} size="small" variant="outlined" sx={profileChipSx} />
           </Stack>
         ) : null}
         {sharedWith.length ? (
-          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={chipListSx}>
             {sharedWith.map((share) => (
               <Chip
                 key={share.id || share.userId || share.username}
@@ -103,7 +103,7 @@ export default function ProfileCard({
             ))}
           </Stack>
         ) : null}
-        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={chipListSx}>
           <Chip
             label={isClosed ? 'Closed' : 'Active'}
             size="small"
@@ -113,7 +113,7 @@ export default function ProfileCard({
           />
           {isClosed && profile.closedReason ? <Chip label={profile.closedReason} size="small" variant="outlined" sx={profileChipSx} /> : null}
         </Stack>
-        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={chipListSx}>
           <Chip
             label={profile.profileBadge || 'SWE'}
             size="small"
@@ -121,7 +121,7 @@ export default function ProfileCard({
           />
         </Stack>
         {profile.yearsOfExperience ? (
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={chipListSx}>
             <Chip label={`${profile.yearsOfExperience} yrs`} size="small" sx={profileChipSx} />
           </Stack>
         ) : null}
@@ -184,7 +184,7 @@ function ProfileProgress({ progress = {} }) {
   const planned = Number(progress.planned || 0);
 
   return (
-    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+    <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={chipListSx}>
       <Chip label={`${tailored.toLocaleString()} tailored`} size="small" variant="outlined" sx={profileChipSx} />
       <Chip label={`${bids.toLocaleString()} bids`} size="small" variant="outlined" sx={profileChipSx} />
       <Chip label={`${done.toLocaleString()} done`} size="small" variant="outlined" sx={profileChipSx} />
@@ -200,13 +200,23 @@ const actionIconSx = {
   borderColor: 'divider',
 };
 
+const chipListSx = {
+  alignItems: 'flex-start',
+  minWidth: 0,
+  width: '100%',
+};
+
 const profileChipSx = {
   maxWidth: '100%',
   flexShrink: 1,
+  height: 'auto',
+  minHeight: 24,
   '& .MuiChip-label': {
     minWidth: 0,
+    maxWidth: '100%',
     overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
+    overflowWrap: 'anywhere',
+    textOverflow: 'clip',
+    whiteSpace: 'normal',
   },
 };
