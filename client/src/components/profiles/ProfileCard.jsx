@@ -1,7 +1,6 @@
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ShareIcon from '@mui/icons-material/Share';
 import StopCircleIcon from '@mui/icons-material/StopCircle';
 import { Box, Button, Card, CardActions, CardContent, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
@@ -18,7 +17,6 @@ export default function ProfileCard({
   onCloseProfile,
   onDelete,
   onEdit,
-  onOpenProfilePage = () => {},
   onView = () => {},
   onReopenProfile,
   onShare,
@@ -69,24 +67,9 @@ export default function ProfileCard({
           }}
         >
           <Box minWidth={0}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.35, minWidth: 0 }}>
-              <Typography variant="h6" fontWeight={900} noWrap>
-                {profile.name}
-              </Typography>
-              <Tooltip title="Open profile page">
-                <IconButton
-                  aria-label={`Open ${profile.name || 'profile'} in a new window`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpenProfilePage(profile);
-                  }}
-                  onKeyDown={(event) => event.stopPropagation()}
-                  sx={openProfileIconSx}
-                >
-                  <OpenInNewIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
+            <Typography variant="h6" fontWeight={900} noWrap>
+              {profile.name}
+            </Typography>
             <Typography color="text.secondary" variant="body2">
               {[profile.location, profile.email, profile.phone].filter(Boolean).join(' · ') || 'No contact details set.'}
             </Typography>
@@ -215,16 +198,6 @@ const actionIconSx = {
   height: 38,
   border: 1,
   borderColor: 'divider',
-};
-
-const openProfileIconSx = {
-  width: 24,
-  height: 24,
-  flexShrink: 0,
-  color: 'text.secondary',
-  '& .MuiSvgIcon-root': {
-    fontSize: 15,
-  },
 };
 
 const profileChipSx = {

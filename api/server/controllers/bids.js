@@ -111,6 +111,8 @@ export async function listCallers(req, res, next) {
   try {
     await ensureWebModels();
     const user = await currentDbUser(req);
+    requireInternalUser(user, res);
+    if (res.headersSent) return;
     const WebUser = getWebUserModel();
     const JobBid = getJobBidModel();
     const ScrapedJob = getScrapedJobModel();
@@ -119,8 +121,7 @@ export async function listCallers(req, res, next) {
       where: { role: 'caller' },
       order: [['username', 'ASC']],
     });
-    const visibleCallers = user.role === 'admin' ? callers : callers.filter((caller) => String(caller.id) === String(user.id));
-    const callerIds = visibleCallers.map((caller) => caller.id);
+    const callerIds = callers.map((caller) => caller.id);
     const assignments = callerIds.length
       ? await JobBid.findAll({
           where: {
@@ -147,7 +148,7 @@ export async function listCallers(req, res, next) {
     }
 
     res.json({
-      callers: visibleCallers.map((caller) => {
+      callers: callers.map((caller) => {
         const callerAssignments = assignmentsByCallerId.get(String(caller.id)) || [];
         return {
           id: caller.id,
@@ -463,6 +464,11 @@ export async function listBidJobs(req, res, next) {
     const sequelize = getSequelize();
     const { where, order: jobOrder, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
     const bidTab = clean(req.query.bidTab || 'todo');
+    const canViewInternalData = isInternalUser(user);
+    if (bidTab === 'interviews') {
+      requireInternalUser(user, res);
+      if (res.headersSent) return;
+    }
     const bidUsers = await bidUsersForProfile(profile);
     const appliedByUserId = bidUserFilter(req.query.appliedByUserId, bidUsers);
     const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, appliedByUserId, JobBid, sequelize });
@@ -498,7 +504,7 @@ export async function listBidJobs(req, res, next) {
       countBidTab('todo'),
       countBidTab('tailored'),
       countBidTab('done'),
-      countBidTab('interviews'),
+      canViewInternalData ? countBidTab('interviews') : Promise.resolve(0),
     ]);
 
     const tailoredResumesByUrl = await tailoredResumesForJobs({
@@ -507,10 +513,12 @@ export async function listBidJobs(req, res, next) {
       profileId: profile.id,
     });
     const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
-    const callerUsers = await WebUser.findAll({
-      where: { role: 'caller' },
-      order: [['username', 'ASC']],
-    });
+    const callerUsers = canViewInternalData
+      ? await WebUser.findAll({
+          where: { role: 'caller' },
+          order: [['username', 'ASC']],
+        })
+      : [];
     const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
     res.json({
@@ -535,6 +543,15 @@ export async function listBidJobs(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+function requireInternalUser(user, res) {
+  if (isInternalUser(user)) return;
+  res.status(403).json({ error: 'Internal access required' });
+}
+
+function isInternalUser(user) {
+  return ['admin', 'internal'].includes(user?.role);
 }
 
 async function bidUsersForProfile(profile) {

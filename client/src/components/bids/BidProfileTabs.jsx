@@ -1,3 +1,4 @@
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Chip, Paper, Tab, Tabs, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -62,7 +63,7 @@ export default function BidProfileTabs({ activeColor, activeProfile, isLoading, 
               <Tab
                 key={profile.id}
                 value={String(profile.id)}
-                label={<ProfileTabLabel profile={profile} />}
+                label={<ProfileTabLabel profile={profile} onOpenProfilePage={openProfilePage} />}
                 sx={{
                   color: color.dark,
                   fontWeight: 800,
@@ -85,12 +86,41 @@ export default function BidProfileTabs({ activeColor, activeProfile, isLoading, 
   );
 }
 
-function ProfileTabLabel({ profile }) {
+function openProfilePage(profile) {
+  const url = new URL('/profiles', window.location.origin);
+  url.searchParams.set('profileId', profile.id);
+  window.open(url.toString(), '_blank', 'noopener,noreferrer');
+}
+
+function ProfileTabLabel({ profile, onOpenProfilePage }) {
+  function handleOpen(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenProfilePage(profile);
+  }
+
   return (
     <Box sx={{ display: 'grid', gap: 0.5, justifyItems: 'start', minWidth: 0, width: '100%' }}>
-      <Typography component="span" variant="body2" fontWeight={800} noWrap>
-        {profile.name}
-      </Typography>
+      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.35, minWidth: 0, maxWidth: '100%' }}>
+        <Typography component="span" variant="body2" fontWeight={800} noWrap>
+          {profile.name}
+        </Typography>
+        <Box
+          component="span"
+          role="button"
+          tabIndex={0}
+          aria-label={`Open ${profile.name || 'profile'} profile page in a new window`}
+          title="Open profile page"
+          onClick={handleOpen}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            handleOpen(event);
+          }}
+          sx={openProfileIconSx}
+        >
+          <OpenInNewIcon />
+        </Box>
+      </Box>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-start', gap: 0.5 }}>
         {profile.isShared ? (
           <Chip
@@ -115,3 +145,24 @@ function ProfileTabLabel({ profile }) {
     </Box>
   );
 }
+
+const openProfileIconSx = {
+  width: 20,
+  height: 20,
+  borderRadius: 0.75,
+  color: 'text.secondary',
+  display: 'inline-grid',
+  flexShrink: 0,
+  placeItems: 'center',
+  '&:hover': {
+    bgcolor: 'action.hover',
+    color: 'primary.main',
+  },
+  '&:focus-visible': {
+    outline: '2px solid currentColor',
+    outlineOffset: 1,
+  },
+  '& .MuiSvgIcon-root': {
+    fontSize: 14,
+  },
+};

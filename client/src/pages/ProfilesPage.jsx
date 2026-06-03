@@ -191,12 +191,6 @@ export default function ProfilesPage({ currentUser }) {
     element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [highlightedProfileId, isLoading]);
 
-  function openProfilePage(profile) {
-    const url = new URL('/profiles', window.location.origin);
-    url.searchParams.set('profileId', profile.id);
-    window.open(url.toString(), '_blank', 'noopener,noreferrer');
-  }
-
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', '& .MuiChip-root': { fontWeight: 400 } }}>
       <Box sx={{ display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
@@ -286,7 +280,6 @@ export default function ProfilesPage({ currentUser }) {
             onCloseProfile={openCloseDialog}
             onDelete={removeProfile}
             onEdit={openEditDialog}
-            onOpenProfilePage={openProfilePage}
             onReopenProfile={reopenProfile}
             onShare={openShareDialog}
             onView={setViewingProfile}

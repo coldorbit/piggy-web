@@ -35,6 +35,7 @@ export default function UserForm({ form, isSaving, onChange, onSubmit }) {
         <InputLabel>Role</InputLabel>
         <Select label="Role" value={form.role} onChange={(event) => onChange((current) => ({ ...current, role: event.target.value }))}>
           <MenuItem value="user">User</MenuItem>
+          <MenuItem value="internal">Internal</MenuItem>
           <MenuItem value="caller">Caller</MenuItem>
           <MenuItem value="readonly_bidder">Readonly bidder</MenuItem>
           <MenuItem value="editable_bidder">Editable bidder</MenuItem>

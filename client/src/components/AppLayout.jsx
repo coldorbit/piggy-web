@@ -53,6 +53,7 @@ export default function AppLayout({ user }) {
     () => ({ search: headerSearch, setSearch: setHeaderSearch }),
     [headerSearch],
   );
+  const isInternalUser = ['admin', 'internal'].includes(user.role);
 
   async function handleLogout() {
     logout(undefined, {
@@ -122,8 +123,10 @@ export default function AppLayout({ user }) {
           {['admin', 'user', 'bidder', 'readonly_bidder', 'editable_bidder'].includes(user.role) ? (
             <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" onNavigate={() => setMobileOpen(false)} />
-          {['admin', 'caller'].includes(user.role) ? (
+          {isInternalUser ? (
+            <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" onNavigate={() => setMobileOpen(false)} />
+          ) : null}
+          {isInternalUser ? (
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} />
@@ -331,6 +334,7 @@ function NavItem({ icon, label, onNavigate, to }) {
 function roleLabel(role) {
   if (role === 'readonly_bidder' || role === 'bidder') return 'Readonly bidder';
   if (role === 'editable_bidder') return 'Editable bidder';
+  if (role === 'internal') return 'Internal';
   if (role === 'caller') return 'Caller';
   return role;
 }

@@ -37,8 +37,22 @@ export default function App() {
           <Route path="/jobs" element={<JobsPage currentUser={user} />} />
           <Route path="/bids" element={<BidPage currentUser={user} />} />
           <Route path="/bidders" element={<BiddersPage currentUser={user} />} />
-          <Route path="/interviews" element={<InterviewsPage currentUser={user} />} />
-          <Route path="/callers" element={<CallersPage currentUser={user} />} />
+          <Route
+            path="/interviews"
+            element={
+              <RequireRoles user={user} roles={['admin', 'internal']}>
+                <InterviewsPage currentUser={user} />
+              </RequireRoles>
+            }
+          />
+          <Route
+            path="/callers"
+            element={
+              <RequireRoles user={user} roles={['admin', 'internal']}>
+                <CallersPage currentUser={user} />
+              </RequireRoles>
+            }
+          />
           <Route path="/profiles" element={<ProfilesPage currentUser={user} />} />
           <Route
             path="/admin/users"
@@ -58,5 +72,11 @@ export default function App() {
 function RequireAdmin({ user, children }) {
   const location = useLocation();
   if (user.role !== 'admin') return <Navigate to="/jobs" replace state={{ from: location }} />;
+  return children;
+}
+
+function RequireRoles({ user, roles, children }) {
+  const location = useLocation();
+  if (!roles.includes(user.role)) return <Navigate to="/jobs" replace state={{ from: location }} />;
   return children;
 }
