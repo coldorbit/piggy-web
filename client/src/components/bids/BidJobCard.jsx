@@ -82,7 +82,6 @@ export default function BidJobCard({
   const showBidStatusChip = activeTab !== BID_TABS.tailored;
   const showStatusControl = activeTab === BID_TABS.done || activeTab === BID_TABS.interviews;
   const showAppliedAction = activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready';
-  const showTailorAction = activeTab === BID_TABS.todo || job.tailoredResume?.status === 'dead_letter';
   const bidChipLabel = job.bid
     ? `Bid ${formatDate(job.bid.bidAt)}`
     : draft.status === 'planned'
@@ -90,6 +89,8 @@ export default function BidJobCard({
       : `Bid ${statusLabel(draft.status)}`;
   const sourceChipSx = sourceChipStyles(job.source);
   const tailoredStatus = job.tailoredResume?.status || '';
+  const showTailorAction = activeTab === BID_TABS.todo || tailoredStatus === 'dead_letter';
+  const showRetailorAction = activeTab === BID_TABS.tailored && tailoredStatus === 'ready';
   const appliedByLabel = appliedByChipLabel(job.bid, currentUser);
   const tailoringInFlight = tailoredStatus === 'requested' || tailoredStatus === 'processing';
   const hasTailoringRequest = tailoringInFlight || tailoredStatus === 'ready';
@@ -304,21 +305,33 @@ export default function BidJobCard({
                 </Button>
               ) : null}
               {downloadUrl ? (
-                <Button
-                  component="a"
-                  href={downloadUrl}
-                  download={downloadFilename}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => onResumeDownload(job.tailoredResume.id)}
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  variant={isResumeDownloaded ? 'contained' : 'outlined'}
-                  color={isResumeDownloaded ? 'success' : 'primary'}
-                  sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-                >
-                  {isResumeDownloaded ? 'Downloaded' : 'Download'}
-                </Button>
+                <Tooltip title={isResumeDownloaded ? 'Download again' : 'Download resume'}>
+                  <IconButton
+                    component="a"
+                    href={downloadUrl}
+                    download={downloadFilename}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={isResumeDownloaded ? 'Download resume again' : 'Download resume'}
+                    color={isResumeDownloaded ? 'success' : 'primary'}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onResumeDownload(job.tailoredResume.id);
+                    }}
+                    sx={{
+                      ...iconButtonSx,
+                      bgcolor: isResumeDownloaded ? '#dcfce7' : 'background.paper',
+                      borderColor: isResumeDownloaded ? '#86efac' : 'divider',
+                      color: isResumeDownloaded ? '#15803d' : 'primary.main',
+                      '&:hover': {
+                        bgcolor: isResumeDownloaded ? '#bbf7d0' : 'action.hover',
+                        borderColor: isResumeDownloaded ? '#22c55e' : 'primary.main',
+                      },
+                    }}
+                  >
+                    <DownloadIcon />
+                  </IconButton>
+                </Tooltip>
               ) : null}
               <Tooltip title={job.isHidden ? 'Unhide job' : 'Hide job'}>
                 <IconButton
@@ -339,6 +352,18 @@ export default function BidJobCard({
                   sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
                 >
                   {tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor'}
+                </Button>
+              ) : null}
+              {showRetailorAction ? (
+                <Button
+                  disabled={isTailoring}
+                  onClick={() => onTailorResume(job)}
+                  size="small"
+                  startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
+                  variant="outlined"
+                  sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                >
+                  Re-tailor
                 </Button>
               ) : null}
             </Stack>

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -35,6 +36,7 @@ import {
 } from '../lib/api.js';
 
 export default function ProfilesPage({ currentUser }) {
+  const [searchParams] = useSearchParams();
   const [dialogMode, setDialogMode] = useState(null);
   const [editingProfileId, setEditingProfileId] = useState(null);
   const [sharingProfile, setSharingProfile] = useState(null);
@@ -181,6 +183,19 @@ export default function ProfilesPage({ currentUser }) {
   const canManageProfiles = !['bidder', 'readonly_bidder', 'editable_bidder'].includes(currentUser?.role);
   const canUpdateProfileStatus = ['admin', 'user'].includes(currentUser?.role);
   const canRestoreProfiles = currentUser?.role === 'admin';
+  const highlightedProfileId = searchParams.get('profileId') || '';
+
+  useEffect(() => {
+    if (!highlightedProfileId || isLoading) return;
+    const element = document.getElementById(`profile-card-${highlightedProfileId}`);
+    element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightedProfileId, isLoading]);
+
+  function openProfilePage(profile) {
+    const url = new URL('/profiles', window.location.origin);
+    url.searchParams.set('profileId', profile.id);
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+  }
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', '& .MuiChip-root': { fontWeight: 400 } }}>
@@ -262,6 +277,7 @@ export default function ProfilesPage({ currentUser }) {
           <ProfileCard
             key={profile.id}
             isDeleting={deleting}
+            isHighlighted={String(profile.id) === String(highlightedProfileId)}
             isUpdatingStatus={updatingStatus}
             canManage={canManageProfiles}
             canUpdateStatus={canUpdateProfileStatus}
@@ -270,6 +286,7 @@ export default function ProfilesPage({ currentUser }) {
             onCloseProfile={openCloseDialog}
             onDelete={removeProfile}
             onEdit={openEditDialog}
+            onOpenProfilePage={openProfilePage}
             onReopenProfile={reopenProfile}
             onShare={openShareDialog}
             onView={setViewingProfile}
