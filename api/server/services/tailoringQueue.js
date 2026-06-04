@@ -5,6 +5,7 @@ import {
   SendMessageCommand,
   SQSClient,
 } from '@aws-sdk/client-sqs';
+import { Op } from 'sequelize';
 import {
   ensureWebModels,
   getBidProfileModel,
@@ -17,6 +18,7 @@ import { formatTailoredResume, generateTailoredResumeWithService } from './bids.
 
 const events = new EventEmitter();
 const MAX_ATTEMPTS = 3;
+const MAX_MESSAGES_PER_POLL = 2;
 const RECEIVE_WAIT_TIME_SECONDS = 20;
 const VISIBILITY_TIMEOUT_SECONDS = 10 * 60;
 const MAX_SQS_DELAY_SECONDS = 15 * 60;
@@ -101,18 +103,30 @@ async function runTailoringQueueWorker() {
       const response = await getSqsClient().send(
         new ReceiveMessageCommand({
           QueueUrl: ENV.TAILORING_QUEUE_URL,
-          MaxNumberOfMessages: 1,
+          MaxNumberOfMessages: MAX_MESSAGES_PER_POLL,
           WaitTimeSeconds: RECEIVE_WAIT_TIME_SECONDS,
           VisibilityTimeout: VISIBILITY_TIMEOUT_SECONDS,
         }),
       );
 
-      for (const message of response.Messages || []) {
-        await processQueueMessage(message);
-      }
+      await processQueueMessages(response.Messages || []);
     } catch (error) {
       console.error('Tailoring SQS worker failed:', error);
       await sleep(5000);
+    }
+  }
+}
+
+async function processQueueMessages(messages) {
+  if (!messages.length) return;
+
+  const results = await Promise.allSettled(messages.map((message) => processQueueMessage(message)));
+  for (const [index, result] of results.entries()) {
+    if (result.status === 'rejected') {
+      console.error('Tailoring SQS message failed:', {
+        messageId: messages[index]?.MessageId || 'unknown',
+        error: result.reason,
+      });
     }
   }
 }
@@ -144,11 +158,31 @@ async function claimTailoringJob(tailoredResumeId) {
   if (!tailoredResume) return null;
   if (tailoredResume.status === 'ready' || tailoredResume.status === 'dead_letter') return null;
 
-  await tailoredResume.update({
-    status: 'processing',
-    attempts: Number(tailoredResume.attempts || 0) + 1,
-    maxAttempts: tailoredResume.maxAttempts || MAX_ATTEMPTS,
-  });
+  const attempts = Number(tailoredResume.attempts || 0);
+  const staleProcessingBefore = new Date(Date.now() - VISIBILITY_TIMEOUT_SECONDS * 1000);
+  const [claimedCount] = await TailoredResume.update(
+    {
+      status: 'processing',
+      attempts: attempts + 1,
+      maxAttempts: tailoredResume.maxAttempts || MAX_ATTEMPTS,
+    },
+    {
+      where: {
+        id: tailoredResumeId,
+        attempts,
+        [Op.or]: [
+          { status: 'requested' },
+          {
+            status: 'processing',
+            updatedAt: { [Op.lte]: staleProcessingBefore },
+          },
+        ],
+      },
+    },
+  );
+
+  if (!claimedCount) return null;
+  await tailoredResume.reload();
 
   return tailoredResume;
 }
