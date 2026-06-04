@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DownloadIcon from '@mui/icons-material/Download';
+import LinkIcon from '@mui/icons-material/Link';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import {
@@ -13,12 +15,17 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   IconButton,
   InputLabel,
   MenuItem,
   Select,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -70,12 +77,18 @@ export default function BidJobCard({
     currentUser,
     draftsForJob,
     isSaving,
+    isUpdatingLinkedInJob,
     tailoringByJobId = {},
     onDraftChange,
     onHiddenChange,
+    onLinkedInEasyApply,
+    onLinkedInExternalUrlChange,
     onStatusChange,
     onTailorResume,
   } = useBidWorkspace();
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+  const [externalUrl, setExternalUrl] = useState('');
+  const [externalUrlError, setExternalUrlError] = useState('');
   const draft = draftsForJob(job);
   const isTailoring = Boolean(tailoringByJobId[job.id]);
   const statusDefault = activeTab === BID_TABS.interviews ? 'interviewing' : activeTab === BID_TABS.done ? 'submitted' : undefined;
@@ -95,6 +108,11 @@ export default function BidJobCard({
   const tailoringInFlight = tailoredStatus === 'requested' || tailoredStatus === 'processing';
   const hasTailoringRequest = tailoringInFlight || tailoredStatus === 'ready';
   const isResumeDownloaded = Boolean(job.tailoredResume?.downloadedAt);
+  const isLinkedInJob = sourceKey(job.source) === 'linkedin';
+  const isEasyApply = isEasyApplyMode(job.applyMode);
+  const showLinkedInTodoActions = activeTab === BID_TABS.todo && isLinkedInJob;
+  const showMarkEasyApplyAction = showLinkedInTodoActions && !isEasyApply;
+  const showUpdateExternalLinkAction = showLinkedInTodoActions;
   const downloadUrl =
     tailoredStatus === 'ready' && job.tailoredResume?.filePath
       ? authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(job.tailoredResume.id)}/download`)
@@ -125,257 +143,340 @@ export default function BidJobCard({
     onSelectedChange(job.id);
   }
 
+  function handleMarkEasyApply(event) {
+    event.stopPropagation();
+    onLinkedInEasyApply(job);
+  }
+
+  function openLinkDialog(event) {
+    event.stopPropagation();
+    setExternalUrl(isLinkedInUrl(job.url) ? '' : job.url || '');
+    setExternalUrlError('');
+    setIsLinkDialogOpen(true);
+  }
+
+  function closeLinkDialog() {
+    if (isUpdatingLinkedInJob) return;
+    setIsLinkDialogOpen(false);
+  }
+
+  function submitExternalUrl(event) {
+    event.preventDefault();
+    const nextUrl = externalUrl.trim();
+    const validationError = externalUrlValidationError(nextUrl);
+    if (validationError) {
+      setExternalUrlError(validationError);
+      return;
+    }
+    setExternalUrlError('');
+    onLinkedInExternalUrlChange(job, nextUrl, {
+      onSuccess: () => setIsLinkDialogOpen(false),
+      onError: (error) => setExternalUrlError(error.message),
+    });
+  }
+
   return (
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: '34px minmax(0, 1fr)',
-        gap: 0.75,
-        alignItems: 'center',
-      }}
-    >
-      <Checkbox
-        checked={isSelected}
-        onChange={() => onSelectedChange(job.id)}
-        inputProps={{ 'aria-label': `Select ${job.title || 'job'}` }}
+    <>
+      <Box
         sx={{
-          p: 0.5,
-          color: 'text.secondary',
-          '&.Mui-checked': { color: accent.main },
-        }}
-      />
-      <Card
-        variant="outlined"
-        onClick={handleCardClick}
-        onKeyDown={handleCardKeyDown}
-        role="button"
-        tabIndex={0}
-        aria-pressed={isSelected}
-        sx={{
-          borderColor: isSelected ? accent.main : 'divider',
-          borderLeft: isResumeDownloaded ? '4px solid #15803d' : job.bid || isSelected ? `4px solid ${accent.main}` : '4px solid transparent',
-          bgcolor: isSelected ? accent.soft : isResumeDownloaded ? '#f0fdf4' : 'background.paper',
-          boxShadow: isSelected || isResumeDownloaded ? 2 : 1,
-          cursor: 'pointer',
-          transition: 'background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease',
-          '&:hover': {
-            boxShadow: 2,
-            transform: 'translateY(-1px)',
-          },
-          '&:focus-visible': {
-            outline: `2px solid ${accent.main}`,
-            outlineOffset: 2,
-          },
+          display: 'grid',
+          gridTemplateColumns: '34px minmax(0, 1fr)',
+          gap: 0.75,
+          alignItems: 'center',
         }}
       >
-        <CardContent sx={{ display: 'grid', gap: 0.65, px: 1, py: 0.85, '&:last-child': { pb: 0.85 } }}>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(190px, auto) max-content' },
-              gap: 1,
-              alignItems: 'center',
-            }}
-          >
-            <Box minWidth={0} sx={{ display: 'grid', gap: 0.25 }}>
-              <Typography
-                component="a"
-                href={job.url}
-                target="_blank"
-                rel="noreferrer"
-                variant="body2"
-                fontWeight={900}
-                sx={{
-                  color: 'text.primary',
-                  display: 'inline-block',
-                  justifySelf: 'start',
-                  maxWidth: '100%',
-                  textDecoration: 'none',
-                  width: 'fit-content',
-                  '&:hover': { color: 'primary.main', textDecoration: 'underline' },
-                }}
-              >
-                {job.title || 'Untitled role'}
-              </Typography>
-              <Typography color="text.secondary" variant="caption" sx={{ display: 'block', mt: 0.45 }}>
-                {job.company ? (
-                  <Box component="span" sx={{ color: 'text.primary', fontWeight: 800 }}>
-                    {job.company}
-                  </Box>
-                ) : (
-                  'Unknown company'
-                )}
-                {job.location ? ` · ${job.location}` : null}
-              </Typography>
-            </Box>
+        <Checkbox
+          checked={isSelected}
+          onChange={() => onSelectedChange(job.id)}
+          inputProps={{ 'aria-label': `Select ${job.title || 'job'}` }}
+          sx={{
+            p: 0.5,
+            color: 'text.secondary',
+            '&.Mui-checked': { color: accent.main },
+          }}
+        />
+        <Card
+          variant="outlined"
+          onClick={handleCardClick}
+          onKeyDown={handleCardKeyDown}
+          role="button"
+          tabIndex={0}
+          aria-pressed={isSelected}
+          sx={{
+            borderColor: isSelected ? accent.main : 'divider',
+            borderLeft: isResumeDownloaded ? '4px solid #15803d' : job.bid || isSelected ? `4px solid ${accent.main}` : '4px solid transparent',
+            bgcolor: isSelected ? accent.soft : isResumeDownloaded ? '#f0fdf4' : 'background.paper',
+            boxShadow: isSelected || isResumeDownloaded ? 2 : 1,
+            cursor: 'pointer',
+            transition: 'background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease',
+            '&:hover': {
+              boxShadow: 2,
+              transform: 'translateY(-1px)',
+            },
+            '&:focus-visible': {
+              outline: `2px solid ${accent.main}`,
+              outlineOffset: 2,
+            },
+          }}
+        >
+          <CardContent sx={{ display: 'grid', gap: 0.65, px: 1, py: 0.85, '&:last-child': { pb: 0.85 } }}>
             <Box
               sx={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: { xs: 'flex-start', md: 'flex-end' },
-                columnGap: 0.65,
-                rowGap: 0.45,
-                minWidth: 0,
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(190px, auto) max-content' },
+                gap: 1,
+                alignItems: 'center',
               }}
             >
-              {job.isManual ? (
-                <Chip
-                  label="Manual"
-                  size="small"
-                  sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
-                />
-              ) : null}
-              <SourceChip source={job.source} sourceUrl={job.sourceUrl} sx={sourceChipSx} />
-              {job.applyMode ? <ApplyModeChip applyMode={job.applyMode} /> : null}
-              <Chip
-                label={formatDate(job.postedAt || job.scrapedAt)}
-                size="small"
-                sx={{ bgcolor: '#f7ead1', color: '#70400d', fontWeight: 700 }}
-              />
-              {showBidStatusChip && (job.bid || draft.status !== 'planned') ? (
-                <Chip
-                  label={bidChipLabel}
-                  size="small"
-                  sx={{ bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }}
-                />
-              ) : null}
-              {activeTab !== BID_TABS.done && activeTab !== BID_TABS.interviews && tailoredStatus ? (
-                <Chip
-                  label={tailoredStatusLabel(tailoredStatus)}
-                  size="small"
-                  sx={tailoredStatusSx(tailoredStatus)}
-                />
-              ) : null}
-              {isResumeDownloaded ? (
-                <Chip
-                  icon={<CheckCircleIcon />}
-                  label="Downloaded"
-                  size="small"
+              <Box minWidth={0} sx={{ display: 'grid', gap: 0.25 }}>
+                <Typography
+                  component="a"
+                  href={job.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  variant="body2"
+                  fontWeight={900}
                   sx={{
-                    bgcolor: '#dcfce7',
-                    color: '#166534',
-                    fontWeight: 900,
-                    '& .MuiChip-icon': { color: '#15803d' },
+                    color: 'text.primary',
+                    display: 'inline-block',
+                    justifySelf: 'start',
+                    maxWidth: '100%',
+                    textDecoration: 'none',
+                    width: 'fit-content',
+                    '&:hover': { color: 'primary.main', textDecoration: 'underline' },
                   }}
-                />
-              ) : null}
-              {(activeTab === BID_TABS.done || activeTab === BID_TABS.interviews) && appliedByLabel ? (
-                <Chip
-                  label={appliedByLabel}
-                  size="small"
-                  sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 }}
-                />
-              ) : null}
-            </Box>
-            <Stack
-              direction="row"
-              spacing={0.65}
-              justifyContent={{ xs: 'flex-start', md: 'flex-end' }}
-              alignItems="center"
-              justifySelf={{ xs: 'stretch', md: 'end' }}
-              flexShrink={0}
-            >
-              {showStatusControl ? (
-                <FormControl size="small" sx={{ minWidth: 150 }}>
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    label="Status"
-                    value={draft.status || statusDefault || 'planned'}
-                    onChange={handleStatusChange}
-                    disabled={isSaving}
-                  >
-                    {statusDefault !== 'submitted' && statusDefault !== 'interviewing' ? <MenuItem value="planned">Planned</MenuItem> : null}
-                    <MenuItem value="submitted">Submitted</MenuItem>
-                    <MenuItem value="interviewing">Interviewing</MenuItem>
-                    <MenuItem value="won">Won</MenuItem>
-                    <MenuItem value="lost">Lost</MenuItem>
-                  </Select>
-                </FormControl>
-              ) : null}
-              {showAppliedAction ? (
-                <Button
-                  disabled={draft.status === 'submitted'}
-                  onClick={handleApplied}
-                  size="small"
-                  startIcon={<CheckCircleIcon />}
-                  variant="contained"
-                  sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
                 >
-                  Mark as applied
-                </Button>
-              ) : null}
-              {downloadUrl ? (
-                <Tooltip title={isResumeDownloaded ? 'Download again' : 'Download resume'}>
-                  <IconButton
-                    component="a"
-                    href={downloadUrl}
-                    download={downloadFilename}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={isResumeDownloaded ? 'Download resume again' : 'Download resume'}
-                    color={isResumeDownloaded ? 'success' : 'primary'}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onResumeDownload(job.tailoredResume.id);
-                    }}
+                  {job.title || 'Untitled role'}
+                </Typography>
+                <Typography color="text.secondary" variant="caption" sx={{ display: 'block', mt: 0.45 }}>
+                  {job.company ? (
+                    <Box component="span" sx={{ color: 'text.primary', fontWeight: 800 }}>
+                      {job.company}
+                    </Box>
+                  ) : (
+                    'Unknown company'
+                  )}
+                  {job.location ? ` · ${job.location}` : null}
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: { xs: 'flex-start', md: 'flex-end' },
+                  columnGap: 0.65,
+                  rowGap: 0.45,
+                  minWidth: 0,
+                }}
+              >
+                {job.isManual ? (
+                  <Chip
+                    label="Manual"
+                    size="small"
+                    sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
+                  />
+                ) : null}
+                <SourceChip source={job.source} sourceUrl={job.sourceUrl} sx={sourceChipSx} />
+                {job.applyMode && !isLinkedInJob ? <ApplyModeChip applyMode={job.applyMode} /> : null}
+                <Chip
+                  label={formatDate(job.postedAt || job.scrapedAt)}
+                  size="small"
+                  sx={{ bgcolor: '#f7ead1', color: '#70400d', fontWeight: 700 }}
+                />
+                {showBidStatusChip && (job.bid || draft.status !== 'planned') ? (
+                  <Chip
+                    label={bidChipLabel}
+                    size="small"
+                    sx={{ bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }}
+                  />
+                ) : null}
+                {activeTab !== BID_TABS.done && activeTab !== BID_TABS.interviews && tailoredStatus ? (
+                  <Chip
+                    label={tailoredStatusLabel(tailoredStatus)}
+                    size="small"
+                    sx={tailoredStatusSx(tailoredStatus)}
+                  />
+                ) : null}
+                {isResumeDownloaded ? (
+                  <Chip
+                    icon={<CheckCircleIcon />}
+                    label="Downloaded"
+                    size="small"
                     sx={{
-                      ...iconButtonSx,
-                      bgcolor: isResumeDownloaded ? '#dcfce7' : 'background.paper',
-                      borderColor: isResumeDownloaded ? '#86efac' : 'divider',
-                      color: isResumeDownloaded ? '#15803d' : 'primary.main',
-                      '&:hover': {
-                        bgcolor: isResumeDownloaded ? '#bbf7d0' : 'action.hover',
-                        borderColor: isResumeDownloaded ? '#22c55e' : 'primary.main',
-                      },
+                      bgcolor: '#dcfce7',
+                      color: '#166534',
+                      fontWeight: 900,
+                      '& .MuiChip-icon': { color: '#15803d' },
                     }}
+                  />
+                ) : null}
+                {(activeTab === BID_TABS.done || activeTab === BID_TABS.interviews) && appliedByLabel ? (
+                  <Chip
+                    label={appliedByLabel}
+                    size="small"
+                    sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 }}
+                  />
+                ) : null}
+              </Box>
+              <Stack
+                direction="row"
+                spacing={0.65}
+                justifyContent={{ xs: 'flex-start', md: 'flex-end' }}
+                alignItems="center"
+                justifySelf={{ xs: 'stretch', md: 'end' }}
+                flexShrink={0}
+              >
+                {showStatusControl ? (
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      label="Status"
+                      value={draft.status || statusDefault || 'planned'}
+                      onChange={handleStatusChange}
+                      disabled={isSaving}
+                    >
+                      {statusDefault !== 'submitted' && statusDefault !== 'interviewing' ? <MenuItem value="planned">Planned</MenuItem> : null}
+                      <MenuItem value="submitted">Submitted</MenuItem>
+                      <MenuItem value="interviewing">Interviewing</MenuItem>
+                      <MenuItem value="won">Won</MenuItem>
+                      <MenuItem value="lost">Lost</MenuItem>
+                    </Select>
+                  </FormControl>
+                ) : null}
+                {showAppliedAction ? (
+                  <Button
+                    disabled={draft.status === 'submitted'}
+                    onClick={handleApplied}
+                    size="small"
+                    startIcon={<CheckCircleIcon />}
+                    variant="contained"
+                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
                   >
-                    <DownloadIcon />
+                    Mark as applied
+                  </Button>
+                ) : null}
+                {downloadUrl ? (
+                  <Tooltip title={isResumeDownloaded ? 'Download again' : 'Download resume'}>
+                    <IconButton
+                      component="a"
+                      href={downloadUrl}
+                      download={downloadFilename}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={isResumeDownloaded ? 'Download resume again' : 'Download resume'}
+                      color={isResumeDownloaded ? 'success' : 'primary'}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onResumeDownload(job.tailoredResume.id);
+                      }}
+                      sx={{
+                        ...iconButtonSx,
+                        bgcolor: isResumeDownloaded ? '#dcfce7' : 'background.paper',
+                        borderColor: isResumeDownloaded ? '#86efac' : 'divider',
+                        color: isResumeDownloaded ? '#15803d' : 'primary.main',
+                        '&:hover': {
+                          bgcolor: isResumeDownloaded ? '#bbf7d0' : 'action.hover',
+                          borderColor: isResumeDownloaded ? '#22c55e' : 'primary.main',
+                        },
+                      }}
+                    >
+                      <DownloadIcon />
+                    </IconButton>
+                  </Tooltip>
+                ) : null}
+                {showMarkEasyApplyAction ? (
+                  <Button
+                    disabled={isUpdatingLinkedInJob}
+                    onClick={handleMarkEasyApply}
+                    size="small"
+                    startIcon={<CheckCircleIcon />}
+                    variant="outlined"
+                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                  >
+                    Mark as Easy Apply
+                  </Button>
+                ) : null}
+                {showUpdateExternalLinkAction ? (
+                  <Button
+                    disabled={isUpdatingLinkedInJob}
+                    onClick={openLinkDialog}
+                    size="small"
+                    startIcon={<LinkIcon />}
+                    variant="outlined"
+                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                  >
+                    Update job link
+                  </Button>
+                ) : null}
+                <Tooltip title={job.isHidden ? 'Unhide job' : 'Hide job'}>
+                  <IconButton
+                    onClick={() => onHiddenChange(job, !job.isHidden)}
+                    aria-label={job.isHidden ? 'Unhide job' : 'Hide job'}
+                    sx={iconButtonSx}
+                  >
+                    {job.isHidden ? <VisibilityIcon /> : <VisibilityOffIcon />}
                   </IconButton>
                 </Tooltip>
-              ) : null}
-              <Tooltip title={job.isHidden ? 'Unhide job' : 'Hide job'}>
-                <IconButton
-                  onClick={() => onHiddenChange(job, !job.isHidden)}
-                  aria-label={job.isHidden ? 'Unhide job' : 'Hide job'}
-                  sx={iconButtonSx}
-                >
-                  {job.isHidden ? <VisibilityIcon /> : <VisibilityOffIcon />}
-                </IconButton>
-              </Tooltip>
-              {showTailorAction ? (
-                <Button
-                  disabled={isTailoring || hasTailoringRequest}
-                  onClick={() => onTailorResume(job)}
-                  size="small"
-                  startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
-                  variant="outlined"
-                  sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-                >
-                  {tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor'}
-                </Button>
-              ) : null}
-              {showRetailorAction ? (
-                <Button
-                  disabled={isTailoring}
-                  onClick={() => onTailorResume(job)}
-                  size="small"
-                  startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
-                  variant="outlined"
-                  sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-                >
-                  Re-tailor
-                </Button>
-              ) : null}
-            </Stack>
-          </Box>
-        </CardContent>
-        {job.bid ? (
-          <CardActions sx={{ px: 1, py: 0.5, pt: 0, color: 'text.secondary' }}>
-            <Typography variant="caption">This profile has already bid on this job. Updates edit the existing bid.</Typography>
-          </CardActions>
-        ) : null}
-      </Card>
-    </Box>
+                {showTailorAction ? (
+                  <Button
+                    disabled={isTailoring || hasTailoringRequest}
+                    onClick={() => onTailorResume(job)}
+                    size="small"
+                    startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
+                    variant="outlined"
+                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                  >
+                    {tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor'}
+                  </Button>
+                ) : null}
+                {showRetailorAction ? (
+                  <Button
+                    disabled={isTailoring}
+                    onClick={() => onTailorResume(job)}
+                    size="small"
+                    startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
+                    variant="outlined"
+                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                  >
+                    Re-tailor
+                  </Button>
+                ) : null}
+              </Stack>
+            </Box>
+          </CardContent>
+          {job.bid ? (
+            <CardActions sx={{ px: 1, py: 0.5, pt: 0, color: 'text.secondary' }}>
+              <Typography variant="caption">This profile has already bid on this job. Updates edit the existing bid.</Typography>
+            </CardActions>
+          ) : null}
+        </Card>
+      </Box>
+      <Dialog open={isLinkDialogOpen} onClose={closeLinkDialog} fullWidth maxWidth="xs">
+        <Box component="form" onSubmit={submitExternalUrl}>
+          <DialogTitle>Update job link</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 1.25, pt: 1 }}>
+            <TextField
+              autoFocus
+              disabled={isUpdatingLinkedInJob}
+              error={Boolean(externalUrlError)}
+              fullWidth
+              helperText={externalUrlError || 'Paste the external application URL.'}
+              label="External URL"
+              onChange={(event) => {
+                setExternalUrl(event.target.value);
+                if (externalUrlError) setExternalUrlError('');
+              }}
+              placeholder="https://company.com/careers/job"
+              value={externalUrl}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button disabled={isUpdatingLinkedInJob} onClick={closeLinkDialog}>Cancel</Button>
+            <Button disabled={isUpdatingLinkedInJob} type="submit" variant="contained">Update</Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+    </>
   );
 }
 
@@ -411,6 +512,34 @@ function appliedByChipLabel(bid, currentUser) {
   if (!bid?.userId) return '';
   if (String(bid.userId) === String(currentUser?.id)) return 'by me';
   return `by ${bid.user?.username || 'unknown'}`;
+}
+
+function sourceKey(source) {
+  return String(source || '').trim().toLowerCase();
+}
+
+function isEasyApplyMode(applyMode) {
+  return /easy\s*apply/i.test(String(applyMode || ''));
+}
+
+function externalUrlValidationError(value) {
+  if (!value) return 'Enter an external application URL.';
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return 'URL must start with http or https.';
+    if (isLinkedInUrl(value)) return 'External link must not be a LinkedIn URL.';
+    return '';
+  } catch {
+    return 'Enter a valid URL.';
+  }
+}
+
+function isLinkedInUrl(value) {
+  try {
+    return new URL(value).hostname.toLowerCase().endsWith('linkedin.com');
+  } catch {
+    return false;
+  }
 }
 
 function isInteractiveTarget(target, cardElement) {

@@ -478,7 +478,7 @@ function categoryFromCsvValue(value, rowNumber, errors) {
   return 'software';
 }
 
-function validJobUrl(value) {
+export function validJobUrl(value) {
   try {
     const url = new URL(value);
     return url.protocol === 'http:' || url.protocol === 'https:';

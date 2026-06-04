@@ -235,6 +235,78 @@ export function useMarkJobHidden() {
   });
 }
 
+export function useMarkLinkedInEasyApply() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId }) =>
+      api(`/api/jobs/${jobId}/linkedin/easy-apply`, {
+        method: 'PATCH',
+      }).then((data) => data.job),
+    onMutate: async ({ jobId }) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['jobs'] }),
+        queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] }),
+      ]);
+      const previousJobsQueries = queryClient.getQueriesData({ queryKey: ['jobs'] });
+      const previousBidJobsQueries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
+
+      updateCachedJobQueries(queryClient, ['jobs'], jobId, { applyMode: 'Easy Apply' });
+      updateCachedJobQueries(queryClient, ['bid', 'jobs'], jobId, { applyMode: 'Easy Apply' });
+
+      return { previousJobsQueries, previousBidJobsQueries };
+    },
+    onError: (_error, _variables, context) => {
+      restoreQueries(queryClient, context?.previousJobsQueries);
+      restoreQueries(queryClient, context?.previousBidJobsQueries);
+    },
+    onSuccess: (updatedJob) => {
+      updateCachedJobQueries(queryClient, ['jobs'], updatedJob.id, updatedJob);
+      updateCachedJobQueries(queryClient, ['bid', 'jobs'], updatedJob.id, updatedJob);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+    },
+  });
+}
+
+export function useUpdateLinkedInExternalUrl() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId, url }) =>
+      api(`/api/jobs/${jobId}/linkedin/external-url`, {
+        method: 'PATCH',
+        body: JSON.stringify({ url }),
+      }).then((data) => data.job),
+    onMutate: async ({ jobId, url }) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['jobs'] }),
+        queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] }),
+      ]);
+      const previousJobsQueries = queryClient.getQueriesData({ queryKey: ['jobs'] });
+      const previousBidJobsQueries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
+      const optimisticUpdates = { url, duplicateKey: url, applyMode: 'External Link' };
+
+      updateCachedJobQueries(queryClient, ['jobs'], jobId, optimisticUpdates);
+      updateCachedJobQueries(queryClient, ['bid', 'jobs'], jobId, optimisticUpdates);
+
+      return { previousJobsQueries, previousBidJobsQueries };
+    },
+    onError: (_error, _variables, context) => {
+      restoreQueries(queryClient, context?.previousJobsQueries);
+      restoreQueries(queryClient, context?.previousBidJobsQueries);
+    },
+    onSuccess: (updatedJob) => {
+      updateCachedJobQueries(queryClient, ['jobs'], updatedJob.id, updatedJob);
+      updateCachedJobQueries(queryClient, ['bid', 'jobs'], updatedJob.id, updatedJob);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+    },
+  });
+}
+
 export function useImportJobsCsv() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -318,6 +390,12 @@ function removeCachedJob(oldData, filters, jobId) {
 function updateCachedJobVisibilityQueries(queryClient, queryKeyPrefix, jobId, updates) {
   queryClient.getQueriesData({ queryKey: queryKeyPrefix }).forEach(([queryKey, data]) => {
     queryClient.setQueryData(queryKey, updateCachedJobVisibility(data, queryFiltersFromKey(queryKey), jobId, updates));
+  });
+}
+
+function updateCachedJobQueries(queryClient, queryKeyPrefix, jobId, updates) {
+  queryClient.getQueriesData({ queryKey: queryKeyPrefix }).forEach(([queryKey, data]) => {
+    queryClient.setQueryData(queryKey, updateCachedJob(data, jobId, updates));
   });
 }
 

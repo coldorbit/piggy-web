@@ -52,6 +52,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       <List disablePadding sx={{ overflow: 'auto', flex: '1 1 auto', minHeight: 0 }}>
         {jobs.map((job) => {
           const selected = String(selectedJob?.id) === String(job.id);
+          const isLinkedInJob = String(job.source || '').trim().toLowerCase() === 'linkedin';
           return (
             <ListItem key={job.id} disablePadding divider sx={{ borderColor: 'divider' }}>
               <ButtonBase
@@ -128,7 +129,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
                       {job.source ? <SourceBadge source={job.source} sourceUrl={job.sourceUrl} /> : null}
-                      {job.applyMode ? <ApplyModeBadge applyMode={job.applyMode} /> : null}
+                      {job.applyMode && !isLinkedInJob ? <ApplyModeBadge applyMode={job.applyMode} /> : null}
                       <Typography color="text.secondary" variant="caption" fontWeight={700} noWrap>
                         {formatDate(job.postedAt || job.scrapedAt)}
                       </Typography>

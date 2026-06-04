@@ -188,6 +188,12 @@ export async function listBidders(req, res, next) {
            FROM job_bids
            WHERE job_bids.user_id = web_users.id
          )
+         OR EXISTS (
+           SELECT 1
+           FROM profile_share_requests
+           WHERE profile_share_requests.recipient_user_id = web_users.id
+             AND profile_share_requests.status = 'accepted'
+         )
       ORDER BY web_users.username ASC
     `);
     const visibleBidders = user.role === 'admin'
@@ -201,37 +207,56 @@ export async function listBidders(req, res, next) {
     }
 
     const bidderIdSql = bidderIds.join(',');
+    const visibleProfileAccessSql = `
+      SELECT bid_profiles.user_id, bid_profiles.id AS profile_id
+      FROM bid_profiles
+      WHERE bid_profiles.user_id IN (${bidderIdSql})
+      UNION
+      SELECT profile_share_requests.recipient_user_id AS user_id, profile_share_requests.profile_id
+      FROM profile_share_requests
+      WHERE profile_share_requests.recipient_user_id IN (${bidderIdSql})
+        AND profile_share_requests.status = 'accepted'
+    `;
     const [summaryRows, dailyRows, interviewRows] = await Promise.all([
       sequelize.query(`
+        WITH visible_profile_access AS (
+          ${visibleProfileAccessSql}
+        )
         SELECT
-          user_id,
+          visible_profile_access.user_id,
           COUNT(*)::int AS total_applications,
-          COUNT(*) FILTER (WHERE bid_at >= now() - interval '7 days')::int AS weekly_applications,
-          COUNT(*) FILTER (WHERE bid_at >= now() - interval '30 days')::int AS monthly_applications,
-          COUNT(*) FILTER (WHERE status IN ('interviewing', 'won', 'lost'))::int AS interview_pass_through,
-          COUNT(*) FILTER (WHERE status = 'won')::int AS won,
-          COUNT(*) FILTER (WHERE status = 'lost')::int AS lost
+          COUNT(*) FILTER (WHERE job_bids.bid_at >= now() - interval '7 days')::int AS weekly_applications,
+          COUNT(*) FILTER (WHERE job_bids.bid_at >= now() - interval '30 days')::int AS monthly_applications,
+          COUNT(*) FILTER (WHERE job_bids.status IN ('interviewing', 'won', 'lost'))::int AS interview_pass_through,
+          COUNT(*) FILTER (WHERE job_bids.status = 'won')::int AS won,
+          COUNT(*) FILTER (WHERE job_bids.status = 'lost')::int AS lost
         FROM job_bids
-        WHERE user_id IN (${bidderIdSql})
-        GROUP BY user_id
+        JOIN visible_profile_access ON visible_profile_access.profile_id = job_bids.profile_id
+        GROUP BY visible_profile_access.user_id
       `),
       sequelize.query(`
+        WITH visible_profile_access AS (
+          ${visibleProfileAccessSql}
+        )
         SELECT
-          job_bids.user_id,
+          visible_profile_access.user_id,
           to_char(job_bids.bid_at::date, 'YYYY-MM-DD') AS day,
           COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source,
           COUNT(*)::int AS applications
         FROM job_bids
+        JOIN visible_profile_access ON visible_profile_access.profile_id = job_bids.profile_id
         JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
-        WHERE job_bids.user_id IN (${bidderIdSql})
-          AND job_bids.bid_at >= current_date - interval '13 days'
-        GROUP BY job_bids.user_id, job_bids.bid_at::date, COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')
+        WHERE job_bids.bid_at >= current_date - interval '13 days'
+        GROUP BY visible_profile_access.user_id, job_bids.bid_at::date, COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')
         ORDER BY job_bids.bid_at::date ASC, source ASC
       `),
       sequelize.query(`
+        WITH visible_profile_access AS (
+          ${visibleProfileAccessSql}
+        )
         SELECT
           job_bids.id,
-          job_bids.user_id,
+          visible_profile_access.user_id,
           job_bids.status,
           job_bids.interview_stage,
           job_bids.interview_next_at,
@@ -244,10 +269,10 @@ export async function listBidders(req, res, next) {
           bid_profiles.id AS profile_id,
           bid_profiles.name AS profile_name
         FROM job_bids
+        JOIN visible_profile_access ON visible_profile_access.profile_id = job_bids.profile_id
         JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
         JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id
-        WHERE job_bids.user_id IN (${bidderIdSql})
-          AND job_bids.status IN ('interviewing', 'won', 'lost')
+        WHERE job_bids.status IN ('interviewing', 'won', 'lost')
         ORDER BY job_bids.updated_at DESC
         LIMIT 200
       `),
