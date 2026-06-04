@@ -18,7 +18,7 @@ import { formatTailoredResume, generateTailoredResumeWithService } from './bids.
 
 const events = new EventEmitter();
 const MAX_ATTEMPTS = 3;
-const MAX_MESSAGES_PER_POLL = 2;
+const MAX_MESSAGES_PER_POLL = 4;
 const RECEIVE_WAIT_TIME_SECONDS = 20;
 const VISIBILITY_TIMEOUT_SECONDS = 10 * 60;
 const MAX_SQS_DELAY_SECONDS = 15 * 60;
