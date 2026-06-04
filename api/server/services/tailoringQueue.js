@@ -18,6 +18,7 @@ import { formatTailoredResume, generateTailoredResumeWithService } from './bids.
 
 const events = new EventEmitter();
 const MAX_ATTEMPTS = 3;
+const TAILORING_CONCURRENCY = 4;
 const MAX_MESSAGES_PER_POLL = 4;
 const RECEIVE_WAIT_TIME_SECONDS = 20;
 const VISIBILITY_TIMEOUT_SECONDS = 10 * 60;
@@ -95,21 +96,40 @@ export async function subscribeTailoredResumeEvents(req, res, next) {
 }
 
 async function runTailoringQueueWorker() {
-  console.log('Tailoring SQS worker started.');
+  console.log(`Tailoring SQS worker started with concurrency ${TAILORING_CONCURRENCY}.`);
+  const inFlightMessages = new Set();
 
   while (true) {
     try {
       await ensureWebModels();
+      while (inFlightMessages.size >= TAILORING_CONCURRENCY) {
+        await waitForInFlightMessage(inFlightMessages);
+      }
+
+      const messageCapacity = TAILORING_CONCURRENCY - inFlightMessages.size;
       const response = await getSqsClient().send(
         new ReceiveMessageCommand({
           QueueUrl: ENV.TAILORING_QUEUE_URL,
-          MaxNumberOfMessages: MAX_MESSAGES_PER_POLL,
+          MaxNumberOfMessages: Math.min(MAX_MESSAGES_PER_POLL, messageCapacity),
           WaitTimeSeconds: RECEIVE_WAIT_TIME_SECONDS,
           VisibilityTimeout: VISIBILITY_TIMEOUT_SECONDS,
         }),
       );
 
-      await processQueueMessages(response.Messages || []);
+      for (const message of response.Messages || []) {
+        let messageTask;
+        messageTask = processQueueMessage(message)
+          .catch((error) => {
+            console.error('Tailoring SQS message failed:', {
+              messageId: message.MessageId || 'unknown',
+              error,
+            });
+          })
+          .finally(() => {
+            inFlightMessages.delete(messageTask);
+          });
+        inFlightMessages.add(messageTask);
+      }
     } catch (error) {
       console.error('Tailoring SQS worker failed:', error);
       await sleep(5000);
@@ -117,18 +137,9 @@ async function runTailoringQueueWorker() {
   }
 }
 
-async function processQueueMessages(messages) {
-  if (!messages.length) return;
-
-  const results = await Promise.allSettled(messages.map((message) => processQueueMessage(message)));
-  for (const [index, result] of results.entries()) {
-    if (result.status === 'rejected') {
-      console.error('Tailoring SQS message failed:', {
-        messageId: messages[index]?.MessageId || 'unknown',
-        error: result.reason,
-      });
-    }
-  }
+async function waitForInFlightMessage(inFlightMessages) {
+  if (!inFlightMessages.size) return;
+  await Promise.race(inFlightMessages);
 }
 
 async function processQueueMessage(message) {
