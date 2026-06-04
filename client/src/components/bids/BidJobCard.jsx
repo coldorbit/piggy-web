@@ -86,9 +86,12 @@ export default function BidJobCard({
   const appliedByLabel = appliedByChipLabel(job.bid, currentUser);
   const tailoringInFlight = tailoredStatus === 'requested' || tailoredStatus === 'processing';
   const hasTailoringRequest = tailoringInFlight || tailoredStatus === 'ready';
+  const tailorActionLabel = tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor';
+  const retailorActionLabel = isTailoring ? 'Tailoring now' : 'Re-tailor';
   const isResumeDownloaded = Boolean(job.tailoredResume?.downloadedAt);
   const isLinkedInJob = sourceKey(job.source) === 'linkedin';
   const isEasyApply = isEasyApplyMode(job.applyMode);
+  const hasUpdatedJobLink = isLinkedInJob && isExternalLinkMode(job.applyMode);
   const showLinkedInTodoActions = activeTab === BID_TABS.todo && isLinkedInJob;
   const showMarkEasyApplyAction = showLinkedInTodoActions && !isEasyApply;
   const showUpdateExternalLinkAction = showLinkedInTodoActions;
@@ -266,6 +269,19 @@ export default function BidJobCard({
                     sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
                   />
                 ) : null}
+                {hasUpdatedJobLink ? (
+                  <Chip
+                    icon={<LinkIcon />}
+                    label="Updated job link"
+                    size="small"
+                    sx={{
+                      bgcolor: '#f0f9ff',
+                      color: '#075985',
+                      fontWeight: 800,
+                      '& .MuiChip-icon': { color: '#0284c7' },
+                    }}
+                  />
+                ) : null}
                 {job.applyMode && !isLinkedInJob ? <ApplyModeChip applyMode={job.applyMode} /> : null}
                 <Chip
                   label={formatDate(job.postedAt || job.scrapedAt)}
@@ -380,7 +396,18 @@ export default function BidJobCard({
                     size="small"
                     startIcon={<CheckCircleIcon />}
                     variant="outlined"
-                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                    sx={{
+                      minHeight: 32,
+                      whiteSpace: 'nowrap',
+                      borderColor: '#f87171',
+                      color: '#991b1b',
+                      bgcolor: '#fef2f2',
+                      fontWeight: 800,
+                      '&:hover': {
+                        borderColor: '#dc2626',
+                        bgcolor: '#fee2e2',
+                      },
+                    }}
                   >
                     Mark as Easy Apply
                   </Button>
@@ -392,7 +419,18 @@ export default function BidJobCard({
                     size="small"
                     startIcon={<LinkIcon />}
                     variant="outlined"
-                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                    sx={{
+                      minHeight: 32,
+                      whiteSpace: 'nowrap',
+                      borderColor: '#38bdf8',
+                      color: '#075985',
+                      bgcolor: '#f0f9ff',
+                      fontWeight: 800,
+                      '&:hover': {
+                        borderColor: '#0284c7',
+                        bgcolor: '#e0f2fe',
+                      },
+                    }}
                   >
                     Update job link
                   </Button>
@@ -407,28 +445,32 @@ export default function BidJobCard({
                   </IconButton>
                 </Tooltip>
                 {showTailorAction ? (
-                  <Button
-                    disabled={isTailoring || hasTailoringRequest}
-                    onClick={() => onTailorResume(job)}
-                    size="small"
-                    startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
-                    variant="outlined"
-                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-                  >
-                    {tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor'}
-                  </Button>
+                  <Tooltip title={tailorActionLabel}>
+                    <Box component="span" sx={{ display: 'inline-flex' }}>
+                      <IconButton
+                        aria-label={tailorActionLabel}
+                        disabled={isTailoring || hasTailoringRequest}
+                        onClick={() => onTailorResume(job)}
+                        sx={iconButtonSx}
+                      >
+                        {isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
+                      </IconButton>
+                    </Box>
+                  </Tooltip>
                 ) : null}
                 {showRetailorAction ? (
-                  <Button
-                    disabled={isTailoring}
-                    onClick={() => onTailorResume(job)}
-                    size="small"
-                    startIcon={isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
-                    variant="outlined"
-                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-                  >
-                    Re-tailor
-                  </Button>
+                  <Tooltip title={retailorActionLabel}>
+                    <Box component="span" sx={{ display: 'inline-flex' }}>
+                      <IconButton
+                        aria-label={retailorActionLabel}
+                        disabled={isTailoring}
+                        onClick={() => onTailorResume(job)}
+                        sx={iconButtonSx}
+                      >
+                        {isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
+                      </IconButton>
+                    </Box>
+                  </Tooltip>
                 ) : null}
               </Stack>
             </Box>
@@ -509,6 +551,10 @@ function sourceKey(source) {
 
 function isEasyApplyMode(applyMode) {
   return /easy\s*apply/i.test(String(applyMode || ''));
+}
+
+function isExternalLinkMode(applyMode) {
+  return /external\s*link/i.test(String(applyMode || ''));
 }
 
 function externalUrlValidationError(value) {
