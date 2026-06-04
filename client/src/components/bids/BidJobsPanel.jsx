@@ -196,7 +196,17 @@ export default function BidJobsPanel() {
                 size="small"
                 startIcon={<AutoAwesomeIcon />}
                 variant="contained"
-                sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+                sx={{
+                  my: 0.75,
+                  minHeight: 34,
+                  whiteSpace: 'nowrap',
+                  bgcolor: '#2563eb',
+                  '&:hover': { bgcolor: '#1d4ed8' },
+                  '&.Mui-disabled': {
+                    bgcolor: '#bfdbfe',
+                    color: '#eff6ff',
+                  },
+                }}
               >
                 Tailor selected
               </Button>

@@ -32,6 +32,7 @@ export function buildJobQuery(query) {
   const spam = clean(query.spam || 'all');
   const visibility = clean(query.visibility || 'visible');
   const origin = clean(query.origin || 'all');
+  const applyMode = clean(query.applyMode || 'not_easy_apply');
   const sort = clean(query.sort || 'scraped_desc');
   const page = Math.max(Number(query.page || 1), 1);
   const limit = Math.min(Math.max(Number(query.limit || 50), 1), 100);
@@ -45,6 +46,7 @@ export function buildJobQuery(query) {
   if (spam === 'unreviewed') where.isSpam = { [Op.is]: null };
   applyVisibilityFilter(where, visibility);
   applyOriginFilter(where, origin);
+  applyApplyModeFilter(where, applyMode);
   if (since !== 'all') {
     const sinceDate = sinceToDate(since);
     if (sinceDate) where.postedAt = { [Op.gte]: sinceDate };
@@ -98,6 +100,51 @@ function applyOriginFilter(where, origin) {
   if (origin === 'scraped') {
     appendAndCondition(where, literal("COALESCE(raw_job->>'importType', '') <> 'manual'"));
   }
+}
+
+function applyApplyModeFilter(where, applyMode) {
+  const easyApplyCondition = easyApplySqlCondition();
+  if (applyMode === 'easy_apply') {
+    appendAndCondition(where, literal(easyApplyCondition));
+    return;
+  }
+
+  if (applyMode !== 'all') {
+    appendAndCondition(where, literal(`NOT (${easyApplyCondition})`));
+  }
+}
+
+function easyApplySqlCondition() {
+  return `
+    (
+      lower(coalesce(
+        raw_job->>'applyMode',
+        raw_job->>'apply_mode',
+        raw_job->>'applicationMode',
+        raw_job->>'application_mode',
+        raw_job->>'applyType',
+        raw_job->>'apply_type',
+        raw_job->>'applicationType',
+        raw_job->>'application_type',
+        raw_job->>'jobApplyType',
+        raw_job->>'job_apply_type',
+        raw_job->>'applyMethod',
+        raw_job->>'apply_method',
+        raw_job->>'applicationMethod',
+        raw_job->>'application_method',
+        ''
+      )) ~ 'easy[[:space:]]*apply|easyapply|linkedin_apply|in[_[:space:]-]?app|onsite'
+      OR lower(coalesce(
+        raw_job->>'easyApply',
+        raw_job->>'easy_apply',
+        raw_job->>'isEasyApply',
+        raw_job->>'is_easy_apply',
+        raw_job->>'easyApplyEnabled',
+        raw_job->>'easy_apply_enabled',
+        ''
+      )) = 'true'
+    )
+  `;
 }
 
 function appendAndCondition(where, condition) {

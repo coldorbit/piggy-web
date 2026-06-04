@@ -451,7 +451,7 @@ export default function BidJobCard({
                         aria-label={tailorActionLabel}
                         disabled={isTailoring || hasTailoringRequest}
                         onClick={() => onTailorResume(job)}
-                        sx={iconButtonSx}
+                        sx={tailorButtonSx}
                       >
                         {isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
                       </IconButton>
@@ -465,7 +465,7 @@ export default function BidJobCard({
                         aria-label={retailorActionLabel}
                         disabled={isTailoring}
                         onClick={() => onTailorResume(job)}
-                        sx={iconButtonSx}
+                        sx={tailorButtonSx}
                       >
                         {isTailoring ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />}
                       </IconButton>
@@ -518,6 +518,22 @@ const iconButtonSx = {
   borderColor: 'divider',
   '& .MuiSvgIcon-root': {
     fontSize: 18,
+  },
+};
+
+const tailorButtonSx = {
+  ...iconButtonSx,
+  borderColor: '#38bdf8',
+  bgcolor: '#eff6ff',
+  color: '#1d4ed8',
+  '&:hover': {
+    borderColor: '#2563eb',
+    bgcolor: '#dbeafe',
+  },
+  '&.Mui-disabled': {
+    borderColor: '#bfdbfe',
+    bgcolor: '#eff6ff',
+    color: '#60a5fa',
   },
 };
 

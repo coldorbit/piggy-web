@@ -11,6 +11,7 @@ export const DEFAULT_BID_FILTERS = {
   spam: 'all',
   visibility: 'visible',
   origin: 'all',
+  applyMode: 'not_easy_apply',
   sort: 'scraped_desc',
   page: 1,
   limit: 10,

@@ -24,7 +24,20 @@ import {
 } from '../lib/api.js';
 import { mergeKnownFilters, readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 
-const BID_FILTER_KEYS = ['search', 'roleFamily', 'source', 'appliedByUserId', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
+const BID_FILTER_KEYS = [
+  'search',
+  'roleFamily',
+  'source',
+  'appliedByUserId',
+  'since',
+  'spam',
+  'visibility',
+  'origin',
+  'applyMode',
+  'sort',
+  'page',
+  'limit',
+];
 const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters';
 const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.done]);
 
