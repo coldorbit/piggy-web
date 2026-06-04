@@ -7,7 +7,6 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import {
   Box,
-  Avatar,
   Button,
   Card,
   CardActions,
@@ -33,25 +32,6 @@ import { formatDate } from '../../lib/formatters.js';
 import { authUrl } from '../../lib/api.js';
 import { BID_TABS } from './bidConstants.js';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
-
-const SOURCE_CHIP_STYLES = {
-  builtin: { bgcolor: '#e8f2ff', color: '#174379' },
-  'built in': { bgcolor: '#e8f2ff', color: '#174379' },
-  diversityjobs: { bgcolor: '#fde9e5', color: '#8a2f1d' },
-  hiringcafe: { bgcolor: '#fff1d6', color: '#70400d' },
-  jobright: { bgcolor: '#e6f4ee', color: '#14583f' },
-  linkedin: { bgcolor: '#e5f1fb', color: '#075b8f' },
-  remotehunter: { bgcolor: '#edf0ff', color: '#343f91' },
-  remoteyeah: { bgcolor: '#e2f6f5', color: '#17615e' },
-  simplify: { bgcolor: '#f1eafb', color: '#4f357e' },
-};
-
-const SOURCE_CHIP_FALLBACKS = [
-  { bgcolor: '#f3f5f7', color: '#303942' },
-  { bgcolor: '#f8e0e7', color: '#7c263a' },
-  { bgcolor: '#e7ecf0', color: '#52606d' },
-  { bgcolor: '#f7ead1', color: '#70400d' },
-];
 
 const SOURCE_DOMAINS = {
   builtin: 'builtin.com',
@@ -100,7 +80,6 @@ export default function BidJobCard({
     : draft.status === 'planned'
       ? 'Not bid yet'
       : `Bid ${statusLabel(draft.status)}`;
-  const sourceChipSx = sourceChipStyles(job.source);
   const tailoredStatus = job.tailoredResume?.status || '';
   const showTailorAction = activeTab === BID_TABS.todo || tailoredStatus === 'dead_letter';
   const showRetailorAction = activeTab === BID_TABS.tailored && tailoredStatus === 'ready';
@@ -228,36 +207,47 @@ export default function BidJobCard({
                 alignItems: 'center',
               }}
             >
-              <Box minWidth={0} sx={{ display: 'grid', gap: 0.25 }}>
-                <Typography
-                  component="a"
-                  href={job.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  variant="body2"
-                  fontWeight={900}
-                  sx={{
-                    color: 'text.primary',
-                    display: 'inline-block',
-                    justifySelf: 'start',
-                    maxWidth: '100%',
-                    textDecoration: 'none',
-                    width: 'fit-content',
-                    '&:hover': { color: 'primary.main', textDecoration: 'underline' },
-                  }}
-                >
-                  {job.title || 'Untitled role'}
-                </Typography>
-                <Typography color="text.secondary" variant="caption" sx={{ display: 'block', mt: 0.45 }}>
-                  {job.company ? (
-                    <Box component="span" sx={{ color: 'text.primary', fontWeight: 800 }}>
-                      {job.company}
-                    </Box>
-                  ) : (
-                    'Unknown company'
-                  )}
-                  {job.location ? ` · ${job.location}` : null}
-                </Typography>
+              <Box
+                minWidth={0}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '44px minmax(0, 1fr)',
+                  gap: 1,
+                  alignItems: 'center',
+                }}
+              >
+                <SourceLogo source={job.source} sourceUrl={job.sourceUrl} />
+                <Box minWidth={0} sx={{ display: 'grid', gap: 0.25 }}>
+                  <Typography
+                    component="a"
+                    href={job.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    variant="body2"
+                    fontWeight={900}
+                    sx={{
+                      color: 'text.primary',
+                      display: 'inline-block',
+                      justifySelf: 'start',
+                      maxWidth: '100%',
+                      textDecoration: 'none',
+                      width: 'fit-content',
+                      '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+                    }}
+                  >
+                    {job.title || 'Untitled role'}
+                  </Typography>
+                  <Typography color="text.secondary" variant="caption" sx={{ display: 'block', mt: 0.45 }}>
+                    {job.company ? (
+                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 800 }}>
+                        {job.company}
+                      </Box>
+                    ) : (
+                      'Unknown company'
+                    )}
+                    {job.location ? ` · ${job.location}` : null}
+                  </Typography>
+                </Box>
               </Box>
               <Box
                 sx={{
@@ -276,7 +266,6 @@ export default function BidJobCard({
                     sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
                   />
                 ) : null}
-                <SourceChip source={job.source} sourceUrl={job.sourceUrl} sx={sourceChipSx} />
                 {job.applyMode && !isLinkedInJob ? <ApplyModeChip applyMode={job.applyMode} /> : null}
                 <Chip
                   label={formatDate(job.postedAt || job.scrapedAt)}
@@ -549,31 +538,26 @@ function isInteractiveTarget(target, cardElement) {
   return Boolean(interactiveElement && interactiveElement !== cardElement);
 }
 
-function SourceChip({ source, sourceUrl, sx }) {
+function SourceLogo({ source, sourceUrl }) {
+  const label = sourceLabel(source);
+
   return (
-    <Chip
-      avatar={<Avatar alt={`${source} logo`} src={sourceLogoUrl(source, sourceUrl)}>{sourceInitial(source)}</Avatar>}
-      label={source}
-      size="small"
-      sx={{
-        ...sx,
-        maxWidth: 132,
-        '& .MuiChip-label': {
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        },
-        '& .MuiChip-avatar': {
-          width: 18,
-          height: 18,
-          ml: 0.6,
-          mr: -0.35,
-          bgcolor: 'background.paper',
-          color: 'inherit',
-          fontSize: 10,
-          fontWeight: 900,
-        },
-      }}
-    />
+    <Tooltip title={label}>
+      <Box
+        component="img"
+        alt={`${label} logo`}
+        src={sourceLogoUrl(source, sourceUrl)}
+        sx={{
+          width: 40,
+          height: 40,
+          objectFit: 'contain',
+          flex: '0 0 auto',
+        }}
+        onError={(event) => {
+          event.currentTarget.style.display = 'none';
+        }}
+      />
+    </Tooltip>
   );
 }
 
@@ -596,20 +580,10 @@ function ApplyModeChip({ applyMode }) {
   );
 }
 
-function sourceChipStyles(source) {
-  const sourceKey = String(source || '').trim().toLowerCase();
-  const fallbackIndex = [...sourceKey].reduce((sum, char) => sum + char.charCodeAt(0), 0) % SOURCE_CHIP_FALLBACKS.length;
-
-  return {
-    ...(SOURCE_CHIP_STYLES[sourceKey] || SOURCE_CHIP_FALLBACKS[fallbackIndex]),
-    fontWeight: 800,
-  };
-}
-
 function sourceLogoUrl(source, sourceUrl) {
   const domain = domainFromUrl(sourceUrl) || SOURCE_DOMAINS[String(source || '').toLowerCase()];
   if (!domain) return '';
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
 }
 
 function domainFromUrl(value) {
@@ -621,6 +595,6 @@ function domainFromUrl(value) {
   }
 }
 
-function sourceInitial(source) {
-  return String(source || '?').trim().charAt(0).toUpperCase();
+function sourceLabel(source) {
+  return String(source || 'Unknown platform').trim() || 'Unknown platform';
 }
