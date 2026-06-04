@@ -162,13 +162,8 @@ export function formatJob(row) {
 
 function applyMode(source, rawJob) {
   const sourceKey = String(source || '').trim().toLowerCase();
-  if (sourceKey === 'jobright') return jobrightApplyMode(rawJob);
   if (sourceKey === 'linkedin') return linkedInApplyMode(rawJob);
   return null;
-}
-
-function jobrightApplyMode(rawJob) {
-  return clean(rawJob?.applyMode || rawJob?.apply_mode || rawJob?.applicationMode || rawJob?.application_mode) || null;
 }
 
 function linkedInApplyMode(rawJob) {
