@@ -51,7 +51,6 @@ export default function InterviewsPage({ currentUser }) {
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [drafts, setDrafts] = useState({});
-  const [draggedJobId, setDraggedJobId] = useState('');
   const [activeDropStage, setActiveDropStage] = useState('');
   const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
   const [manualInterview, setManualInterview] = useState(EMPTY_MANUAL_INTERVIEW);
@@ -157,19 +156,10 @@ export default function InterviewsPage({ currentUser }) {
     );
   }
 
-  function handleDragStart(event, job) {
-    setDraggedJobId(String(job.id));
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', String(job.id));
-  }
-
-  function handleDrop(event, stage) {
-    event.preventDefault();
-    const jobId = event.dataTransfer.getData('text/plain') || draggedJobId;
+  function handleDragEnd({ jobId, stage }) {
     const job = jobs.find((row) => String(row.id) === String(jobId));
-    setDraggedJobId('');
     setActiveDropStage('');
-    if (!job || !job.bid) return;
+    if (!stage || !job || !job.bid) return;
     if (interviewColumnValue(job, draftFor) === stage) return;
     const status = interviewStatusForColumn(stage);
     const interviewStage = interviewStageForColumn(stage, draftFor(job).interviewStage);
@@ -322,13 +312,8 @@ export default function InterviewsPage({ currentUser }) {
                   isDeleting={deletingInterview}
                   isSaving={updatingBid}
                   jobsByStage={jobsByStage}
-                  onDragEnd={() => {
-                    setDraggedJobId('');
-                    setActiveDropStage('');
-                  }}
-                  onDragEnter={setActiveDropStage}
-                  onDragStart={handleDragStart}
-                  onDrop={handleDrop}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={setActiveDropStage}
                   onDraftChange={updateDraft}
                   onDelete={handleDeleteInterview}
                   onSave={saveInterview}

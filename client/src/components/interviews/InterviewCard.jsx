@@ -1,3 +1,4 @@
+import { useDraggable } from '@dnd-kit/core';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
@@ -35,12 +36,15 @@ export default function InterviewCard({
   job,
   onDelete,
   onDraftChange,
-  onDragEnd,
-  onDragStart,
   onSave,
 }) {
   const owner = job.bid?.user?.username || (String(job.bid?.userId) === String(currentUser?.id) ? currentUser?.username : '');
   const jobUrl = externalJobUrl(job);
+  const { attributes, isDragging, listeners, setActivatorNodeRef, setNodeRef, transform } = useDraggable({
+    id: String(job.id),
+    data: { jobId: String(job.id) },
+    disabled: isSaving || isDeleting,
+  });
 
   function handleStageChange(event) {
     const interviewStage = event.target.value;
@@ -56,15 +60,15 @@ export default function InterviewCard({
 
   return (
     <Card
-      draggable
+      ref={setNodeRef}
       variant="outlined"
-      onDragEnd={onDragEnd}
-      onDragStart={onDragStart}
       sx={{
         borderLeft: `4px solid ${accent.main}`,
         boxShadow: 1,
-        cursor: 'grab',
-        '&:active': { cursor: 'grabbing' },
+        flexShrink: 0,
+        opacity: isDragging ? 0.72 : 1,
+        transform: transform ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)` : undefined,
+        zIndex: isDragging ? 3 : 'auto',
       }}
     >
       <CardContent sx={{ display: 'grid', gap: 1, p: 1, '&:last-child': { pb: 1 } }}>
@@ -111,7 +115,24 @@ export default function InterviewCard({
                 </IconButton>
               </Tooltip>
             ) : null}
-            <DragIndicatorIcon fontSize="small" color="action" />
+            <Box
+              ref={setActivatorNodeRef}
+              {...attributes}
+              {...listeners}
+              aria-label="Move interview"
+              role="button"
+              sx={{
+                alignItems: 'center',
+                cursor: isSaving || isDeleting ? 'default' : 'grab',
+                display: 'flex',
+                height: 28,
+                justifyContent: 'center',
+                width: 28,
+                '&:active': { cursor: isSaving || isDeleting ? 'default' : 'grabbing' },
+              }}
+            >
+              <DragIndicatorIcon fontSize="small" color="action" />
+            </Box>
           </Box>
         </Box>
 

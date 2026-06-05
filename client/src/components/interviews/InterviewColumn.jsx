@@ -1,3 +1,4 @@
+import { useDroppable } from '@dnd-kit/core';
 import { Box, Chip, Paper, Stack, Typography } from '@mui/material';
 import InterviewCard from './InterviewCard.jsx';
 
@@ -12,24 +13,20 @@ export default function InterviewColumn({
   isDeleting,
   isSaving,
   jobs,
-  onDragEnd,
-  onDragEnter,
-  onDragStart,
   onDraftChange,
   onDelete,
-  onDrop,
   onSave,
   stage,
 }) {
+  const { setNodeRef } = useDroppable({
+    id: stage.value,
+    data: { stage: stage.value },
+  });
+
   return (
     <Paper
+      ref={setNodeRef}
       variant="outlined"
-      onDragEnter={onDragEnter}
-      onDragOver={(event) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
-      }}
-      onDrop={onDrop}
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -83,8 +80,6 @@ export default function InterviewColumn({
             isDeleting={isDeleting}
             isSaving={isSaving}
             job={job}
-            onDragEnd={onDragEnd}
-            onDragStart={(event) => onDragStart(event, job)}
             onDelete={() => onDelete(job)}
             onDraftChange={(key, value) => onDraftChange(job, key, value)}
             onSave={(overrides) => onSave(job, overrides)}
