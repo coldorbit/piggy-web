@@ -1,6 +1,7 @@
 import {
   ensureWebModels,
   getBidProfileModel,
+  getInterviewModel,
   getJobBidModel,
   getProfileShareRequestModel,
   getScrapedJobModel,
@@ -10,7 +11,6 @@ import {
   repositories,
 } from '../../db.js';
 import { Readable } from 'node:stream';
-import { randomUUID } from 'node:crypto';
 import { Op } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../env.js';
@@ -123,7 +123,7 @@ export async function listCallers(req, res, next) {
     requireInternalUser(user, res);
     if (res.headersSent) return;
     const WebUser = getWebUserModel();
-    const JobBid = getJobBidModel();
+    const Interview = getInterviewModel();
     const ScrapedJob = getScrapedJobModel();
     const BidProfile = getBidProfileModel();
     const callers = await WebUser.findAll({
@@ -132,13 +132,13 @@ export async function listCallers(req, res, next) {
     });
     const callerIds = callers.map((caller) => caller.id);
     const assignments = callerIds.length
-      ? await JobBid.findAll({
+      ? await Interview.findAll({
           where: {
             callerUserId: { [Op.in]: callerIds },
             status: 'interviewing',
           },
           include: [
-            { model: ScrapedJob, as: 'job', required: true },
+            { model: ScrapedJob, as: 'job', required: false },
             { model: BidProfile, as: 'profile', required: true },
           ],
           order: [
@@ -217,7 +217,7 @@ export async function listBidders(req, res, next) {
       WHERE profile_share_requests.recipient_user_id IN (${bidderIdSql})
         AND profile_share_requests.status = 'accepted'
     `;
-    const [summaryRows, dailyRows, interviewRows] = await Promise.all([
+    const [summaryRows, dailyRows, interviewSummaryRows, interviewRows] = await Promise.all([
       sequelize.query(`
         WITH visible_profile_access AS (
           ${visibleProfileAccessSql}
@@ -226,10 +226,7 @@ export async function listBidders(req, res, next) {
           visible_profile_access.user_id,
           COUNT(*)::int AS total_applications,
           COUNT(*) FILTER (WHERE job_bids.bid_at >= now() - interval '7 days')::int AS weekly_applications,
-          COUNT(*) FILTER (WHERE job_bids.bid_at >= now() - interval '30 days')::int AS monthly_applications,
-          COUNT(*) FILTER (WHERE job_bids.status IN ('interviewing', 'won', 'lost'))::int AS interview_pass_through,
-          COUNT(*) FILTER (WHERE job_bids.status = 'won')::int AS won,
-          COUNT(*) FILTER (WHERE job_bids.status = 'lost')::int AS lost
+          COUNT(*) FILTER (WHERE job_bids.bid_at >= now() - interval '30 days')::int AS monthly_applications
         FROM job_bids
         JOIN visible_profile_access ON visible_profile_access.profile_id = job_bids.profile_id
         GROUP BY visible_profile_access.user_id
@@ -255,30 +252,42 @@ export async function listBidders(req, res, next) {
           ${visibleProfileAccessSql}
         )
         SELECT
-          job_bids.id,
           visible_profile_access.user_id,
-          job_bids.status,
-          job_bids.interview_stage,
-          job_bids.interview_next_at,
-          job_bids.updated_at,
-          scraped_jobs.id AS job_id,
-          scraped_jobs.title,
-          scraped_jobs.company,
-          scraped_jobs.location,
-          scraped_jobs.url,
+          COUNT(*)::int AS interview_pass_through,
+          COUNT(*) FILTER (WHERE interviews.status = 'won')::int AS won,
+          COUNT(*) FILTER (WHERE interviews.status = 'lost')::int AS lost
+        FROM interviews
+        JOIN visible_profile_access ON visible_profile_access.profile_id = interviews.profile_id
+        GROUP BY visible_profile_access.user_id
+      `),
+      sequelize.query(`
+        WITH visible_profile_access AS (
+          ${visibleProfileAccessSql}
+        )
+        SELECT
+          interviews.id,
+          visible_profile_access.user_id,
+          interviews.status,
+          interviews.interview_stage,
+          interviews.interview_next_at,
+          interviews.updated_at,
+          interviews.job_id,
+          interviews.title,
+          interviews.company,
+          interviews.location,
+          interviews.job_url AS url,
           bid_profiles.id AS profile_id,
           bid_profiles.name AS profile_name
-        FROM job_bids
-        JOIN visible_profile_access ON visible_profile_access.profile_id = job_bids.profile_id
-        JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
-        JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id
-        WHERE job_bids.status IN ('interviewing', 'won', 'lost')
-        ORDER BY job_bids.updated_at DESC
+        FROM interviews
+        JOIN visible_profile_access ON visible_profile_access.profile_id = interviews.profile_id
+        JOIN bid_profiles ON bid_profiles.id = interviews.profile_id
+        ORDER BY interviews.updated_at DESC
         LIMIT 200
       `),
     ]);
 
     const summaryByUserId = new Map(summaryRows[0].map((row) => [String(row.user_id), row]));
+    const interviewSummaryByUserId = new Map(interviewSummaryRows[0].map((row) => [String(row.user_id), row]));
     const dailyByUserId = buildDailyApplications(dailyRows[0]);
     const interviewsByUserId = new Map(bidderIds.map((id) => [String(id), []]));
     for (const row of interviewRows[0]) {
@@ -307,6 +316,7 @@ export async function listBidders(req, res, next) {
     res.json({
       bidders: visibleBidders.map((bidder) => {
         const summary = summaryByUserId.get(String(bidder.id)) || {};
+        const interviewSummary = interviewSummaryByUserId.get(String(bidder.id)) || {};
         return {
           id: bidder.id,
           username: bidder.username,
@@ -314,9 +324,9 @@ export async function listBidders(req, res, next) {
           totalApplications: Number(summary.total_applications || 0),
           weeklyApplications: Number(summary.weekly_applications || 0),
           monthlyApplications: Number(summary.monthly_applications || 0),
-          interviewPassThrough: Number(summary.interview_pass_through || 0),
-          won: Number(summary.won || 0),
-          lost: Number(summary.lost || 0),
+          interviewPassThrough: Number(interviewSummary.interview_pass_through || 0),
+          won: Number(interviewSummary.won || 0),
+          lost: Number(interviewSummary.lost || 0),
           dailyApplications: dailyByUserId.get(String(bidder.id)) || buildEmptyDailyApplications(),
           interviews: interviewsByUserId.get(String(bidder.id)) || [],
         };
@@ -529,18 +539,20 @@ export async function listBidJobs(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const profile = await accessibleProfile(req, req.query.profileId);
+    const bidTab = clean(req.query.bidTab || 'todo');
+    const canViewInternalData = isInternalUser(user);
+    if (bidTab === 'interviews') {
+      requireInternalUser(user, res);
+      if (res.headersSent) return;
+      await listInterviewJobs(req, res, { user, profile });
+      return;
+    }
     const ScrapedJob = getScrapedJobModel();
     const JobBid = getJobBidModel();
     const TailoredResume = getTailoredResumeModel();
     const WebUser = getWebUserModel();
     const sequelize = getSequelize();
     const { where, order: jobOrder, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
-    const bidTab = clean(req.query.bidTab || 'todo');
-    const canViewInternalData = isInternalUser(user);
-    if (bidTab === 'interviews') {
-      requireInternalUser(user, res);
-      if (res.headersSent) return;
-    }
     const bidUsers = await bidUsersForProfile(profile);
     const appliedByUserId = bidUserFilter(req.query.appliedByUserId, bidUsers);
     const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, appliedByUserId, JobBid, sequelize });
@@ -576,7 +588,7 @@ export async function listBidJobs(req, res, next) {
       countBidTab('todo'),
       countBidTab('tailored'),
       countBidTab('done'),
-      canViewInternalData ? countBidTab('interviews') : Promise.resolve(0),
+      canViewInternalData ? countInterviewsForProfile(profile.id) : Promise.resolve(0),
     ]);
 
     const tailoredResumesByUrl = await tailoredResumesForJobs({
@@ -615,6 +627,92 @@ export async function listBidJobs(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+async function listInterviewJobs(req, res, { user, profile }) {
+  const Interview = getInterviewModel();
+  const WebUser = getWebUserModel();
+  const { limit, offset } = paginationFromQuery(req.query);
+  const search = clean(req.query.search).toLowerCase();
+  const appliedByUserId = clean(req.query.appliedByUserId);
+  const where = {
+    profileId: profile.id,
+    ...(appliedByUserId && appliedByUserId !== 'all' ? { userId: appliedByUserId } : {}),
+    ...(search
+      ? {
+          [Op.or]: [
+            { title: { [Op.iLike]: `%${search}%` } },
+            { company: { [Op.iLike]: `%${search}%` } },
+            { location: { [Op.iLike]: `%${search}%` } },
+            { jobUrl: { [Op.iLike]: `%${search}%` } },
+            { interviewNotes: { [Op.iLike]: `%${search}%` } },
+          ],
+        }
+      : {}),
+  };
+  const [interviews, count, todoCount, tailoredCount, doneCount, interviewsCount, bidUsers, callerUsers] = await Promise.all([
+    Interview.findAll({
+      where,
+      order: [
+        ['interviewNextAt', 'ASC'],
+        ['updatedAt', 'DESC'],
+      ],
+      limit,
+      offset,
+    }),
+    Interview.count({ where }),
+    countBidTabForProfile({ profile, tab: 'todo', query: req.query }),
+    countBidTabForProfile({ profile, tab: 'tailored', query: req.query }),
+    countBidTabForProfile({ profile, tab: 'done', query: req.query }),
+    Interview.count({ where: { profileId: profile.id } }),
+    bidUsersForProfile(profile),
+    WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }),
+  ]);
+  const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
+  const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
+
+  res.json({
+    jobs: interviews.map((interview) => formatInterviewAsJob(interview, bidUsersById, callerUsersById)),
+    bidUsers,
+    callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
+    currentUser: { id: user.id, username: user.username },
+    total: count,
+    tabCounts: {
+      todo: todoCount,
+      tailored: tailoredCount,
+      done: doneCount,
+      interviews: interviewsCount,
+    },
+    limit,
+    offset,
+  });
+}
+
+async function countBidTabForProfile({ profile, tab, query }) {
+  const ScrapedJob = getScrapedJobModel();
+  const JobBid = getJobBidModel();
+  const sequelize = getSequelize();
+  const { where } = buildJobQuery({ ...query, bidTab: tab, profileId: profile.id, limit: query.limit || 10 });
+  const bidUsers = await bidUsersForProfile(profile);
+  const appliedByUserId = bidUserFilter(query.appliedByUserId, bidUsers);
+  const countQuery = buildBidTabQuery({ where, tab, profileId: profile.id, appliedByUserId, JobBid, sequelize });
+  return ScrapedJob.count({
+    where: countQuery.where,
+    distinct: true,
+    col: 'id',
+    subQuery: false,
+    include: countQuery.include,
+  });
+}
+
+function paginationFromQuery(query) {
+  const limit = Math.min(Math.max(Number(query.limit || 100), 1), 250);
+  const page = Math.max(Number(query.page || 1), 1);
+  return { limit, offset: (page - 1) * limit };
+}
+
+function countInterviewsForProfile(profileId) {
+  return getInterviewModel().count({ where: { profileId } });
 }
 
 function requireInternalUser(user, res) {
@@ -812,6 +910,9 @@ export async function createJobBid(req, res, next) {
       bidAt: now,
       updatedAt: now,
     });
+    if (['interviewing', 'won', 'lost'].includes(attrs.status)) {
+      await upsertInterviewForBid({ bid, job, attrs, userId: user.id });
+    }
     res.status(201).json({ bid: formatBid(bid) });
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -843,63 +944,22 @@ export async function createManualInterview(req, res, next) {
       return;
     }
 
-    const now = new Date();
-    const manualUrl = jobUrl || `manual-interview:${profile.id}:${randomUUID()}`;
     const attrs = bidAttributesFromBody({ ...req.body, status: 'interviewing' });
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (req.user?.role !== 'admin') delete attrs.callerUserId;
 
-    const ScrapedJob = getScrapedJobModel();
-    const JobBid = getJobBidModel();
-    const sequelize = getSequelize();
-    const { job, bid } = await sequelize.transaction(async (transaction) => {
-      const existingJob = jobUrl ? await ScrapedJob.findOne({ where: { url: jobUrl }, transaction }) : null;
-      const createdJob = existingJob || await ScrapedJob.create(
-        {
-          url: manualUrl,
-          duplicateKey: manualUrl,
-          source: 'Manual',
-          sourceUrl: null,
-          title,
-          company,
-          location: clean(req.body?.location) || null,
-          category: clean(req.body?.category) || null,
-          postedAt: now,
-          scrapedAt: now,
-          listingText: clean(req.body?.listingText || req.body?.notes || req.body?.interviewNotes) || null,
-          rawJob: {
-            importType: 'manual',
-            isManualImport: true,
-            manualInterview: true,
-            originalUrl: jobUrl || null,
-          },
-          isSpam: false,
-          isHidden: false,
-          firstSeenAt: now,
-          updatedAt: now,
-        },
-        { transaction },
-      );
-      const createdBid = await JobBid.create(
-        {
-          ...attrs,
-          userId: user.id,
-          profileId: profile.id,
-          jobId: createdJob.id,
-          bidAt: now,
-          updatedAt: now,
-        },
-        { transaction },
-      );
-      return { job: createdJob, bid: createdBid };
+    const interview = await getInterviewModel().create({
+      ...interviewValuesFromAttrs(attrs),
+      userId: user.id,
+      profileId: profile.id,
+      title,
+      company,
+      location: clean(req.body?.location) || null,
+      jobUrl: jobUrl || null,
     });
 
     res.status(201).json({
-      job: {
-        ...formatJob(job),
-        bid: formatBid(bid),
-        tailoredResume: null,
-      },
+      job: formatInterviewAsJob(interview),
     });
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -1203,7 +1263,44 @@ export async function updateJobBid(req, res, next) {
       delete attrs.callerUserId;
     }
     await bid.update({ ...attrs, updatedAt: new Date() });
+    if (['interviewing', 'won', 'lost'].includes(attrs.status)) {
+      const job = await getScrapedJobModel().findByPk(bid.jobId);
+      await upsertInterviewForBid({ bid, job, attrs, userId: bid.userId });
+    }
     res.json({ bid: formatBid(bid) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function updateInterview(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const interview = await getInterviewModel().findByPk(req.params.id);
+    if (!interview) {
+      res.status(404).json({ error: 'Interview not found' });
+      return;
+    }
+    const attrs = bidAttributesFromBody({ ...req.body, status: req.body?.status || interview.status });
+    if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
+    if (req.user?.role !== 'admin') {
+      await accessibleProfile(req, interview.profileId);
+      if (String(interview.userId) !== String(user.id)) {
+        res.status(404).json({ error: 'Interview not found' });
+        return;
+      }
+      delete attrs.callerUserId;
+    }
+    await interview.update({
+      ...interviewValuesFromAttrs(attrs),
+      updatedAt: new Date(),
+    });
+    if (interview.jobBidId) {
+      const bid = await getJobBidModel().findByPk(interview.jobBidId);
+      if (bid) await bid.update({ ...attrs, updatedAt: new Date() });
+    }
+    res.json({ bid: formatInterviewBid(interview) });
   } catch (error) {
     handleInputError(error, res, next);
   }
@@ -1225,7 +1322,86 @@ function formatCallerAssignment(row) {
     interviewNextAt: row.interviewNextAt,
     interviewNotes: row.interviewNotes,
     updatedAt: row.updatedAt,
-    job: row.job ? formatJob(row.job) : null,
+    job: row.job ? formatJob(row.job) : {
+      id: row.jobId,
+      title: row.title,
+      company: row.company,
+      location: row.location,
+      url: row.jobUrl,
+    },
     profile: row.profile ? formatProfile(row.profile) : null,
+  };
+}
+
+function interviewValuesFromAttrs(attrs) {
+  return {
+    callerUserId: attrs.callerUserId ?? null,
+    status: attrs.status || 'interviewing',
+    interviewStage: attrs.interviewStage || 'todo',
+    interviewNextAt: attrs.interviewNextAt || null,
+    interviewNotes: attrs.interviewNotes || null,
+  };
+}
+
+async function upsertInterviewForBid({ bid, job, attrs, userId }) {
+  if (!job) return null;
+  const values = {
+    ...interviewValuesFromAttrs(attrs),
+    userId,
+    profileId: bid.profileId,
+    jobId: bid.jobId,
+    jobBidId: bid.id,
+    title: job.title || 'Untitled role',
+    company: job.company || 'Unknown company',
+    location: job.location || null,
+    jobUrl: job.url || null,
+  };
+  const existing = await getInterviewModel().findOne({ where: { jobBidId: bid.id } });
+  if (existing) return existing.update(values);
+  return getInterviewModel().create(values);
+}
+
+function formatInterviewAsJob(interview, bidUsersById = new Map(), callerUsersById = new Map()) {
+  return {
+    id: `interview-${interview.id}`,
+    interviewId: interview.id,
+    title: interview.title,
+    company: interview.company,
+    location: interview.location,
+    url: interview.jobUrl,
+    source: interview.jobId ? 'Application' : 'Manual',
+    sourceUrl: interview.jobUrl,
+    listingText: interview.interviewNotes,
+    isSpam: false,
+    isHidden: false,
+    updatedAt: interview.updatedAt,
+    tailoredResume: null,
+    bid: formatInterviewBid(interview, bidUsersById, callerUsersById),
+  };
+}
+
+function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById = new Map()) {
+  const bidUser = bidUsersById.get?.(String(interview.userId));
+  const callerUser = callerUsersById.get?.(String(interview.callerUserId));
+  return {
+    id: interview.id,
+    isInterview: true,
+    userId: interview.userId,
+    callerUserId: interview.callerUserId,
+    profileId: interview.profileId,
+    jobId: interview.jobId,
+    jobBidId: interview.jobBidId,
+    status: interview.status,
+    bidAmount: null,
+    coverLetter: null,
+    notes: null,
+    interviewStage: interview.interviewStage,
+    interviewNextAt: interview.interviewNextAt,
+    interviewNotes: interview.interviewNotes,
+    bidAt: interview.createdAt,
+    createdAt: interview.createdAt,
+    updatedAt: interview.updatedAt,
+    ...(bidUser ? { user: { id: bidUser.id, username: bidUser.username, role: bidUser.role } } : {}),
+    ...(callerUser ? { callerUser } : {}),
   };
 }

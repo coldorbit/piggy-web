@@ -40,7 +40,7 @@ const EMPTY_MANUAL_INTERVIEW = {
   company: '',
   location: '',
   jobUrl: '',
-  interviewStage: 'screening',
+  interviewStage: 'todo',
   interviewNextAt: '',
   callerUserId: '',
   interviewNotes: '',

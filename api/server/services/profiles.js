@@ -1,5 +1,6 @@
 import {
   getBidProfileModel,
+  getInterviewModel,
   getJobBidModel,
   getProfileShareRequestModel,
   getSequelize,
@@ -86,7 +87,7 @@ export async function profilesWithProgress(profiles) {
   const profileIds = [...new Set(profiles.map((profile) => String(profile.id)).filter(Boolean))];
   if (!profileIds.length) return profiles;
 
-  const [bidRows, tailoredRows] = await Promise.all([
+  const [bidRows, tailoredRows, interviewRows] = await Promise.all([
     getJobBidModel().findAll({
       attributes: [
         'profileId',
@@ -105,20 +106,6 @@ export async function profilesWithProgress(profiles) {
           ),
           'done',
         ],
-        [
-          getSequelize().fn(
-            'SUM',
-            getSequelize().literal("CASE WHEN status IN ('interviewing', 'won', 'lost') THEN 1 ELSE 0 END"),
-          ),
-          'totalInterviews',
-        ],
-        [
-          getSequelize().fn(
-            'SUM',
-            getSequelize().literal("CASE WHEN status = 'interviewing' THEN 1 ELSE 0 END"),
-          ),
-          'activeInterviews',
-        ],
       ],
       where: { profileId: profileIds },
       group: ['profileId'],
@@ -133,6 +120,22 @@ export async function profilesWithProgress(profiles) {
         profileId: profileIds,
         status: ['requested', 'processing', 'ready', 'dead_letter'],
       },
+      group: ['profileId'],
+      raw: true,
+    }),
+    getInterviewModel().findAll({
+      attributes: [
+        'profileId',
+        [getSequelize().fn('COUNT', getSequelize().col('id')), 'totalInterviews'],
+        [
+          getSequelize().fn(
+            'SUM',
+            getSequelize().literal("CASE WHEN status = 'interviewing' THEN 1 ELSE 0 END"),
+          ),
+          'activeInterviews',
+        ],
+      ],
+      where: { profileId: profileIds },
       group: ['profileId'],
       raw: true,
     }),
@@ -158,14 +161,19 @@ export async function profilesWithProgress(profiles) {
     progress.bids = Number(row.bids || 0);
     progress.planned = Number(row.planned || 0);
     progress.done = Number(row.done || 0);
-    progress.totalInterviews = Number(row.totalInterviews || 0);
-    progress.activeInterviews = Number(row.activeInterviews || 0);
   }
 
   for (const row of tailoredRows) {
     const progress = progressByProfileId.get(String(row.profileId));
     if (!progress) continue;
     progress.tailored = Number(row.tailored || 0);
+  }
+
+  for (const row of interviewRows) {
+    const progress = progressByProfileId.get(String(row.profileId));
+    if (!progress) continue;
+    progress.totalInterviews = Number(row.totalInterviews || 0);
+    progress.activeInterviews = Number(row.activeInterviews || 0);
   }
 
   for (const profile of profiles) {

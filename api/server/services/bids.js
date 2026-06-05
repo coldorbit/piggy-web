@@ -294,9 +294,9 @@ export function bidAttributesFromBody(body) {
   const callerUserId = hasCallerUserId ? clean(body?.callerUserId) : '';
   const interviewStage = normalizeInterviewStage(clean(body?.interviewStage));
   const interviewNextAt = clean(body?.interviewNextAt);
-  const allowedInterviewStages = new Set(['', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
+  const allowedInterviewStages = new Set(['', 'todo', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
   const allowedStatuses = new Set(['planned', 'submitted', 'interviewing', 'won', 'lost']);
-  const normalizedInterviewStage = status === 'interviewing' && !interviewStage ? 'screening' : interviewStage;
+  const normalizedInterviewStage = status === 'interviewing' && !interviewStage ? 'todo' : interviewStage;
 
   if (!allowedStatuses.has(status)) throw new InputError('Choose a valid bid status');
   if (bidAmount && Number.isNaN(Number(bidAmount))) throw new InputError('Bid amount must be a number');

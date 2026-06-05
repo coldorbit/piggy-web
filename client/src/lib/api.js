@@ -635,6 +635,7 @@ function optimisticBid({ id, jobId, bidData }) {
   const now = new Date().toISOString();
   return {
     id: id || `optimistic-${jobId}`,
+    isInterview: Boolean(bidData?.isInterview),
     profileId: bidData?.profileId,
     jobId,
     status: bidData?.status || 'planned',
@@ -841,7 +842,7 @@ export function useUpdateJobBid() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ bidId, bidData }) =>
-      api(`/api/bid/applications/${bidId}`, {
+      api(`/api/bid/${bidData?.isInterview ? 'interviews' : 'applications'}/${bidId}`, {
         method: 'PATCH',
         body: JSON.stringify(bidData),
       }).then((data) => data.bid),

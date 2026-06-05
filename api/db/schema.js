@@ -2,6 +2,7 @@ import { DataTypes } from 'sequelize';
 import { getSequelize } from './connection.js';
 import {
   getBidProfileModel,
+  getInterviewModel,
   getJobBidModel,
   getProfileShareRequestModel,
   getScrapedJobModel,
@@ -27,6 +28,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await getBidProfileModel().sync();
       await getProfileShareRequestModel().sync();
       await getJobBidModel().sync();
+      await getInterviewModel().sync();
       await getTailoredResumeModel().sync();
       await ensureWebUserSessionColumns();
       await ensureBidProfileColumns();
@@ -40,6 +42,8 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await ensureBidPageIndexes();
       await ensureProfileShareIndexes();
       await ensureJobBidProfileScopedUniqueness();
+      await ensureInterviewIndexes();
+      await backfillInterviewsFromJobBids();
     })().catch((error) => {
       initializationPromise = undefined;
       throw error;
@@ -47,6 +51,68 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
   }
 
   await initializationPromise;
+}
+
+async function ensureInterviewIndexes() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS interviews_job_bid_id_unique
+    ON interviews (job_bid_id)
+    WHERE job_bid_id IS NOT NULL
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interviews_profile_status_next_at_idx
+    ON interviews (profile_id, status, interview_next_at ASC NULLS LAST)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interviews_caller_status_idx
+    ON interviews (caller_user_id, status)
+  `);
+}
+
+async function backfillInterviewsFromJobBids() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    INSERT INTO interviews (
+      user_id,
+      caller_user_id,
+      profile_id,
+      job_id,
+      job_bid_id,
+      title,
+      company,
+      location,
+      job_url,
+      status,
+      interview_stage,
+      interview_next_at,
+      interview_notes,
+      created_at,
+      updated_at
+    )
+    SELECT
+      job_bids.user_id,
+      job_bids.caller_user_id,
+      job_bids.profile_id,
+      job_bids.job_id,
+      job_bids.id,
+      COALESCE(NULLIF(scraped_jobs.title, ''), 'Untitled role'),
+      COALESCE(NULLIF(scraped_jobs.company, ''), 'Unknown company'),
+      scraped_jobs.location,
+      scraped_jobs.url,
+      job_bids.status,
+      COALESCE(NULLIF(job_bids.interview_stage, ''), 'todo'),
+      job_bids.interview_next_at,
+      job_bids.interview_notes,
+      job_bids.created_at,
+      job_bids.updated_at
+    FROM job_bids
+    JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+    WHERE job_bids.status IN ('interviewing', 'won', 'lost')
+    ON CONFLICT (job_bid_id) WHERE job_bid_id IS NOT NULL DO NOTHING
+  `);
 }
 
 async function runTailoredResumeFilePathBackfill() {

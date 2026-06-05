@@ -28,6 +28,7 @@ export const DONE_STATUSES = new Set(['submitted', 'won', 'lost']);
 export const INTERVIEW_STATUSES = new Set(['interviewing']);
 
 export const INTERVIEW_STAGES = [
+  { value: 'todo', label: 'Todo' },
   { value: 'screening', label: 'Screening' },
   { value: 'hiring_manager', label: 'Hiring Manager' },
   { value: 'technical_interview', label: 'Technical Interview' },

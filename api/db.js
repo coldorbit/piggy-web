@@ -1,6 +1,7 @@
 export { getSequelize } from './db/connection.js';
 export {
   getBidProfileModel,
+  getInterviewModel,
   getJobBidModel,
   getProfileShareRequestModel,
   getScrapedJobModel,
