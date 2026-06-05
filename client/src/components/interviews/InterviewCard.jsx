@@ -63,7 +63,9 @@ export default function InterviewCard({
   function handlePointerDown(event) {
     if (event.target.closest(INTERACTIVE_SELECTOR)) {
       event.stopPropagation();
+      return;
     }
+    dragListeners.onPointerDown?.(event);
   }
 
   return (
