@@ -7,9 +7,9 @@ import {
   getTailoredResumeModel,
   getWebUserModel,
   repositories,
-} from '../../db.js';
-import { clean } from '../utils/index.js';
-import { InputError, NotFoundError } from '../utils/errors.js';
+} from '../../../../db.js';
+import { clean } from '../../../utils/index.js';
+import { InputError, NotFoundError } from '../../../utils/errors.js';
 
 export async function currentDbUser(req) {
   const user = await repositories.findUserByUsername(req.user.username);

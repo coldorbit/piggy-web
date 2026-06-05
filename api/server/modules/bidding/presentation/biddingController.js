@@ -10,12 +10,12 @@ import {
   getTailoredResumeModel,
   getWebUserModel,
   repositories,
-} from '../../db.js';
+} from '../../../../db.js';
 import { Readable } from 'node:stream';
 import { Op } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { ENV } from '../../env.js';
-import { hashPassword, publicUser } from '../../auth.js';
+import { ENV } from '../../../../env.js';
+import { hashPassword, publicUser } from '../../../../auth.js';
 import {
   bidAttributesFromBody,
   buildBidTabQuery,
@@ -23,8 +23,8 @@ import {
   formatBid,
   formatTailoredResume,
   tailoredResumesForJobs,
-} from '../services/bids.js';
-import { buildJobQuery, formatJob } from '../services/jobs.js';
+} from '../application/biddingService.js';
+import { buildJobQuery, formatJob } from '../../jobs/application/jobsService.js';
 import {
   accessibleProfile,
   currentDbUser,
@@ -36,11 +36,11 @@ import {
   profilesVisibleToUser,
   profilesWithProgress,
   profilesWithSharing,
-} from '../services/profiles.js';
-import { enqueueTailoredResumeRequest } from '../services/tailoringQueue.js';
-import { userAttributesFromBody } from '../services/users.js';
-import { clean } from '../utils/index.js';
-import { handleInputError, handleUserWriteError, NotFoundError } from '../utils/errors.js';
+} from '../application/profilesService.js';
+import { enqueueTailoredResumeRequest } from '../application/tailoringQueueService.js';
+import { userAttributesFromBody } from '../../admin/application/usersService.js';
+import { clean } from '../../../utils/index.js';
+import { handleInputError, handleUserWriteError, NotFoundError } from '../../../utils/errors.js';
 
 export async function listProfiles(req, res, next) {
   try {

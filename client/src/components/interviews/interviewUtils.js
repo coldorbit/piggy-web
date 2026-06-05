@@ -1,4 +1,5 @@
 import { DEFAULT_BID_FILTERS, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../bids/bidConstants.js';
+import { toDefaultTimezoneDatetimeLocal } from '../../lib/timezone.js';
 
 export const INTERVIEW_FILTERS = {
   ...DEFAULT_BID_FILTERS,
@@ -48,9 +49,5 @@ export function canonicalInterviewStage(value) {
 }
 
 export function toDatetimeLocalValue(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return localDate.toISOString().slice(0, 16);
+  return toDefaultTimezoneDatetimeLocal(value);
 }

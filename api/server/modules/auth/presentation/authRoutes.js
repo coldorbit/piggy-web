@@ -1,4 +1,4 @@
-import { login, logout, me } from '../controllers/auth.js';
+import { login, logout, me } from './authController.js';
 
 export function registerAuthRoutes(app) {
   app.post('/api/login', login);

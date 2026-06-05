@@ -1,4 +1,4 @@
-import { requireAuth } from '../../auth.js';
+import { requireAuth } from '../../../middleware/authMiddleware.js';
 import {
   deleteJob,
   getMeta,
@@ -8,7 +8,7 @@ import {
   markJobSpam,
   markLinkedInEasyApply,
   updateLinkedInExternalUrl,
-} from '../controllers/jobs.js';
+} from './jobsController.js';
 
 export function registerJobRoutes(app) {
   app.get('/api/jobs', requireAuth, listJobs);

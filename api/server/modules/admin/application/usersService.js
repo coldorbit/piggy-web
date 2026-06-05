@@ -1,5 +1,5 @@
-import { clean } from '../utils/index.js';
-import { InputError } from '../utils/errors.js';
+import { clean } from '../../../utils/index.js';
+import { InputError } from '../../../utils/errors.js';
 
 export function userAttributesFromBody(body, { requirePassword }) {
   const username = clean(body?.username).toLowerCase();

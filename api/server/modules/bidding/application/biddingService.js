@@ -1,9 +1,9 @@
 import { Op, Sequelize } from 'sequelize';
 import axios from 'axios';
-import { ENV } from '../../env.js';
-import { formatJob } from './jobs.js';
-import { InputError } from '../utils/errors.js';
-import { clean } from '../utils/index.js';
+import { ENV } from '../../../../env.js';
+import { formatJob } from '../../jobs/application/jobsService.js';
+import { InputError } from '../../../utils/errors.js';
+import { clean } from '../../../utils/index.js';
 
 export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', JobBid, sequelize }) {
   const tabWhere = { ...where };

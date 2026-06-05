@@ -8,7 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
-import { formatDate, formatDateTime } from '../../lib/formatters.js';
+import { formatDate, formatDateTime, formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 
 const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="combobox"], .MuiSelect-select';
 
@@ -122,7 +122,7 @@ export default function InterviewCard({
         <Box sx={chipRowSx}>
           <Chip
             icon={<CalendarMonthIcon />}
-            label={draft.interviewNextAt ? formatDateTime(draft.interviewNextAt) : 'No next date'}
+            label={draft.interviewNextAt ? formatDateTimeInDefaultTimezone(draft.interviewNextAt) : 'No next date'}
             size="small"
             sx={{ ...chipSx, bgcolor: '#ECFDF5', color: '#0F766E', '& .MuiChip-icon': { color: '#0F766E' } }}
           />

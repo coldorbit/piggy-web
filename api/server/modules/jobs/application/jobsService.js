@@ -1,6 +1,6 @@
 import { literal, Op } from 'sequelize';
-import { clean } from '../utils/index.js';
-import { InputError } from '../utils/errors.js';
+import { clean } from '../../../utils/index.js';
+import { InputError } from '../../../utils/errors.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],

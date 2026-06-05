@@ -1,5 +1,5 @@
-import { requireAdmin } from '../../auth.js';
-import { createUser, deleteUser, listUsers, updateUser } from '../controllers/admin.js';
+import { requireAdmin } from '../../../middleware/authMiddleware.js';
+import { createUser, deleteUser, listUsers, updateUser } from './adminController.js';
 
 export function registerAdminRoutes(app) {
   app.get('/api/admin/users', requireAdmin, listUsers);

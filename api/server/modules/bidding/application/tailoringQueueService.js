@@ -12,9 +12,9 @@ import {
   getScrapedJobModel,
   getTailoredResumeModel,
   repositories,
-} from '../../db.js';
-import { ENV } from '../../env.js';
-import { formatTailoredResume, generateTailoredResumeWithService } from './bids.js';
+} from '../../../../db.js';
+import { ENV } from '../../../../env.js';
+import { formatTailoredResume, generateTailoredResumeWithService } from './biddingService.js';
 
 const events = new EventEmitter();
 const MAX_ATTEMPTS = 3;

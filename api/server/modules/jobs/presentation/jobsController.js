@@ -1,4 +1,4 @@
-import { ensureWebModels, getJobBidModel, getScrapedJobModel, getSequelize, getTailoredResumeModel } from '../../db.js';
+import { ensureWebModels, getJobBidModel, getScrapedJobModel, getSequelize, getTailoredResumeModel } from '../../../../db.js';
 import { Op } from 'sequelize';
 import {
   buildJobQuery,
@@ -8,9 +8,9 @@ import {
   parseHiddenState,
   parseSpamReview,
   validJobUrl,
-} from '../services/jobs.js';
-import { InputError } from '../utils/errors.js';
-import { clean } from '../utils/index.js';
+} from '../application/jobsService.js';
+import { InputError } from '../../../utils/errors.js';
+import { clean } from '../../../utils/index.js';
 
 export async function listJobs(req, res, next) {
   try {

@@ -2,11 +2,8 @@ import express from 'express';
 import http from 'node:http';
 import { ensureWebModels } from './db.js';
 import { ENV } from './env.js';
-import { registerAdminRoutes } from './server/routes/admin.js';
-import { registerAuthRoutes } from './server/routes/auth.js';
-import { registerBidRoutes } from './server/routes/bids.js';
-import { registerJobRoutes } from './server/routes/jobs.js';
-import { startTailoringQueueWorker } from './server/services/tailoringQueue.js';
+import { requestLogger } from './server/middleware/requestLogger.js';
+import { registerApiRoutes, startModuleWorkers } from './server/modules/index.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -26,12 +23,10 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(requestLogger);
 app.use(express.json({ limit: '5mb' }));
 
-registerAuthRoutes(app);
-registerAdminRoutes(app);
-registerJobRoutes(app);
-registerBidRoutes(app);
+registerApiRoutes(app);
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
@@ -43,7 +38,7 @@ app.use((error, _req, res, _next) => {
 });
 
 await ensureWebModels();
-startTailoringQueueWorker();
+startModuleWorkers();
 
 const port = ENV.WEB_PORT;
 server.listen(port, '0.0.0.0', () => {

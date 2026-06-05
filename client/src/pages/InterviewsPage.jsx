@@ -37,6 +37,7 @@ import {
 } from '../components/interviews/interviewUtils.js';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { useBidJobs, useBidProfiles, useCreateManualInterview, useDeleteInterview, useUpdateJobBid } from '../lib/api.js';
+import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
 const EMPTY_MANUAL_INTERVIEW = {
   title: '',
@@ -200,7 +201,7 @@ export default function InterviewsPage({ currentUser }) {
       {
         ...manualInterview,
         profileId: activeProfile.id,
-        interviewNextAt: manualInterview.interviewNextAt ? new Date(manualInterview.interviewNextAt).toISOString() : '',
+        interviewNextAt: fromDefaultTimezoneDatetimeLocal(manualInterview.interviewNextAt),
       },
       {
         onSuccess: closeManualDialog,
@@ -396,7 +397,7 @@ export default function InterviewsPage({ currentUser }) {
                 </Select>
               </FormControl>
               <TextField
-                label="Next interview"
+                label={`Next interview (${DEFAULT_TIME_ZONE_LABEL})`}
                 type="datetime-local"
                 value={toDatetimeLocalValue(manualInterview.interviewNextAt)}
                 onChange={(event) => setManualInterview((current) => ({ ...current, interviewNextAt: event.target.value }))}
@@ -509,11 +510,11 @@ export default function InterviewsPage({ currentUser }) {
                   </Select>
                 </FormControl>
                 <TextField
-                  label="Next interview"
+                  label={`Next interview (${DEFAULT_TIME_ZONE_LABEL})`}
                   size="small"
                   type="datetime-local"
                   value={toDatetimeLocalValue(selectedDraft.interviewNextAt)}
-                  onChange={(event) => updateDraft(selectedJob, 'interviewNextAt', event.target.value ? new Date(event.target.value).toISOString() : '')}
+                  onChange={(event) => updateDraft(selectedJob, 'interviewNextAt', fromDefaultTimezoneDatetimeLocal(event.target.value))}
                   disabled={updatingBid || !canEditInterviews}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />

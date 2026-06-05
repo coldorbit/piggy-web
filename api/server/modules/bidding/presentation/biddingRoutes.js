@@ -1,4 +1,4 @@
-import { requireAuth } from '../../auth.js';
+import { requireAuth } from '../../../middleware/authMiddleware.js';
 import {
   createJobBid,
   createCaller,
@@ -21,8 +21,8 @@ import {
   updateInterview,
   updateProfile,
   updateProfileStatus,
-} from '../controllers/bids.js';
-import { subscribeTailoredResumeEvents } from '../services/tailoringQueue.js';
+} from './biddingController.js';
+import { subscribeTailoredResumeEvents } from '../application/tailoringQueueService.js';
 
 export function registerBidRoutes(app) {
   app.get('/api/bid/profiles', requireAuth, listProfiles);

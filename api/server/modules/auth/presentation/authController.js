@@ -3,7 +3,7 @@ import {
   clearActiveSession,
   createLoginSession,
   readValidSession,
-} from '../../auth.js';
+} from '../../../../auth.js';
 
 export async function login(req, res, next) {
   try {

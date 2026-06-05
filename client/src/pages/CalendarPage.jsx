@@ -21,7 +21,19 @@ import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearch
 import { INTERVIEW_FILTERS } from '../components/interviews/interviewUtils.js';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { api, useBidProfiles } from '../lib/api.js';
-import { formatDate, formatDateTime } from '../lib/formatters.js';
+import { formatDateInDefaultTimezone, formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
+import {
+  DEFAULT_TIME_ZONE_LABEL,
+  addDaysToDateKey,
+  addMonthsToDateKey,
+  dateKeyDay,
+  dateKeyDayOfWeek,
+  dateKeyMonth,
+  defaultTimezoneDateKey,
+  defaultTimezoneTodayKey,
+  monthLabelForDateKey,
+  timeLabelInDefaultTimezone,
+} from '../lib/timezone.js';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CALENDAR_VIEWS = {
@@ -31,7 +43,7 @@ const CALENDAR_VIEWS = {
 
 export default function CalendarPage({ currentUser }) {
   const [view, setView] = useState(CALENDAR_VIEWS.month);
-  const [cursorDate, setCursorDate] = useState(() => startOfDay(new Date()));
+  const [cursorDate, setCursorDate] = useState(() => defaultTimezoneTodayKey());
   const [search, setSearch] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
@@ -79,7 +91,7 @@ export default function CalendarPage({ currentUser }) {
   const scheduledCount = events.length;
 
   function moveCursor(direction) {
-    setCursorDate((current) => (view === CALENDAR_VIEWS.week ? addDays(current, direction * 7) : addMonths(current, direction)));
+    setCursorDate((current) => (view === CALENDAR_VIEWS.week ? addDaysToDateKey(current, direction * 7) : addMonthsToDateKey(current, direction)));
   }
 
   return (
@@ -112,7 +124,7 @@ export default function CalendarPage({ currentUser }) {
           </Tooltip>
           <Button
             startIcon={<TodayIcon />}
-            onClick={() => setCursorDate(startOfDay(new Date()))}
+            onClick={() => setCursorDate(defaultTimezoneTodayKey())}
             variant="outlined"
             sx={{ whiteSpace: 'nowrap' }}
           >
@@ -124,7 +136,7 @@ export default function CalendarPage({ currentUser }) {
               {rangeLabel}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {scheduledCount.toLocaleString()} scheduled interviews
+              {scheduledCount.toLocaleString()} scheduled interviews · {DEFAULT_TIME_ZONE_LABEL}
             </Typography>
           </Box>
         </Box>
@@ -214,10 +226,10 @@ export default function CalendarPage({ currentUser }) {
         >
           {visibleDays.map((day) => (
             <CalendarDay
-              key={day.toISOString()}
+              key={day}
               day={day}
-              events={eventsByDay.get(dayKey(day)) || []}
-              isCurrentMonth={day.getMonth() === cursorDate.getMonth()}
+              events={eventsByDay.get(day) || []}
+              isCurrentMonth={dateKeyMonth(day) === dateKeyMonth(cursorDate)}
               isMonthView={view === CALENDAR_VIEWS.month}
             />
           ))}
@@ -228,7 +240,7 @@ export default function CalendarPage({ currentUser }) {
 }
 
 function CalendarDay({ day, events, isCurrentMonth, isMonthView }) {
-  const isToday = sameDay(day, new Date());
+  const isToday = day === defaultTimezoneTodayKey();
   const displayedEvents = isMonthView ? events.slice(0, 4) : events;
   const hiddenCount = events.length - displayedEvents.length;
 
@@ -259,7 +271,7 @@ function CalendarDay({ day, events, isCurrentMonth, isMonthView }) {
             fontWeight: isToday ? 900 : 700,
           }}
         >
-          {day.getDate()}
+          {dateKeyDay(day)}
         </Typography>
         {events.length ? (
           <Typography variant="caption" color="text.secondary">
@@ -284,7 +296,7 @@ function CalendarDay({ day, events, isCurrentMonth, isMonthView }) {
 function CalendarEvent({ event }) {
   const color = PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   return (
-    <Tooltip title={`${formatDateTime(event.startsAt)} · ${event.title} · ${event.profile?.name || 'Profile'}`}>
+    <Tooltip title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${event.title} · ${event.profile?.name || 'Profile'}`}>
       <Box
         sx={{
           minWidth: 0,
@@ -350,63 +362,41 @@ function fetchProfileInterviews(profileId) {
 function groupEventsByDay(events) {
   const grouped = new Map();
   events.forEach((event) => {
-    const key = dayKey(event.startsAt);
+    const key = defaultTimezoneDateKey(event.startsAt);
     grouped.set(key, [...(grouped.get(key) || []), event]);
   });
   return grouped;
 }
 
-function monthDays(date) {
-  const first = new Date(date.getFullYear(), date.getMonth(), 1);
-  const start = startOfWeek(first);
+function monthDays(dateKey) {
+  const start = startOfWeek(`${dateKeyMonth(dateKey)}-01`);
   return Array.from({ length: 42 }, (_item, index) => addDays(start, index));
 }
 
-function weekDays(date) {
-  const start = startOfWeek(date);
+function weekDays(dateKey) {
+  const start = startOfWeek(dateKey);
   return Array.from({ length: 7 }, (_item, index) => addDays(start, index));
 }
 
-function startOfWeek(date) {
-  const day = startOfDay(date);
-  return addDays(day, -day.getDay());
+function startOfWeek(dateKey) {
+  return addDays(dateKey, -dateKeyDayOfWeek(dateKey));
 }
 
-function startOfDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function addDays(dateKey, days) {
+  return addDaysToDateKey(dateKey, days);
 }
 
-function addDays(date, days) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function addMonths(date, months) {
-  const next = new Date(date);
-  next.setMonth(next.getMonth() + months);
-  return next;
-}
-
-function dayKey(date) {
-  return startOfDay(date).toISOString().slice(0, 10);
-}
-
-function sameDay(left, right) {
-  return dayKey(left) === dayKey(right);
-}
-
-function monthLabel(date) {
-  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+function monthLabel(dateKey) {
+  return monthLabelForDateKey(dateKey);
 }
 
 function weekRangeLabel(date) {
   const days = weekDays(date);
-  return `${formatDate(days[0])} - ${formatDate(days[6])}`;
+  return `${formatDateInDefaultTimezone(days[0])} - ${formatDateInDefaultTimezone(days[6])}`;
 }
 
 function timeLabel(date) {
-  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return timeLabelInDefaultTimezone(date);
 }
 
 const calendarIconButtonSx = {

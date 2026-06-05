@@ -1,7 +1,7 @@
-import { ensureDefaultUsers, hashPassword, publicUser } from '../../auth.js';
-import { getWebUserModel, repositories } from '../../db.js';
-import { userAttributesFromBody } from '../services/users.js';
-import { handleUserWriteError } from '../utils/errors.js';
+import { ensureDefaultUsers, hashPassword, publicUser } from '../../../../auth.js';
+import { getWebUserModel, repositories } from '../../../../db.js';
+import { userAttributesFromBody } from '../application/usersService.js';
+import { handleUserWriteError } from '../../../utils/errors.js';
 
 export async function listUsers(_req, res, next) {
   try {
