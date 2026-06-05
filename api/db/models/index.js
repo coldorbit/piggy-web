@@ -1,4 +1,5 @@
 export { getBidProfileModel } from './bidProfile.js';
+export { getInterviewLogModel } from './interviewLog.js';
 export { getInterviewModel } from './interview.js';
 export { getJobBidModel } from './jobBid.js';
 export { getProfileShareRequestModel } from './profileShareRequest.js';
@@ -7,6 +8,7 @@ export { getTailoredResumeModel } from './tailoredResume.js';
 export { getWebUserModel } from './webUser.js';
 
 import { getBidProfileModel } from './bidProfile.js';
+import { getInterviewLogModel } from './interviewLog.js';
 import { getInterviewModel } from './interview.js';
 import { getJobBidModel } from './jobBid.js';
 import { getProfileShareRequestModel } from './profileShareRequest.js';
@@ -18,6 +20,7 @@ export function setupWebAssociations() {
   const WebUserModel = getWebUserModel();
   const ScrapedJobModel = getScrapedJobModel();
   const BidProfileModel = getBidProfileModel();
+  const InterviewLogModel = getInterviewLogModel();
   const InterviewModel = getInterviewModel();
   const JobBidModel = getJobBidModel();
   const ProfileShareRequestModel = getProfileShareRequestModel();
@@ -31,6 +34,8 @@ export function setupWebAssociations() {
   JobBidModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
   BidProfileModel.hasMany(InterviewModel, { foreignKey: 'profileId', as: 'interviews' });
   InterviewModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  InterviewModel.hasMany(InterviewLogModel, { foreignKey: 'interviewId', as: 'logs' });
+  InterviewLogModel.belongsTo(InterviewModel, { foreignKey: 'interviewId', as: 'interview' });
   BidProfileModel.hasMany(TailoredResumeModel, { foreignKey: 'profileId', as: 'tailoredResumes' });
   TailoredResumeModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
   BidProfileModel.hasMany(ProfileShareRequestModel, { foreignKey: 'profileId', as: 'shareRequests' });

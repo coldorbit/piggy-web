@@ -1,6 +1,7 @@
 import {
   ensureWebModels,
   getBidProfileModel,
+  getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
   getProfileShareRequestModel,
@@ -668,11 +669,15 @@ async function listInterviewJobs(req, res, { user, profile }) {
     bidUsersForProfile(profile),
     WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }),
   ]);
+  const logsByInterviewId = await interviewLogsByInterviewId(interviews);
   const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
   const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
   res.json({
-    jobs: interviews.map((interview) => formatInterviewAsJob(interview, bidUsersById, callerUsersById)),
+    jobs: interviews.map((interview) => {
+      interview.setDataValue('logs', logsByInterviewId.get(String(interview.id)) || []);
+      return formatInterviewAsJob(interview, bidUsersById, callerUsersById);
+    }),
     bidUsers,
     callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
     currentUser: { id: user.id, username: user.username },
@@ -903,7 +908,7 @@ export async function createJobBid(req, res, next) {
     if (req.user?.role !== 'admin') delete attrs.callerUserId;
 
     const bid = await getJobBidModel().create({
-      ...attrs,
+      ...bidUpdateValuesFromAttrs(attrs),
       userId: user.id,
       profileId: profile.id,
       jobId: job.id,
@@ -957,6 +962,7 @@ export async function createManualInterview(req, res, next) {
       location: clean(req.body?.location) || null,
       jobUrl: jobUrl || null,
     });
+    await logInterviewCreated(interview, user.id);
 
     res.status(201).json({
       job: formatInterviewAsJob(interview),
@@ -1262,7 +1268,7 @@ export async function updateJobBid(req, res, next) {
       }
       delete attrs.callerUserId;
     }
-    await bid.update({ ...attrs, updatedAt: new Date() });
+    await bid.update({ ...bidUpdateValuesFromAttrs(attrs), updatedAt: new Date() });
     if (['interviewing', 'won', 'lost'].includes(attrs.status)) {
       const job = await getScrapedJobModel().findByPk(bid.jobId);
       await upsertInterviewForBid({ bid, job, attrs, userId: bid.userId });
@@ -1292,13 +1298,12 @@ export async function updateInterview(req, res, next) {
       }
       delete attrs.callerUserId;
     }
-    await interview.update({
-      ...interviewValuesFromAttrs(attrs),
-      updatedAt: new Date(),
-    });
+    const previous = interviewSnapshot(interview);
+    await interview.update({ ...interviewValuesFromAttrs(attrs, interview), updatedAt: new Date() });
+    await logInterviewChanges({ interview, previous, attrs, userId: user.id });
     if (interview.jobBidId) {
       const bid = await getJobBidModel().findByPk(interview.jobBidId);
-      if (bid) await bid.update({ ...attrs, updatedAt: new Date() });
+      if (bid) await bid.update({ ...bidUpdateValuesFromAttrs(attrs), updatedAt: new Date() });
     }
     res.json({ bid: formatInterviewBid(interview) });
   } catch (error) {
@@ -1365,13 +1370,36 @@ function formatCallerAssignment(row) {
   };
 }
 
-function interviewValuesFromAttrs(attrs) {
+function interviewValuesFromAttrs(attrs, existing = null) {
+  const stage = attrs.interviewStage || existing?.interviewStage || 'todo';
+  const stageNotes = normalizeInterviewStageNotes({
+    currentStage: stage,
+    currentNote: attrs.hasInterviewNotes ? attrs.interviewNotes : undefined,
+    existingNotes: existing?.stageNotes,
+    incomingNotes: attrs.stageNotes,
+  });
+  const interviewNextAt = attrs.interviewNextAt || null;
   return {
     callerUserId: attrs.callerUserId ?? null,
     status: attrs.status || 'interviewing',
-    interviewStage: attrs.interviewStage || 'todo',
-    interviewNextAt: attrs.interviewNextAt || null,
-    interviewNotes: attrs.interviewNotes || null,
+    interviewStage: stage,
+    interviewNextAt,
+    firstInterviewScheduledAt: existing?.firstInterviewScheduledAt || interviewNextAt,
+    interviewNotes: stageNotes[stage] || attrs.interviewNotes || null,
+    stageNotes,
+  };
+}
+
+function bidUpdateValuesFromAttrs(attrs) {
+  return {
+    status: attrs.status,
+    bidAmount: attrs.bidAmount,
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'callerUserId') ? { callerUserId: attrs.callerUserId } : {}),
+    coverLetter: attrs.coverLetter,
+    notes: attrs.notes,
+    interviewStage: attrs.interviewStage,
+    interviewNextAt: attrs.interviewNextAt,
+    interviewNotes: attrs.interviewNotes,
   };
 }
 
@@ -1389,8 +1417,15 @@ async function upsertInterviewForBid({ bid, job, attrs, userId }) {
     jobUrl: job.url || null,
   };
   const existing = await getInterviewModel().findOne({ where: { jobBidId: bid.id } });
-  if (existing) return existing.update(values);
-  return getInterviewModel().create(values);
+  if (existing) {
+    const previous = interviewSnapshot(existing);
+    await existing.update(interviewValuesFromAttrs(attrs, existing));
+    await logInterviewChanges({ interview: existing, previous, attrs, userId });
+    return existing;
+  }
+  const interview = await getInterviewModel().create(values);
+  await logInterviewCreated(interview, userId);
+  return interview;
 }
 
 function formatInterviewAsJob(interview, bidUsersById = new Map(), callerUsersById = new Map()) {
@@ -1429,11 +1464,144 @@ function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById
     notes: null,
     interviewStage: interview.interviewStage,
     interviewNextAt: interview.interviewNextAt,
+    firstInterviewScheduledAt: interview.firstInterviewScheduledAt,
     interviewNotes: interview.interviewNotes,
+    stageNotes: interview.stageNotes || {},
+    logs: (interview.logs || interview.get?.('logs') || []).map(formatInterviewLog),
     bidAt: interview.createdAt,
     createdAt: interview.createdAt,
     updatedAt: interview.updatedAt,
     ...(bidUser ? { user: { id: bidUser.id, username: bidUser.username, role: bidUser.role } } : {}),
     ...(callerUser ? { callerUser } : {}),
+  };
+}
+
+async function interviewLogsByInterviewId(interviews) {
+  const interviewIds = interviews.map((interview) => interview.id).filter(Boolean);
+  if (!interviewIds.length) return new Map();
+  const logs = await getInterviewLogModel().findAll({
+    where: { interviewId: interviewIds },
+    order: [
+      ['interviewId', 'ASC'],
+      ['createdAt', 'ASC'],
+    ],
+  });
+  const byInterviewId = new Map(interviewIds.map((id) => [String(id), []]));
+  for (const log of logs) {
+    byInterviewId.get(String(log.interviewId))?.push(log);
+  }
+  return byInterviewId;
+}
+
+function normalizeInterviewStageNotes({ currentStage, currentNote, existingNotes, incomingNotes }) {
+  const notes = { ...((existingNotes && typeof existingNotes === 'object') ? existingNotes : {}) };
+  if (incomingNotes && typeof incomingNotes === 'object') {
+    for (const [stage, note] of Object.entries(incomingNotes)) {
+      const cleaned = clean(note);
+      if (cleaned) notes[stage] = cleaned;
+      else delete notes[stage];
+    }
+  }
+  if (currentNote !== undefined) {
+    const cleaned = clean(currentNote);
+    if (cleaned) notes[currentStage] = cleaned;
+    else if (currentNote !== undefined) delete notes[currentStage];
+  }
+  return notes;
+}
+
+function interviewSnapshot(interview) {
+  return {
+    interviewStage: interview.interviewStage,
+    interviewNextAt: interview.interviewNextAt,
+    firstInterviewScheduledAt: interview.firstInterviewScheduledAt,
+    stageNotes: { ...((interview.stageNotes && typeof interview.stageNotes === 'object') ? interview.stageNotes : {}) },
+  };
+}
+
+async function logInterviewCreated(interview, userId) {
+  await getInterviewLogModel().create({
+    interviewId: interview.id,
+    userId,
+    eventType: 'created',
+    toValue: interview.interviewStage,
+    metadata: { stage: interview.interviewStage },
+  });
+  if (interview.firstInterviewScheduledAt) {
+    await getInterviewLogModel().create({
+      interviewId: interview.id,
+      userId,
+      eventType: 'first_scheduled',
+      toValue: interview.firstInterviewScheduledAt.toISOString(),
+      metadata: { stage: interview.interviewStage },
+    });
+  }
+}
+
+async function logInterviewChanges({ interview, previous, attrs, userId }) {
+  const logs = [];
+  if (previous.interviewStage !== interview.interviewStage) {
+    logs.push({
+      eventType: 'stage_changed',
+      fromValue: previous.interviewStage,
+      toValue: interview.interviewStage,
+      metadata: {},
+    });
+  }
+  if (dateValue(previous.interviewNextAt) !== dateValue(interview.interviewNextAt)) {
+    logs.push({
+      eventType: 'schedule_changed',
+      fromValue: dateValue(previous.interviewNextAt),
+      toValue: dateValue(interview.interviewNextAt),
+      metadata: { stage: interview.interviewStage },
+    });
+  }
+  if (!previous.firstInterviewScheduledAt && interview.firstInterviewScheduledAt) {
+    logs.push({
+      eventType: 'first_scheduled',
+      fromValue: null,
+      toValue: dateValue(interview.firstInterviewScheduledAt),
+      metadata: { stage: interview.interviewStage },
+    });
+  }
+  const changedNoteStages = changedStageNoteKeys(previous.stageNotes, interview.stageNotes || {});
+  for (const stage of changedNoteStages) {
+    logs.push({
+      eventType: 'stage_note_changed',
+      fromValue: previous.stageNotes[stage] || null,
+      toValue: interview.stageNotes?.[stage] || null,
+      metadata: { stage },
+    });
+  }
+  if (!logs.length) return;
+  await getInterviewLogModel().bulkCreate(
+    logs.map((log) => ({
+      ...log,
+      interviewId: interview.id,
+      userId,
+      metadata: { ...(log.metadata || {}), source: attrs.status || interview.status },
+    })),
+  );
+}
+
+function changedStageNoteKeys(previousNotes, nextNotes) {
+  const keys = new Set([...Object.keys(previousNotes || {}), ...Object.keys(nextNotes || {})]);
+  return [...keys].filter((key) => clean(previousNotes?.[key]) !== clean(nextNotes?.[key]));
+}
+
+function dateValue(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function formatInterviewLog(log) {
+  return {
+    id: log.id,
+    eventType: log.eventType,
+    fromValue: log.fromValue,
+    toValue: log.toValue,
+    metadata: log.metadata || {},
+    createdAt: log.createdAt,
   };
 }

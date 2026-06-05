@@ -294,6 +294,8 @@ export function bidAttributesFromBody(body) {
   const callerUserId = hasCallerUserId ? clean(body?.callerUserId) : '';
   const interviewStage = normalizeInterviewStage(clean(body?.interviewStage));
   const interviewNextAt = clean(body?.interviewNextAt);
+  const hasInterviewNotes = Object.prototype.hasOwnProperty.call(body || {}, 'interviewNotes');
+  const stageNotes = normalizeStageNotes(body?.stageNotes);
   const allowedInterviewStages = new Set(['', 'todo', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
   const allowedStatuses = new Set(['planned', 'submitted', 'interviewing', 'won', 'lost']);
   const normalizedInterviewStage = status === 'interviewing' && !interviewStage ? 'todo' : interviewStage;
@@ -302,6 +304,7 @@ export function bidAttributesFromBody(body) {
   if (bidAmount && Number.isNaN(Number(bidAmount))) throw new InputError('Bid amount must be a number');
   if (callerUserId && Number.isNaN(Number(callerUserId))) throw new InputError('Choose a valid caller');
   if (!allowedInterviewStages.has(normalizedInterviewStage)) throw new InputError('Choose a valid interview stage');
+  if (Object.keys(stageNotes).some((stage) => !allowedInterviewStages.has(stage) || !stage)) throw new InputError('Choose a valid interview stage');
   if (interviewNextAt && Number.isNaN(Date.parse(interviewNextAt))) throw new InputError('Choose a valid interview date');
 
   return {
@@ -313,7 +316,18 @@ export function bidAttributesFromBody(body) {
     interviewStage: normalizedInterviewStage || null,
     interviewNextAt: interviewNextAt ? new Date(interviewNextAt) : null,
     interviewNotes: clean(body?.interviewNotes) || null,
+    hasInterviewNotes,
+    stageNotes,
   };
+}
+
+function normalizeStageNotes(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([stage, note]) => [normalizeInterviewStage(clean(stage)), clean(note)])
+      .filter(([stage, note]) => stage && note),
+  );
 }
 
 function normalizeInterviewStage(value) {

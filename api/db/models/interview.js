@@ -67,9 +67,19 @@ export function getInterviewModel() {
         type: DataTypes.DATE,
         field: 'interview_next_at',
       },
+      firstInterviewScheduledAt: {
+        type: DataTypes.DATE,
+        field: 'first_interview_scheduled_at',
+      },
       interviewNotes: {
         type: DataTypes.TEXT,
         field: 'interview_notes',
+      },
+      stageNotes: {
+        type: DataTypes.JSONB,
+        allowNull: false,
+        defaultValue: {},
+        field: 'stage_notes',
       },
       createdAt: {
         type: DataTypes.DATE,

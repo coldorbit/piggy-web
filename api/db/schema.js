@@ -2,6 +2,7 @@ import { DataTypes } from 'sequelize';
 import { getSequelize } from './connection.js';
 import {
   getBidProfileModel,
+  getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
   getProfileShareRequestModel,
@@ -29,10 +30,12 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await getProfileShareRequestModel().sync();
       await getJobBidModel().sync();
       await getInterviewModel().sync();
+      await getInterviewLogModel().sync();
       await getTailoredResumeModel().sync();
       await ensureWebUserSessionColumns();
       await ensureBidProfileColumns();
       await ensureJobBidInterviewColumns();
+      await ensureInterviewJourneyColumns();
       await ensureTailoredResumeStatusColumns();
       if (runBackfills) await runTailoredResumeFilePathBackfill();
       await removeDeprecatedBidProfileColumns();
@@ -44,6 +47,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await ensureJobBidProfileScopedUniqueness();
       await ensureInterviewIndexes();
       await backfillInterviewsFromJobBids();
+      await backfillInterviewStageNotes();
     })().catch((error) => {
       initializationPromise = undefined;
       throw error;
@@ -51,6 +55,17 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
   }
 
   await initializationPromise;
+}
+
+async function ensureInterviewJourneyColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'interviews';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    first_interview_scheduled_at: { type: DataTypes.DATE, allowNull: true },
+    stage_notes: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+  });
 }
 
 async function ensureInterviewIndexes() {
@@ -68,6 +83,10 @@ async function ensureInterviewIndexes() {
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS interviews_caller_status_idx
     ON interviews (caller_user_id, status)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interview_logs_interview_created_at_idx
+    ON interview_logs (interview_id, created_at)
   `);
 }
 
@@ -112,6 +131,51 @@ async function backfillInterviewsFromJobBids() {
     JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
     WHERE job_bids.status IN ('interviewing', 'won', 'lost')
     ON CONFLICT (job_bid_id) WHERE job_bid_id IS NOT NULL DO NOTHING
+  `);
+}
+
+async function backfillInterviewStageNotes() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    UPDATE interviews
+    SET stage_notes = jsonb_build_object(COALESCE(NULLIF(interview_stage, ''), 'todo'), interview_notes)
+    WHERE COALESCE(stage_notes, '{}'::jsonb) = '{}'::jsonb
+      AND NULLIF(interview_notes, '') IS NOT NULL
+  `);
+  await sequelize.query(`
+    UPDATE interviews
+    SET first_interview_scheduled_at = interview_next_at
+    WHERE first_interview_scheduled_at IS NULL
+      AND interview_next_at IS NOT NULL
+  `);
+  await sequelize.query(`
+    INSERT INTO interview_logs (
+      interview_id,
+      user_id,
+      event_type,
+      from_value,
+      to_value,
+      metadata,
+      created_at,
+      updated_at
+    )
+    SELECT
+      interviews.id,
+      interviews.user_id,
+      'created',
+      NULL,
+      interviews.interview_stage,
+      jsonb_build_object('backfilled', true),
+      interviews.created_at,
+      interviews.created_at
+    FROM interviews
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM interview_logs
+      WHERE interview_logs.interview_id = interviews.id
+        AND interview_logs.event_type = 'created'
+    )
   `);
 }
 

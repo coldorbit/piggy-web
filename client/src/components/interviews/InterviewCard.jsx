@@ -47,6 +47,10 @@ export default function InterviewCard({
 }) {
   const owner = job.bid?.user?.username || (String(job.bid?.userId) === String(currentUser?.id) ? currentUser?.username : '');
   const jobUrl = externalJobUrl(job);
+  const currentStage = draft.interviewStage || INTERVIEW_STAGES[0].value;
+  const stageNotes = draft.stageNotes || {};
+  const currentStageNote = stageNotes[currentStage] || '';
+  const logs = draft.logs || [];
 
   function handleStageChange(event) {
     const interviewStage = event.target.value;
@@ -184,13 +188,29 @@ export default function InterviewCard({
           </Select>
         </FormControl>
         <TextField
-          label="Notes"
+          label={`${stageLabel(currentStage)} notes`}
           minRows={2}
           multiline
-          value={draft.interviewNotes || ''}
-          onChange={(event) => onDraftChange('interviewNotes', event.target.value)}
+          value={currentStageNote}
+          onChange={(event) => {
+            const nextStageNotes = { ...stageNotes, [currentStage]: event.target.value };
+            onDraftChange('stageNotes', nextStageNotes);
+            onDraftChange('interviewNotes', event.target.value);
+          }}
           disabled={isSaving}
         />
+        {logs.length ? (
+          <Box sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={900}>
+              Journey
+            </Typography>
+            {logs.slice(-4).map((log) => (
+              <Typography key={log.id} variant="caption" color="text.secondary" noWrap>
+                {formatJourneyLog(log)}
+              </Typography>
+            ))}
+          </Box>
+        ) : null}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 0.75 }}>
           {jobUrl ? (
             <Button
@@ -256,4 +276,21 @@ const chipSx = {
 function externalJobUrl(job) {
   const url = job?.rawJob?.originalUrl || job?.url || '';
   return /^https?:\/\//i.test(String(url)) ? url : '';
+}
+
+function stageLabel(value) {
+  return INTERVIEW_STAGES.find((stage) => stage.value === value)?.label || 'Stage';
+}
+
+function formatJourneyLog(log) {
+  const at = log.createdAt ? formatDateTime(log.createdAt) : '';
+  const stage = log.metadata?.stage ? stageLabel(log.metadata.stage) : '';
+  const action = {
+    created: 'Created',
+    first_scheduled: 'First scheduled',
+    schedule_changed: 'Schedule changed',
+    stage_changed: `Moved ${stageLabel(log.fromValue)} -> ${stageLabel(log.toValue)}`,
+    stage_note_changed: `${stage || 'Stage'} note updated`,
+  }[log.eventType] || log.eventType;
+  return [action, at].filter(Boolean).join(' · ');
 }
