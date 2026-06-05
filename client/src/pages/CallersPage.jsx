@@ -1,5 +1,6 @@
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   Alert,
@@ -9,25 +10,58 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
+import { useState } from 'react';
 import { INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
-import { useCallers } from '../lib/api.js';
+import { useCallers, useCreateCaller } from '../lib/api.js';
 import { formatDateTime } from '../lib/formatters.js';
+
+const EMPTY_CALLER = { username: '', password: '' };
 
 export default function CallersPage() {
   const { data: callers = [], isLoading, error } = useCallers();
+  const { mutate: createCaller, isPending: creatingCaller } = useCreateCaller();
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [callerForm, setCallerForm] = useState(EMPTY_CALLER);
+  const [registerError, setRegisterError] = useState('');
+
+  function closeRegisterDialog() {
+    setIsRegisterOpen(false);
+    setCallerForm(EMPTY_CALLER);
+    setRegisterError('');
+  }
+
+  function submitCaller(event) {
+    event.preventDefault();
+    setRegisterError('');
+    createCaller(callerForm, {
+      onSuccess: closeRegisterDialog,
+      onError: (callerError) => setRegisterError(callerError.message),
+    });
+  }
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {error ? <Alert severity="error">{error.message}</Alert> : null}
+      {registerError ? <Alert severity="error">{registerError}</Alert> : null}
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
         <Typography color="text.secondary">
           {callers.length.toLocaleString()} caller{callers.length === 1 ? '' : 's'}
         </Typography>
-        {isLoading ? <CircularProgress size={22} /> : null}
+        <Stack direction="row" spacing={1} alignItems="center">
+          {isLoading ? <CircularProgress size={22} /> : null}
+          <Button startIcon={<PersonAddIcon />} variant="contained" onClick={() => setIsRegisterOpen(true)}>
+            Register caller
+          </Button>
+        </Stack>
       </Stack>
 
       {isLoading && !callers.length ? (
@@ -53,6 +87,36 @@ export default function CallersPage() {
           <CallerCard key={caller.id} caller={caller} />
         ))}
       </Box>
+
+      <Dialog open={isRegisterOpen} onClose={closeRegisterDialog} fullWidth maxWidth="xs">
+        <form onSubmit={submitCaller}>
+          <DialogTitle>Register caller</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1 }}>
+            <TextField
+              autoFocus
+              label="Email"
+              required
+              type="email"
+              value={callerForm.username}
+              onChange={(event) => setCallerForm((current) => ({ ...current, username: event.target.value }))}
+            />
+            <TextField
+              label="Password"
+              required
+              type="password"
+              value={callerForm.password}
+              onChange={(event) => setCallerForm((current) => ({ ...current, password: event.target.value }))}
+              helperText="Use at least 8 characters."
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeRegisterDialog}>Cancel</Button>
+            <Button disabled={creatingCaller} type="submit" variant="contained">
+              Register
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Box>
   );
 }

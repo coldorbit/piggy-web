@@ -15,6 +15,7 @@ import { Readable } from 'node:stream';
 import { Op } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../env.js';
+import { hashPassword, publicUser } from '../../auth.js';
 import {
   bidAttributesFromBody,
   buildBidTabQuery,
@@ -37,8 +38,9 @@ import {
   profilesWithSharing,
 } from '../services/profiles.js';
 import { enqueueTailoredResumeRequest } from '../services/tailoringQueue.js';
+import { userAttributesFromBody } from '../services/users.js';
 import { clean } from '../utils/index.js';
-import { handleInputError, NotFoundError } from '../utils/errors.js';
+import { handleInputError, handleUserWriteError, NotFoundError } from '../utils/errors.js';
 
 export async function listProfiles(req, res, next) {
   try {
@@ -121,7 +123,7 @@ export async function listCallers(req, res, next) {
   try {
     await ensureWebModels();
     const user = await currentDbUser(req);
-    requireInternalUser(user, res);
+    requireCallerManagementUser(user, res);
     if (res.headersSent) return;
     const WebUser = getWebUserModel();
     const Interview = getInterviewModel();
@@ -172,6 +174,24 @@ export async function listCallers(req, res, next) {
     });
   } catch (error) {
     handleInputError(error, res, next);
+  }
+}
+
+export async function createCaller(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    requireCallerManagementUser(user, res);
+    if (res.headersSent) return;
+    const attrs = userAttributesFromBody({ ...req.body, role: 'caller' }, { requirePassword: true });
+    const caller = await repositories.createUser({
+      username: attrs.username,
+      passwordHash: hashPassword(attrs.password),
+      role: 'caller',
+    });
+    res.status(201).json({ caller: publicUser(caller) });
+  } catch (error) {
+    handleUserWriteError(error, res, next);
   }
 }
 
@@ -727,6 +747,15 @@ function requireInternalUser(user, res) {
 
 function isInternalUser(user) {
   return ['admin', 'internal'].includes(user?.role);
+}
+
+function requireCallerManagementUser(user, res) {
+  if (canManageCallers(user)) return;
+  res.status(403).json({ error: 'Caller registration is not available for this role' });
+}
+
+function canManageCallers(user) {
+  return !['bidder', 'readonly_bidder', 'editable_bidder', 'caller'].includes(user?.role);
 }
 
 async function bidUsersForProfile(profile) {

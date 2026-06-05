@@ -48,9 +48,9 @@ export default function App() {
           <Route
             path="/callers"
             element={
-              <RequireRoles user={user} roles={['admin', 'internal']}>
+              <RequireCallerManagement user={user}>
                 <CallersPage currentUser={user} />
-              </RequireRoles>
+              </RequireCallerManagement>
             }
           />
           <Route path="/profiles" element={<ProfilesPage currentUser={user} />} />
@@ -78,5 +78,13 @@ function RequireAdmin({ user, children }) {
 function RequireRoles({ user, roles, children }) {
   const location = useLocation();
   if (!roles.includes(user.role)) return <Navigate to="/jobs" replace state={{ from: location }} />;
+  return children;
+}
+
+function RequireCallerManagement({ user, children }) {
+  const location = useLocation();
+  if (['bidder', 'readonly_bidder', 'editable_bidder', 'caller'].includes(user.role)) {
+    return <Navigate to="/jobs" replace state={{ from: location }} />;
+  }
   return children;
 }

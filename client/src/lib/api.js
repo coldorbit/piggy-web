@@ -123,6 +123,21 @@ export function useCallers() {
   });
 }
 
+export function useCreateCaller() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (callerData) =>
+      api('/api/bid/callers', {
+        method: 'POST',
+        body: JSON.stringify(callerData),
+      }).then((data) => data.caller),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+}
+
 export function useBidders() {
   return useQuery({
     queryKey: ['bid', 'bidders'],

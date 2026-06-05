@@ -54,6 +54,7 @@ export default function AppLayout({ user }) {
     [headerSearch],
   );
   const isInternalUser = ['admin', 'internal'].includes(user.role);
+  const canManageCallers = !['bidder', 'readonly_bidder', 'editable_bidder', 'caller'].includes(user.role);
 
   async function handleLogout() {
     logout(undefined, {
@@ -126,7 +127,7 @@ export default function AppLayout({ user }) {
           {isInternalUser ? (
             <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {isInternalUser ? (
+          {canManageCallers ? (
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} />
