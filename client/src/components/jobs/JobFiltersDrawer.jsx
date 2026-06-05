@@ -37,7 +37,7 @@ export default function JobFiltersDrawer({ ariaLabel = 'Job filters', filters, i
         onClose={onClose}
         PaperProps={{
           sx: {
-            width: { xs: '100%', sm: 380 },
+            width: { xs: '100%', sm: 460, md: 520 },
             maxWidth: '100vw',
             bgcolor: '#f7f9fb',
             borderLeft: 1,

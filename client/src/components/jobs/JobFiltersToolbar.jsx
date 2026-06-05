@@ -39,7 +39,36 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         </Select>
       </FormControl>
       {showAppliedProfileFilter && appliedProfiles.length ? (
-        <FormControl size="small">
+        <FormControl
+          size="small"
+          sx={{
+            '& .MuiInputLabel-root': {
+              color: '#b91c1c',
+              fontWeight: 900,
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: '#b91c1c',
+            },
+            '& .MuiOutlinedInput-root': {
+              bgcolor: '#fff1f2',
+              fontWeight: 800,
+              '& fieldset': {
+                borderColor: '#ef4444',
+                borderWidth: 2,
+              },
+              '&:hover fieldset': {
+                borderColor: '#dc2626',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#b91c1c',
+                borderWidth: 2,
+              },
+            },
+            '& .MuiSelect-icon': {
+              color: '#b91c1c',
+            },
+          }}
+        >
           <InputLabel>Applied using</InputLabel>
           <Select
             label="Applied using"
