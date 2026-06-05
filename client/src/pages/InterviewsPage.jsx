@@ -33,7 +33,7 @@ import {
   toDatetimeLocalValue,
 } from '../components/interviews/interviewUtils.js';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { useBidJobs, useBidProfiles, useCreateManualInterview, useUpdateJobBid } from '../lib/api.js';
+import { useBidJobs, useBidProfiles, useCreateManualInterview, useDeleteInterview, useUpdateJobBid } from '../lib/api.js';
 
 const EMPTY_MANUAL_INTERVIEW = {
   title: '',
@@ -83,6 +83,7 @@ export default function InterviewsPage({ currentUser }) {
   } = useBidJobs(activeProfile?.id, filters);
   const { mutate: updateBid, isPending: updatingBid } = useUpdateJobBid();
   const { mutate: createManualInterview, isPending: creatingManualInterview } = useCreateManualInterview();
+  const { mutate: deleteInterview, isPending: deletingInterview } = useDeleteInterview();
 
   useEffect(() => {
     if (!activeProfiles[0]) return;
@@ -205,6 +206,23 @@ export default function InterviewsPage({ currentUser }) {
     );
   }
 
+  function handleDeleteInterview(job) {
+    if (!job.bid?.id) return;
+    const label = [job.title, job.company].filter(Boolean).join(' at ') || 'this interview';
+    if (!window.confirm(`Delete ${label}?`)) return;
+    setError('');
+    deleteInterview(job.bid.id, {
+      onError: (interviewError) => setError(interviewError.message),
+      onSuccess: () => {
+        setDrafts((current) => {
+          const next = { ...current };
+          delete next[job.bid.id];
+          return next;
+        });
+      },
+    });
+  }
+
   const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'];
   const jobs = interviewsData?.jobs || [];
   const callerUsers = interviewsData?.callerUsers || [];
@@ -299,7 +317,9 @@ export default function InterviewsPage({ currentUser }) {
                   callerUsers={callerUsers}
                   currentUser={interviewsData?.currentUser || currentUser}
                   canAssignCallers={currentUser?.role === 'admin'}
+                  canDeleteInterviews={currentUser?.role === 'admin'}
                   draftFor={draftFor}
+                  isDeleting={deletingInterview}
                   isSaving={updatingBid}
                   jobsByStage={jobsByStage}
                   onDragEnd={() => {
@@ -310,6 +330,7 @@ export default function InterviewsPage({ currentUser }) {
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
                   onDraftChange={updateDraft}
+                  onDelete={handleDeleteInterview}
                   onSave={saveInterview}
                 />
               ) : null}

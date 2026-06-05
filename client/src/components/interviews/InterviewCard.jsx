@@ -1,4 +1,5 @@
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import SaveIcon from '@mui/icons-material/Save';
@@ -10,10 +11,12 @@ import {
   Chip,
   CircularProgress,
   FormControl,
+  IconButton,
   InputLabel,
   MenuItem,
   Select,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
@@ -24,10 +27,13 @@ export default function InterviewCard({
   accent,
   callerUsers = [],
   canAssignCallers = false,
+  canDeleteInterviews = false,
   currentUser,
   draft,
+  isDeleting = false,
   isSaving,
   job,
+  onDelete,
   onDraftChange,
   onDragEnd,
   onDragStart,
@@ -86,7 +92,27 @@ export default function InterviewCard({
               {job.location ? ` · ${job.location}` : null}
             </Typography>
           </Box>
-          <DragIndicatorIcon fontSize="small" color="action" />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+            {canDeleteInterviews ? (
+              <Tooltip title="Delete interview">
+                <IconButton
+                  aria-label="Delete interview"
+                  color="error"
+                  disabled={isDeleting || isSaving}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDelete();
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  size="small"
+                  sx={{ height: 28, width: 28 }}
+                >
+                  {isDeleting ? <CircularProgress color="inherit" size={16} /> : <DeleteIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
+            ) : null}
+            <DragIndicatorIcon fontSize="small" color="action" />
+          </Box>
         </Box>
 
         <TextField

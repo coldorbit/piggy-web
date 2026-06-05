@@ -1306,6 +1306,38 @@ export async function updateInterview(req, res, next) {
   }
 }
 
+export async function deleteInterview(req, res, next) {
+  try {
+    await ensureWebModels();
+    if (req.user?.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access is required' });
+      return;
+    }
+    const interview = await getInterviewModel().findByPk(req.params.id);
+    if (!interview) {
+      res.status(404).json({ error: 'Interview not found' });
+      return;
+    }
+    if (interview.jobBidId) {
+      const bid = await getJobBidModel().findByPk(interview.jobBidId);
+      if (bid) {
+        await bid.update({
+          callerUserId: null,
+          status: 'submitted',
+          interviewStage: null,
+          interviewNextAt: null,
+          interviewNotes: null,
+          updatedAt: new Date(),
+        });
+      }
+    }
+    await interview.destroy();
+    res.status(204).send();
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 async function ensureCallerUser(callerUserId) {
   const caller = await getWebUserModel().findOne({ where: { id: callerUserId, role: 'caller' } });
   if (!caller) throw new NotFoundError('Caller not found');

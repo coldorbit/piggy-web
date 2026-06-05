@@ -7,14 +7,17 @@ export default function InterviewKanbanBoard({
   activeDropStage,
   callerUsers,
   canAssignCallers,
+  canDeleteInterviews,
   currentUser,
   draftFor,
+  isDeleting,
   isSaving,
   jobsByStage,
   onDragEnd,
   onDragEnter,
   onDragStart,
   onDraftChange,
+  onDelete,
   onDrop,
   onSave,
 }) {
@@ -39,14 +42,17 @@ export default function InterviewKanbanBoard({
           accent={activeColor}
           callerUsers={callerUsers}
           canAssignCallers={canAssignCallers}
+          canDeleteInterviews={canDeleteInterviews}
           currentUser={currentUser}
           isActiveDrop={activeDropStage === stage.value}
+          isDeleting={isDeleting}
           isSaving={isSaving}
           jobs={jobsByStage[stage.value] || []}
           stage={stage}
           onDragEnd={onDragEnd}
           onDragEnter={() => onDragEnter(stage.value)}
           onDragStart={onDragStart}
+          onDelete={onDelete}
           onDrop={(event) => onDrop(event, stage.value)}
           onDraftChange={onDraftChange}
           onSave={onSave}

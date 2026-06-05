@@ -5,6 +5,7 @@ import {
   createProfile,
   createTailoredResume,
   deleteProfile,
+  deleteInterview,
   downloadTailoredResume,
   downloadTailoredResumesZip,
   listBidders,
@@ -40,6 +41,7 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/tailored-resumes/:id/download', requireAuth, downloadTailoredResume);
   app.post('/api/bid/interviews/manual', requireAuth, createManualInterview);
   app.patch('/api/bid/interviews/:id', requireAuth, updateInterview);
+  app.delete('/api/bid/interviews/:id', requireAuth, deleteInterview);
   app.post('/api/bid/jobs/:jobId/tailored-resume', requireAuth, createTailoredResume);
   app.post('/api/bid/jobs/:jobId', requireAuth, createJobBid);
   app.patch('/api/bid/applications/:id', requireAuth, updateJobBid);

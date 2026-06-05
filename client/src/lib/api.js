@@ -881,6 +881,22 @@ export function useCreateManualInterview() {
   });
 }
 
+export function useDeleteInterview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (interviewId) =>
+      api(`/api/bid/interviews/${interviewId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'bidders'] });
+    },
+  });
+}
+
 export function useRequestTailoredResume() {
   const queryClient = useQueryClient();
   return useMutation({

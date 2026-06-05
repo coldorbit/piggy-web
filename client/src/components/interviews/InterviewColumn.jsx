@@ -5,15 +5,18 @@ export default function InterviewColumn({
   accent,
   callerUsers,
   canAssignCallers,
+  canDeleteInterviews,
   currentUser,
   draftFor,
   isActiveDrop,
+  isDeleting,
   isSaving,
   jobs,
   onDragEnd,
   onDragEnter,
   onDragStart,
   onDraftChange,
+  onDelete,
   onDrop,
   onSave,
   stage,
@@ -31,6 +34,7 @@ export default function InterviewColumn({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        maxHeight: '100%',
         minHeight: 0,
         overflow: 'hidden',
         bgcolor: isActiveDrop ? accent.soft : '#F8FAFC',
@@ -59,7 +63,7 @@ export default function InterviewColumn({
           sx={{ bgcolor: accent.soft, color: accent.dark, fontWeight: 900, height: 22 }}
         />
       </Box>
-      <Stack spacing={0.85} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 0.85 }}>
+      <Stack spacing={0.85} sx={{ flex: '1 1 auto', minHeight: 0, overflowX: 'hidden', overflowY: 'auto', p: 0.85 }}>
         {!jobs.length ? (
           <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'rgba(255, 255, 255, 0.72)' }}>
             <Typography variant="body2" color="text.secondary">
@@ -73,12 +77,15 @@ export default function InterviewColumn({
             accent={accent}
             callerUsers={callerUsers}
             canAssignCallers={canAssignCallers}
+            canDeleteInterviews={canDeleteInterviews}
             currentUser={currentUser}
             draft={draftFor(job)}
+            isDeleting={isDeleting}
             isSaving={isSaving}
             job={job}
             onDragEnd={onDragEnd}
             onDragStart={(event) => onDragStart(event, job)}
+            onDelete={() => onDelete(job)}
             onDraftChange={(key, value) => onDraftChange(job, key, value)}
             onSave={(overrides) => onSave(job, overrides)}
           />
