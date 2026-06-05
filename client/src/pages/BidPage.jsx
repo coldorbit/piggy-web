@@ -16,7 +16,6 @@ import {
   useCreateJobBid,
   useJobsMeta,
   useMarkJobHidden,
-  useMarkLinkedInEasyApply,
   useRequestTailoredResume,
   useTailoredResumeEvents,
   useUpdateLinkedInExternalUrl,
@@ -79,7 +78,6 @@ export default function BidPage({ currentUser }) {
   const { mutate: createBid, isPending: creatingBid } = useCreateJobBid();
   const { mutate: updateBid, isPending: updatingBid } = useUpdateJobBid();
   const { mutate: markHidden } = useMarkJobHidden();
-  const { mutate: markLinkedInEasyApply, isPending: markingLinkedInEasyApply } = useMarkLinkedInEasyApply();
   const { mutate: updateLinkedInExternalUrl, isPending: updatingLinkedInExternalUrl } = useUpdateLinkedInExternalUrl();
   const { mutate: requestTailoredResume } = useRequestTailoredResume();
   useTailoredResumeEvents(activeProfile?.id);
@@ -206,16 +204,6 @@ export default function BidPage({ currentUser }) {
     );
   }
 
-  function markEasyApply(job) {
-    setError('');
-    markLinkedInEasyApply(
-      { jobId: job.id },
-      {
-        onError: (jobError) => setError(jobError.message),
-      },
-    );
-  }
-
   function updateExternalJobLink(job, url, options = {}) {
     setError('');
     updateLinkedInExternalUrl(
@@ -244,7 +232,7 @@ export default function BidPage({ currentUser }) {
       currentUser: bidJobsData?.currentUser || currentUser,
       draftsForJob: draftFor,
       isSaving: creatingBid || updatingBid,
-      isUpdatingLinkedInJob: markingLinkedInEasyApply || updatingLinkedInExternalUrl,
+      isUpdatingLinkedInJob: updatingLinkedInExternalUrl,
       jobs: visibleJobs,
       loading,
       page: filters.page,
@@ -255,7 +243,6 @@ export default function BidPage({ currentUser }) {
       total,
       onDraftChange: updateDraft,
       onHiddenChange: updateHiddenState,
-      onLinkedInEasyApply: markEasyApply,
       onLinkedInExternalUrlChange: updateExternalJobLink,
       onPageChange: (page) => updateFilter('page', page),
       onPageSizeChange: (limit) => updateFilter('limit', limit),
@@ -278,7 +265,6 @@ export default function BidPage({ currentUser }) {
       tailoringByProfileJobId,
       total,
       updatingBid,
-      markingLinkedInEasyApply,
       updatingLinkedInExternalUrl,
       visibleJobs,
     ],

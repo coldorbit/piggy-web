@@ -61,7 +61,6 @@ export default function BidJobCard({
     tailoringByJobId = {},
     onDraftChange,
     onHiddenChange,
-    onLinkedInEasyApply,
     onLinkedInExternalUrlChange,
     onStatusChange,
     onTailorResume,
@@ -93,7 +92,6 @@ export default function BidJobCard({
   const isEasyApply = isEasyApplyMode(job.applyMode);
   const hasUpdatedJobLink = isLinkedInJob && isExternalLinkMode(job.applyMode);
   const showLinkedInTodoActions = activeTab === BID_TABS.todo && isLinkedInJob;
-  const showMarkEasyApplyAction = showLinkedInTodoActions && !isEasyApply;
   const showUpdateExternalLinkAction = showLinkedInTodoActions;
   const downloadUrl =
     tailoredStatus === 'ready' && job.tailoredResume?.filePath
@@ -123,11 +121,6 @@ export default function BidJobCard({
     if (isInteractiveTarget(event.target, event.currentTarget)) return;
     event.preventDefault();
     onSelectedChange(job.id);
-  }
-
-  function handleMarkEasyApply(event) {
-    event.stopPropagation();
-    onLinkedInEasyApply(job);
   }
 
   function openLinkDialog(event) {
@@ -388,29 +381,6 @@ export default function BidJobCard({
                       <DownloadIcon />
                     </IconButton>
                   </Tooltip>
-                ) : null}
-                {showMarkEasyApplyAction ? (
-                  <Button
-                    disabled={isUpdatingLinkedInJob}
-                    onClick={handleMarkEasyApply}
-                    size="small"
-                    startIcon={<CheckCircleIcon />}
-                    variant="outlined"
-                    sx={{
-                      minHeight: 32,
-                      whiteSpace: 'nowrap',
-                      borderColor: '#f87171',
-                      color: '#991b1b',
-                      bgcolor: '#fef2f2',
-                      fontWeight: 800,
-                      '&:hover': {
-                        borderColor: '#dc2626',
-                        bgcolor: '#fee2e2',
-                      },
-                    }}
-                  >
-                    Mark as Easy Apply
-                  </Button>
                 ) : null}
                 {showUpdateExternalLinkAction ? (
                   <Button
