@@ -463,7 +463,11 @@ export default function InterviewsPage({ currentUser }) {
                     updateDraft(selectedJob, 'interviewNotes', event.target.value);
                   }}
                   disabled={updatingBid}
-                  slotProps={{ inputLabel: { sx: { bgcolor: 'background.paper', px: 0.5 } } }}
+                  sx={{ mt: 0.75 }}
+                  slotProps={{
+                    input: { sx: { alignItems: 'flex-start', pt: 1.75 } },
+                    inputLabel: { shrink: true, sx: { bgcolor: 'background.paper', px: 0.5 } },
+                  }}
                 />
                 {selectedDraft.logs?.length ? (
                   <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.75, bgcolor: '#F8FAFC' }}>
