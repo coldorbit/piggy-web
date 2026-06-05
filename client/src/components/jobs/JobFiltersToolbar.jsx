@@ -44,14 +44,12 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
           sx={{
             '& .MuiInputLabel-root': {
               color: '#b91c1c',
-              fontWeight: 900,
             },
             '& .MuiInputLabel-root.Mui-focused': {
               color: '#b91c1c',
             },
             '& .MuiOutlinedInput-root': {
               bgcolor: '#fff1f2',
-              fontWeight: 800,
               '& fieldset': {
                 borderColor: '#ef4444',
                 borderWidth: 2,
