@@ -23,7 +23,7 @@ import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
 import { formatDate, formatDateTime } from '../../lib/formatters.js';
 import { toDatetimeLocalValue } from './interviewUtils.js';
 
-const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="button"], [role="combobox"], .MuiSelect-select';
+const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="combobox"], .MuiSelect-select';
 
 export default function InterviewCard({
   accent,
