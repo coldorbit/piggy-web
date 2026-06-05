@@ -73,7 +73,7 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
             value={appliedProfileValue}
             onChange={(event) => onFilterChange('appliedProfileId', event.target.value)}
           >
-            <MenuItem value="all">All profiles</MenuItem>
+            <MenuItem value="all">None</MenuItem>
             {appliedProfiles.map((profile) => (
               <MenuItem key={profile.id} value={String(profile.id)}>
                 {profile.name}
