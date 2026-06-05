@@ -1,6 +1,7 @@
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BadgeIcon from '@mui/icons-material/Badge';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -46,6 +47,7 @@ export default function AppLayout({ user }) {
   const isBidRoute = location.pathname.startsWith('/bids');
   const isBidderRoute = location.pathname.startsWith('/bidders');
   const isCallerRoute = location.pathname.startsWith('/callers');
+  const isCalendarRoute = location.pathname.startsWith('/calendar');
   const isInterviewRoute = location.pathname.startsWith('/interviews');
   const isProfileRoute = location.pathname.startsWith('/profiles');
   const [headerSearch, setHeaderSearch] = useState(EMPTY_HEADER_SEARCH);
@@ -62,13 +64,15 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminRoute ? 'Users' : isBidderRoute ? 'Bidders' : isCallerRoute ? 'Callers' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminRoute ? 'Users' : isBidderRoute ? 'Bidders' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminRoute
     ? 'Manage back-office accounts'
     : isBidderRoute
       ? 'Review bidder output and interview pass-through'
     : isCallerRoute
       ? 'Track caller assignments and interview workload'
+    : isCalendarRoute
+      ? 'See scheduled interviews across profiles'
     : isInterviewRoute
       ? 'Manage active interview pipelines by profile'
     : isBidRoute
@@ -126,6 +130,9 @@ export default function AppLayout({ user }) {
           ) : null}
           {isInternalUser ? (
             <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" onNavigate={() => setMobileOpen(false)} />
+          ) : null}
+          {isInternalUser ? (
+            <NavItem to="/calendar" icon={<CalendarMonthIcon />} label="Calendar" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canManageCallers ? (
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />

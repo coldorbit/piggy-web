@@ -8,6 +8,7 @@ const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage.jsx'));
 const BidPage = lazy(() => import('./pages/BidPage.jsx'));
 const BiddersPage = lazy(() => import('./pages/BiddersPage.jsx'));
 const CallersPage = lazy(() => import('./pages/CallersPage.jsx'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage.jsx'));
 const InterviewsPage = lazy(() => import('./pages/InterviewsPage.jsx'));
 const JobsPage = lazy(() => import('./pages/JobsPage.jsx'));
 const PricingPage = lazy(() => import('./components/auth/PricingPage.jsx'));
@@ -42,6 +43,14 @@ export default function App() {
             element={
               <RequireRoles user={user} roles={['admin', 'internal']}>
                 <InterviewsPage currentUser={user} />
+              </RequireRoles>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <RequireRoles user={user} roles={['admin', 'internal']}>
+                <CalendarPage currentUser={user} />
               </RequireRoles>
             }
           />
