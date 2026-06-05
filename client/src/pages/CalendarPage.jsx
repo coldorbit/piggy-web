@@ -1,45 +1,22 @@
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import TodayIcon from '@mui/icons-material/Today';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Divider,
-  IconButton,
-  Paper,
-  ToggleButton,
-  ToggleButtonGroup,
-  Tooltip,
-  Typography,
-} from '@mui/material';
+import { Alert, Box } from '@mui/material';
 import { useQueries } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
+import CalendarGrid from '../components/calendar/CalendarGrid.jsx';
+import CalendarProfileLegend from '../components/calendar/CalendarProfileLegend.jsx';
+import CalendarToolbar, { CALENDAR_VIEWS } from '../components/calendar/CalendarToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { INTERVIEW_FILTERS } from '../components/interviews/interviewUtils.js';
-import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { api, useBidProfiles } from '../lib/api.js';
-import { formatDateInDefaultTimezone, formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
+import { formatDateInDefaultTimezone } from '../lib/formatters.js';
 import {
-  DEFAULT_TIME_ZONE_LABEL,
   addDaysToDateKey,
   addMonthsToDateKey,
-  dateKeyDay,
   dateKeyDayOfWeek,
   dateKeyMonth,
   defaultTimezoneDateKey,
   defaultTimezoneTodayKey,
   monthLabelForDateKey,
-  timeLabelInDefaultTimezone,
 } from '../lib/timezone.js';
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const CALENDAR_VIEWS = {
-  month: 'month',
-  week: 'week',
-};
 
 export default function CalendarPage({ currentUser }) {
   const [view, setView] = useState(CALENDAR_VIEWS.month);
@@ -95,230 +72,23 @@ export default function CalendarPage({ currentUser }) {
   }
 
   return (
-    <Box sx={{ minHeight: 0, display: 'grid', gap: 1.5, gridTemplateRows: 'auto auto 1fr' }}>
+    <Box sx={{ height: '100%', minHeight: 0, display: 'grid', gap: 1.5, gridTemplateRows: 'auto auto minmax(0, 1fr)', overflow: 'hidden' }}>
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
 
-      <Paper
-        variant="outlined"
-        sx={{
-          px: { xs: 1.25, md: 1.75 },
-          py: 1.25,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1,
-          flexWrap: 'wrap',
-          boxShadow: 1,
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-          <Tooltip title="Previous">
-            <IconButton aria-label="Previous calendar range" onClick={() => moveCursor(-1)} sx={calendarIconButtonSx}>
-              <ChevronLeftIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Next">
-            <IconButton aria-label="Next calendar range" onClick={() => moveCursor(1)} sx={calendarIconButtonSx}>
-              <ChevronRightIcon />
-            </IconButton>
-          </Tooltip>
-          <Button
-            startIcon={<TodayIcon />}
-            onClick={() => setCursorDate(defaultTimezoneTodayKey())}
-            variant="outlined"
-            sx={{ whiteSpace: 'nowrap' }}
-          >
-            Today
-          </Button>
-          <Divider flexItem orientation="vertical" sx={{ display: { xs: 'none', sm: 'block' } }} />
-          <Box minWidth={0}>
-            <Typography variant="h6" fontWeight={900} noWrap>
-              {rangeLabel}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {scheduledCount.toLocaleString()} scheduled interviews · {DEFAULT_TIME_ZONE_LABEL}
-            </Typography>
-          </Box>
-        </Box>
+      <CalendarToolbar
+        isLoading={loading}
+        rangeLabel={rangeLabel}
+        scheduledCount={scheduledCount}
+        view={view}
+        onMove={moveCursor}
+        onToday={() => setCursorDate(defaultTimezoneTodayKey())}
+        onViewChange={setView}
+      />
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          {loading ? <CircularProgress size={22} /> : null}
-          <ToggleButtonGroup
-            exclusive
-            size="small"
-            value={view}
-            onChange={(_event, nextView) => {
-              if (nextView) setView(nextView);
-            }}
-            sx={{
-              '& .MuiToggleButton-root': {
-                px: 1.5,
-                minWidth: 72,
-                fontWeight: 800,
-              },
-            }}
-          >
-            <ToggleButton value={CALENDAR_VIEWS.week}>Week</ToggleButton>
-            <ToggleButton value={CALENDAR_VIEWS.month}>Month</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-      </Paper>
+      <CalendarProfileLegend profiles={activeProfiles} />
 
-      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', minHeight: 32 }}>
-        {activeProfiles.slice(0, 10).map((profile) => {
-          const color = PROFILE_COLORS[profile.colorScheme] || PROFILE_COLORS.green;
-          return (
-            <Chip
-              key={profile.id}
-              label={profile.name}
-              size="small"
-              sx={{
-                bgcolor: color.soft,
-                color: color.dark,
-                border: 1,
-                borderColor: color.main,
-                maxWidth: 180,
-                '& .MuiChip-label': {
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                },
-              }}
-            />
-          );
-        })}
-      </Box>
-
-      <Paper
-        variant="outlined"
-        sx={{
-          minHeight: 0,
-          overflow: 'hidden',
-          boxShadow: 1,
-          display: 'grid',
-          gridTemplateRows: 'auto 1fr',
-        }}
-      >
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', borderBottom: 1, borderColor: 'divider' }}>
-          {WEEKDAYS.map((day) => (
-            <Typography
-              key={day}
-              align="center"
-              color="text.secondary"
-              fontWeight={900}
-              variant="caption"
-              sx={{ py: 1, bgcolor: '#F8FAFC', borderRight: day === 'Sat' ? 0 : 1, borderColor: 'divider' }}
-            >
-              {day}
-            </Typography>
-          ))}
-        </Box>
-
-        <Box
-          sx={{
-            minHeight: 0,
-            overflow: 'auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, minmax(128px, 1fr))',
-            gridAutoRows: view === CALENDAR_VIEWS.week ? { xs: 420, md: 'minmax(0, 1fr)' } : 148,
-            bgcolor: 'divider',
-            gap: '1px',
-          }}
-        >
-          {visibleDays.map((day) => (
-            <CalendarDay
-              key={day}
-              day={day}
-              events={eventsByDay.get(day) || []}
-              isCurrentMonth={dateKeyMonth(day) === dateKeyMonth(cursorDate)}
-              isMonthView={view === CALENDAR_VIEWS.month}
-            />
-          ))}
-        </Box>
-      </Paper>
+      <CalendarGrid cursorDate={cursorDate} eventsByDay={eventsByDay} visibleDays={visibleDays} view={view} />
     </Box>
-  );
-}
-
-function CalendarDay({ day, events, isCurrentMonth, isMonthView }) {
-  const isToday = day === defaultTimezoneTodayKey();
-  const displayedEvents = isMonthView ? events.slice(0, 4) : events;
-  const hiddenCount = events.length - displayedEvents.length;
-
-  return (
-    <Box
-      sx={{
-        minWidth: 0,
-        minHeight: 0,
-        bgcolor: isCurrentMonth || !isMonthView ? 'background.paper' : '#F8FAFC',
-        p: 0.75,
-        display: 'grid',
-        gridTemplateRows: 'auto 1fr',
-        gap: 0.75,
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.75 }}>
-        <Typography
-          align="center"
-          variant="body2"
-          sx={{
-            width: 28,
-            height: 28,
-            display: 'grid',
-            placeItems: 'center',
-            borderRadius: '50%',
-            bgcolor: isToday ? 'primary.main' : 'transparent',
-            color: isToday ? 'primary.contrastText' : isCurrentMonth || !isMonthView ? 'text.primary' : 'text.secondary',
-            fontWeight: isToday ? 900 : 700,
-          }}
-        >
-          {dateKeyDay(day)}
-        </Typography>
-        {events.length ? (
-          <Typography variant="caption" color="text.secondary">
-            {events.length}
-          </Typography>
-        ) : null}
-      </Box>
-      <Box sx={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start', gap: 0.5 }}>
-        {displayedEvents.map((event) => (
-          <CalendarEvent key={event.id} event={event} />
-        ))}
-        {hiddenCount > 0 ? (
-          <Typography variant="caption" color="text.secondary" sx={{ px: 0.25 }}>
-            +{hiddenCount} more
-          </Typography>
-        ) : null}
-      </Box>
-    </Box>
-  );
-}
-
-function CalendarEvent({ event }) {
-  const color = PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
-  return (
-    <Tooltip title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${event.title} · ${event.profile?.name || 'Profile'}`}>
-      <Box
-        sx={{
-          minWidth: 0,
-          borderLeft: 3,
-          borderColor: color.main,
-          bgcolor: color.soft,
-          color: color.dark,
-          borderRadius: 1,
-          px: 0.75,
-          py: 0.5,
-          display: 'grid',
-          gap: 0.1,
-        }}
-      >
-        <Typography variant="caption" fontWeight={900} noWrap>
-          {timeLabel(event.startsAt)} {event.title}
-        </Typography>
-        <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
-          {[event.company, event.profile?.name].filter(Boolean).join(' · ')}
-        </Typography>
-      </Box>
-    </Tooltip>
   );
 }
 
@@ -394,15 +164,3 @@ function weekRangeLabel(date) {
   const days = weekDays(date);
   return `${formatDateInDefaultTimezone(days[0])} - ${formatDateInDefaultTimezone(days[6])}`;
 }
-
-function timeLabel(date) {
-  return timeLabelInDefaultTimezone(date);
-}
-
-const calendarIconButtonSx = {
-  width: 36,
-  height: 36,
-  border: 1,
-  borderColor: 'divider',
-  bgcolor: 'background.paper',
-};

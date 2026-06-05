@@ -198,7 +198,7 @@ export default function AppLayout({ user }) {
         {drawerContent}
       </Drawer>
 
-      <Box component="main" sx={{ minWidth: 0, flex: 1 }}>
+      <Box component="main" sx={{ minWidth: 0, flex: 1, height: '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <AppBar
           position="sticky"
           color="inherit"
@@ -208,6 +208,7 @@ export default function AppLayout({ user }) {
             borderColor: shellLine,
             backdropFilter: 'blur(18px)',
             bgcolor: 'rgba(255, 255, 255, 0.88)',
+            flexShrink: 0,
           }}
         >
           <Toolbar
@@ -295,6 +296,10 @@ export default function AppLayout({ user }) {
             mx: 'auto',
             p: { xs: 1.25, sm: 2, xl: 3 },
             minWidth: 0,
+            minHeight: 0,
+            flex: 1,
+            overflow: isCalendarRoute ? 'hidden' : 'auto',
+            boxSizing: 'border-box',
           }}
         >
           <Outlet />
