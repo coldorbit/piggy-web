@@ -5,7 +5,7 @@ import { formatJob } from './jobs.js';
 import { InputError } from '../utils/errors.js';
 import { clean } from '../utils/index.js';
 
-export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', JobBid, sequelize }) {
+export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', JobBid, sequelize }) {
   const tabWhere = { ...where };
   const isDoneTab = tab === 'done';
   const isInterviewsTab = tab === 'interviews';
@@ -30,10 +30,16 @@ export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', 
         profileId,
         ...(isDoneTab ? { status: { [Op.in]: ['submitted', 'won', 'lost'] } } : {}),
         ...(isInterviewsTab ? { status: { [Op.in]: ['interviewing', 'won', 'lost'] } } : {}),
-        ...((isDoneTab || isInterviewsTab) && appliedByUserId ? { userId: appliedByUserId } : {}),
       },
     },
   ];
+
+  if (appliedProfileId) {
+    tabWhere[Op.and] = [
+      ...(Array.isArray(tabWhere[Op.and]) ? tabWhere[Op.and] : []),
+      Sequelize.literal(appliedProfileExistsSql({ profileId: appliedProfileId, sequelize })),
+    ];
+  }
 
   if (isTailoredTab) {
     tabWhere[Op.and] = [
@@ -54,6 +60,18 @@ export function buildBidTabQuery({ where, tab, profileId, appliedByUserId = '', 
   }
 
   return { where: tabWhere, include, order };
+}
+
+function appliedProfileExistsSql({ profileId, sequelize }) {
+  const escapedProfileId = sequelize.escape(profileId);
+
+  return `EXISTS (
+    SELECT 1
+    FROM job_bids applied_bid
+    WHERE applied_bid.job_id = "ScrapedJob"."id"
+      AND applied_bid.profile_id = ${escapedProfileId}
+      AND applied_bid.status IN ('submitted', 'interviewing', 'won', 'lost')
+  )`;
 }
 
 function tailoredResumeExistsSql({ profileId, sequelize }) {

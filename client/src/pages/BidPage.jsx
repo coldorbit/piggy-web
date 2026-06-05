@@ -27,7 +27,7 @@ const BID_FILTER_KEYS = [
   'search',
   'roleFamily',
   'source',
-  'appliedByUserId',
+  'appliedProfileId',
   'since',
   'spam',
   'visibility',
@@ -311,7 +311,7 @@ export default function BidPage({ currentUser }) {
               <BidProfileSummary
                 filters={filters}
                 isOpen={isFilterPanelOpen}
-                meta={{ ...(metaData || { sources: [] }), bidUsers: bidJobsData?.bidUsers || [] }}
+                meta={{ ...(metaData || { sources: [] }), appliedProfiles: activeProfiles }}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onFilterChange={updateFilter}
                 onOpen={() => setIsFilterPanelOpen(true)}

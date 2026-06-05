@@ -575,15 +575,15 @@ export async function listBidJobs(req, res, next) {
     const sequelize = getSequelize();
     const { where, order: jobOrder, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
     const bidUsers = await bidUsersForProfile(profile);
-    const appliedByUserId = bidUserFilter(req.query.appliedByUserId, bidUsers);
-    const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, appliedByUserId, JobBid, sequelize });
+    const appliedProfileId = await appliedProfileFilter(req, req.query.appliedProfileId);
+    const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, appliedProfileId, JobBid, sequelize });
 
     const countBidTab = (tab) => {
       const countQuery = buildBidTabQuery({
         where,
         tab,
         profileId: profile.id,
-        appliedByUserId: tab === bidTab ? appliedByUserId : '',
+        appliedProfileId: tab === bidTab ? appliedProfileId : '',
         JobBid,
         sequelize,
       });
@@ -655,10 +655,9 @@ async function listInterviewJobs(req, res, { user, profile }) {
   const WebUser = getWebUserModel();
   const { limit, offset } = paginationFromQuery(req.query);
   const search = clean(req.query.search).toLowerCase();
-  const appliedByUserId = clean(req.query.appliedByUserId);
+  const appliedProfileId = await appliedProfileFilter(req, req.query.appliedProfileId);
   const where = {
-    profileId: profile.id,
-    ...(appliedByUserId && appliedByUserId !== 'all' ? { userId: appliedByUserId } : {}),
+    profileId: appliedProfileId || profile.id,
     ...(search
       ? {
           [Op.or]: [
@@ -682,9 +681,9 @@ async function listInterviewJobs(req, res, { user, profile }) {
       offset,
     }),
     Interview.count({ where }),
-    countBidTabForProfile({ profile, tab: 'todo', query: req.query }),
-    countBidTabForProfile({ profile, tab: 'tailored', query: req.query }),
-    countBidTabForProfile({ profile, tab: 'done', query: req.query }),
+    countBidTabForProfile({ profile, tab: 'todo', query: req.query, appliedProfileId }),
+    countBidTabForProfile({ profile, tab: 'tailored', query: req.query, appliedProfileId }),
+    countBidTabForProfile({ profile, tab: 'done', query: req.query, appliedProfileId }),
     Interview.count({ where: { profileId: profile.id } }),
     bidUsersForProfile(profile),
     WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }),
@@ -713,14 +712,12 @@ async function listInterviewJobs(req, res, { user, profile }) {
   });
 }
 
-async function countBidTabForProfile({ profile, tab, query }) {
+async function countBidTabForProfile({ profile, tab, query, appliedProfileId = '' }) {
   const ScrapedJob = getScrapedJobModel();
   const JobBid = getJobBidModel();
   const sequelize = getSequelize();
   const { where } = buildJobQuery({ ...query, bidTab: tab, profileId: profile.id, limit: query.limit || 10 });
-  const bidUsers = await bidUsersForProfile(profile);
-  const appliedByUserId = bidUserFilter(query.appliedByUserId, bidUsers);
-  const countQuery = buildBidTabQuery({ where, tab, profileId: profile.id, appliedByUserId, JobBid, sequelize });
+  const countQuery = buildBidTabQuery({ where, tab, profileId: profile.id, appliedProfileId, JobBid, sequelize });
   return ScrapedJob.count({
     where: countQuery.where,
     distinct: true,
@@ -781,11 +778,11 @@ async function bidUsersForProfile(profile) {
     .sort((left, right) => String(left.username).localeCompare(String(right.username)));
 }
 
-function bidUserFilter(value, bidUsers) {
-  const userId = clean(value);
-  if (!userId || userId === 'all') return '';
-  const allowedUserIds = new Set(bidUsers.map((bidUser) => String(bidUser.id)));
-  return allowedUserIds.has(String(userId)) ? userId : '';
+async function appliedProfileFilter(req, value) {
+  const profileId = clean(value);
+  if (!profileId || profileId === 'all') return '';
+  const profile = await accessibleProfile(req, profileId);
+  return profile.id;
 }
 
 function formatBidWithUser(row, bidUsersById, callerUsersById) {

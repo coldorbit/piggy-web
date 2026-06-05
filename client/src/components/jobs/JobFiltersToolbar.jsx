@@ -11,9 +11,9 @@ import {
 } from '@mui/material';
 
 export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
-  const bidUsers = meta?.bidUsers || [];
-  const appliedByValue = bidUsers.some((user) => String(user.id) === String(filters.appliedByUserId))
-    ? String(filters.appliedByUserId)
+  const appliedProfiles = meta?.appliedProfiles || [];
+  const appliedProfileValue = appliedProfiles.some((profile) => String(profile.id) === String(filters.appliedProfileId))
+    ? String(filters.appliedProfileId)
     : 'all';
   const content = (
     <>
@@ -37,18 +37,18 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
           ))}
         </Select>
       </FormControl>
-      {bidUsers.length ? (
+      {appliedProfiles.length ? (
         <FormControl size="small">
-          <InputLabel>Applied by</InputLabel>
+          <InputLabel>Applied using</InputLabel>
           <Select
-            label="Applied by"
-            value={appliedByValue}
-            onChange={(event) => onFilterChange('appliedByUserId', event.target.value)}
+            label="Applied using"
+            value={appliedProfileValue}
+            onChange={(event) => onFilterChange('appliedProfileId', event.target.value)}
           >
-            <MenuItem value="all">All users</MenuItem>
-            {bidUsers.map((user) => (
-              <MenuItem key={user.id} value={String(user.id)}>
-                {user.username}
+            <MenuItem value="all">All profiles</MenuItem>
+            {appliedProfiles.map((profile) => (
+              <MenuItem key={profile.id} value={String(profile.id)}>
+                {profile.name}
               </MenuItem>
             ))}
           </Select>
@@ -129,7 +129,7 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         ? '1fr'
         : {
             xs: '1fr',
-            lg: bidUsers.length
+            lg: appliedProfiles.length
               ? '150px 150px 130px 130px 130px 130px 140px auto'
               : '170px 160px 130px 130px 130px 150px auto',
           },

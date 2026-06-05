@@ -601,7 +601,7 @@ function matchesBidJobFilters(job, filters = {}) {
   if (!matchesRoleFamily(job, filters.roleFamily)) return false;
   if (!matchesSource(job, filters.source)) return false;
   if (!matchesOrigin(job, filters.origin)) return false;
-  if (!matchesAppliedBy(job, filters.appliedByUserId)) return false;
+  if (!matchesAppliedProfile(job, filters.appliedProfileId)) return false;
   return matchesSearch(job, filters.search);
 }
 
@@ -626,9 +626,10 @@ function matchesOrigin(job, origin = 'all') {
   return true;
 }
 
-function matchesAppliedBy(job, appliedByUserId = 'all') {
-  if (!appliedByUserId || appliedByUserId === 'all') return true;
-  return String(job.bid?.userId || '') === String(appliedByUserId);
+function matchesAppliedProfile(job, appliedProfileId = 'all') {
+  if (!appliedProfileId || appliedProfileId === 'all') return true;
+  // Cross-profile application matches are resolved by the API; jobs only carry the active profile's bid.
+  return true;
 }
 
 function matchesSearch(job, search = '') {
