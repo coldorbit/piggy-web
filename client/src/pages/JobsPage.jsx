@@ -15,7 +15,7 @@ import { formatDateTime } from '../lib/formatters.js';
 import { matchesSpamFilter, matchesVisibilityFilter } from '../lib/jobFilters.js';
 import { readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 
-const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'origin', 'applyMode', 'sort', 'page', 'limit'];
+const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const JOB_FILTERS_STORAGE_KEY = 'applypilot.jobs.filters';
 
 const DEFAULT_FILTERS = {
@@ -26,7 +26,6 @@ const DEFAULT_FILTERS = {
   spam: 'all',
   visibility: 'visible',
   origin: 'all',
-  applyMode: 'not_easy_apply',
   sort: 'scraped_desc',
   page: 1,
   limit: PAGE_SIZE,

@@ -32,7 +32,6 @@ const BID_FILTER_KEYS = [
   'spam',
   'visibility',
   'origin',
-  'applyMode',
   'sort',
   'page',
   'limit',
