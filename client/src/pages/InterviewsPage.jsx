@@ -402,9 +402,9 @@ export default function InterviewsPage({ currentUser }) {
             </Box>
             {currentUser?.role === 'admin' ? (
               <FormControl>
-                <InputLabel>Caller</InputLabel>
+                <InputLabel>Assignee</InputLabel>
                 <Select
-                  label="Caller"
+                  label="Assignee"
                   value={manualInterview.callerUserId}
                   onChange={(event) => setManualInterview((current) => ({ ...current, callerUserId: event.target.value }))}
                 >
@@ -450,7 +450,7 @@ export default function InterviewsPage({ currentUser }) {
                 </Typography>
               </Box>
             </DialogTitle>
-            <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 280px' }, gap: 2, pt: 1 }}>
+            <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 280px' }, gap: 2, pt: 2 }}>
               <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', minWidth: 0 }}>
                 <TextField
                   label={`${stageLabel(selectedStage)} notes`}
@@ -463,6 +463,7 @@ export default function InterviewsPage({ currentUser }) {
                     updateDraft(selectedJob, 'interviewNotes', event.target.value);
                   }}
                   disabled={updatingBid}
+                  slotProps={{ inputLabel: { sx: { bgcolor: 'background.paper', px: 0.5 } } }}
                 />
                 {selectedDraft.logs?.length ? (
                   <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.75, bgcolor: '#F8FAFC' }}>
@@ -480,9 +481,9 @@ export default function InterviewsPage({ currentUser }) {
                   </Paper>
                 ) : null}
               </Box>
-              <Box sx={{ display: 'grid', gap: 1.25, alignContent: 'start' }}>
+              <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', pt: 0.5 }}>
                 <FormControl size="small">
-                  <InputLabel>Step</InputLabel>
+                  <InputLabel sx={{ bgcolor: 'background.paper', px: 0.5 }}>Step</InputLabel>
                   <Select
                     label="Step"
                     value={selectedStage}
@@ -511,9 +512,9 @@ export default function InterviewsPage({ currentUser }) {
                 />
                 {currentUser?.role === 'admin' ? (
                   <FormControl size="small">
-                    <InputLabel>Caller</InputLabel>
+                    <InputLabel>Assignee</InputLabel>
                     <Select
-                      label="Caller"
+                      label="Assignee"
                       value={selectedDraft.callerUserId || ''}
                       onChange={(event) => updateDraft(selectedJob, 'callerUserId', event.target.value)}
                       disabled={updatingBid}
