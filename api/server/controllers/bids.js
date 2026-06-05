@@ -575,7 +575,7 @@ export async function listBidJobs(req, res, next) {
     const sequelize = getSequelize();
     const { where, order: jobOrder, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
     const bidUsers = await bidUsersForProfile(profile);
-    const appliedProfileId = await appliedProfileFilter(req, req.query.appliedProfileId);
+    const appliedProfileId = bidTab === 'todo' ? await appliedProfileFilter(req, req.query.appliedProfileId) : '';
     const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, appliedProfileId, JobBid, sequelize });
 
     const countBidTab = (tab) => {
@@ -583,7 +583,7 @@ export async function listBidJobs(req, res, next) {
         where,
         tab,
         profileId: profile.id,
-        appliedProfileId: tab === bidTab ? appliedProfileId : '',
+        appliedProfileId: tab === 'todo' && tab === bidTab ? appliedProfileId : '',
         JobBid,
         sequelize,
       });
@@ -655,9 +655,8 @@ async function listInterviewJobs(req, res, { user, profile }) {
   const WebUser = getWebUserModel();
   const { limit, offset } = paginationFromQuery(req.query);
   const search = clean(req.query.search).toLowerCase();
-  const appliedProfileId = await appliedProfileFilter(req, req.query.appliedProfileId);
   const where = {
-    profileId: appliedProfileId || profile.id,
+    profileId: profile.id,
     ...(search
       ? {
           [Op.or]: [
@@ -681,9 +680,9 @@ async function listInterviewJobs(req, res, { user, profile }) {
       offset,
     }),
     Interview.count({ where }),
-    countBidTabForProfile({ profile, tab: 'todo', query: req.query, appliedProfileId }),
-    countBidTabForProfile({ profile, tab: 'tailored', query: req.query, appliedProfileId }),
-    countBidTabForProfile({ profile, tab: 'done', query: req.query, appliedProfileId }),
+    countBidTabForProfile({ profile, tab: 'todo', query: req.query }),
+    countBidTabForProfile({ profile, tab: 'tailored', query: req.query }),
+    countBidTabForProfile({ profile, tab: 'done', query: req.query }),
     Interview.count({ where: { profileId: profile.id } }),
     bidUsersForProfile(profile),
     WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }),

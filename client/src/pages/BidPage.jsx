@@ -311,7 +311,7 @@ export default function BidPage({ currentUser }) {
               <BidProfileSummary
                 filters={filters}
                 isOpen={isFilterPanelOpen}
-                meta={{ ...(metaData || { sources: [] }), appliedProfiles: activeProfiles }}
+                meta={{ ...(metaData || { sources: [] }), appliedProfiles: activeProfiles, showAppliedProfileFilter: activeBidTab === BID_TABS.todo }}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onFilterChange={updateFilter}
                 onOpen={() => setIsFilterPanelOpen(true)}

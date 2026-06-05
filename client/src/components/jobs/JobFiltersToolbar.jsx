@@ -12,6 +12,7 @@ import {
 
 export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
   const appliedProfiles = meta?.appliedProfiles || [];
+  const showAppliedProfileFilter = Boolean(meta?.showAppliedProfileFilter);
   const appliedProfileValue = appliedProfiles.some((profile) => String(profile.id) === String(filters.appliedProfileId))
     ? String(filters.appliedProfileId)
     : 'all';
@@ -37,7 +38,7 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
           ))}
         </Select>
       </FormControl>
-      {appliedProfiles.length ? (
+      {showAppliedProfileFilter && appliedProfiles.length ? (
         <FormControl size="small">
           <InputLabel>Applied using</InputLabel>
           <Select
@@ -129,7 +130,7 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         ? '1fr'
         : {
             xs: '1fr',
-            lg: appliedProfiles.length
+            lg: showAppliedProfileFilter && appliedProfiles.length
               ? '150px 150px 130px 130px 130px 130px 140px auto'
               : '170px 160px 130px 130px 130px 150px auto',
           },
