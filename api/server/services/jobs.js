@@ -37,7 +37,7 @@ export function buildJobQuery(query) {
   const limit = Math.min(Math.max(Number(query.limit || 50), 1), 100);
   const offset = (page - 1) * limit;
 
-  if (source && source !== 'all') where.source = source;
+  if (source && source !== 'all') where.source = { [Op.iLike]: source };
   applyRoleFamilyFilter(where, roleFamily);
   applyExperienceLevelFilter(where);
   if (spam === 'spam') where.isSpam = true;
@@ -47,7 +47,7 @@ export function buildJobQuery(query) {
   applyOriginFilter(where, origin);
   if (since !== 'all') {
     const sinceDate = sinceToDate(since);
-    if (sinceDate) where.postedAt = { [Op.gte]: sinceDate };
+    if (sinceDate) where.scrapedAt = { [Op.gte]: sinceDate };
   }
   if (search) {
     const pattern = `%${search}%`;
