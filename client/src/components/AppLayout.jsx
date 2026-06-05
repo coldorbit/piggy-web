@@ -55,8 +55,9 @@ export default function AppLayout({ user }) {
     () => ({ search: headerSearch, setSearch: setHeaderSearch }),
     [headerSearch],
   );
-  const isInternalUser = ['admin', 'internal'].includes(user.role);
+  const canAccessInterviews = ['admin', 'internal', 'user', 'caller'].includes(user.role);
   const canManageCallers = !['bidder', 'readonly_bidder', 'editable_bidder', 'caller'].includes(user.role);
+  const isCaller = user.role === 'caller';
 
   async function handleLogout() {
     logout(undefined, {
@@ -123,21 +124,21 @@ export default function AppLayout({ user }) {
       </Toolbar>
       <Box sx={{ px: 1.25, py: 1.25 }}>
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.5 }}>
-          <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} />
-          <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} />
-          {['admin', 'user', 'bidder', 'readonly_bidder', 'editable_bidder'].includes(user.role) ? (
+          {!isCaller ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} /> : null}
+          {!isCaller ? <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} /> : null}
+          {!isCaller && ['admin', 'user', 'bidder', 'readonly_bidder', 'editable_bidder'].includes(user.role) ? (
             <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {isInternalUser ? (
+          {canAccessInterviews ? (
             <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {isInternalUser ? (
+          {canAccessInterviews ? (
             <NavItem to="/calendar" icon={<CalendarMonthIcon />} label="Calendar" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canManageCallers ? (
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} />
+          {!isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} /> : null}
           {user.role === 'admin' ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" onNavigate={() => setMobileOpen(false)} />
           ) : null}

@@ -50,7 +50,7 @@ export async function listProfiles(req, res, next) {
       clean(req.query?.scope) === 'manage' && user.role === 'admin'
         ? await profilesManagedByUser(user)
         : await profilesVisibleToUser(user);
-    res.json({ profiles: (await profilesWithSharing(await profilesWithProgress(profiles))).map(formatProfile) });
+    res.json({ profiles: (await profilesWithSharing(await profilesWithProgress(profiles, { user }))).map(formatProfile) });
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
       res.status(409).json({ error: 'This profile already has a bid for this job' });
@@ -559,11 +559,13 @@ export async function listBidJobs(req, res, next) {
   try {
     await ensureWebModels();
     const user = await currentDbUser(req);
-    const profile = await accessibleProfile(req, req.query.profileId);
     const bidTab = clean(req.query.bidTab || 'todo');
+    const profile = user.role === 'caller' && bidTab === 'interviews'
+      ? await assignedCallerProfile(user, req.query.profileId)
+      : await accessibleProfile(req, req.query.profileId);
     const canViewInternalData = isInternalUser(user);
     if (bidTab === 'interviews') {
-      requireInternalUser(user, res);
+      requireInterviewAccessUser(user, res);
       if (res.headersSent) return;
       await listInterviewJobs(req, res, { user, profile });
       return;
@@ -657,6 +659,7 @@ async function listInterviewJobs(req, res, { user, profile }) {
   const search = clean(req.query.search).toLowerCase();
   const where = {
     profileId: profile.id,
+    ...(user.role === 'caller' ? { callerUserId: user.id } : {}),
     ...(search
       ? {
           [Op.or]: [
@@ -680,12 +683,12 @@ async function listInterviewJobs(req, res, { user, profile }) {
       offset,
     }),
     Interview.count({ where }),
-    countBidTabForProfile({ profile, tab: 'todo', query: req.query }),
-    countBidTabForProfile({ profile, tab: 'tailored', query: req.query }),
-    countBidTabForProfile({ profile, tab: 'done', query: req.query }),
-    Interview.count({ where: { profileId: profile.id } }),
+    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'todo', query: req.query }),
+    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'tailored', query: req.query }),
+    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'done', query: req.query }),
+    Interview.count({ where: { profileId: profile.id, ...(user.role === 'caller' ? { callerUserId: user.id } : {}) } }),
     bidUsersForProfile(profile),
-    WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }),
+    user.role === 'admin' ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }) : Promise.resolve([]),
   ]);
   const logsByInterviewId = await interviewLogsByInterviewId(interviews);
   const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
@@ -736,13 +739,28 @@ function countInterviewsForProfile(profileId) {
   return getInterviewModel().count({ where: { profileId } });
 }
 
-function requireInternalUser(user, res) {
-  if (isInternalUser(user)) return;
-  res.status(403).json({ error: 'Internal access required' });
+async function assignedCallerProfile(user, profileId) {
+  const id = clean(profileId);
+  if (!id) throw new NotFoundError('Profile not found');
+  const profile = await getBidProfileModel().findByPk(id);
+  if (!profile) throw new NotFoundError('Profile not found');
+  const assignment = await getInterviewModel().findOne({ where: { profileId: profile.id, callerUserId: user.id } });
+  if (!assignment) throw new NotFoundError('Profile not found');
+  profile.setDataValue('shareStatus', 'caller');
+  return profile;
+}
+
+function requireInterviewAccessUser(user, res) {
+  if (canAccessInterviews(user)) return;
+  res.status(403).json({ error: 'Interview access required' });
 }
 
 function isInternalUser(user) {
   return ['admin', 'internal'].includes(user?.role);
+}
+
+function canAccessInterviews(user) {
+  return ['admin', 'internal', 'user', 'caller'].includes(user?.role);
 }
 
 function requireCallerManagementUser(user, res) {

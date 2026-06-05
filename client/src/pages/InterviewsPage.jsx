@@ -241,6 +241,7 @@ export default function InterviewsPage({ currentUser }) {
   const jobsByStage = groupJobsByStage(jobs, draftFor);
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
   const totalInterviewCount = Number(activeProfile?.progress?.totalInterviews || interviewsData?.total || 0);
+  const canEditInterviews = currentUser?.role !== 'caller';
   const loading = profilesLoading || interviewsLoading;
   const pageError = error || profilesError?.message || interviewsError?.message || '';
 
@@ -307,16 +308,18 @@ export default function InterviewsPage({ currentUser }) {
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {loading ? <CircularProgress size={22} /> : null}
-                <Button
-                  disabled={!activeProfile || creatingManualInterview}
-                  onClick={openManualDialog}
-                  size="small"
-                  startIcon={<AddIcon />}
-                  variant="contained"
-                  sx={{ whiteSpace: 'nowrap' }}
-                >
-                  Register
-                </Button>
+                {canEditInterviews ? (
+                  <Button
+                    disabled={!activeProfile || creatingManualInterview}
+                    onClick={openManualDialog}
+                    size="small"
+                    startIcon={<AddIcon />}
+                    variant="contained"
+                    sx={{ whiteSpace: 'nowrap' }}
+                  >
+                    Register
+                  </Button>
+                ) : null}
               </Box>
             </Box>
 
@@ -332,9 +335,9 @@ export default function InterviewsPage({ currentUser }) {
                   canDeleteInterviews={currentUser?.role === 'admin'}
                   draftFor={draftFor}
                   isDeleting={deletingInterview}
-                  isSaving={updatingBid}
+                  isSaving={updatingBid || !canEditInterviews}
                   jobsByStage={jobsByStage}
-                  onDragEnd={handleDragEnd}
+                  onDragEnd={canEditInterviews ? handleDragEnd : () => {}}
                   onDragOver={setActiveDropStage}
                   onDraftChange={updateDraft}
                   onDelete={handleDeleteInterview}
@@ -462,7 +465,7 @@ export default function InterviewsPage({ currentUser }) {
                     updateDraft(selectedJob, 'stageNotes', nextStageNotes);
                     updateDraft(selectedJob, 'interviewNotes', event.target.value);
                   }}
-                  disabled={updatingBid}
+                  disabled={updatingBid || !canEditInterviews}
                   sx={{ mt: 0.75 }}
                   slotProps={{
                     input: { sx: { alignItems: 'flex-start', pt: 1.75 } },
@@ -496,7 +499,7 @@ export default function InterviewsPage({ currentUser }) {
                       updateDraft(selectedJob, 'interviewStage', nextStage);
                       updateDraft(selectedJob, 'interviewNotes', selectedStageNotes[nextStage] || '');
                     }}
-                    disabled={updatingBid}
+                    disabled={updatingBid || !canEditInterviews}
                   >
                     {INTERVIEW_STAGES.map((stage) => (
                       <MenuItem key={stage.value} value={stage.value}>
@@ -511,7 +514,7 @@ export default function InterviewsPage({ currentUser }) {
                   type="datetime-local"
                   value={toDatetimeLocalValue(selectedDraft.interviewNextAt)}
                   onChange={(event) => updateDraft(selectedJob, 'interviewNextAt', event.target.value ? new Date(event.target.value).toISOString() : '')}
-                  disabled={updatingBid}
+                  disabled={updatingBid || !canEditInterviews}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
                 {currentUser?.role === 'admin' ? (
@@ -521,7 +524,7 @@ export default function InterviewsPage({ currentUser }) {
                       label="Assignee"
                       value={selectedDraft.callerUserId || ''}
                       onChange={(event) => updateDraft(selectedJob, 'callerUserId', event.target.value)}
-                      disabled={updatingBid}
+                      disabled={updatingBid || !canEditInterviews}
                     >
                       <MenuItem value="">Unassigned</MenuItem>
                       {callerUsers.map((caller) => (
@@ -550,7 +553,7 @@ export default function InterviewsPage({ currentUser }) {
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button onClick={closeInterviewDialog}>Close</Button>
                 <Button
-                  disabled={updatingBid}
+                  disabled={updatingBid || !canEditInterviews}
                   onClick={() => saveInterview(selectedJob)}
                   variant="contained"
                 >

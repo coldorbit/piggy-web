@@ -34,24 +34,45 @@ export default function App() {
       <Routes>
         <Route path="/pricing" element={<PricingPage />} />
         <Route element={<AppLayout user={user} />}>
-          <Route index element={<Navigate to="/jobs" replace />} />
-          <Route path="/jobs" element={<JobsPage currentUser={user} />} />
-          <Route path="/bids" element={<BidPage currentUser={user} />} />
-          <Route path="/bidders" element={<BiddersPage currentUser={user} />} />
+          <Route index element={<Navigate to={user.role === 'caller' ? '/interviews' : '/jobs'} replace />} />
+          <Route
+            path="/jobs"
+            element={
+              <BlockCallers user={user}>
+                <JobsPage currentUser={user} />
+              </BlockCallers>
+            }
+          />
+          <Route
+            path="/bids"
+            element={
+              <BlockCallers user={user}>
+                <BidPage currentUser={user} />
+              </BlockCallers>
+            }
+          />
+          <Route
+            path="/bidders"
+            element={
+              <BlockCallers user={user}>
+                <BiddersPage currentUser={user} />
+              </BlockCallers>
+            }
+          />
           <Route
             path="/interviews"
             element={
-              <RequireRoles user={user} roles={['admin', 'internal']}>
+              <RequireInterviewAccess user={user}>
                 <InterviewsPage currentUser={user} />
-              </RequireRoles>
+              </RequireInterviewAccess>
             }
           />
           <Route
             path="/calendar"
             element={
-              <RequireRoles user={user} roles={['admin', 'internal']}>
+              <RequireInterviewAccess user={user}>
                 <CalendarPage currentUser={user} />
-              </RequireRoles>
+              </RequireInterviewAccess>
             }
           />
           <Route
@@ -62,7 +83,14 @@ export default function App() {
               </RequireCallerManagement>
             }
           />
-          <Route path="/profiles" element={<ProfilesPage currentUser={user} />} />
+          <Route
+            path="/profiles"
+            element={
+              <BlockCallers user={user}>
+                <ProfilesPage currentUser={user} />
+              </BlockCallers>
+            }
+          />
           <Route
             path="/admin/users"
             element={
@@ -84,9 +112,15 @@ function RequireAdmin({ user, children }) {
   return children;
 }
 
-function RequireRoles({ user, roles, children }) {
+function RequireInterviewAccess({ user, children }) {
   const location = useLocation();
-  if (!roles.includes(user.role)) return <Navigate to="/jobs" replace state={{ from: location }} />;
+  if (!['admin', 'internal', 'user', 'caller'].includes(user.role)) return <Navigate to="/jobs" replace state={{ from: location }} />;
+  return children;
+}
+
+function BlockCallers({ user, children }) {
+  const location = useLocation();
+  if (user.role === 'caller') return <Navigate to="/interviews" replace state={{ from: location }} />;
   return children;
 }
 

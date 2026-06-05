@@ -83,9 +83,10 @@ export function formatProfile(row) {
   };
 }
 
-export async function profilesWithProgress(profiles) {
+export async function profilesWithProgress(profiles, { user } = {}) {
   const profileIds = [...new Set(profiles.map((profile) => String(profile.id)).filter(Boolean))];
   if (!profileIds.length) return profiles;
+  const isCaller = user?.role === 'caller';
 
   const [bidRows, tailoredRows, interviewRows] = await Promise.all([
     getJobBidModel().findAll({
@@ -107,7 +108,7 @@ export async function profilesWithProgress(profiles) {
           'done',
         ],
       ],
-      where: { profileId: profileIds },
+      where: { profileId: profileIds, ...(isCaller ? { callerUserId: user.id } : {}) },
       group: ['profileId'],
       raw: true,
     }),
@@ -135,7 +136,7 @@ export async function profilesWithProgress(profiles) {
           'activeInterviews',
         ],
       ],
-      where: { profileId: profileIds },
+      where: { profileId: profileIds, ...(isCaller ? { callerUserId: user.id } : {}) },
       group: ['profileId'],
       raw: true,
     }),
@@ -235,8 +236,24 @@ export async function profilesManagedByUser(user) {
 
 export async function profilesVisibleToUser(user) {
   const BidProfile = getBidProfileModel();
+  const Interview = getInterviewModel();
   const ProfileShareRequest = getProfileShareRequestModel();
   const WebUser = getWebUserModel();
+
+  if (user.role === 'caller') {
+    const assignments = await Interview.findAll({
+      where: { callerUserId: user.id },
+      include: [{ model: BidProfile, as: 'profile', required: true }],
+      order: [['updatedAt', 'DESC']],
+    });
+    const profilesById = new Map();
+    for (const assignment of assignments) {
+      if (!assignment.profile) continue;
+      assignment.profile.setDataValue('shareStatus', 'caller');
+      profilesById.set(String(assignment.profile.id), assignment.profile);
+    }
+    return [...profilesById.values()];
+  }
 
   const [ownedProfiles, acceptedShares] = await Promise.all([
     BidProfile.findAll({
