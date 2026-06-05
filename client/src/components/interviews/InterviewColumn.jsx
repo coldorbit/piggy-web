@@ -1,4 +1,4 @@
-import { useDroppable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { Box, Chip, Paper, Stack, Typography } from '@mui/material';
 import InterviewCard from './InterviewCard.jsx';
 
@@ -69,7 +69,7 @@ export default function InterviewColumn({
           </Paper>
         ) : null}
         {jobs.map((job) => (
-          <InterviewCard
+          <DraggableInterviewCard
             key={job.id}
             accent={accent}
             callerUsers={callerUsers}
@@ -87,5 +87,48 @@ export default function InterviewColumn({
         ))}
       </Stack>
     </Paper>
+  );
+}
+
+function DraggableInterviewCard({
+  accent,
+  callerUsers,
+  canAssignCallers,
+  canDeleteInterviews,
+  currentUser,
+  draft,
+  isDeleting,
+  isSaving,
+  job,
+  onDelete,
+  onDraftChange,
+  onSave,
+}) {
+  const { attributes, isDragging, listeners, setActivatorNodeRef, setNodeRef } = useDraggable({
+    id: String(job.id),
+    data: { jobId: String(job.id) },
+    disabled: isSaving || isDeleting,
+  });
+
+  return (
+    <InterviewCard
+      accent={accent}
+      callerUsers={callerUsers}
+      canAssignCallers={canAssignCallers}
+      canDeleteInterviews={canDeleteInterviews}
+      currentUser={currentUser}
+      draft={draft}
+      dragAttributes={attributes}
+      dragHandleRef={setActivatorNodeRef}
+      dragListeners={listeners}
+      isDeleting={isDeleting}
+      isDragging={isDragging}
+      isSaving={isSaving}
+      job={job}
+      nodeRef={setNodeRef}
+      onDelete={onDelete}
+      onDraftChange={onDraftChange}
+      onSave={onSave}
+    />
   );
 }

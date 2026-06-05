@@ -1,6 +1,8 @@
-import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { Box } from '@mui/material';
+import { useState } from 'react';
 import { INTERVIEW_KANBAN_COLUMNS } from '../bids/bidConstants.js';
+import InterviewCard from './InterviewCard.jsx';
 import InterviewColumn from './InterviewColumn.jsx';
 
 export default function InterviewKanbanBoard({
@@ -20,22 +22,33 @@ export default function InterviewKanbanBoard({
   onDelete,
   onSave,
 }) {
+  const [activeJobId, setActiveJobId] = useState('');
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor));
+  const activeJob = activeJobId
+    ? INTERVIEW_KANBAN_COLUMNS.flatMap((stage) => jobsByStage[stage.value] || []).find((job) => String(job.id) === String(activeJobId))
+    : null;
 
   function handleDragEnd(event) {
+    setActiveJobId('');
     onDragEnd({
       jobId: event.active?.id,
       stage: event.over?.data?.current?.stage || event.over?.id || '',
     });
   }
 
+  function handleDragCancel() {
+    setActiveJobId('');
+    onDragOver('');
+  }
+
   return (
     <DndContext
       collisionDetection={closestCenter}
       sensors={sensors}
+      onDragStart={(event) => setActiveJobId(String(event.active?.id || ''))}
       onDragEnd={handleDragEnd}
       onDragOver={(event) => onDragOver(event.over?.data?.current?.stage || event.over?.id || '')}
-      onDragCancel={() => onDragOver('')}
+      onDragCancel={handleDragCancel}
     >
       <Box
         sx={{
@@ -71,6 +84,27 @@ export default function InterviewKanbanBoard({
           />
         ))}
       </Box>
+      <DragOverlay dropAnimation={null}>
+        {activeJob ? (
+          <Box sx={{ width: { xs: '82vw', sm: 340, xl: 360 } }}>
+            <InterviewCard
+              accent={activeColor}
+              callerUsers={callerUsers}
+              canAssignCallers={canAssignCallers}
+              canDeleteInterviews={canDeleteInterviews}
+              currentUser={currentUser}
+              draft={draftFor(activeJob)}
+              isDeleting={isDeleting}
+              isSaving={isSaving}
+              job={activeJob}
+              onDelete={() => {}}
+              onDraftChange={() => {}}
+              onSave={() => {}}
+              overlay
+            />
+          </Box>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

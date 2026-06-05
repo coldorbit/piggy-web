@@ -1,4 +1,3 @@
-import { useDraggable } from '@dnd-kit/core';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
@@ -24,6 +23,8 @@ import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
 import { formatDate, formatDateTime } from '../../lib/formatters.js';
 import { toDatetimeLocalValue } from './interviewUtils.js';
 
+const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="button"], [role="combobox"], .MuiSelect-select';
+
 export default function InterviewCard({
   accent,
   callerUsers = [],
@@ -31,20 +32,21 @@ export default function InterviewCard({
   canDeleteInterviews = false,
   currentUser,
   draft,
+  dragAttributes = {},
+  dragHandleRef,
+  dragListeners = {},
+  isDragging = false,
   isDeleting = false,
   isSaving,
   job,
+  nodeRef,
   onDelete,
   onDraftChange,
   onSave,
+  overlay = false,
 }) {
   const owner = job.bid?.user?.username || (String(job.bid?.userId) === String(currentUser?.id) ? currentUser?.username : '');
   const jobUrl = externalJobUrl(job);
-  const { attributes, isDragging, listeners, setActivatorNodeRef, setNodeRef, transform } = useDraggable({
-    id: String(job.id),
-    data: { jobId: String(job.id) },
-    disabled: isSaving || isDeleting,
-  });
 
   function handleStageChange(event) {
     const interviewStage = event.target.value;
@@ -58,17 +60,27 @@ export default function InterviewCard({
     onSave({ callerUserId });
   }
 
+  function handlePointerDown(event) {
+    if (event.target.closest(INTERACTIVE_SELECTOR)) {
+      event.stopPropagation();
+    }
+  }
+
   return (
     <Card
-      ref={setNodeRef}
+      ref={nodeRef}
       variant="outlined"
+      {...dragAttributes}
+      {...dragListeners}
+      onPointerDown={handlePointerDown}
       sx={{
         borderLeft: `4px solid ${accent.main}`,
         boxShadow: 1,
+        cursor: isSaving || isDeleting || overlay ? 'default' : 'grab',
         flexShrink: 0,
-        opacity: isDragging ? 0.72 : 1,
-        transform: transform ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)` : undefined,
-        zIndex: isDragging ? 3 : 'auto',
+        opacity: isDragging ? 0.32 : 1,
+        touchAction: overlay ? 'none' : 'manipulation',
+        '&:active': { cursor: isSaving || isDeleting || overlay ? 'default' : 'grabbing' },
       }}
     >
       <CardContent sx={{ display: 'grid', gap: 1, p: 1, '&:last-child': { pb: 1 } }}>
@@ -116,11 +128,9 @@ export default function InterviewCard({
               </Tooltip>
             ) : null}
             <Box
-              ref={setActivatorNodeRef}
-              {...attributes}
-              {...listeners}
+              ref={dragHandleRef}
               aria-label="Move interview"
-              role="button"
+              aria-hidden="true"
               sx={{
                 alignItems: 'center',
                 cursor: isSaving || isDeleting ? 'default' : 'grab',
