@@ -1,8 +1,11 @@
 import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -53,6 +56,7 @@ export default function InterviewsPage({ currentUser }) {
   const [drafts, setDrafts] = useState({});
   const [activeDropStage, setActiveDropStage] = useState('');
   const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
+  const [selectedInterviewId, setSelectedInterviewId] = useState('');
   const [manualInterview, setManualInterview] = useState(EMPTY_MANUAL_INTERVIEW);
   const [error, setError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
@@ -179,6 +183,15 @@ export default function InterviewsPage({ currentUser }) {
     setManualInterview(EMPTY_MANUAL_INTERVIEW);
   }
 
+  function openInterviewDialog(job) {
+    if (!job?.bid?.id) return;
+    setSelectedInterviewId(String(job.bid.id));
+  }
+
+  function closeInterviewDialog() {
+    setSelectedInterviewId('');
+  }
+
   function submitManualInterview(event) {
     event.preventDefault();
     if (!activeProfile) return;
@@ -204,6 +217,7 @@ export default function InterviewsPage({ currentUser }) {
     deleteInterview(job.bid.id, {
       onError: (interviewError) => setError(interviewError.message),
       onSuccess: () => {
+        closeInterviewDialog();
         setDrafts((current) => {
           const next = { ...current };
           delete next[job.bid.id];
@@ -215,6 +229,14 @@ export default function InterviewsPage({ currentUser }) {
 
   const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'];
   const jobs = interviewsData?.jobs || [];
+  const selectedJob = selectedInterviewId
+    ? jobs.find((job) => String(job.bid?.id) === String(selectedInterviewId)) || null
+    : null;
+  const selectedDraft = selectedJob ? draftFor(selectedJob) : null;
+  const selectedStage = selectedDraft?.interviewStage || INTERVIEW_STAGES[0].value;
+  const selectedStageNotes = selectedDraft?.stageNotes || {};
+  const selectedStageNote = selectedStageNotes[selectedStage] || selectedDraft?.interviewNotes || '';
+  const selectedJobUrl = externalJobUrl(selectedJob);
   const callerUsers = interviewsData?.callerUsers || [];
   const jobsByStage = groupJobsByStage(jobs, draftFor);
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
@@ -316,6 +338,7 @@ export default function InterviewsPage({ currentUser }) {
                   onDragOver={setActiveDropStage}
                   onDraftChange={updateDraft}
                   onDelete={handleDeleteInterview}
+                  onOpen={openInterviewDialog}
                   onSave={saveInterview}
                 />
               ) : null}
@@ -410,6 +433,149 @@ export default function InterviewsPage({ currentUser }) {
           </DialogActions>
         </form>
       </Dialog>
+
+      <Dialog open={Boolean(selectedJob)} onClose={closeInterviewDialog} fullWidth maxWidth="md">
+        {selectedJob && selectedDraft ? (
+          <>
+            <DialogTitle sx={{ pb: 1 }}>
+              <Box sx={{ display: 'grid', gap: 0.5, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                  <Typography fontWeight={900} noWrap>
+                    {selectedJob.title || 'Untitled role'}
+                  </Typography>
+                  <Chip label={stageLabel(selectedStage)} size="small" sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 900 }} />
+                </Box>
+                <Typography variant="body2" color="text.secondary" noWrap>
+                  {[selectedJob.company, selectedJob.location].filter(Boolean).join(' · ') || 'Interview'}
+                </Typography>
+              </Box>
+            </DialogTitle>
+            <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 280px' }, gap: 2, pt: 1 }}>
+              <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', minWidth: 0 }}>
+                <TextField
+                  label={`${stageLabel(selectedStage)} notes`}
+                  minRows={8}
+                  multiline
+                  value={selectedStageNote}
+                  onChange={(event) => {
+                    const nextStageNotes = { ...selectedStageNotes, [selectedStage]: event.target.value };
+                    updateDraft(selectedJob, 'stageNotes', nextStageNotes);
+                    updateDraft(selectedJob, 'interviewNotes', event.target.value);
+                  }}
+                  disabled={updatingBid}
+                />
+                {selectedDraft.logs?.length ? (
+                  <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.75, bgcolor: '#F8FAFC' }}>
+                    <Typography variant="body2" fontWeight={900}>
+                      Journey
+                    </Typography>
+                    {selectedDraft.logs.map((log) => (
+                      <Box key={log.id} sx={{ display: 'grid', gap: 0.2, minWidth: 0 }}>
+                        <Typography variant="body2">{formatJourneyLog(log)}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {log.createdAt ? new Date(log.createdAt).toLocaleString() : ''}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Paper>
+                ) : null}
+              </Box>
+              <Box sx={{ display: 'grid', gap: 1.25, alignContent: 'start' }}>
+                <FormControl size="small">
+                  <InputLabel>Step</InputLabel>
+                  <Select
+                    label="Step"
+                    value={selectedStage}
+                    onChange={(event) => {
+                      const nextStage = event.target.value;
+                      updateDraft(selectedJob, 'interviewStage', nextStage);
+                      updateDraft(selectedJob, 'interviewNotes', selectedStageNotes[nextStage] || '');
+                    }}
+                    disabled={updatingBid}
+                  >
+                    {INTERVIEW_STAGES.map((stage) => (
+                      <MenuItem key={stage.value} value={stage.value}>
+                        {stage.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Next interview"
+                  size="small"
+                  type="datetime-local"
+                  value={toDatetimeLocalValue(selectedDraft.interviewNextAt)}
+                  onChange={(event) => updateDraft(selectedJob, 'interviewNextAt', event.target.value ? new Date(event.target.value).toISOString() : '')}
+                  disabled={updatingBid}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                {currentUser?.role === 'admin' ? (
+                  <FormControl size="small">
+                    <InputLabel>Caller</InputLabel>
+                    <Select
+                      label="Caller"
+                      value={selectedDraft.callerUserId || ''}
+                      onChange={(event) => updateDraft(selectedJob, 'callerUserId', event.target.value)}
+                      disabled={updatingBid}
+                    >
+                      <MenuItem value="">Unassigned</MenuItem>
+                      {callerUsers.map((caller) => (
+                        <MenuItem key={caller.id} value={caller.id}>
+                          {caller.username}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                ) : null}
+                {selectedJobUrl ? (
+                  <Button component="a" href={selectedJobUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="outlined">
+                    Job link
+                  </Button>
+                ) : null}
+              </Box>
+            </DialogContent>
+            <DialogActions sx={{ justifyContent: 'space-between' }}>
+              <Box>
+                {currentUser?.role === 'admin' ? (
+                  <Button color="error" startIcon={<DeleteIcon />} disabled={deletingInterview || updatingBid} onClick={() => handleDeleteInterview(selectedJob)}>
+                    Delete
+                  </Button>
+                ) : null}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button onClick={closeInterviewDialog}>Close</Button>
+                <Button
+                  disabled={updatingBid}
+                  onClick={() => saveInterview(selectedJob)}
+                  variant="contained"
+                >
+                  Save
+                </Button>
+              </Box>
+            </DialogActions>
+          </>
+        ) : null}
+      </Dialog>
     </Box>
   );
+}
+
+function externalJobUrl(job) {
+  const url = job?.rawJob?.originalUrl || job?.url || '';
+  return /^https?:\/\//i.test(String(url)) ? url : '';
+}
+
+function stageLabel(value) {
+  return INTERVIEW_STAGES.find((stage) => stage.value === value)?.label || 'Stage';
+}
+
+function formatJourneyLog(log) {
+  const stage = log.metadata?.stage ? stageLabel(log.metadata.stage) : '';
+  return {
+    created: 'Created',
+    first_scheduled: 'First interview scheduled',
+    schedule_changed: 'Schedule changed',
+    stage_changed: `Moved ${stageLabel(log.fromValue)} -> ${stageLabel(log.toValue)}`,
+    stage_note_changed: `${stage || 'Stage'} note updated`,
+  }[log.eventType] || log.eventType;
 }

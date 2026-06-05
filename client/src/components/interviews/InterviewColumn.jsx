@@ -15,6 +15,7 @@ export default function InterviewColumn({
   jobs,
   onDraftChange,
   onDelete,
+  onOpen,
   onSave,
   stage,
 }) {
@@ -82,6 +83,7 @@ export default function InterviewColumn({
             job={job}
             onDelete={() => onDelete(job)}
             onDraftChange={(key, value) => onDraftChange(job, key, value)}
+            onOpen={() => onOpen(job)}
             onSave={(overrides) => onSave(job, overrides)}
           />
         ))}
@@ -102,6 +104,7 @@ function DraggableInterviewCard({
   job,
   onDelete,
   onDraftChange,
+  onOpen,
   onSave,
 }) {
   const { attributes, isDragging, listeners, setActivatorNodeRef, setNodeRef } = useDraggable({
@@ -128,6 +131,7 @@ function DraggableInterviewCard({
       nodeRef={setNodeRef}
       onDelete={onDelete}
       onDraftChange={onDraftChange}
+      onOpen={onOpen}
       onSave={onSave}
     />
   );

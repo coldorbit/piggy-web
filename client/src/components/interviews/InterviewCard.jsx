@@ -1,27 +1,14 @@
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import SaveIcon from '@mui/icons-material/Save';
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Chip,
-  CircularProgress,
-  FormControl,
-  IconButton,
-  InputLabel,
-  MenuItem,
-  Select,
-  TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
 import { formatDate, formatDateTime } from '../../lib/formatters.js';
-import { toDatetimeLocalValue } from './interviewUtils.js';
 
 const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="combobox"], .MuiSelect-select';
 
@@ -29,7 +16,6 @@ export default function InterviewCard({
   accent,
   callerUsers = [],
   canAssignCallers = false,
-  canDeleteInterviews = false,
   currentUser,
   draft,
   dragAttributes = {},
@@ -40,29 +26,14 @@ export default function InterviewCard({
   isSaving,
   job,
   nodeRef,
-  onDelete,
-  onDraftChange,
-  onSave,
+  onOpen,
   overlay = false,
 }) {
   const owner = job.bid?.user?.username || (String(job.bid?.userId) === String(currentUser?.id) ? currentUser?.username : '');
-  const jobUrl = externalJobUrl(job);
   const currentStage = draft.interviewStage || INTERVIEW_STAGES[0].value;
   const stageNotes = draft.stageNotes || {};
-  const currentStageNote = stageNotes[currentStage] || '';
   const logs = draft.logs || [];
-
-  function handleStageChange(event) {
-    const interviewStage = event.target.value;
-    onDraftChange('interviewStage', interviewStage);
-    onSave({ interviewStage, status: 'interviewing' });
-  }
-
-  function handleCallerChange(event) {
-    const callerUserId = event.target.value;
-    onDraftChange('callerUserId', callerUserId);
-    onSave({ callerUserId });
-  }
+  const currentStageNote = stageNotes[currentStage] || draft.interviewNotes || '';
 
   function handlePointerDown(event) {
     if (event.target.closest(INTERACTIVE_SELECTOR)) {
@@ -79,6 +50,10 @@ export default function InterviewCard({
       {...dragAttributes}
       {...dragListeners}
       onPointerDown={handlePointerDown}
+      onClick={(event) => {
+        if (overlay || isDragging || event.target.closest(INTERACTIVE_SELECTOR)) return;
+        onOpen?.();
+      }}
       sx={{
         borderLeft: `4px solid ${accent.main}`,
         boxShadow: 1,
@@ -93,16 +68,11 @@ export default function InterviewCard({
         <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) max-content', gap: 0.75, alignItems: 'start' }}>
           <Box minWidth={0}>
             <Typography
-              component={jobUrl ? 'a' : 'span'}
-              href={jobUrl || undefined}
-              target={jobUrl ? '_blank' : undefined}
-              rel={jobUrl ? 'noreferrer' : undefined}
+              component="span"
               variant="body2"
               fontWeight={900}
               sx={{
                 color: 'text.primary',
-                textDecoration: 'none',
-                '&:hover': { color: 'primary.main', textDecoration: 'underline' },
               }}
             >
               {job.title || 'Untitled role'}
@@ -115,24 +85,6 @@ export default function InterviewCard({
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-            {canDeleteInterviews ? (
-              <Tooltip title="Delete interview">
-                <IconButton
-                  aria-label="Delete interview"
-                  color="error"
-                  disabled={isDeleting || isSaving}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onDelete();
-                  }}
-                  onMouseDown={(event) => event.stopPropagation()}
-                  size="small"
-                  sx={{ height: 28, width: 28 }}
-                >
-                  {isDeleting ? <CircularProgress color="inherit" size={16} /> : <DeleteIcon fontSize="small" />}
-                </IconButton>
-              </Tooltip>
-            ) : null}
             <Box
               ref={dragHandleRef}
               aria-label="Move interview"
@@ -152,53 +104,9 @@ export default function InterviewCard({
           </Box>
         </Box>
 
-        <TextField
-          label="Next interview"
-          size="small"
-          type="datetime-local"
-          value={toDatetimeLocalValue(draft.interviewNextAt)}
-          onChange={(event) => onDraftChange('interviewNextAt', event.target.value ? new Date(event.target.value).toISOString() : '')}
-          disabled={isSaving}
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
-        <FormControl size="small">
-          <InputLabel>Step</InputLabel>
-          <Select label="Step" value={draft.interviewStage || INTERVIEW_STAGES[0].value} onChange={handleStageChange} disabled={isSaving}>
-            {INTERVIEW_STAGES.map((stage) => (
-              <MenuItem key={stage.value} value={stage.value}>
-                {stage.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small">
-          <InputLabel>Caller</InputLabel>
-          <Select
-            label="Caller"
-            value={draft.callerUserId || ''}
-            onChange={handleCallerChange}
-            disabled={isSaving || !canAssignCallers}
-          >
-            <MenuItem value="">Unassigned</MenuItem>
-            {callerUsers.map((caller) => (
-              <MenuItem key={caller.id} value={caller.id}>
-                {caller.username}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <TextField
-          label={`${stageLabel(currentStage)} notes`}
-          minRows={2}
-          multiline
-          value={currentStageNote}
-          onChange={(event) => {
-            const nextStageNotes = { ...stageNotes, [currentStage]: event.target.value };
-            onDraftChange('stageNotes', nextStageNotes);
-            onDraftChange('interviewNotes', event.target.value);
-          }}
-          disabled={isSaving}
-        />
+        <Typography variant="body2" color="text.secondary" sx={{ minHeight: 20 }} noWrap>
+          {currentStageNote || 'No notes for this step'}
+        </Typography>
         {logs.length ? (
           <Box sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
             <Typography variant="caption" color="text.secondary" fontWeight={900}>
@@ -211,34 +119,6 @@ export default function InterviewCard({
             ))}
           </Box>
         ) : null}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 0.75 }}>
-          {jobUrl ? (
-            <Button
-              component="a"
-              href={jobUrl}
-              target="_blank"
-              rel="noreferrer"
-              size="small"
-              startIcon={<OpenInNewIcon />}
-              variant="outlined"
-              sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-            >
-              Job
-            </Button>
-          ) : (
-            <Box />
-          )}
-          <Button
-            disabled={isSaving}
-            onClick={() => onSave()}
-            size="small"
-            startIcon={isSaving ? <CircularProgress color="inherit" size={16} /> : <SaveIcon />}
-            variant="contained"
-            sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
-          >
-            Save
-          </Button>
-        </Box>
         <Box sx={chipRowSx}>
           <Chip
             icon={<CalendarMonthIcon />}
@@ -247,6 +127,7 @@ export default function InterviewCard({
             sx={{ ...chipSx, bgcolor: '#ECFDF5', color: '#0F766E', '& .MuiChip-icon': { color: '#0F766E' } }}
           />
           {owner ? <Chip label={owner} size="small" sx={{ ...chipSx, bgcolor: '#edf0ff', color: '#343f91' }} /> : null}
+          <Chip label={stageLabel(currentStage)} size="small" sx={{ ...chipSx, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
           <Chip label={formatDate(job.bid?.updatedAt)} size="small" sx={{ ...chipSx, bgcolor: '#f7ead1', color: '#70400d' }} />
         </Box>
       </CardContent>
@@ -272,11 +153,6 @@ const chipSx = {
     textOverflow: 'ellipsis',
   },
 };
-
-function externalJobUrl(job) {
-  const url = job?.rawJob?.originalUrl || job?.url || '';
-  return /^https?:\/\//i.test(String(url)) ? url : '';
-}
 
 function stageLabel(value) {
   return INTERVIEW_STAGES.find((stage) => stage.value === value)?.label || 'Stage';

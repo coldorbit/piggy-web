@@ -20,6 +20,7 @@ export default function InterviewKanbanBoard({
   onDragOver,
   onDraftChange,
   onDelete,
+  onOpen,
   onSave,
 }) {
   const [activeJobId, setActiveJobId] = useState('');
@@ -79,6 +80,7 @@ export default function InterviewKanbanBoard({
             stage={stage}
             onDelete={onDelete}
             onDraftChange={onDraftChange}
+            onOpen={onOpen}
             onSave={onSave}
             draftFor={draftFor}
           />
@@ -98,8 +100,7 @@ export default function InterviewKanbanBoard({
               isSaving={isSaving}
               job={activeJob}
               onDelete={() => {}}
-              onDraftChange={() => {}}
-              onSave={() => {}}
+              onOpen={() => {}}
               overlay
             />
           </Box>
