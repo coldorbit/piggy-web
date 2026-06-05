@@ -90,14 +90,6 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         </Select>
       </FormControl>
       <FormControl size="small">
-        <InputLabel>Apply</InputLabel>
-        <Select label="Apply" value={filters.applyMode || 'not_easy_apply'} onChange={(event) => onFilterChange('applyMode', event.target.value)}>
-          <MenuItem value="not_easy_apply">Hide Easy Apply</MenuItem>
-          <MenuItem value="all">All apply types</MenuItem>
-          <MenuItem value="easy_apply">Easy Apply only</MenuItem>
-        </Select>
-      </FormControl>
-      <FormControl size="small">
         <InputLabel>Sort</InputLabel>
         <Select label="Sort" value={filters.sort} onChange={(event) => onFilterChange('sort', event.target.value)}>
           <MenuItem value="scraped_desc">Newest scraped</MenuItem>
@@ -138,8 +130,8 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         : {
             xs: '1fr',
             lg: bidUsers.length
-              ? '150px 150px 130px 130px 130px 130px 140px 140px auto'
-              : '170px 160px 130px 130px 130px 140px 150px auto',
+              ? '150px 150px 130px 130px 130px 130px 140px auto'
+              : '170px 160px 130px 130px 130px 150px auto',
           },
     gap: variant === 'panel' ? 1.25 : 1,
     alignItems: variant === 'panel' ? 'stretch' : 'center',
