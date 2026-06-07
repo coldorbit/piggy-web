@@ -7,6 +7,7 @@ import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BidWorkspaceProvider } from '../components/bids/BidWorkspaceContext.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { BID_TABS, DEFAULT_BID_FILTERS, DONE_STATUSES, EMPTY_BID, INTERVIEW_STATUSES } from '../components/bids/bidConstants.js';
+import { hasTailoredResumeActivity } from '../components/bids/bidJobState.js';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import { EMPTY_PROFILE, PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import {
@@ -432,10 +433,10 @@ function areBidFiltersEqual(left, right) {
 function isJobVisibleForTab(job, activeTab, draft) {
   const done = DONE_STATUSES.has(draft.status);
   const interviewing = INTERVIEW_STATUSES.has(draft.status);
-  const hasTailoredRequest = ['requested', 'processing', 'ready', 'dead_letter'].includes(job.tailoredResume?.status);
+  const hasTailoredRequest = hasTailoredResumeActivity(job);
 
   if (activeTab === BID_TABS.interviews) return interviewing;
   if (activeTab === BID_TABS.tailored) return hasTailoredRequest && !done;
   if (activeTab === BID_TABS.done) return done;
-  return !done && !interviewing && !hasTailoredRequest;
+  return !done && !interviewing;
 }

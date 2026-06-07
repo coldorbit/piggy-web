@@ -31,6 +31,7 @@ import {
 import { formatDate } from '../../lib/formatters.js';
 import { authUrl } from '../../lib/api.js';
 import { BID_TABS } from './bidConstants.js';
+import { isTodoTailoringLocked } from './bidJobState.js';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 
 const SOURCE_DOMAINS = {
@@ -47,6 +48,7 @@ const SOURCE_DOMAINS = {
 
 export default function BidJobCard({
   isSelected = false,
+  isSelectionDisabled = false,
   job,
   onResumeDownload = () => {},
   onSelectedChange,
@@ -85,6 +87,7 @@ export default function BidJobCard({
   const appliedByLabel = appliedByChipLabel(job.bid, currentUser);
   const tailoringInFlight = tailoredStatus === 'requested' || tailoredStatus === 'processing';
   const hasTailoringRequest = tailoringInFlight || tailoredStatus === 'ready';
+  const isTodoLocked = activeTab === BID_TABS.todo && isTodoTailoringLocked(job);
   const tailorActionLabel = tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor';
   const retailorActionLabel = isTailoring ? 'Tailoring now' : 'Re-tailor';
   const isResumeDownloaded = Boolean(job.tailoredResume?.downloadedAt);
@@ -115,11 +118,13 @@ export default function BidJobCard({
   }
 
   function handleCardClick(event) {
+    if (isSelectionDisabled) return;
     if (isInteractiveTarget(event.target, event.currentTarget)) return;
     onSelectedChange(job.id);
   }
 
   function handleCardKeyDown(event) {
+    if (isSelectionDisabled) return;
     if (event.key !== 'Enter' && event.key !== ' ') return;
     if (isInteractiveTarget(event.target, event.currentTarget)) return;
     event.preventDefault();
@@ -165,6 +170,7 @@ export default function BidJobCard({
       >
         <Checkbox
           checked={isSelected}
+          disabled={isSelectionDisabled}
           onChange={() => onSelectedChange(job.id)}
           inputProps={{ 'aria-label': `Select ${job.title || 'job'}` }}
           sx={{
@@ -178,8 +184,9 @@ export default function BidJobCard({
           onClick={handleCardClick}
           onKeyDown={handleCardKeyDown}
           role="button"
-          tabIndex={0}
+          tabIndex={isSelectionDisabled ? -1 : 0}
           aria-pressed={isSelected}
+          aria-disabled={isSelectionDisabled}
           sx={{
             borderColor: isSelected ? accent.main : 'divider',
             borderLeft: hasSameCompanyWarning
@@ -189,13 +196,22 @@ export default function BidJobCard({
                 : job.bid || isSelected
                   ? `4px solid ${accent.main}`
                   : '4px solid transparent',
-            bgcolor: hasSameCompanyWarning ? '#fef2f2' : isSelected ? accent.soft : isResumeDownloaded ? '#f0fdf4' : 'background.paper',
+            bgcolor: isTodoLocked
+              ? '#f8fafc'
+              : hasSameCompanyWarning
+                ? '#fef2f2'
+                : isSelected
+                  ? accent.soft
+                  : isResumeDownloaded
+                    ? '#f0fdf4'
+                    : 'background.paper',
             boxShadow: isSelected || isResumeDownloaded || hasSameCompanyWarning ? 2 : 1,
-            cursor: 'pointer',
+            cursor: isSelectionDisabled ? 'default' : 'pointer',
+            opacity: isTodoLocked ? 0.72 : 1,
             transition: 'background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease',
             '&:hover': {
-              boxShadow: 2,
-              transform: 'translateY(-1px)',
+              boxShadow: isSelectionDisabled ? 1 : 2,
+              transform: isSelectionDisabled ? 'none' : 'translateY(-1px)',
             },
             '&:focus-visible': {
               outline: `2px solid ${accent.main}`,

@@ -52,7 +52,6 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
   } else if (!isDoneTab && !isInterviewsTab) {
     tabWhere[Op.and] = [
       ...(Array.isArray(tabWhere[Op.and]) ? tabWhere[Op.and] : []),
-      Sequelize.literal(`NOT ${tailoredResumeExistsSql({ profileId, sequelize })}`),
       {
         [Op.or]: [{ '$bids.id$': { [Op.is]: null } }, { '$bids.status$': 'planned' }],
       },

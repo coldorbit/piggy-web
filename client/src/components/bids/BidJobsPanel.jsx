@@ -22,6 +22,7 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import { PAGE_SIZE_OPTIONS } from '../../lib/constants.js';
 import { authUrl, useMarkTailoredResumesDownloaded } from '../../lib/api.js';
 import { BID_TABS } from './bidConstants.js';
+import { isTodoTailoringLocked } from './bidJobState.js';
 import BidJobCard from './BidJobCard.jsx';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 
@@ -49,9 +50,10 @@ export default function BidJobsPanel() {
     .filter((resume) => resume?.status === 'ready' && resume.filePath)
     .map((resume) => resume.id);
   const downloadAllUrl = authUrl(`/api/bid/tailored-resumes/download?ids=${readyResumeIds.map(encodeURIComponent).join(',')}`);
-  const visibleJobIds = jobs.map((job) => job.id);
+  const selectableJobs = jobs.filter((job) => !isJobSelectionDisabled(job, activeTab));
+  const visibleJobIds = selectableJobs.map((job) => job.id);
   const visibleJobIdsKey = visibleJobIds.join('|');
-  const selectedVisibleJobs = jobs.filter((job) => selectedJobIds.has(job.id));
+  const selectedVisibleJobs = selectableJobs.filter((job) => selectedJobIds.has(job.id));
   const allVisibleJobsSelected = visibleJobIds.length > 0 && visibleJobIds.every((jobId) => selectedJobIds.has(jobId));
 
   useEffect(() => {
@@ -256,6 +258,7 @@ export default function BidJobsPanel() {
               key={job.id}
               job={job}
               isSelected={selectedJobIds.has(job.id)}
+              isSelectionDisabled={isJobSelectionDisabled(job, activeTab)}
               onSelectedChange={toggleJobSelected}
               onResumeDownload={markTailoredResumesDownloaded}
             />
@@ -316,6 +319,10 @@ export default function BidJobsPanel() {
       </Box>
     </Paper>
   );
+}
+
+function isJobSelectionDisabled(job, activeTab) {
+  return activeTab === BID_TABS.todo && isTodoTailoringLocked(job);
 }
 
 function tabLabel(tab) {

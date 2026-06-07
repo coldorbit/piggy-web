@@ -565,12 +565,14 @@ function bidTabDelta(previousJob, nextJob) {
   const delta = { todo: 0, tailored: 0, done: 0, interviews: 0 };
   if (!previousJob || !nextJob) return delta;
 
-  const previousTab = bidTabForJob(previousJob);
-  const nextTab = bidTabForJob(nextJob);
-  if (previousTab !== nextTab) {
-    delta[previousTab] -= 1;
-    delta[nextTab] += 1;
-  }
+  const previousTabs = bidTabsForJob(previousJob);
+  const nextTabs = bidTabsForJob(nextJob);
+  previousTabs.forEach((tab) => {
+    if (!nextTabs.has(tab)) delta[tab] -= 1;
+  });
+  nextTabs.forEach((tab) => {
+    if (!previousTabs.has(tab)) delta[tab] += 1;
+  });
   return delta;
 }
 
@@ -586,17 +588,31 @@ function optimisticBidJob(job, updates) {
 }
 
 function bidTabForJob(job) {
+  return [...bidTabsForJob(job)][0] || 'todo';
+}
+
+function bidTabsForJob(job) {
+  const tabs = new Set();
   const status = job?.bid?.status || 'planned';
-  if (status === 'interviewing') return 'interviews';
-  if (['submitted', 'won', 'lost'].includes(status)) return 'done';
-  if (['requested', 'processing', 'ready', 'dead_letter'].includes(job?.tailoredResume?.status)) return 'tailored';
-  return 'todo';
+  if (status === 'interviewing') {
+    tabs.add('interviews');
+    return tabs;
+  }
+  if (['submitted', 'won', 'lost'].includes(status)) {
+    tabs.add('done');
+    return tabs;
+  }
+  tabs.add('todo');
+  if (['requested', 'processing', 'ready', 'dead_letter'].includes(job?.tailoredResume?.status)) {
+    tabs.add('tailored');
+  }
+  return tabs;
 }
 
 function matchesBidJobFilters(job, filters = {}) {
   if (filters.bidTab === 'interviews') {
     if (!['interviewing', 'won', 'lost'].includes(job?.bid?.status || '')) return false;
-  } else if (bidTabForJob(job) !== filters.bidTab) {
+  } else if (!bidTabsForJob(job).has(filters.bidTab)) {
     return false;
   }
   if (!matchesVisibility(job, filters.visibility)) return false;
