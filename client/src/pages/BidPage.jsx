@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Typography } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import BidJobsPanel from '../components/bids/BidJobsPanel.jsx';
 import BidProfileSummary from '../components/bids/BidProfileSummary.jsx';
@@ -50,6 +50,7 @@ export default function BidPage({ currentUser }) {
   const [error, setError] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [tailoringByProfileJobId, setTailoringByProfileJobId] = useState({});
+  const [sameCompanyConfirmation, setSameCompanyConfirmation] = useState(null);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
 
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
@@ -171,7 +172,7 @@ export default function BidPage({ currentUser }) {
     });
   }
 
-  function tailorResume(job) {
+  function tailorResume(job, options = {}) {
     if (!activeProfile) return;
     const scopedJobId = profileJobKey(activeProfile.id, job.id);
     if (tailoringByProfileJobId[scopedJobId]) return;
@@ -179,9 +180,19 @@ export default function BidPage({ currentUser }) {
     setTailoringByProfileJobId((current) => ({ ...current, [scopedJobId]: true }));
     setError('');
     requestTailoredResume(
-      { jobId: job.id, profileId: activeProfile.id },
+      { jobId: job.id, profileId: activeProfile.id, confirmSameCompany: options.confirmSameCompany === true },
       {
-        onError: (tailoredResumeError) => setError(tailoredResumeError.message),
+        onError: (tailoredResumeError) => {
+          if (tailoredResumeError.data?.code === 'same_company_tailoring_conflict') {
+            setSameCompanyConfirmation({
+              job,
+              warning: tailoredResumeError.data.sameCompanyTailoring,
+              message: tailoredResumeError.message,
+            });
+            return;
+          }
+          setError(tailoredResumeError.message);
+        },
         onSettled: () => {
           setTailoringByProfileJobId((current) => {
             const next = { ...current };
@@ -191,6 +202,16 @@ export default function BidPage({ currentUser }) {
         },
       },
     );
+  }
+
+  function closeSameCompanyConfirmation() {
+    setSameCompanyConfirmation(null);
+  }
+
+  function confirmSameCompanyTailoring() {
+    const job = sameCompanyConfirmation?.job;
+    setSameCompanyConfirmation(null);
+    if (job) tailorResume(job, { confirmSameCompany: true });
   }
 
   function updateHiddenState(job, isHidden) {
@@ -340,6 +361,23 @@ export default function BidPage({ currentUser }) {
         onClose={() => setIsProfileDialogOpen(false)}
         onSubmit={submitProfile}
       />
+      <Dialog open={Boolean(sameCompanyConfirmation)} onClose={closeSameCompanyConfirmation} fullWidth maxWidth="sm">
+        <DialogTitle>Different role at same company</DialogTitle>
+        <DialogContent sx={{ display: 'grid', gap: 1, pt: 1 }}>
+          <Typography variant="body2">
+            {sameCompanyConfirmation?.message || 'A recent tailoring request already exists for this company.'}
+          </Typography>
+          {sameCompanyConfirmation?.warning ? (
+            <Typography color="text.secondary" variant="body2">
+              Proceeding will mark the previous tailored request for {sameCompanyConfirmation.warning.priorTitle} as invalid.
+            </Typography>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeSameCompanyConfirmation}>Cancel</Button>
+          <Button onClick={confirmSameCompanyTailoring} variant="contained">Proceed intentionally</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

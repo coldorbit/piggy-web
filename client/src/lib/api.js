@@ -21,7 +21,10 @@ export async function api(path, options = {}) {
     return response.data || {};
   } catch (error) {
     if (error.response?.status === 401) clearAuthToken();
-    throw new Error(error.response?.data?.error || error.message);
+    const apiError = new Error(error.response?.data?.error || error.message);
+    apiError.status = error.response?.status;
+    apiError.data = error.response?.data || null;
+    throw apiError;
   }
 }
 
@@ -919,10 +922,10 @@ export function useDeleteInterview() {
 export function useRequestTailoredResume() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ jobId, profileId }) =>
+    mutationFn: ({ jobId, profileId, confirmSameCompany = false }) =>
       api(`/api/bid/jobs/${jobId}/tailored-resume`, {
         method: 'POST',
-        body: JSON.stringify({ profileId }),
+        body: JSON.stringify({ profileId, confirmSameCompany }),
       }).then((data) => data.tailoredResume),
     onMutate: async ({ jobId, profileId }) => {
       await queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] });

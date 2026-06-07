@@ -88,6 +88,9 @@ export default function BidJobCard({
   const tailorActionLabel = tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor';
   const retailorActionLabel = isTailoring ? 'Tailoring now' : 'Re-tailor';
   const isResumeDownloaded = Boolean(job.tailoredResume?.downloadedAt);
+  const sameCompanyTailoring = job.sameCompanyTailoring || null;
+  const hasSameCompanyWarning = Boolean(sameCompanyTailoring?.requiresConfirmation);
+  const sameCompanyNotice = sameCompanyNoticeText(sameCompanyTailoring);
   const isLinkedInJob = sourceKey(job.source) === 'linkedin';
   const isEasyApply = isEasyApplyMode(job.applyMode);
   const hasUpdatedJobLink = isLinkedInJob && isExternalLinkMode(job.applyMode);
@@ -179,9 +182,15 @@ export default function BidJobCard({
           aria-pressed={isSelected}
           sx={{
             borderColor: isSelected ? accent.main : 'divider',
-            borderLeft: isResumeDownloaded ? '4px solid #15803d' : job.bid || isSelected ? `4px solid ${accent.main}` : '4px solid transparent',
-            bgcolor: isSelected ? accent.soft : isResumeDownloaded ? '#f0fdf4' : 'background.paper',
-            boxShadow: isSelected || isResumeDownloaded ? 2 : 1,
+            borderLeft: hasSameCompanyWarning
+              ? '4px solid #dc2626'
+              : isResumeDownloaded
+                ? '4px solid #15803d'
+                : job.bid || isSelected
+                  ? `4px solid ${accent.main}`
+                  : '4px solid transparent',
+            bgcolor: hasSameCompanyWarning ? '#fef2f2' : isSelected ? accent.soft : isResumeDownloaded ? '#f0fdf4' : 'background.paper',
+            boxShadow: isSelected || isResumeDownloaded || hasSameCompanyWarning ? 2 : 1,
             cursor: 'pointer',
             transition: 'background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease',
             '&:hover': {
@@ -276,6 +285,17 @@ export default function BidJobCard({
                   />
                 ) : null}
                 {job.applyMode && !isLinkedInJob ? <ApplyModeChip applyMode={job.applyMode} /> : null}
+                {sameCompanyTailoring ? (
+                  <Chip
+                    label={hasSameCompanyWarning ? 'Same company warning' : `Prior same-company ${sameCompanyTailoring.daysSincePrior}d`}
+                    size="small"
+                    sx={{
+                      bgcolor: hasSameCompanyWarning ? '#fee2e2' : '#fff7ed',
+                      color: hasSameCompanyWarning ? '#991b1b' : '#9a3412',
+                      fontWeight: 900,
+                    }}
+                  />
+                ) : null}
                 <Chip
                   label={formatDate(job.postedAt || job.scrapedAt)}
                   size="small"
@@ -445,9 +465,11 @@ export default function BidJobCard({
               </Stack>
             </Box>
           </CardContent>
-          {job.bid ? (
-            <CardActions sx={{ px: 1, py: 0.5, pt: 0, color: 'text.secondary' }}>
-              <Typography variant="caption">This profile has already bid on this job. Updates edit the existing bid.</Typography>
+          {job.bid || sameCompanyNotice ? (
+            <CardActions sx={{ px: 1, py: 0.5, pt: 0, color: hasSameCompanyWarning ? '#991b1b' : 'text.secondary' }}>
+              <Typography variant="caption">
+                {sameCompanyNotice || 'This profile has already bid on this job. Updates edit the existing bid.'}
+              </Typography>
             </CardActions>
           ) : null}
         </Card>
@@ -523,6 +545,19 @@ function tailoredStatusSx(status) {
   if (status === 'dead_letter') return { bgcolor: '#fde9e5', color: '#8a2f1d', fontWeight: 800 };
   if (status === 'processing') return { bgcolor: '#fff1d6', color: '#70400d', fontWeight: 800 };
   return { bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 };
+}
+
+function sameCompanyNoticeText(value) {
+  if (!value) return '';
+  const days = Number(value.daysSincePrior || 0);
+  const age = `${days} day${days === 1 ? '' : 's'} ago`;
+  const title = value.priorTitle || 'another role';
+  if (value.requiresConfirmation) {
+    return `Different role at same company: ${title} was tailored ${age}. Tailoring this job requires confirmation.`;
+  }
+  const postingDays = Number(value.daysSincePriorPosting ?? value.daysSincePrior ?? 0);
+  const postingAge = `${postingDays} day${postingDays === 1 ? '' : 's'} ago`;
+  return `Prior same-company posting ${postingAge}: ${title}.`;
 }
 
 function appliedByChipLabel(bid, currentUser) {
