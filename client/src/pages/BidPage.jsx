@@ -57,6 +57,11 @@ export default function BidPage({ currentUser }) {
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
     currentUser?.role === 'admin' ? { scope: 'manage' } : {},
   );
+  const canUseCrossUserAppliedFilter = ['admin', 'user'].includes(currentUser?.role);
+  const { data: appliedFilterProfiles = [] } = useBidProfiles(
+    canUseCrossUserAppliedFilter ? { scope: 'applied-filter' } : {},
+    { enabled: canUseCrossUserAppliedFilter },
+  );
   const activeProfiles = useMemo(
     () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
     [profiles],
@@ -64,6 +69,14 @@ export default function BidPage({ currentUser }) {
   const activeProfile = useMemo(
     () => activeProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || activeProfiles[0] || null,
     [activeProfiles, activeProfileId],
+  );
+  const appliedProfileOptions = useMemo(
+    () =>
+      (canUseCrossUserAppliedFilter ? appliedFilterProfiles : activeProfiles)
+        .filter((profile) => (profile.profileStatus || 'active') === 'active')
+        .filter((profile) => String(profile.id) !== String(activeProfile?.id || ''))
+        .filter((profile) => !activeProfile || (profile.profileBadge || 'SWE') === (activeProfile.profileBadge || 'SWE')),
+    [activeProfile, activeProfiles, appliedFilterProfiles, canUseCrossUserAppliedFilter],
   );
   const { data: metaData, isLoading: metaLoading, error: metaError, refetch: refetchMeta } = useJobsMeta();
   const {
@@ -335,8 +348,8 @@ export default function BidPage({ currentUser }) {
                 isOpen={isFilterPanelOpen}
                 meta={{
                   ...(metaData || { sources: [] }),
-                  appliedProfiles: activeProfiles.filter((profile) => String(profile.id) !== String(activeProfile.id)),
-                  showAppliedProfileFilter: activeBidTab === BID_TABS.todo,
+                  appliedProfiles: appliedProfileOptions,
+                  showAppliedProfileFilter: activeBidTab === BID_TABS.todo && canUseCrossUserAppliedFilter,
                 }}
                 onClose={() => setIsFilterPanelOpen(false)}
                 onFilterChange={updateFilter}

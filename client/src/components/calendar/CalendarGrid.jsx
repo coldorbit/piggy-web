@@ -1,4 +1,5 @@
-import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Tooltip, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import {
@@ -17,28 +18,33 @@ const HOURS = Array.from({ length: 24 }, (_item, hour) => hour);
 const HOUR_HEIGHT = 64;
 
 export default function CalendarGrid({ cursorDate, eventsByDay, visibleDays, view }) {
+  const [selectedEvent, setSelectedEvent] = useState(null);
+
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        minHeight: 0,
-        height: '100%',
-        overflow: 'hidden',
-        boxShadow: 1,
-        display: 'grid',
-        gridTemplateRows: view === CALENDAR_VIEWS.week ? '1fr' : 'auto 1fr',
-      }}
-    >
-      {view === CALENDAR_VIEWS.week ? (
-        <WeekCalendar days={visibleDays} eventsByDay={eventsByDay} />
-      ) : (
-        <MonthCalendar cursorDate={cursorDate} days={visibleDays} eventsByDay={eventsByDay} />
-      )}
-    </Paper>
+    <>
+      <Paper
+        variant="outlined"
+        sx={{
+          minHeight: 0,
+          height: '100%',
+          overflow: 'hidden',
+          boxShadow: 1,
+          display: 'grid',
+          gridTemplateRows: view === CALENDAR_VIEWS.week ? '1fr' : 'auto 1fr',
+        }}
+      >
+        {view === CALENDAR_VIEWS.week ? (
+          <WeekCalendar days={visibleDays} eventsByDay={eventsByDay} onEventClick={setSelectedEvent} />
+        ) : (
+          <MonthCalendar cursorDate={cursorDate} days={visibleDays} eventsByDay={eventsByDay} onEventClick={setSelectedEvent} />
+        )}
+      </Paper>
+      <CalendarEventDialog event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+    </>
   );
 }
 
-function MonthCalendar({ cursorDate, days, eventsByDay }) {
+function MonthCalendar({ cursorDate, days, eventsByDay, onEventClick }) {
   return (
     <>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', borderBottom: 1, borderColor: 'divider' }}>
@@ -73,6 +79,7 @@ function MonthCalendar({ cursorDate, days, eventsByDay }) {
             day={day}
             events={eventsByDay.get(day) || []}
             isCurrentMonth={dateKeyMonth(day) === dateKeyMonth(cursorDate)}
+            onEventClick={onEventClick}
           />
         ))}
       </Box>
@@ -80,7 +87,7 @@ function MonthCalendar({ cursorDate, days, eventsByDay }) {
   );
 }
 
-function WeekCalendar({ days, eventsByDay }) {
+function WeekCalendar({ days, eventsByDay, onEventClick }) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -144,7 +151,7 @@ function WeekCalendar({ days, eventsByDay }) {
         </Box>
 
         {days.map((day, index) => (
-          <WeekDayColumn key={day} day={day} column={index + 2} events={eventsByDay.get(day) || []} now={now} />
+          <WeekDayColumn key={day} day={day} column={index + 2} events={eventsByDay.get(day) || []} now={now} onEventClick={onEventClick} />
         ))}
       </Box>
     </Box>
@@ -193,7 +200,7 @@ function WeekDayHeader({ day }) {
   );
 }
 
-function WeekDayColumn({ day, column, events, now }) {
+function WeekDayColumn({ day, column, events, now, onEventClick }) {
   const isToday = day === defaultTimezoneTodayKey();
   const currentTimeTop = isToday ? eventTop(now) : null;
   return (
@@ -219,17 +226,18 @@ function WeekDayColumn({ day, column, events, now }) {
         />
       ) : null}
       {events.map((event) => (
-        <WeekCalendarEvent key={event.id} event={event} />
+        <WeekCalendarEvent key={event.id} event={event} onEventClick={onEventClick} />
       ))}
       {isToday ? <CurrentTimeLine top={currentTimeTop} /> : null}
     </Box>
   );
 }
 
-function WeekCalendarEvent({ event }) {
+function WeekCalendarEvent({ event, onEventClick }) {
   const color = PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   const top = eventTop(event.startsAt);
   const height = eventHeight(event.durationMinutes);
+  const isCompact = height < 44;
   return (
     <Tooltip
       title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
@@ -237,6 +245,9 @@ function WeekCalendarEvent({ event }) {
       }`}
     >
       <Box
+        component="button"
+        type="button"
+        onClick={() => onEventClick(event)}
         sx={{
           position: 'absolute',
           top,
@@ -256,14 +267,31 @@ function WeekCalendarEvent({ event }) {
           display: 'grid',
           alignContent: 'start',
           gap: 0.1,
+          borderTop: 0,
+          borderRight: 0,
+          borderBottom: 0,
+          cursor: 'pointer',
+          font: 'inherit',
+          textAlign: 'left',
+          '&:hover': {
+            boxShadow: '0 2px 7px rgba(15, 23, 42, 0.22)',
+          },
         }}
       >
-        <Typography variant="caption" fontWeight={900} noWrap>
-          {event.title}
-        </Typography>
-        <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
-          {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {[event.company, event.profile?.name].filter(Boolean).join(' · ')}
-        </Typography>
+        {isCompact ? (
+          <Typography variant="caption" fontWeight={900} noWrap>
+            {compactEventLabel(event)}
+          </Typography>
+        ) : (
+          <>
+            <Typography variant="caption" fontWeight={900} noWrap>
+              {event.title}
+            </Typography>
+            <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
+              {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {compactEventLabel(event)}
+            </Typography>
+          </>
+        )}
       </Box>
     </Tooltip>
   );
@@ -296,7 +324,7 @@ function CurrentTimeLine({ top }) {
   );
 }
 
-function CalendarDay({ day, events, isCurrentMonth }) {
+function CalendarDay({ day, events, isCurrentMonth, onEventClick }) {
   const isToday = day === defaultTimezoneTodayKey();
   const displayedEvents = events.slice(0, 4);
   const hiddenCount = events.length - displayedEvents.length;
@@ -338,7 +366,7 @@ function CalendarDay({ day, events, isCurrentMonth }) {
       </Box>
       <Box sx={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start', gap: 0.5 }}>
         {displayedEvents.map((event) => (
-          <CalendarEvent key={event.id} event={event} />
+          <CalendarEvent key={event.id} event={event} onEventClick={onEventClick} />
         ))}
         {hiddenCount > 0 ? (
           <Typography variant="caption" color="text.secondary" sx={{ px: 0.25 }}>
@@ -350,7 +378,7 @@ function CalendarDay({ day, events, isCurrentMonth }) {
   );
 }
 
-function CalendarEvent({ event }) {
+function CalendarEvent({ event, onEventClick }) {
   const color = PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   return (
     <Tooltip
@@ -359,9 +387,15 @@ function CalendarEvent({ event }) {
       }`}
     >
       <Box
+        component="button"
+        type="button"
+        onClick={() => onEventClick(event)}
         sx={{
           minWidth: 0,
           borderLeft: 3,
+          borderTop: 0,
+          borderRight: 0,
+          borderBottom: 0,
           borderColor: color.main,
           bgcolor: color.soft,
           color: color.dark,
@@ -370,16 +404,76 @@ function CalendarEvent({ event }) {
           py: 0.5,
           display: 'grid',
           gap: 0.1,
+          cursor: 'pointer',
+          font: 'inherit',
+          textAlign: 'left',
+          '&:hover': {
+            boxShadow: '0 1px 4px rgba(15, 23, 42, 0.18)',
+          },
         }}
       >
         <Typography variant="caption" fontWeight={900} noWrap>
-          {timeLabel(event.startsAt)} {event.title}
+          {compactEventLabel(event)}
         </Typography>
         <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
-          {durationLabel(event.durationMinutes)} · {[event.company, event.profile?.name].filter(Boolean).join(' · ')}
+          {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)}
         </Typography>
       </Box>
     </Tooltip>
+  );
+}
+
+function CalendarEventDialog({ event, onClose }) {
+  const jobUrl = externalJobUrl(event);
+  return (
+    <Dialog open={Boolean(event)} onClose={onClose} fullWidth maxWidth="sm">
+      {event ? (
+        <>
+          <DialogTitle sx={{ pb: 1 }}>
+            <Box sx={{ display: 'grid', gap: 0.4, minWidth: 0 }}>
+              <Typography fontWeight={900} noWrap>
+                {event.title}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {compactEventLabel(event)}
+              </Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 1.25, pt: 1 }}>
+            <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)}`} />
+            <DetailRow label="Profile" value={event.profile?.name || 'Profile'} />
+            <DetailRow label="Company" value={event.company || 'Unknown company'} />
+            <DetailRow label="Role" value={event.title || 'Untitled role'} />
+            {event.location ? <DetailRow label="Location" value={event.location} /> : null}
+            {event.job?.bid?.interviewStage ? <DetailRow label="Step" value={stageLabel(event.job.bid.interviewStage)} /> : null}
+            {event.job?.bid?.interviewNotes ? <DetailRow label="Notes" value={event.job.bid.interviewNotes} multiline /> : null}
+          </DialogContent>
+          <DialogActions>
+            {jobUrl ? (
+              <Button component="a" href={jobUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />}>
+                Job link
+              </Button>
+            ) : null}
+            <Button onClick={onClose} variant="contained">
+              Close
+            </Button>
+          </DialogActions>
+        </>
+      ) : null}
+    </Dialog>
+  );
+}
+
+function DetailRow({ label, value, multiline = false }) {
+  return (
+    <Box sx={{ display: 'grid', gap: 0.25, minWidth: 0 }}>
+      <Typography variant="caption" color="text.secondary" fontWeight={900}>
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ whiteSpace: multiline ? 'pre-wrap' : 'normal', overflowWrap: 'anywhere' }}>
+        {value || '-'}
+      </Typography>
+    </Box>
   );
 }
 
@@ -410,4 +504,21 @@ function durationLabel(durationMinutes = 60) {
   if (minutes === 60) return '1 hr';
   if (minutes === 120) return '2 hrs';
   return `${minutes} mins`;
+}
+
+function compactEventLabel(event) {
+  return [event.profile?.name || 'Profile', event.company || 'Unknown company'].filter(Boolean).join(' · ');
+}
+
+function externalJobUrl(event) {
+  const url = event?.job?.rawJob?.originalUrl || event?.job?.url || event?.job?.sourceUrl || '';
+  return /^https?:\/\//i.test(String(url)) ? url : '';
+}
+
+function stageLabel(value) {
+  return String(value || '')
+    .split('_')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }

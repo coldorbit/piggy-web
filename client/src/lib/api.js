@@ -85,12 +85,13 @@ export function useAdminUsers() {
   });
 }
 
-export function useBidProfiles(options = {}) {
+export function useBidProfiles(options = {}, queryOptions = {}) {
   const queryParams = new URLSearchParams(options).toString();
   return useQuery({
     queryKey: ['bid', 'profiles', options],
     queryFn: () => api(`/api/bid/profiles${queryParams ? `?${queryParams}` : ''}`).then((data) => data.profiles),
     staleTime: 60_000,
+    ...queryOptions,
   });
 }
 

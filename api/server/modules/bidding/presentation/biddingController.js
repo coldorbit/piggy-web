@@ -27,11 +27,13 @@ import {
 import { buildJobQuery, formatJob } from '../../jobs/application/jobsService.js';
 import {
   accessibleProfile,
+  accessibleAppliedProfile,
   currentDbUser,
   formatProfile,
   ownedProfile,
   profileAttributesFromBody,
   profilesManagedByUser,
+  profilesForAppliedFilter,
   profileStatusAttributesFromBody,
   profilesVisibleToUser,
   profilesWithProgress,
@@ -50,8 +52,11 @@ export async function listProfiles(req, res, next) {
   try {
     await ensureWebModels();
     const user = await currentDbUser(req);
+    const scope = clean(req.query?.scope);
     const profiles =
-      clean(req.query?.scope) === 'manage' && user.role === 'admin'
+      scope === 'applied-filter'
+        ? await profilesForAppliedFilter(user)
+        : scope === 'manage' && user.role === 'admin'
         ? await profilesManagedByUser(user)
         : await profilesVisibleToUser(user);
     res.json({ profiles: (await profilesWithSharing(await profilesWithProgress(profiles, { user }))).map(formatProfile) });
@@ -808,7 +813,7 @@ async function bidUsersForProfile(profile) {
 async function appliedProfileFilter(req, value) {
   const profileId = clean(value);
   if (!profileId || profileId === 'all') return '';
-  const profile = await accessibleProfile(req, profileId);
+  const profile = await accessibleAppliedProfile(req, profileId, req.query.profileId);
   return profile.id;
 }
 

@@ -49,6 +49,22 @@ export async function accessibleProfile(req, profileId) {
   return profile;
 }
 
+export async function accessibleAppliedProfile(req, profileId, activeProfileId) {
+  const user = await currentDbUser(req);
+  const profile = await accessibleProfile(req, activeProfileId);
+  const appliedProfile = await getBidProfileModel().findByPk(clean(profileId), {
+    include: [{ model: getWebUserModel(), as: 'user', required: false }],
+  });
+  if (!appliedProfile) throw new NotFoundError('Profile not found');
+
+  if (!['admin', 'user'].includes(user.role)) return accessibleProfile(req, profileId);
+  if ((appliedProfile.profileStatus || 'active') !== 'active') throw new NotFoundError('Profile not found');
+  if ((appliedProfile.profileBadge || 'SWE') !== (profile.profileBadge || 'SWE')) throw new NotFoundError('Profile not found');
+  if (!['user', 'admin'].includes(appliedProfile.user?.role)) throw new NotFoundError('Profile not found');
+
+  return appliedProfile;
+}
+
 export function formatProfile(row) {
   return {
     id: row.id,
@@ -232,6 +248,28 @@ export async function profilesManagedByUser(user) {
   }
 
   return profilesVisibleToUser(user);
+}
+
+export async function profilesForAppliedFilter(user) {
+  if (!['admin', 'user'].includes(user?.role)) return [];
+  const BidProfile = getBidProfileModel();
+  const WebUser = getWebUserModel();
+
+  return BidProfile.findAll({
+    where: { profileStatus: 'active' },
+    include: [
+      {
+        model: WebUser,
+        as: 'user',
+        required: true,
+        where: { role: user.role === 'admin' ? ['admin', 'user'] : 'user' },
+      },
+    ],
+    order: [
+      ['profileBadge', 'ASC'],
+      ['name', 'ASC'],
+    ],
+  });
 }
 
 export async function profilesVisibleToUser(user) {
