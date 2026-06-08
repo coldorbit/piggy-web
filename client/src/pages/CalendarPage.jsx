@@ -105,6 +105,7 @@ function calendarEvents(queries, profileById, search) {
         company: job.company || 'Unknown company',
         location: job.location || '',
         startsAt,
+        durationMinutes: job.bid?.interviewDurationMinutes || 60,
         profile,
         job,
       };

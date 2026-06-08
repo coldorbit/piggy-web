@@ -28,8 +28,10 @@ import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.
 import InterviewLoadingState from '../components/interviews/InterviewLoadingState.jsx';
 import {
   canonicalInterviewStage,
+  DEFAULT_INTERVIEW_DURATION_MINUTES,
   groupJobsByStage,
   INTERVIEW_FILTERS,
+  INTERVIEW_DURATION_OPTIONS,
   interviewColumnValue,
   interviewStageForColumn,
   interviewStatusForColumn,
@@ -46,6 +48,7 @@ const EMPTY_MANUAL_INTERVIEW = {
   jobUrl: '',
   interviewStage: 'todo',
   interviewNextAt: '',
+  interviewDurationMinutes: DEFAULT_INTERVIEW_DURATION_MINUTES,
   callerUserId: '',
   interviewNotes: '',
 };
@@ -123,6 +126,8 @@ export default function InterviewsPage({ currentUser }) {
       ...(drafts[job.bid?.id] || {}),
       status: drafts[job.bid?.id]?.status || job.bid?.status || 'interviewing',
       interviewStage: canonicalInterviewStage(drafts[job.bid?.id]?.interviewStage || job.bid?.interviewStage),
+      interviewDurationMinutes:
+        drafts[job.bid?.id]?.interviewDurationMinutes || job.bid?.interviewDurationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
     };
   }
 
@@ -404,6 +409,22 @@ export default function InterviewsPage({ currentUser }) {
                 slotProps={{ inputLabel: { shrink: true } }}
               />
             </Box>
+            <FormControl>
+              <InputLabel>Duration</InputLabel>
+              <Select
+                label="Duration"
+                value={manualInterview.interviewDurationMinutes}
+                onChange={(event) =>
+                  setManualInterview((current) => ({ ...current, interviewDurationMinutes: Number(event.target.value) }))
+                }
+              >
+                {INTERVIEW_DURATION_OPTIONS.map((duration) => (
+                  <MenuItem key={duration.value} value={duration.value}>
+                    {duration.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             {currentUser?.role === 'admin' ? (
               <FormControl>
                 <InputLabel>Assignee</InputLabel>
@@ -518,6 +539,21 @@ export default function InterviewsPage({ currentUser }) {
                   disabled={updatingBid || !canEditInterviews}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
+                <FormControl size="small">
+                  <InputLabel>Duration</InputLabel>
+                  <Select
+                    label="Duration"
+                    value={selectedDraft.interviewDurationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES}
+                    onChange={(event) => updateDraft(selectedJob, 'interviewDurationMinutes', Number(event.target.value))}
+                    disabled={updatingBid || !canEditInterviews}
+                  >
+                    {INTERVIEW_DURATION_OPTIONS.map((duration) => (
+                      <MenuItem key={duration.value} value={duration.value}>
+                        {duration.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
                 {currentUser?.role === 'admin' ? (
                   <FormControl size="small">
                     <InputLabel>Assignee</InputLabel>

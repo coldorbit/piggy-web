@@ -1571,6 +1571,7 @@ function formatCallerAssignment(row) {
     status: row.status,
     interviewStage: row.interviewStage,
     interviewNextAt: row.interviewNextAt,
+    interviewDurationMinutes: row.interviewDurationMinutes || 60,
     interviewNotes: row.interviewNotes,
     updatedAt: row.updatedAt,
     job: row.job ? formatJob(row.job) : {
@@ -1598,6 +1599,7 @@ function interviewValuesFromAttrs(attrs, existing = null) {
     status: attrs.status || 'interviewing',
     interviewStage: stage,
     interviewNextAt,
+    interviewDurationMinutes: attrs.interviewDurationMinutes || existing?.interviewDurationMinutes || 60,
     firstInterviewScheduledAt: existing?.firstInterviewScheduledAt || interviewNextAt,
     interviewNotes: stageNotes[stage] || attrs.interviewNotes || null,
     stageNotes,
@@ -1613,6 +1615,9 @@ function bidUpdateValuesFromAttrs(attrs) {
     notes: attrs.notes,
     interviewStage: attrs.interviewStage,
     interviewNextAt: attrs.interviewNextAt,
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'interviewDurationMinutes')
+      ? { interviewDurationMinutes: attrs.interviewDurationMinutes }
+      : {}),
     interviewNotes: attrs.interviewNotes,
   };
 }
@@ -1678,6 +1683,7 @@ function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById
     notes: null,
     interviewStage: interview.interviewStage,
     interviewNextAt: interview.interviewNextAt,
+    interviewDurationMinutes: interview.interviewDurationMinutes || 60,
     firstInterviewScheduledAt: interview.firstInterviewScheduledAt,
     interviewNotes: interview.interviewNotes,
     stageNotes: interview.stageNotes || {},

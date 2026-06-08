@@ -5,6 +5,8 @@ import { formatJob } from '../../jobs/application/jobsService.js';
 import { InputError } from '../../../utils/errors.js';
 import { clean } from '../../../utils/index.js';
 
+const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
+
 export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', JobBid, sequelize }) {
   const tabWhere = { ...where };
   const isDoneTab = tab === 'done';
@@ -98,6 +100,7 @@ export function formatBid(row) {
     notes: row.notes,
     interviewStage: row.interviewStage,
     interviewNextAt: row.interviewNextAt,
+    interviewDurationMinutes: row.interviewDurationMinutes || 60,
     interviewNotes: row.interviewNotes,
     bidAt: row.bidAt,
     createdAt: row.createdAt,
@@ -311,6 +314,9 @@ export function bidAttributesFromBody(body) {
   const callerUserId = hasCallerUserId ? clean(body?.callerUserId) : '';
   const interviewStage = normalizeInterviewStage(clean(body?.interviewStage));
   const interviewNextAt = clean(body?.interviewNextAt);
+  const hasInterviewDuration = Object.prototype.hasOwnProperty.call(body || {}, 'interviewDurationMinutes')
+    || Object.prototype.hasOwnProperty.call(body || {}, 'interviewDuration');
+  const interviewDurationMinutes = hasInterviewDuration ? clean(body?.interviewDurationMinutes || body?.interviewDuration) : '';
   const hasInterviewNotes = Object.prototype.hasOwnProperty.call(body || {}, 'interviewNotes');
   const stageNotes = normalizeStageNotes(body?.stageNotes);
   const allowedInterviewStages = new Set(['', 'todo', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
@@ -323,6 +329,9 @@ export function bidAttributesFromBody(body) {
   if (!allowedInterviewStages.has(normalizedInterviewStage)) throw new InputError('Choose a valid interview stage');
   if (Object.keys(stageNotes).some((stage) => !allowedInterviewStages.has(stage) || !stage)) throw new InputError('Choose a valid interview stage');
   if (interviewNextAt && Number.isNaN(Date.parse(interviewNextAt))) throw new InputError('Choose a valid interview date');
+  if (interviewDurationMinutes && !INTERVIEW_DURATION_OPTIONS.has(Number(interviewDurationMinutes))) {
+    throw new InputError('Choose a valid interview duration');
+  }
 
   return {
     status,
@@ -332,6 +341,7 @@ export function bidAttributesFromBody(body) {
     notes: clean(body?.notes) || null,
     interviewStage: normalizedInterviewStage || null,
     interviewNextAt: interviewNextAt ? new Date(interviewNextAt) : null,
+    ...(hasInterviewDuration ? { interviewDurationMinutes: interviewDurationMinutes ? Number(interviewDurationMinutes) : 60 } : {}),
     interviewNotes: clean(body?.interviewNotes) || null,
     hasInterviewNotes,
     stageNotes,

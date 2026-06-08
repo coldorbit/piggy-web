@@ -1,4 +1,5 @@
 import { Box, Paper, Tooltip, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import {
   dateKeyDay,
@@ -80,6 +81,13 @@ function MonthCalendar({ cursorDate, days, eventsByDay }) {
 }
 
 function WeekCalendar({ days, eventsByDay }) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   return (
     <Box sx={{ height: '100%', minHeight: 0, overflow: 'auto', bgcolor: 'background.paper', overscrollBehavior: 'contain' }}>
       <Box
@@ -136,7 +144,7 @@ function WeekCalendar({ days, eventsByDay }) {
         </Box>
 
         {days.map((day, index) => (
-          <WeekDayColumn key={day} day={day} column={index + 2} events={eventsByDay.get(day) || []} />
+          <WeekDayColumn key={day} day={day} column={index + 2} events={eventsByDay.get(day) || []} now={now} />
         ))}
       </Box>
     </Box>
@@ -185,7 +193,9 @@ function WeekDayHeader({ day }) {
   );
 }
 
-function WeekDayColumn({ day, column, events }) {
+function WeekDayColumn({ day, column, events, now }) {
+  const isToday = day === defaultTimezoneTodayKey();
+  const currentTimeTop = isToday ? eventTop(now) : null;
   return (
     <Box
       sx={{
@@ -198,7 +208,7 @@ function WeekDayColumn({ day, column, events }) {
         backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_HEIGHT - 1}px, rgba(148, 163, 184, 0.32) ${HOUR_HEIGHT - 1}px, rgba(148, 163, 184, 0.32) ${HOUR_HEIGHT}px)`,
       }}
     >
-      {day === defaultTimezoneTodayKey() ? (
+      {isToday ? (
         <Box
           sx={{
             position: 'absolute',
@@ -211,6 +221,7 @@ function WeekDayColumn({ day, column, events }) {
       {events.map((event) => (
         <WeekCalendarEvent key={event.id} event={event} />
       ))}
+      {isToday ? <CurrentTimeLine top={currentTimeTop} /> : null}
     </Box>
   );
 }
@@ -218,15 +229,21 @@ function WeekDayColumn({ day, column, events }) {
 function WeekCalendarEvent({ event }) {
   const color = PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   const top = eventTop(event.startsAt);
+  const height = eventHeight(event.durationMinutes);
   return (
-    <Tooltip title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${event.title} · ${event.profile?.name || 'Profile'}`}>
+    <Tooltip
+      title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
+        event.profile?.name || 'Profile'
+      }`}
+    >
       <Box
         sx={{
           position: 'absolute',
           top,
+          height,
           left: 6,
           right: 6,
-          minHeight: 46,
+          minHeight: 18,
           borderLeft: 3,
           borderColor: color.main,
           bgcolor: color.soft,
@@ -245,10 +262,37 @@ function WeekCalendarEvent({ event }) {
           {event.title}
         </Typography>
         <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
-          {timeLabel(event.startsAt)} · {[event.company, event.profile?.name].filter(Boolean).join(' · ')}
+          {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {[event.company, event.profile?.name].filter(Boolean).join(' · ')}
         </Typography>
       </Box>
     </Tooltip>
+  );
+}
+
+function CurrentTimeLine({ top }) {
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        top,
+        left: 0,
+        right: 0,
+        height: 0,
+        borderTop: '2px solid #DC2626',
+        zIndex: 2,
+        pointerEvents: 'none',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          left: -5,
+          top: -5,
+          width: 10,
+          height: 10,
+          borderRadius: '50%',
+          bgcolor: '#DC2626',
+        },
+      }}
+    />
   );
 }
 
@@ -309,7 +353,11 @@ function CalendarDay({ day, events, isCurrentMonth }) {
 function CalendarEvent({ event }) {
   const color = PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   return (
-    <Tooltip title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${event.title} · ${event.profile?.name || 'Profile'}`}>
+    <Tooltip
+      title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
+        event.profile?.name || 'Profile'
+      }`}
+    >
       <Box
         sx={{
           minWidth: 0,
@@ -328,7 +376,7 @@ function CalendarEvent({ event }) {
           {timeLabel(event.startsAt)} {event.title}
         </Typography>
         <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
-          {[event.company, event.profile?.name].filter(Boolean).join(' · ')}
+          {durationLabel(event.durationMinutes)} · {[event.company, event.profile?.name].filter(Boolean).join(' · ')}
         </Typography>
       </Box>
     </Tooltip>
@@ -351,4 +399,15 @@ function eventTop(value) {
   const parts = zonedDateParts(value);
   const minutes = parts.hour * 60 + parts.minute;
   return (minutes / 60) * HOUR_HEIGHT + 4;
+}
+
+function eventHeight(durationMinutes = 60) {
+  return Math.max((Number(durationMinutes || 60) / 60) * HOUR_HEIGHT - 8, 18);
+}
+
+function durationLabel(durationMinutes = 60) {
+  const minutes = Number(durationMinutes || 60);
+  if (minutes === 60) return '1 hr';
+  if (minutes === 120) return '2 hrs';
+  return `${minutes} mins`;
 }

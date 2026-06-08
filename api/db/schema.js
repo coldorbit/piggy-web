@@ -64,6 +64,7 @@ async function ensureInterviewJourneyColumns() {
 
   await addMissingColumns(queryInterface, tableName, table, {
     first_interview_scheduled_at: { type: DataTypes.DATE, allowNull: true },
+    interview_duration_minutes: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 60 },
     stage_notes: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
   });
 }
@@ -107,6 +108,7 @@ async function backfillInterviewsFromJobBids() {
       status,
       interview_stage,
       interview_next_at,
+      interview_duration_minutes,
       interview_notes,
       created_at,
       updated_at
@@ -124,6 +126,7 @@ async function backfillInterviewsFromJobBids() {
       job_bids.status,
       COALESCE(NULLIF(job_bids.interview_stage, ''), 'todo'),
       job_bids.interview_next_at,
+      COALESCE(job_bids.interview_duration_minutes, 60),
       job_bids.interview_notes,
       job_bids.created_at,
       job_bids.updated_at
@@ -328,6 +331,7 @@ async function ensureJobBidInterviewColumns() {
     caller_user_id: { type: DataTypes.BIGINT, allowNull: true },
     interview_stage: { type: DataTypes.TEXT, allowNull: true },
     interview_next_at: { type: DataTypes.DATE, allowNull: true },
+    interview_duration_minutes: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 60 },
     interview_notes: { type: DataTypes.TEXT, allowNull: true },
   });
 }

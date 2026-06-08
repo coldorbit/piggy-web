@@ -10,6 +10,19 @@ export const INTERVIEW_FILTERS = {
 
 const DEFAULT_STAGE = INTERVIEW_STAGES[0].value;
 
+export const INTERVIEW_DURATION_OPTIONS = [
+  { value: 10, label: '10 mins' },
+  { value: 15, label: '15 mins' },
+  { value: 20, label: '20 mins' },
+  { value: 30, label: '30 mins' },
+  { value: 45, label: '45 mins' },
+  { value: 60, label: '1 hr' },
+  { value: 90, label: '90 mins' },
+  { value: 120, label: '2 hrs' },
+];
+
+export const DEFAULT_INTERVIEW_DURATION_MINUTES = 60;
+
 export function groupJobsByStage(jobs, draftFor) {
   return INTERVIEW_KANBAN_COLUMNS.reduce((groups, stage) => {
     groups[stage.value] = jobs.filter((job) => interviewColumnValue(job, draftFor) === stage.value);

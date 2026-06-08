@@ -67,6 +67,12 @@ export function getInterviewModel() {
         type: DataTypes.DATE,
         field: 'interview_next_at',
       },
+      interviewDurationMinutes: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 60,
+        field: 'interview_duration_minutes',
+      },
       firstInterviewScheduledAt: {
         type: DataTypes.DATE,
         field: 'first_interview_scheduled_at',
