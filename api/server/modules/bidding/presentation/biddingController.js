@@ -1578,6 +1578,8 @@ function formatCallerAssignment(row) {
     interviewNextAt: row.interviewNextAt,
     interviewDurationMinutes: row.interviewDurationMinutes || 60,
     interviewNotes: row.interviewNotes,
+    stageMeetingLinks: row.stageMeetingLinks || {},
+    meetingLink: meetingLinkForStage(row.stageMeetingLinks, row.interviewStage),
     updatedAt: row.updatedAt,
     job: row.job ? formatJob(row.job) : {
       id: row.jobId,
@@ -1598,6 +1600,12 @@ function interviewValuesFromAttrs(attrs, existing = null) {
     existingNotes: existing?.stageNotes,
     incomingNotes: attrs.stageNotes,
   });
+  const stageMeetingLinks = normalizeInterviewStageMeetingLinks({
+    currentStage: stage,
+    currentLink: attrs.interviewMeetingLink,
+    existingLinks: existing?.stageMeetingLinks,
+    incomingLinks: attrs.stageMeetingLinks,
+  });
   const interviewNextAt = attrs.interviewNextAt || null;
   return {
     callerUserId: attrs.callerUserId ?? null,
@@ -1608,6 +1616,7 @@ function interviewValuesFromAttrs(attrs, existing = null) {
     firstInterviewScheduledAt: existing?.firstInterviewScheduledAt || interviewNextAt,
     interviewNotes: stageNotes[stage] || attrs.interviewNotes || null,
     stageNotes,
+    stageMeetingLinks,
   };
 }
 
@@ -1624,6 +1633,9 @@ function bidUpdateValuesFromAttrs(attrs) {
       ? { interviewDurationMinutes: attrs.interviewDurationMinutes }
       : {}),
     interviewNotes: attrs.interviewNotes,
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'stageMeetingLinks')
+      ? { stageMeetingLinks: attrs.stageMeetingLinks }
+      : {}),
   };
 }
 
@@ -1692,6 +1704,8 @@ function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById
     firstInterviewScheduledAt: interview.firstInterviewScheduledAt,
     interviewNotes: interview.interviewNotes,
     stageNotes: interview.stageNotes || {},
+    stageMeetingLinks: interview.stageMeetingLinks || {},
+    meetingLink: meetingLinkForStage(interview.stageMeetingLinks, interview.interviewStage),
     logs: (interview.logs || interview.get?.('logs') || []).map(formatInterviewLog),
     bidAt: interview.createdAt,
     createdAt: interview.createdAt,
@@ -1735,12 +1749,30 @@ function normalizeInterviewStageNotes({ currentStage, currentNote, existingNotes
   return notes;
 }
 
+function normalizeInterviewStageMeetingLinks({ currentStage, currentLink, existingLinks, incomingLinks }) {
+  const links = { ...((existingLinks && typeof existingLinks === 'object') ? existingLinks : {}) };
+  if (incomingLinks && typeof incomingLinks === 'object') {
+    for (const [stage, link] of Object.entries(incomingLinks)) {
+      const cleaned = clean(link);
+      if (cleaned) links[stage] = cleaned;
+      else delete links[stage];
+    }
+  }
+  if (currentLink !== undefined) {
+    const cleaned = clean(currentLink);
+    if (cleaned) links[currentStage] = cleaned;
+    else delete links[currentStage];
+  }
+  return links;
+}
+
 function interviewSnapshot(interview) {
   return {
     interviewStage: interview.interviewStage,
     interviewNextAt: interview.interviewNextAt,
     firstInterviewScheduledAt: interview.firstInterviewScheduledAt,
     stageNotes: { ...((interview.stageNotes && typeof interview.stageNotes === 'object') ? interview.stageNotes : {}) },
+    stageMeetingLinks: { ...((interview.stageMeetingLinks && typeof interview.stageMeetingLinks === 'object') ? interview.stageMeetingLinks : {}) },
   };
 }
 
@@ -1798,6 +1830,15 @@ async function logInterviewChanges({ interview, previous, attrs, userId }) {
       metadata: { stage },
     });
   }
+  const changedMeetingLinkStages = changedStageNoteKeys(previous.stageMeetingLinks, interview.stageMeetingLinks || {});
+  for (const stage of changedMeetingLinkStages) {
+    logs.push({
+      eventType: 'stage_meeting_link_changed',
+      fromValue: previous.stageMeetingLinks[stage] || null,
+      toValue: interview.stageMeetingLinks?.[stage] || null,
+      metadata: { stage },
+    });
+  }
   if (!logs.length) return;
   await getInterviewLogModel().bulkCreate(
     logs.map((log) => ({
@@ -1807,6 +1848,11 @@ async function logInterviewChanges({ interview, previous, attrs, userId }) {
       metadata: { ...(log.metadata || {}), source: attrs.status || interview.status },
     })),
   );
+}
+
+function meetingLinkForStage(stageMeetingLinks, stage) {
+  if (!stageMeetingLinks || typeof stageMeetingLinks !== 'object') return '';
+  return clean(stageMeetingLinks[stage]) || '';
 }
 
 function changedStageNoteKeys(previousNotes, nextNotes) {

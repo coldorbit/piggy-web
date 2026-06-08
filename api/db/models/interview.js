@@ -87,6 +87,12 @@ export function getInterviewModel() {
         defaultValue: {},
         field: 'stage_notes',
       },
+      stageMeetingLinks: {
+        type: DataTypes.JSONB,
+        allowNull: false,
+        defaultValue: {},
+        field: 'stage_meeting_links',
+      },
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,

@@ -49,6 +49,8 @@ const EMPTY_MANUAL_INTERVIEW = {
   interviewStage: 'todo',
   interviewNextAt: '',
   interviewDurationMinutes: DEFAULT_INTERVIEW_DURATION_MINUTES,
+  interviewMeetingLink: '',
+  stageMeetingLinks: {},
   callerUserId: '',
   interviewNotes: '',
 };
@@ -128,6 +130,8 @@ export default function InterviewsPage({ currentUser }) {
       interviewStage: canonicalInterviewStage(drafts[job.bid?.id]?.interviewStage || job.bid?.interviewStage),
       interviewDurationMinutes:
         drafts[job.bid?.id]?.interviewDurationMinutes || job.bid?.interviewDurationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
+      stageMeetingLinks: drafts[job.bid?.id]?.stageMeetingLinks || job.bid?.stageMeetingLinks || {},
+      meetingLink: drafts[job.bid?.id]?.meetingLink || job.bid?.meetingLink || '',
     };
   }
 
@@ -207,6 +211,9 @@ export default function InterviewsPage({ currentUser }) {
         ...manualInterview,
         profileId: activeProfile.id,
         interviewNextAt: fromDefaultTimezoneDatetimeLocal(manualInterview.interviewNextAt),
+        stageMeetingLinks: manualInterview.interviewMeetingLink
+          ? { [manualInterview.interviewStage]: manualInterview.interviewMeetingLink }
+          : {},
       },
       {
         onSuccess: closeManualDialog,
@@ -242,7 +249,10 @@ export default function InterviewsPage({ currentUser }) {
   const selectedStage = selectedDraft?.interviewStage || INTERVIEW_STAGES[0].value;
   const selectedStageNotes = selectedDraft?.stageNotes || {};
   const selectedStageNote = selectedStageNotes[selectedStage] || selectedDraft?.interviewNotes || '';
+  const selectedStageMeetingLinks = selectedDraft?.stageMeetingLinks || {};
+  const selectedStageMeetingLink = selectedStageMeetingLinks[selectedStage] || '';
   const selectedJobUrl = externalJobUrl(selectedJob);
+  const selectedMeetingUrl = externalUrl(selectedStageMeetingLink);
   const callerUsers = interviewsData?.callerUsers || [];
   const jobsByStage = groupJobsByStage(jobs, draftFor);
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
@@ -443,6 +453,13 @@ export default function InterviewsPage({ currentUser }) {
               </FormControl>
             ) : null}
             <TextField
+              label={`${stageLabel(manualInterview.interviewStage)} meeting link`}
+              type="url"
+              value={manualInterview.interviewMeetingLink}
+              onChange={(event) => setManualInterview((current) => ({ ...current, interviewMeetingLink: event.target.value }))}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
               label="Notes"
               multiline
               minRows={3}
@@ -520,6 +537,7 @@ export default function InterviewsPage({ currentUser }) {
                       const nextStage = event.target.value;
                       updateDraft(selectedJob, 'interviewStage', nextStage);
                       updateDraft(selectedJob, 'interviewNotes', selectedStageNotes[nextStage] || '');
+                      updateDraft(selectedJob, 'meetingLink', selectedStageMeetingLinks[nextStage] || '');
                     }}
                     disabled={updatingBid || !canEditInterviews}
                   >
@@ -554,6 +572,19 @@ export default function InterviewsPage({ currentUser }) {
                     ))}
                   </Select>
                 </FormControl>
+                <TextField
+                  label={`${stageLabel(selectedStage)} meeting link`}
+                  size="small"
+                  type="url"
+                  value={selectedStageMeetingLink}
+                  onChange={(event) => {
+                    const nextStageMeetingLinks = { ...selectedStageMeetingLinks, [selectedStage]: event.target.value };
+                    updateDraft(selectedJob, 'stageMeetingLinks', nextStageMeetingLinks);
+                    updateDraft(selectedJob, 'meetingLink', event.target.value);
+                  }}
+                  disabled={updatingBid || !canEditInterviews}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
                 {currentUser?.role === 'admin' ? (
                   <FormControl size="small">
                     <InputLabel>Assignee</InputLabel>
@@ -575,6 +606,11 @@ export default function InterviewsPage({ currentUser }) {
                 {selectedJobUrl ? (
                   <Button component="a" href={selectedJobUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="outlined">
                     Job link
+                  </Button>
+                ) : null}
+                {selectedMeetingUrl ? (
+                  <Button component="a" href={selectedMeetingUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="contained">
+                    Join call
                   </Button>
                 ) : null}
               </Box>
@@ -607,6 +643,10 @@ export default function InterviewsPage({ currentUser }) {
 
 function externalJobUrl(job) {
   const url = job?.rawJob?.originalUrl || job?.url || '';
+  return externalUrl(url);
+}
+
+function externalUrl(url) {
   return /^https?:\/\//i.test(String(url)) ? url : '';
 }
 
@@ -622,5 +662,6 @@ function formatJourneyLog(log) {
     schedule_changed: 'Schedule changed',
     stage_changed: `Moved ${stageLabel(log.fromValue)} -> ${stageLabel(log.toValue)}`,
     stage_note_changed: `${stage || 'Stage'} note updated`,
+    stage_meeting_link_changed: `${stage || 'Stage'} meeting link updated`,
   }[log.eventType] || log.eventType;
 }

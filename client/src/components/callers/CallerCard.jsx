@@ -57,6 +57,7 @@ function CallerAssignment({ assignment }) {
   const stage = INTERVIEW_STAGES.find((item) => item.value === assignment.interviewStage);
   const job = assignment.job || {};
   const profile = assignment.profile || {};
+  const meetingLink = externalUrl(assignment.meetingLink);
 
   return (
     <Paper variant="outlined" sx={{ p: 1, display: 'grid', gap: 0.75, bgcolor: 'background.paper' }}>
@@ -69,20 +70,36 @@ function CallerAssignment({ assignment }) {
             {job.company || 'Unknown company'}{profile.name ? ` · ${profile.name}` : ''}
           </Typography>
         </Box>
-        {job.url ? (
-          <Button
-            component="a"
-            href={job.url}
-            target="_blank"
-            rel="noreferrer"
-            size="small"
-            startIcon={<OpenInNewIcon />}
-            variant="outlined"
-            sx={{ minHeight: 30, whiteSpace: 'nowrap' }}
-          >
-            Job
-          </Button>
-        ) : null}
+        <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
+          {meetingLink ? (
+            <Button
+              component="a"
+              href={meetingLink}
+              target="_blank"
+              rel="noreferrer"
+              size="small"
+              startIcon={<OpenInNewIcon />}
+              variant="contained"
+              sx={{ minHeight: 30, whiteSpace: 'nowrap' }}
+            >
+              Join
+            </Button>
+          ) : null}
+          {job.url ? (
+            <Button
+              component="a"
+              href={job.url}
+              target="_blank"
+              rel="noreferrer"
+              size="small"
+              startIcon={<OpenInNewIcon />}
+              variant="outlined"
+              sx={{ minHeight: 30, whiteSpace: 'nowrap' }}
+            >
+              Job
+            </Button>
+          ) : null}
+        </Box>
       </Box>
       <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
         <Chip label={stage?.label || 'Screening'} size="small" sx={{ bgcolor: '#EFF6FF', color: '#1D4ED8', fontWeight: 900 }} />
@@ -94,4 +111,8 @@ function CallerAssignment({ assignment }) {
       </Stack>
     </Paper>
   );
+}
+
+function externalUrl(value) {
+  return /^https?:\/\//i.test(String(value || '')) ? value : '';
 }

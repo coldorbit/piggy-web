@@ -66,6 +66,7 @@ async function ensureInterviewJourneyColumns() {
     first_interview_scheduled_at: { type: DataTypes.DATE, allowNull: true },
     interview_duration_minutes: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 60 },
     stage_notes: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
+    stage_meeting_links: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
   });
 }
 
@@ -110,6 +111,7 @@ async function backfillInterviewsFromJobBids() {
       interview_next_at,
       interview_duration_minutes,
       interview_notes,
+      stage_meeting_links,
       created_at,
       updated_at
     )
@@ -128,6 +130,7 @@ async function backfillInterviewsFromJobBids() {
       job_bids.interview_next_at,
       COALESCE(job_bids.interview_duration_minutes, 60),
       job_bids.interview_notes,
+      COALESCE(job_bids.stage_meeting_links, '{}'::jsonb),
       job_bids.created_at,
       job_bids.updated_at
     FROM job_bids
@@ -333,6 +336,7 @@ async function ensureJobBidInterviewColumns() {
     interview_next_at: { type: DataTypes.DATE, allowNull: true },
     interview_duration_minutes: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 60 },
     interview_notes: { type: DataTypes.TEXT, allowNull: true },
+    stage_meeting_links: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
   });
 }
 

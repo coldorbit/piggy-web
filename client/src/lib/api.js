@@ -685,6 +685,8 @@ function optimisticBid({ id, jobId, bidData }) {
     firstInterviewScheduledAt: bidData?.firstInterviewScheduledAt || null,
     interviewNotes: bidData?.interviewNotes || null,
     stageNotes: bidData?.stageNotes || {},
+    stageMeetingLinks: bidData?.stageMeetingLinks || {},
+    meetingLink: bidData?.meetingLink || '',
     logs: bidData?.logs || [],
     bidAt: now,
     createdAt: now,

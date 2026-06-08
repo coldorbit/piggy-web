@@ -425,6 +425,7 @@ function CalendarEvent({ event, onEventClick }) {
 
 function CalendarEventDialog({ event, onClose }) {
   const jobUrl = externalJobUrl(event);
+  const meetingUrl = meetingLinkForEvent(event);
   return (
     <Dialog open={Boolean(event)} onClose={onClose} fullWidth maxWidth="sm">
       {event ? (
@@ -446,9 +447,15 @@ function CalendarEventDialog({ event, onClose }) {
             <DetailRow label="Role" value={event.title || 'Untitled role'} />
             {event.location ? <DetailRow label="Location" value={event.location} /> : null}
             {event.job?.bid?.interviewStage ? <DetailRow label="Step" value={stageLabel(event.job.bid.interviewStage)} /> : null}
+            {meetingUrl ? <DetailRow label="Meeting link" value={meetingUrl} /> : null}
             {event.job?.bid?.interviewNotes ? <DetailRow label="Notes" value={event.job.bid.interviewNotes} multiline /> : null}
           </DialogContent>
           <DialogActions>
+            {meetingUrl ? (
+              <Button component="a" href={meetingUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="contained">
+                Join call
+              </Button>
+            ) : null}
             {jobUrl ? (
               <Button component="a" href={jobUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />}>
                 Job link
@@ -512,6 +519,13 @@ function compactEventLabel(event) {
 
 function externalJobUrl(event) {
   const url = event?.job?.rawJob?.originalUrl || event?.job?.url || event?.job?.sourceUrl || '';
+  return /^https?:\/\//i.test(String(url)) ? url : '';
+}
+
+function meetingLinkForEvent(event) {
+  const stage = event?.job?.bid?.interviewStage;
+  const links = event?.job?.bid?.stageMeetingLinks || {};
+  const url = links[stage] || event?.job?.bid?.meetingLink || '';
   return /^https?:\/\//i.test(String(url)) ? url : '';
 }
 

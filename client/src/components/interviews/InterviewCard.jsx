@@ -1,7 +1,9 @@
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -32,8 +34,10 @@ export default function InterviewCard({
   const owner = job.bid?.user?.username || (String(job.bid?.userId) === String(currentUser?.id) ? currentUser?.username : '');
   const currentStage = draft.interviewStage || INTERVIEW_STAGES[0].value;
   const stageNotes = draft.stageNotes || {};
+  const stageMeetingLinks = draft.stageMeetingLinks || {};
   const logs = draft.logs || [];
   const currentStageNote = stageNotes[currentStage] || draft.interviewNotes || '';
+  const currentStageMeetingLink = externalUrl(stageMeetingLinks[currentStage] || draft.meetingLink);
 
   function handlePointerDown(event) {
     if (event.target.closest(INTERACTIVE_SELECTOR)) {
@@ -129,6 +133,20 @@ export default function InterviewCard({
           {owner ? <Chip label={owner} size="small" sx={{ ...chipSx, bgcolor: '#edf0ff', color: '#343f91' }} /> : null}
           <Chip label={stageLabel(currentStage)} size="small" sx={{ ...chipSx, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
           <Chip label={formatDate(job.bid?.updatedAt)} size="small" sx={{ ...chipSx, bgcolor: '#f7ead1', color: '#70400d' }} />
+          {currentStageMeetingLink ? (
+            <Button
+              component="a"
+              href={currentStageMeetingLink}
+              target="_blank"
+              rel="noreferrer"
+              size="small"
+              startIcon={<OpenInNewIcon fontSize="small" />}
+              variant="contained"
+              sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 900, lineHeight: 1.4 }}
+            >
+              Join
+            </Button>
+          ) : null}
         </Box>
       </CardContent>
     </Card>
@@ -167,6 +185,11 @@ function formatJourneyLog(log) {
     schedule_changed: 'Schedule changed',
     stage_changed: `Moved ${stageLabel(log.fromValue)} -> ${stageLabel(log.toValue)}`,
     stage_note_changed: `${stage || 'Stage'} note updated`,
+    stage_meeting_link_changed: `${stage || 'Stage'} meeting link updated`,
   }[log.eventType] || log.eventType;
   return [action, at].filter(Boolean).join(' · ');
+}
+
+function externalUrl(value) {
+  return /^https?:\/\//i.test(String(value || '')) ? value : '';
 }

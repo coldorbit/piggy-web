@@ -102,6 +102,7 @@ export function formatBid(row) {
     interviewNextAt: row.interviewNextAt,
     interviewDurationMinutes: row.interviewDurationMinutes || 60,
     interviewNotes: row.interviewNotes,
+    stageMeetingLinks: row.stageMeetingLinks || {},
     bidAt: row.bidAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -319,6 +320,11 @@ export function bidAttributesFromBody(body) {
   const interviewDurationMinutes = hasInterviewDuration ? clean(body?.interviewDurationMinutes || body?.interviewDuration) : '';
   const hasInterviewNotes = Object.prototype.hasOwnProperty.call(body || {}, 'interviewNotes');
   const stageNotes = normalizeStageNotes(body?.stageNotes);
+  const hasStageMeetingLinks = Object.prototype.hasOwnProperty.call(body || {}, 'stageMeetingLinks');
+  const hasInterviewMeetingLink = Object.prototype.hasOwnProperty.call(body || {}, 'interviewMeetingLink')
+    || Object.prototype.hasOwnProperty.call(body || {}, 'meetingLink');
+  const stageMeetingLinks = hasStageMeetingLinks ? normalizeStageMeetingLinks(body?.stageMeetingLinks) : {};
+  const interviewMeetingLink = hasInterviewMeetingLink ? clean(body?.interviewMeetingLink || body?.meetingLink) : undefined;
   const allowedInterviewStages = new Set(['', 'todo', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
   const allowedStatuses = new Set(['planned', 'submitted', 'interviewing', 'won', 'lost']);
   const normalizedInterviewStage = status === 'interviewing' && !interviewStage ? 'todo' : interviewStage;
@@ -328,9 +334,13 @@ export function bidAttributesFromBody(body) {
   if (callerUserId && Number.isNaN(Number(callerUserId))) throw new InputError('Choose a valid caller');
   if (!allowedInterviewStages.has(normalizedInterviewStage)) throw new InputError('Choose a valid interview stage');
   if (Object.keys(stageNotes).some((stage) => !allowedInterviewStages.has(stage) || !stage)) throw new InputError('Choose a valid interview stage');
+  if (Object.keys(stageMeetingLinks).some((stage) => !allowedInterviewStages.has(stage) || !stage)) throw new InputError('Choose a valid interview stage');
   if (interviewNextAt && Number.isNaN(Date.parse(interviewNextAt))) throw new InputError('Choose a valid interview date');
   if (interviewDurationMinutes && !INTERVIEW_DURATION_OPTIONS.has(Number(interviewDurationMinutes))) {
     throw new InputError('Choose a valid interview duration');
+  }
+  if (Object.values(stageMeetingLinks).some((url) => !validHttpUrl(url)) || (interviewMeetingLink && !validHttpUrl(interviewMeetingLink))) {
+    throw new InputError('Meeting link must be a valid URL');
   }
 
   return {
@@ -345,6 +355,8 @@ export function bidAttributesFromBody(body) {
     interviewNotes: clean(body?.interviewNotes) || null,
     hasInterviewNotes,
     stageNotes,
+    ...(hasStageMeetingLinks ? { stageMeetingLinks } : {}),
+    ...(hasInterviewMeetingLink ? { interviewMeetingLink } : {}),
   };
 }
 
@@ -355,6 +367,24 @@ function normalizeStageNotes(value) {
       .map(([stage, note]) => [normalizeInterviewStage(clean(stage)), clean(note)])
       .filter(([stage, note]) => stage && note),
   );
+}
+
+function normalizeStageMeetingLinks(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([stage, url]) => [normalizeInterviewStage(clean(stage)), clean(url)])
+      .filter(([stage, url]) => stage && url),
+  );
+}
+
+function validHttpUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 function normalizeInterviewStage(value) {

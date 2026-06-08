@@ -66,6 +66,12 @@ export function getJobBidModel() {
         type: DataTypes.TEXT,
         field: 'interview_notes',
       },
+      stageMeetingLinks: {
+        type: DataTypes.JSONB,
+        allowNull: false,
+        defaultValue: {},
+        field: 'stage_meeting_links',
+      },
       bidAt: {
         type: DataTypes.DATE,
         allowNull: false,
