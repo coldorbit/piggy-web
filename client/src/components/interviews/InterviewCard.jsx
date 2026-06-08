@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
 import { formatDate, formatDateTime, formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
+import { authUrl } from '../../lib/api.js';
 
 const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="combobox"], .MuiSelect-select';
 
@@ -38,6 +39,8 @@ export default function InterviewCard({
   const logs = draft.logs || [];
   const currentStageNote = stageNotes[currentStage] || draft.interviewNotes || '';
   const currentStageMeetingLink = externalUrl(stageMeetingLinks[currentStage] || draft.meetingLink);
+  const jobUrl = externalUrl(job.rawJob?.originalUrl || job.url || job.sourceUrl);
+  const resumeUrl = resumeDownloadUrl(job.tailoredResume);
 
   function handlePointerDown(event) {
     if (event.target.closest(INTERACTIVE_SELECTOR)) {
@@ -147,6 +150,35 @@ export default function InterviewCard({
               Join
             </Button>
           ) : null}
+          {jobUrl ? (
+            <Button
+              component="a"
+              href={jobUrl}
+              target="_blank"
+              rel="noreferrer"
+              size="small"
+              startIcon={<OpenInNewIcon fontSize="small" />}
+              variant="outlined"
+              sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 900, lineHeight: 1.4 }}
+            >
+              Job
+            </Button>
+          ) : null}
+          {resumeUrl ? (
+            <Button
+              component="a"
+              href={resumeUrl}
+              download={resumeFileName(job.tailoredResume?.filePath)}
+              size="small"
+              startIcon={<OpenInNewIcon fontSize="small" />}
+              variant="outlined"
+              sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 900, lineHeight: 1.4 }}
+            >
+              Resume
+            </Button>
+          ) : job.tailoredResume?.status ? (
+            <Chip label={`Resume: ${job.tailoredResume.status}`} size="small" sx={{ ...chipSx, bgcolor: '#F8FAFC', color: '#475569' }} />
+          ) : null}
         </Box>
       </CardContent>
     </Card>
@@ -192,4 +224,13 @@ function formatJourneyLog(log) {
 
 function externalUrl(value) {
   return /^https?:\/\//i.test(String(value || '')) ? value : '';
+}
+
+function resumeDownloadUrl(resume) {
+  if (resume?.status !== 'ready' || !resume?.filePath || !resume?.id) return '';
+  return authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`);
+}
+
+function resumeFileName(filePath) {
+  return filePath ? String(filePath).split('/').pop() || 'tailored-resume.pdf' : 'tailored-resume.pdf';
 }

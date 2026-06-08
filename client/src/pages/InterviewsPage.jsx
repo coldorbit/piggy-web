@@ -38,7 +38,7 @@ import {
   toDatetimeLocalValue,
 } from '../components/interviews/interviewUtils.js';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { useBidJobs, useBidProfiles, useCreateManualInterview, useDeleteInterview, useUpdateJobBid } from '../lib/api.js';
+import { authUrl, useBidJobs, useBidProfiles, useCreateManualInterview, useDeleteInterview, useUpdateJobBid } from '../lib/api.js';
 import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
 const EMPTY_MANUAL_INTERVIEW = {
@@ -253,6 +253,8 @@ export default function InterviewsPage({ currentUser }) {
   const selectedStageMeetingLink = selectedStageMeetingLinks[selectedStage] || '';
   const selectedJobUrl = externalJobUrl(selectedJob);
   const selectedMeetingUrl = externalUrl(selectedStageMeetingLink);
+  const selectedResumeUrl = resumeDownloadUrl(selectedJob?.tailoredResume);
+  const selectedResumeStatus = selectedJob?.tailoredResume?.status || '';
   const callerUsers = interviewsData?.callerUsers || [];
   const jobsByStage = groupJobsByStage(jobs, draftFor);
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
@@ -608,6 +610,19 @@ export default function InterviewsPage({ currentUser }) {
                     Job link
                   </Button>
                 ) : null}
+                {selectedResumeUrl ? (
+                  <Button
+                    component="a"
+                    href={selectedResumeUrl}
+                    download={resumeFileName(selectedJob?.tailoredResume?.filePath)}
+                    startIcon={<OpenInNewIcon />}
+                    variant="outlined"
+                  >
+                    Resume
+                  </Button>
+                ) : selectedResumeStatus ? (
+                  <Chip label={`Resume: ${selectedResumeStatus}`} size="small" sx={{ justifySelf: 'start', bgcolor: '#F8FAFC', color: '#475569', fontWeight: 900 }} />
+                ) : null}
                 {selectedMeetingUrl ? (
                   <Button component="a" href={selectedMeetingUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="contained">
                     Join call
@@ -648,6 +663,15 @@ function externalJobUrl(job) {
 
 function externalUrl(url) {
   return /^https?:\/\//i.test(String(url)) ? url : '';
+}
+
+function resumeDownloadUrl(resume) {
+  if (resume?.status !== 'ready' || !resume?.filePath || !resume?.id) return '';
+  return authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`);
+}
+
+function resumeFileName(filePath) {
+  return filePath ? String(filePath).split('/').pop() || 'tailored-resume.pdf' : 'tailored-resume.pdf';
 }
 
 function stageLabel(value) {

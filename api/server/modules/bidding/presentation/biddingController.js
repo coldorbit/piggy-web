@@ -669,6 +669,7 @@ export async function listBidJobs(req, res, next) {
 
 async function listInterviewJobs(req, res, { user, profile }) {
   const Interview = getInterviewModel();
+  const TailoredResume = getTailoredResumeModel();
   const WebUser = getWebUserModel();
   const { limit, offset } = paginationFromQuery(req.query);
   const search = clean(req.query.search).toLowerCase();
@@ -706,13 +707,18 @@ async function listInterviewJobs(req, res, { user, profile }) {
     user.role === 'admin' ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }) : Promise.resolve([]),
   ]);
   const logsByInterviewId = await interviewLogsByInterviewId(interviews);
+  const tailoredResumesByUrl = await tailoredResumesForJobs({
+    TailoredResume,
+    jobs: interviews.map((interview) => ({ url: interview.jobUrl })).filter((job) => job.url),
+    profileId: profile.id,
+  });
   const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
   const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
   res.json({
     jobs: interviews.map((interview) => {
       interview.setDataValue('logs', logsByInterviewId.get(String(interview.id)) || []);
-      return formatInterviewAsJob(interview, bidUsersById, callerUsersById);
+      return formatInterviewAsJob(interview, bidUsersById, callerUsersById, tailoredResumesByUrl.get(interview.jobUrl) || null);
     }),
     bidUsers,
     callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
@@ -1224,9 +1230,25 @@ async function readyTailoredResumeForUser(req, id) {
   if (!tailoredResume || !tailoredResume.filePath) {
     throw new NotFoundError('Ready resume not found');
   }
-  await accessibleProfile(req, tailoredResume.profileId);
+  await ensureTailoredResumeAccess(req, tailoredResume);
 
   return tailoredResume;
+}
+
+async function ensureTailoredResumeAccess(req, tailoredResume) {
+  const user = await currentDbUser(req);
+  if (user.role !== 'caller') {
+    await accessibleProfile(req, tailoredResume.profileId);
+    return;
+  }
+  const assignment = await getInterviewModel().findOne({
+    where: {
+      profileId: tailoredResume.profileId,
+      jobUrl: tailoredResume.jobUrl,
+      callerUserId: user.id,
+    },
+  });
+  if (!assignment) throw new NotFoundError('Ready resume not found');
 }
 
 async function logTailoredResumeDownloadRow(id, tailoredResume) {
@@ -1664,7 +1686,7 @@ async function upsertInterviewForBid({ bid, job, attrs, userId }) {
   return interview;
 }
 
-function formatInterviewAsJob(interview, bidUsersById = new Map(), callerUsersById = new Map()) {
+function formatInterviewAsJob(interview, bidUsersById = new Map(), callerUsersById = new Map(), tailoredResume = null) {
   return {
     id: `interview-${interview.id}`,
     interviewId: interview.id,
@@ -1678,7 +1700,7 @@ function formatInterviewAsJob(interview, bidUsersById = new Map(), callerUsersBy
     isSpam: false,
     isHidden: false,
     updatedAt: interview.updatedAt,
-    tailoredResume: null,
+    tailoredResume,
     bid: formatInterviewBid(interview, bidUsersById, callerUsersById),
   };
 }

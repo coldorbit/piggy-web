@@ -2,6 +2,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Tooltip, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
+import { authUrl } from '../../lib/api.js';
 import {
   dateKeyDay,
   dateKeyDayOfWeek,
@@ -426,6 +427,8 @@ function CalendarEvent({ event, onEventClick }) {
 function CalendarEventDialog({ event, onClose }) {
   const jobUrl = externalJobUrl(event);
   const meetingUrl = meetingLinkForEvent(event);
+  const resumeUrl = resumeDownloadUrl(event?.job?.tailoredResume);
+  const resumeStatus = event?.job?.tailoredResume?.status || '';
   return (
     <Dialog open={Boolean(event)} onClose={onClose} fullWidth maxWidth="sm">
       {event ? (
@@ -448,6 +451,7 @@ function CalendarEventDialog({ event, onClose }) {
             {event.location ? <DetailRow label="Location" value={event.location} /> : null}
             {event.job?.bid?.interviewStage ? <DetailRow label="Step" value={stageLabel(event.job.bid.interviewStage)} /> : null}
             {meetingUrl ? <DetailRow label="Meeting link" value={meetingUrl} /> : null}
+            {resumeStatus ? <DetailRow label="Resume" value={resumeUrl ? resumeFileName(event.job.tailoredResume.filePath) : resumeStatus} /> : null}
             {event.job?.bid?.interviewNotes ? <DetailRow label="Notes" value={event.job.bid.interviewNotes} multiline /> : null}
           </DialogContent>
           <DialogActions>
@@ -459,6 +463,16 @@ function CalendarEventDialog({ event, onClose }) {
             {jobUrl ? (
               <Button component="a" href={jobUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />}>
                 Job link
+              </Button>
+            ) : null}
+            {resumeUrl ? (
+              <Button
+                component="a"
+                href={resumeUrl}
+                download={resumeFileName(event.job.tailoredResume.filePath)}
+                startIcon={<OpenInNewIcon />}
+              >
+                Resume
               </Button>
             ) : null}
             <Button onClick={onClose} variant="contained">
@@ -527,6 +541,15 @@ function meetingLinkForEvent(event) {
   const links = event?.job?.bid?.stageMeetingLinks || {};
   const url = links[stage] || event?.job?.bid?.meetingLink || '';
   return /^https?:\/\//i.test(String(url)) ? url : '';
+}
+
+function resumeDownloadUrl(resume) {
+  if (resume?.status !== 'ready' || !resume?.filePath || !resume?.id) return '';
+  return authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`);
+}
+
+function resumeFileName(filePath) {
+  return filePath ? String(filePath).split('/').pop() || 'tailored-resume.pdf' : 'tailored-resume.pdf';
 }
 
 function stageLabel(value) {
