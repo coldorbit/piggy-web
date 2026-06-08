@@ -19,7 +19,7 @@ import {
 } from '../lib/timezone.js';
 
 export default function CalendarPage({ currentUser }) {
-  const [view, setView] = useState(CALENDAR_VIEWS.month);
+  const [view, setView] = useState(CALENDAR_VIEWS.week);
   const [cursorDate, setCursorDate] = useState(() => defaultTimezoneTodayKey());
   const [search, setSearch] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
