@@ -64,6 +64,7 @@ export default function FaqEditorPage() {
     <Box sx={{ minHeight: 0, display: 'grid', gap: 1.5, alignContent: 'start' }}>
       <FaqEditorToolbar
         isSaving={isSaving}
+        status={faq?.status || 'draft'}
         title={title}
         onBack={() => navigate('/faqs')}
         onPublish={() => saveFaq('published')}
