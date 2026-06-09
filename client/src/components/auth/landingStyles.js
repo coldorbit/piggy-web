@@ -1,6 +1,7 @@
 const imageOverlay =
   'linear-gradient(90deg, rgba(5, 10, 20, 0.86) 0%, rgba(9, 18, 32, 0.72) 42%, rgba(13, 24, 42, 0.42) 100%)';
-const heroImage = 'url("/assets/landing-workspace.jpg")';
+const heroImage =
+  'image-set(url("/assets/landing-workspace.webp") type("image/webp"), url("/assets/landing-workspace.jpg") type("image/jpeg"))';
 
 export const authPageSx = {
   minHeight: '100vh',
