@@ -40,6 +40,7 @@ export default function JobsPage({ currentUser }) {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
   const [importMessage, setImportMessage] = useState('');
+  const [importResult, setImportResult] = useState(null);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
 
   const {
@@ -137,17 +138,19 @@ export default function JobsPage({ currentUser }) {
   function importCsv(event) {
     event.preventDefault();
     setImportMessage('');
+    setImportResult(null);
     importJobsCsv(
       { csvText },
       {
         onSuccess: (result) => {
           setCsvText('');
           setIsImportOpen(false);
-          setImportMessage(
-            `Imported ${Number(result.imported || 0).toLocaleString()} jobs. Skipped ${Number(result.skipped || 0).toLocaleString()}.`,
-          );
+          setImportResult(result);
         },
-        onError: (importError) => setImportMessage(importError.message),
+        onError: (importError) => {
+          setImportResult(null);
+          setImportMessage(importError.message);
+        },
       },
     );
   }
@@ -201,6 +204,7 @@ export default function JobsPage({ currentUser }) {
 
       {error ? <Alert severity="error">{error}</Alert> : null}
       {importMessage ? <Alert severity={importMessage.startsWith('Imported') ? 'success' : 'error'}>{importMessage}</Alert> : null}
+      {importResult ? <ImportCsvResultAlert result={importResult} /> : null}
 
       <Box
         component="section"
@@ -257,6 +261,47 @@ export default function JobsPage({ currentUser }) {
         </Box>
       </Dialog>
     </Box>
+  );
+}
+
+function ImportCsvResultAlert({ result }) {
+  const duplicatesInCsv = result?.duplicates?.inCsv || [];
+  const existingDuplicates = result?.duplicates?.existing || [];
+  const duplicateCount = Number(result?.duplicateCount || duplicatesInCsv.length + existingDuplicates.length);
+  const duplicateItems = [
+    ...existingDuplicates.map((item) => ({
+      key: `existing-${item.rowNumber || ''}-${item.url}`,
+      label: `Row ${item.rowNumber || '?'} already exists: ${item.url}`,
+    })),
+    ...duplicatesInCsv.map((item) => ({
+      key: `csv-${item.rowNumber || ''}-${item.url}`,
+      label: `Row ${item.rowNumber || '?'} duplicates row ${item.firstRowNumber || '?'}: ${item.url}`,
+    })),
+  ];
+  const visibleDuplicates = duplicateItems.slice(0, 10);
+  const hiddenDuplicateCount = Math.max(0, duplicateItems.length - visibleDuplicates.length);
+
+  return (
+    <Alert severity="success">
+      <Box sx={{ display: 'grid', gap: 0.75 }}>
+        <Typography fontWeight={900}>CSV import completed</Typography>
+        <Typography variant="body2">
+          {Number(result?.successfulImports ?? result?.imported ?? 0).toLocaleString()} imported from{' '}
+          {Number(result?.totalRows || 0).toLocaleString()} rows. {Number(result?.skipped || 0).toLocaleString()} skipped.
+          {duplicateCount ? ` ${duplicateCount.toLocaleString()} duplicate link${duplicateCount === 1 ? '' : 's'} found.` : ''}
+        </Typography>
+        {duplicateCount ? (
+          <Box component="ul" sx={{ m: 0, pl: 2.25, display: 'grid', gap: 0.35 }}>
+            {visibleDuplicates.map((item) => (
+              <Typography component="li" variant="body2" key={item.key}>
+                {item.label}
+              </Typography>
+            ))}
+            {hiddenDuplicateCount ? <Typography variant="body2">+{hiddenDuplicateCount.toLocaleString()} more duplicate links.</Typography> : null}
+          </Box>
+        ) : null}
+      </Box>
+    </Alert>
   );
 }
 

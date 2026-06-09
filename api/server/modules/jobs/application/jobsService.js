@@ -442,6 +442,7 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
         ...raw,
         importedBy: importedBy || null,
         importedAt: importedAt.toISOString(),
+        importRowNumber: rowNumber,
         importType: 'manual',
         isManualImport: true,
         roleFamily: category,
