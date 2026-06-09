@@ -894,6 +894,125 @@ export function useDeleteInterview() {
   });
 }
 
+export function useMarketplace() {
+  return useQuery({
+    queryKey: ['marketplace'],
+    queryFn: () => api('/api/marketplace'),
+  });
+}
+
+export function useUpsertMarketplaceParticipant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (participantData) =>
+      api('/api/marketplace/participant', {
+        method: 'POST',
+        body: JSON.stringify(participantData),
+      }).then((data) => data.participant),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
+export function useReviewMarketplaceParticipant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ participantId, reviewData }) =>
+      api(`/api/marketplace/participants/${participantId}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify(reviewData),
+      }).then((data) => data.participant),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
+export function useCreateMarketplaceInterview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (interviewData) =>
+      api('/api/marketplace/interviews', {
+        method: 'POST',
+        body: JSON.stringify(interviewData),
+      }).then((data) => data.interview),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
+export function useReviewMarketplaceInterview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ interviewId, reviewData }) =>
+      api(`/api/marketplace/interviews/${interviewId}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify(reviewData),
+      }).then((data) => data.interview),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
+export function useCreateMarketplaceCaller() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (callerData) =>
+      api('/api/marketplace/callers', {
+        method: 'POST',
+        body: JSON.stringify(callerData),
+      }).then((data) => data.caller),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
+export function useReviewMarketplaceCaller() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ callerId, reviewData }) =>
+      api(`/api/marketplace/callers/${callerId}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify(reviewData),
+      }).then((data) => data.caller),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
+export function useCreateMarketplaceMatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (matchData) =>
+      api('/api/marketplace/matches', {
+        method: 'POST',
+        body: JSON.stringify(matchData),
+      }).then((data) => data.match),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
+export function useUpdateMarketplaceMatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ matchId, matchData }) =>
+      api(`/api/marketplace/matches/${matchId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(matchData),
+      }).then((data) => data.match),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
 export function useRequestTailoredResume() {
   const queryClient = useQueryClient();
   return useMutation({
