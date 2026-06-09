@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import PublishIcon from '@mui/icons-material/Publish';
-import SaveIcon from '@mui/icons-material/Save';
-import { Alert, Box, Button, CircularProgress, Stack, TextField, Typography } from '@mui/material';
-import MDEditor from '@uiw/react-md-editor';
-import '@uiw/react-md-editor/markdown-editor.css';
-import '@uiw/react-markdown-preview/markdown.css';
+import { Alert, Box, CircularProgress } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
+import FaqEditorToolbar from '../components/faqs/FaqEditorToolbar.jsx';
+import FaqMarkdownEditorForm from '../components/faqs/FaqMarkdownEditorForm.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { useCreateFaq, useFaq, useUpdateFaq } from '../lib/api.js';
 
@@ -66,25 +62,13 @@ export default function FaqEditorPage() {
 
   return (
     <Box sx={{ minHeight: 0, display: 'grid', gap: 1.5, alignContent: 'start' }}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} spacing={1.5}>
-        <Box>
-          <Typography variant="h6" fontWeight={900}>
-            {title}
-          </Typography>
-          <Typography color="text.secondary">Draft in Markdown, then save or publish.</Typography>
-        </Box>
-        <Stack direction="row" spacing={1} justifyContent={{ xs: 'space-between', sm: 'flex-end' }}>
-          <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/faqs')}>
-            Back
-          </Button>
-          <Button variant="outlined" startIcon={<SaveIcon />} disabled={isSaving} onClick={() => saveFaq('draft')}>
-            Save Draft
-          </Button>
-          <Button variant="contained" startIcon={<PublishIcon />} disabled={isSaving} onClick={() => saveFaq('published')}>
-            Publish
-          </Button>
-        </Stack>
-      </Stack>
+      <FaqEditorToolbar
+        isSaving={isSaving}
+        title={title}
+        onBack={() => navigate('/faqs')}
+        onPublish={() => saveFaq('published')}
+        onSaveDraft={() => saveFaq('draft')}
+      />
 
       {faqError ? <Alert severity="error">{faqError.message}</Alert> : null}
       {message ? <Alert severity={message === 'Draft saved.' ? 'success' : 'error'}>{message}</Alert> : null}
@@ -94,18 +78,7 @@ export default function FaqEditorPage() {
           <CircularProgress />
         </Box>
       ) : (
-        <Box component="section" sx={{ display: 'grid', gap: 1.25 }}>
-          <TextField
-            label="Question"
-            value={form.title}
-            onChange={(event) => updateField('title', event.target.value)}
-            fullWidth
-            required
-          />
-          <Box data-color-mode="light" sx={{ '& .w-md-editor': { boxShadow: 'none', border: '1px solid #CBD5E1' } }}>
-            <MDEditor height={520} value={form.content} onChange={(value) => updateField('content', value || '')} preview="live" />
-          </Box>
-        </Box>
+        <FaqMarkdownEditorForm form={form} onChange={updateField} />
       )}
     </Box>
   );
