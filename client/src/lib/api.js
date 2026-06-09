@@ -85,6 +85,50 @@ export function useAdminUsers() {
   });
 }
 
+export function useFaqs() {
+  return useQuery({
+    queryKey: ['faqs'],
+    queryFn: () => api('/api/faqs').then((data) => data.faqs),
+  });
+}
+
+export function useFaq(faqId) {
+  return useQuery({
+    queryKey: ['faqs', faqId],
+    queryFn: () => api(`/api/faqs/${faqId}`).then((data) => data.faq),
+    enabled: Boolean(faqId),
+  });
+}
+
+export function useCreateFaq() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (faqData) =>
+      api('/api/faqs', {
+        method: 'POST',
+        body: JSON.stringify(faqData),
+      }).then((data) => data.faq),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['faqs'] });
+    },
+  });
+}
+
+export function useUpdateFaq() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ faqId, faqData }) =>
+      api(`/api/faqs/${faqId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(faqData),
+      }).then((data) => data.faq),
+    onSuccess: (faq) => {
+      queryClient.invalidateQueries({ queryKey: ['faqs'] });
+      queryClient.setQueryData(['faqs', faq.id], faq);
+    },
+  });
+}
+
 export function useBidProfiles(options = {}, queryOptions = {}) {
   const queryParams = new URLSearchParams(options).toString();
   return useQuery({

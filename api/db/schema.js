@@ -2,6 +2,7 @@ import { DataTypes } from 'sequelize';
 import { getSequelize } from './connection.js';
 import {
   getBidProfileModel,
+  getFaqModel,
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
@@ -26,6 +27,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await getScrapedJobModel().sync();
       await getWebUserModel().sync();
       setupWebAssociations();
+      await getFaqModel().sync();
       await getBidProfileModel().sync();
       await getProfileShareRequestModel().sync();
       await getJobBidModel().sync();

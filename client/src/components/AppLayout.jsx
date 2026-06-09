@@ -3,6 +3,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import BadgeIcon from '@mui/icons-material/Badge';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EventNoteIcon from '@mui/icons-material/EventNote';
+import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -49,6 +50,7 @@ export default function AppLayout({ user }) {
   const isBidderRoute = location.pathname.startsWith('/bidders');
   const isCallerRoute = location.pathname.startsWith('/callers');
   const isCalendarRoute = location.pathname.startsWith('/calendar');
+  const isFaqRoute = location.pathname.startsWith('/faqs');
   const isInterviewRoute = location.pathname.startsWith('/interviews');
   const isProfileRoute = location.pathname.startsWith('/profiles');
   const [headerSearch, setHeaderSearch] = useState(EMPTY_HEADER_SEARCH);
@@ -66,9 +68,11 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminRoute ? 'Users' : isBidderRoute ? 'Bidders' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminRoute ? 'Users' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminRoute
     ? 'Manage back-office accounts'
+    : isFaqRoute
+      ? 'Browse answers and publish help content'
     : isBidderRoute
       ? 'Review bidder output and interview pass-through'
     : isCallerRoute
@@ -140,6 +144,7 @@ export default function AppLayout({ user }) {
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {!isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} /> : null}
+          <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" onNavigate={() => setMobileOpen(false)} />
           {isAdminRole(user) ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" onNavigate={() => setMobileOpen(false)} />
           ) : null}

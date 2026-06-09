@@ -14,6 +14,8 @@ const BidPage = lazy(() => import('../pages/BidPage.jsx'));
 const BiddersPage = lazy(() => import('../pages/BiddersPage.jsx'));
 const CallersPage = lazy(() => import('../pages/CallersPage.jsx'));
 const CalendarPage = lazy(() => import('../pages/CalendarPage.jsx'));
+const FaqEditorPage = lazy(() => import('../pages/FaqEditorPage.jsx'));
+const FaqsPage = lazy(() => import('../pages/FaqsPage.jsx'));
 const InterviewsPage = lazy(() => import('../pages/InterviewsPage.jsx'));
 const JobsPage = lazy(() => import('../pages/JobsPage.jsx'));
 const PricingPage = lazy(() => import('../components/auth/PricingPage.jsx'));
@@ -89,6 +91,23 @@ export function AuthenticatedRoutes({ user }) {
             <BlockCallers user={user}>
               <ProfilesPage currentUser={user} />
             </BlockCallers>
+          }
+        />
+        <Route path="/faqs" element={<FaqsPage currentUser={user} />} />
+        <Route
+          path="/faqs/create"
+          element={
+            <RequireAdmin user={user}>
+              <FaqEditorPage currentUser={user} />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/faqs/:id/edit"
+          element={
+            <RequireAdmin user={user}>
+              <FaqEditorPage currentUser={user} />
+            </RequireAdmin>
           }
         />
         <Route

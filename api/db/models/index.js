@@ -1,4 +1,5 @@
 export { getBidProfileModel } from './bidProfile.js';
+export { getFaqModel } from './faq.js';
 export { getInterviewLogModel } from './interviewLog.js';
 export { getInterviewModel } from './interview.js';
 export { getJobBidModel } from './jobBid.js';
@@ -8,6 +9,7 @@ export { getTailoredResumeModel } from './tailoredResume.js';
 export { getWebUserModel } from './webUser.js';
 
 import { getBidProfileModel } from './bidProfile.js';
+import { getFaqModel } from './faq.js';
 import { getInterviewLogModel } from './interviewLog.js';
 import { getInterviewModel } from './interview.js';
 import { getJobBidModel } from './jobBid.js';
@@ -20,6 +22,7 @@ export function setupWebAssociations() {
   const WebUserModel = getWebUserModel();
   const ScrapedJobModel = getScrapedJobModel();
   const BidProfileModel = getBidProfileModel();
+  const FaqModel = getFaqModel();
   const InterviewLogModel = getInterviewLogModel();
   const InterviewModel = getInterviewModel();
   const JobBidModel = getJobBidModel();
@@ -30,6 +33,8 @@ export function setupWebAssociations() {
 
   WebUserModel.hasMany(BidProfileModel, { foreignKey: 'userId', as: 'bidProfiles' });
   BidProfileModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'user' });
+  WebUserModel.hasMany(FaqModel, { foreignKey: 'createdByUserId', as: 'faqs' });
+  FaqModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
   BidProfileModel.hasMany(JobBidModel, { foreignKey: 'profileId', as: 'bids' });
   JobBidModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
   BidProfileModel.hasMany(InterviewModel, { foreignKey: 'profileId', as: 'interviews' });
