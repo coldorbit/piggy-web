@@ -31,7 +31,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useLogout } from '../lib/api.js';
+import { useLogout } from '../lib/authApi.js';
 import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, ROLES, isAdminRole, roleLabel } from '../lib/roles.js';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 

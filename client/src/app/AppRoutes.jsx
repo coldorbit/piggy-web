@@ -1,6 +1,5 @@
 import { lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import AppLayout from '../components/AppLayout.jsx';
 import { LoginScreen } from '../components/AuthScreens.jsx';
 import {
   BlockCallers,
@@ -10,6 +9,7 @@ import {
 } from './routeGuards.jsx';
 
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
+const AppLayout = lazy(() => import('../components/AppLayout.jsx'));
 const BidPage = lazy(() => import('../pages/BidPage.jsx'));
 const BiddersPage = lazy(() => import('../pages/BiddersPage.jsx'));
 const CallersPage = lazy(() => import('../pages/CallersPage.jsx'));

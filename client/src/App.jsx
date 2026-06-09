@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { AuthenticatedRoutes, PublicRoutes } from './app/AppRoutes.jsx';
 import { ShellLoading } from './components/AuthScreens.jsx';
-import { useMe } from './lib/api.js';
+import { useMe } from './lib/authApi.js';
 
 export default function App() {
   const { data: user, isLoading: authChecked } = useMe();

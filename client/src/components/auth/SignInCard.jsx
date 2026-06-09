@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import LockIcon from '@mui/icons-material/Lock';
 import { Alert, Avatar, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
-import { useLogin } from '../../lib/api.js';
+import { useLogin } from '../../lib/authApi.js';
 import { signinCardSx } from './landingStyles.js';
 
 export default function SignInCard() {

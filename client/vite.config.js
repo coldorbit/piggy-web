@@ -52,9 +52,19 @@ const markdownVendorPackages = [
   'zwitch',
 ];
 
-function isPackage(id, packageName) {
-  return id.includes(`/node_modules/${packageName}/`) || id.includes(`/node_modules/.pnpm/${packageName.replace('/', '+')}@`);
-}
+const coreVendorPackages = ['@tanstack', 'axios', 'hoist-non-react-statics', 'react', 'react-dom', 'react-router', 'scheduler'];
+const chartVendorPackages = [
+  '@reduxjs/toolkit',
+  'd3',
+  'decimal.js-light',
+  'internmap',
+  'react-redux',
+  'recharts',
+  'redux',
+  'redux-thunk',
+  'victory-vendor',
+];
+const muiVendorPackages = ['@emotion', '@mui', '@popperjs/core', 'react-transition-group', 'stylis'];
 
 function isPackageFamily(id, packageName) {
   return id.includes(`/node_modules/${packageName}`) || id.includes(`/node_modules/.pnpm/${packageName.replace('/', '+')}`);
@@ -63,18 +73,23 @@ function isPackageFamily(id, packageName) {
 export default defineConfig({
   plugins: [react()],
   build: {
+    modulePreload: false,
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
+          if (coreVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
+            return 'vendor-core';
+          }
+          if (muiVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
+            return 'vendor-mui';
+          }
           if (markdownVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
             return 'vendor-markdown';
           }
-          if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
-          if (id.includes('@mui/') || id.includes('@emotion/') || isPackage(id, '@popperjs/core') || isPackage(id, 'stylis')) {
-            return 'vendor-mui';
+          if (chartVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
+            return 'vendor-charts';
           }
-          if (id.includes('react') || id.includes('@tanstack/') || id.includes('axios') || isPackage(id, 'scheduler')) return 'vendor-core';
           return 'vendor';
         },
       },
