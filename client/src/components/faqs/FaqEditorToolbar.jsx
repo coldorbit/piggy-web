@@ -37,22 +37,24 @@ export default function FaqEditorToolbar({ isSaving, status, title, onBack, onPu
           </Typography>
         </Box>
       </Stack>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent={{ xs: 'stretch', md: 'flex-end' }}>
+      <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-end', md: 'flex-end' }} sx={{ flexWrap: 'wrap' }}>
         <Button
           variant="outlined"
+          size="small"
           startIcon={<SaveIcon />}
           disabled={isSaving}
           onClick={onSaveDraft}
-          sx={{ minWidth: { sm: 132 }, width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap' }}
+          sx={{ whiteSpace: 'nowrap' }}
         >
           Save Draft
         </Button>
         <Button
           variant="contained"
+          size="small"
           startIcon={<PublishIcon />}
           disabled={isSaving}
           onClick={onPublish}
-          sx={{ minWidth: { sm: 132 }, width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap' }}
+          sx={{ whiteSpace: 'nowrap' }}
         >
           Publish
         </Button>
