@@ -30,21 +30,10 @@ import {
 } from '@mui/material';
 import { formatDate } from '../../lib/formatters.js';
 import { authUrl } from '../../lib/api.js';
+import { jobSourceImageUrl, sourceLabel } from '../../lib/jobSourceImage.js';
 import { BID_TABS } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
-
-const SOURCE_DOMAINS = {
-  builtin: 'builtin.com',
-  'built in': 'builtin.com',
-  diversityjobs: 'diversityjobs.com',
-  hiringcafe: 'hiring.cafe',
-  jobright: 'jobright.ai',
-  linkedin: 'linkedin.com',
-  remotehunter: 'remotehunter.io',
-  remoteyeah: 'remoteyeah.com',
-  simplify: 'simplify.jobs',
-};
 
 export default function BidJobCard({
   isSelected = false,
@@ -237,7 +226,7 @@ export default function BidJobCard({
                   alignItems: 'center',
                 }}
               >
-                <SourceLogo source={job.source} sourceUrl={job.sourceUrl} />
+                <SourceLogo job={job} />
                 <Box minWidth={0} sx={{ display: 'grid', gap: 0.25 }}>
                   <Typography
                     component="a"
@@ -628,20 +617,21 @@ function isInteractiveTarget(target, cardElement) {
   return Boolean(interactiveElement && interactiveElement !== cardElement);
 }
 
-function SourceLogo({ source, sourceUrl }) {
-  const label = sourceLabel(source);
+function SourceLogo({ job }) {
+  const label = sourceLabel(job.source);
 
   return (
     <Tooltip title={label}>
       <Box
         component="img"
         alt={`${label} logo`}
-        src={sourceLogoUrl(source, sourceUrl)}
+        src={jobSourceImageUrl({ isManual: job.isManual, source: job.source, sourceUrl: job.sourceUrl, size: 128 })}
         sx={{
           width: 40,
           height: 40,
           objectFit: 'contain',
           flex: '0 0 auto',
+          borderRadius: 1,
         }}
         onError={(event) => {
           event.currentTarget.style.display = 'none';
@@ -668,23 +658,4 @@ function ApplyModeChip({ applyMode }) {
       }}
     />
   );
-}
-
-function sourceLogoUrl(source, sourceUrl) {
-  const domain = domainFromUrl(sourceUrl) || SOURCE_DOMAINS[String(source || '').toLowerCase()];
-  if (!domain) return '';
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
-}
-
-function domainFromUrl(value) {
-  if (!value) return '';
-  try {
-    return new URL(value).hostname.replace(/^www\./, '');
-  } catch {
-    return '';
-  }
-}
-
-function sourceLabel(source) {
-  return String(source || 'Unknown platform').trim() || 'Unknown platform';
 }

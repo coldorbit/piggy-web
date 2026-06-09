@@ -4,6 +4,7 @@ import Pagination from './Pagination.jsx';
 import SpamBadge from './SpamBadge.jsx';
 import { formatDate } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
+import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
 
 const SOURCE_CHIP_STYLES = {
   builtin: { bgcolor: '#e8f2ff', color: '#174379' },
@@ -18,18 +19,6 @@ const SOURCE_CHIP_STYLES = {
 };
 
 const SOURCE_CHIP_FALLBACK = { bgcolor: '#f3f5f7', color: '#303942' };
-
-const SOURCE_DOMAINS = {
-  builtin: 'builtin.com',
-  'built in': 'builtin.com',
-  diversityjobs: 'diversityjobs.com',
-  hiringcafe: 'hiring.cafe',
-  jobright: 'jobright.ai',
-  linkedin: 'linkedin.com',
-  remotehunter: 'remotehunter.io',
-  remoteyeah: 'remoteyeah.com',
-  simplify: 'simplify.jobs',
-};
 
 export default function JobList({ filters, jobs, loading, selectedJob, total, onPage, onPageSize, onSelectJob }) {
   return (
@@ -129,7 +118,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                       <SpamBadge job={job} />
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-                      {job.source ? <SourceBadge source={job.source} sourceUrl={job.sourceUrl} /> : null}
+                      {job.source ? <SourceBadge isManual={job.isManual} source={job.source} sourceUrl={job.sourceUrl} /> : null}
                       {job.applyMode && !isLinkedInJob ? <ApplyModeBadge applyMode={job.applyMode} /> : null}
                       <Typography color="text.secondary" variant="caption" fontWeight={700} noWrap>
                         {formatDate(job.postedAt || job.scrapedAt)}
@@ -203,8 +192,8 @@ function ApplyModeBadge({ applyMode }) {
   );
 }
 
-function SourceBadge({ source, sourceUrl }) {
-  const logoUrl = sourceLogoUrl(source, sourceUrl);
+function SourceBadge({ isManual, source, sourceUrl }) {
+  const logoUrl = jobSourceImageUrl({ isManual, source, sourceUrl, size: 32 });
 
   return (
     <Chip
@@ -235,21 +224,6 @@ function SourceBadge({ source, sourceUrl }) {
       }}
     />
   );
-}
-
-function sourceLogoUrl(source, sourceUrl) {
-  const domain = domainFromUrl(sourceUrl) || SOURCE_DOMAINS[String(source).toLowerCase()];
-  if (!domain) return '';
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
-}
-
-function domainFromUrl(value) {
-  if (!value) return '';
-  try {
-    return new URL(value).hostname.replace(/^www\./, '');
-  } catch {
-    return '';
-  }
 }
 
 function sourceInitial(source) {
