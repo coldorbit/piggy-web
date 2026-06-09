@@ -6,6 +6,7 @@ import CalendarProfileLegend from '../components/calendar/CalendarProfileLegend.
 import CalendarToolbar, { CALENDAR_VIEWS } from '../components/calendar/CalendarToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { INTERVIEW_FILTERS } from '../components/interviews/interviewUtils.js';
+import { CALENDAR_PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { api, useBidProfiles } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
 import {
@@ -22,6 +23,7 @@ export default function CalendarPage({ currentUser }) {
   const [view, setView] = useState(CALENDAR_VIEWS.week);
   const [cursorDate, setCursorDate] = useState(() => defaultTimezoneTodayKey());
   const [search, setSearch] = useState('');
+  const [checkedProfileIds, setCheckedProfileIds] = useState([]);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
     currentUser?.role === 'admin' ? { scope: 'manage' } : {},
@@ -30,12 +32,20 @@ export default function CalendarPage({ currentUser }) {
     () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
     [profiles],
   );
-  const profileById = useMemo(
-    () => new Map(activeProfiles.map((profile) => [String(profile.id), profile])),
+  const calendarProfiles = useMemo(
+    () =>
+      activeProfiles.map((profile, index) => ({
+        ...profile,
+        calendarColor: CALENDAR_PROFILE_COLORS[index % CALENDAR_PROFILE_COLORS.length],
+      })),
     [activeProfiles],
   );
+  const profileById = useMemo(
+    () => new Map(calendarProfiles.map((profile) => [String(profile.id), profile])),
+    [calendarProfiles],
+  );
   const interviewQueries = useQueries({
-    queries: activeProfiles.map((profile) => ({
+    queries: calendarProfiles.map((profile) => ({
       queryKey: ['calendar', 'interviews', profile.id],
       queryFn: () => fetchProfileInterviews(profile.id),
       enabled: Boolean(profile.id),
@@ -56,9 +66,19 @@ export default function CalendarPage({ currentUser }) {
     return () => setHeaderSearch(EMPTY_HEADER_SEARCH);
   }, [setHeaderSearch]);
 
+  useEffect(() => {
+    setCheckedProfileIds((currentIds) => {
+      const activeIds = calendarProfiles.map((profile) => String(profile.id));
+      const activeIdSet = new Set(activeIds);
+      const keptIds = currentIds.map(String).filter((id) => activeIdSet.has(id));
+      const addedIds = activeIds.filter((id) => !keptIds.includes(id));
+      return [...keptIds, ...addedIds];
+    });
+  }, [calendarProfiles]);
+
   const events = useMemo(
-    () => calendarEvents(interviewQueries, profileById, search),
-    [interviewQueries, profileById, search],
+    () => calendarEvents(interviewQueries, profileById, checkedProfileIds, search),
+    [interviewQueries, profileById, checkedProfileIds, search],
   );
   const loading = profilesLoading || interviewQueries.some((query) => query.isLoading);
   const pageError = profilesError?.message || interviewQueries.find((query) => query.error)?.error?.message || '';
@@ -71,8 +91,27 @@ export default function CalendarPage({ currentUser }) {
     setCursorDate((current) => (view === CALENDAR_VIEWS.week ? addDaysToDateKey(current, direction * 7) : addMonthsToDateKey(current, direction)));
   }
 
+  function toggleProfile(profileId, checked) {
+    setCheckedProfileIds((currentIds) => {
+      const id = String(profileId);
+      const currentSet = new Set(currentIds.map(String));
+      if (checked) currentSet.add(id);
+      else currentSet.delete(id);
+      return calendarProfiles.map((profile) => String(profile.id)).filter((activeId) => currentSet.has(activeId));
+    });
+  }
+
   return (
-    <Box sx={{ height: '100%', minHeight: 0, display: 'grid', gap: 1.5, gridTemplateRows: 'auto auto minmax(0, 1fr)', overflow: 'hidden' }}>
+    <Box
+      sx={{
+        height: '100%',
+        minHeight: 0,
+        display: 'grid',
+        gap: 1.5,
+        gridTemplateRows: pageError ? 'auto auto minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
+        overflow: 'hidden',
+      }}
+    >
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
 
       <CalendarToolbar
@@ -85,15 +124,33 @@ export default function CalendarPage({ currentUser }) {
         onViewChange={setView}
       />
 
-      <CalendarProfileLegend profiles={activeProfiles} />
+      <Box
+        sx={{
+          minHeight: 0,
+          display: 'grid',
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: '260px minmax(0, 1fr)' },
+          gridTemplateRows: { xs: 'auto minmax(0, 1fr)', md: 'minmax(0, 1fr)' },
+          gap: 1.5,
+          overflow: 'hidden',
+        }}
+      >
+        <CalendarProfileLegend
+          checkedProfileIds={checkedProfileIds}
+          profiles={calendarProfiles}
+          onChange={toggleProfile}
+          onSelectAll={() => setCheckedProfileIds(calendarProfiles.map((profile) => String(profile.id)))}
+          onSelectNone={() => setCheckedProfileIds([])}
+        />
 
-      <CalendarGrid cursorDate={cursorDate} eventsByDay={eventsByDay} visibleDays={visibleDays} view={view} />
+        <CalendarGrid cursorDate={cursorDate} eventsByDay={eventsByDay} visibleDays={visibleDays} view={view} />
+      </Box>
     </Box>
   );
 }
 
-function calendarEvents(queries, profileById, search) {
+function calendarEvents(queries, profileById, checkedProfileIds, search) {
   const pattern = String(search || '').trim().toLowerCase();
+  const checkedProfileIdSet = new Set(checkedProfileIds.map(String));
   return queries
     .flatMap((query) => query.data?.jobs || [])
     .map((job) => {
@@ -111,6 +168,7 @@ function calendarEvents(queries, profileById, search) {
       };
     })
     .filter((event) => event.startsAt && !Number.isNaN(event.startsAt.getTime()))
+    .filter((event) => checkedProfileIdSet.has(String(event.profile?.id || '')))
     .filter((event) => {
       if (!pattern) return true;
       return [event.title, event.company, event.location, event.profile?.name]

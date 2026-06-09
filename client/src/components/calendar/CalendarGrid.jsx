@@ -252,7 +252,7 @@ function WeekDayColumn({ day, column, events, now, onEventClick }) {
 }
 
 function WeekCalendarEvent({ event, layout, onEventClick }) {
-  const color = PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
+  const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   const top = eventTop(event.startsAt);
   const height = eventHeight(event.durationMinutes);
   const isCompact = height < 44;
@@ -403,7 +403,7 @@ function CalendarDay({ day, events, isCurrentMonth, onEventClick }) {
 }
 
 function CalendarEvent({ event, onEventClick }) {
-  const color = PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
+  const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   return (
     <Tooltip
       title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
