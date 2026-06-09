@@ -1,4 +1,4 @@
-import { DEFAULT_TIME_ZONE_LABEL, zonedDateParts } from './timezone.js';
+import { DEFAULT_TIME_ZONE, DEFAULT_TIME_ZONE_LABEL, defaultTimezoneAbbreviation, zonedDateParts } from './timezone.js';
 
 export function formatDate(value) {
   if (!value) return 'Unknown';
@@ -27,18 +27,18 @@ export function formatDateInDefaultTimezone(value) {
 
 export function formatDateTimeInDefaultTimezone(value) {
   if (!value) return 'Unknown';
-  const parts = zonedDateParts(value);
   return new Intl.DateTimeFormat(undefined, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute)));
+    timeZone: DEFAULT_TIME_ZONE,
+    timeZoneName: 'short',
+  }).format(new Date(value));
 }
 
-export function formatDefaultTimezoneLabel() {
-  return DEFAULT_TIME_ZONE_LABEL;
+export function formatDefaultTimezoneLabel(value) {
+  return value ? defaultTimezoneAbbreviation(value) : DEFAULT_TIME_ZONE_LABEL;
 }
 
 export function spamStatusLabel(job) {

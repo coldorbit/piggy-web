@@ -1,18 +1,27 @@
-export const DEFAULT_TIME_ZONE_LABEL = 'EST';
-export const DEFAULT_TIME_ZONE_OFFSET_MINUTES = -5 * 60;
+export const DEFAULT_TIME_ZONE = 'America/New_York';
+export const DEFAULT_TIME_ZONE_LABEL = 'ET';
 
 const DATETIME_LOCAL_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function zonedDateParts(value) {
   const date = value instanceof Date ? value : new Date(value);
-  const shifted = new Date(date.getTime() + DEFAULT_TIME_ZONE_OFFSET_MINUTES * 60_000);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: DEFAULT_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const valueFor = (type) => Number(parts.find((part) => part.type === type)?.value || 0);
   return {
-    year: shifted.getUTCFullYear(),
-    month: shifted.getUTCMonth() + 1,
-    day: shifted.getUTCDate(),
-    hour: shifted.getUTCHours(),
-    minute: shifted.getUTCMinutes(),
+    year: valueFor('year'),
+    month: valueFor('month'),
+    day: valueFor('day'),
+    hour: valueFor('hour'),
+    minute: valueFor('minute'),
   };
 }
 
@@ -29,7 +38,15 @@ export function fromDefaultTimezoneDatetimeLocal(value) {
   const match = String(value || '').match(DATETIME_LOCAL_PATTERN);
   if (!match) return '';
   const [, year, month, day, hour, minute] = match.map(Number);
-  const utcMs = Date.UTC(year, month - 1, day, hour, minute) - DEFAULT_TIME_ZONE_OFFSET_MINUTES * 60_000;
+  const localAsUtcMs = Date.UTC(year, month - 1, day, hour, minute);
+  let utcMs = localAsUtcMs - defaultTimezoneOffsetMinutes(new Date(localAsUtcMs)) * 60_000;
+
+  for (let index = 0; index < 3; index += 1) {
+    const nextUtcMs = localAsUtcMs - defaultTimezoneOffsetMinutes(new Date(utcMs)) * 60_000;
+    if (nextUtcMs === utcMs) break;
+    utcMs = nextUtcMs;
+  }
+
   return new Date(utcMs).toISOString();
 }
 
@@ -85,6 +102,21 @@ export function timeLabelInDefaultTimezone(value) {
     minute: '2-digit',
     timeZone: 'UTC',
   }).format(new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute)));
+}
+
+export function defaultTimezoneAbbreviation(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: DEFAULT_TIME_ZONE,
+    timeZoneName: 'short',
+  }).formatToParts(date);
+  return parts.find((part) => part.type === 'timeZoneName')?.value || DEFAULT_TIME_ZONE_LABEL;
+}
+
+function defaultTimezoneOffsetMinutes(date) {
+  const parts = zonedDateParts(date);
+  const zonedAsUtcMs = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+  return Math.round((zonedAsUtcMs - date.getTime()) / 60_000);
 }
 
 function utcDateKey(date) {
