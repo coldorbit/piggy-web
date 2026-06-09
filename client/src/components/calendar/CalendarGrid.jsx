@@ -1,6 +1,6 @@
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Tooltip, Typography } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, Paper, Tooltip, Typography } from '@mui/material';
+import { useEffect, useRef, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { authUrl } from '../../lib/api.js';
 import {
@@ -90,14 +90,30 @@ function MonthCalendar({ cursorDate, days, eventsByDay, onEventClick }) {
 
 function WeekCalendar({ days, eventsByDay, onEventClick }) {
   const [now, setNow] = useState(() => new Date());
+  const scrollRef = useRef(null);
+  const centeredRangeRef = useRef('');
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
+    if (!days.includes(defaultTimezoneTodayKey())) {
+      centeredRangeRef.current = '';
+      return;
+    }
+    const rangeKey = days.join(':');
+    if (centeredRangeRef.current === rangeKey) return;
+    centeredRangeRef.current = rangeKey;
+    const centeredTop = eventTop(now) - scrollElement.clientHeight / 2;
+    scrollElement.scrollTop = Math.max(0, centeredTop);
+  }, [days, now]);
+
   return (
-    <Box sx={{ height: '100%', minHeight: 0, overflow: 'auto', bgcolor: 'background.paper', overscrollBehavior: 'contain' }}>
+    <Box ref={scrollRef} sx={{ height: '100%', minHeight: 0, overflow: 'auto', bgcolor: 'background.paper', overscrollBehavior: 'contain' }}>
       <Box
         sx={{
           minWidth: { xs: 860, md: 0 },
@@ -204,6 +220,7 @@ function WeekDayHeader({ day }) {
 function WeekDayColumn({ day, column, events, now, onEventClick }) {
   const isToday = day === defaultTimezoneTodayKey();
   const currentTimeTop = isToday ? eventTop(now) : null;
+  const laidOutEvents = layoutOverlappingEvents(events);
   return (
     <Box
       sx={{
@@ -226,19 +243,23 @@ function WeekDayColumn({ day, column, events, now, onEventClick }) {
           }}
         />
       ) : null}
-      {events.map((event) => (
-        <WeekCalendarEvent key={event.id} event={event} onEventClick={onEventClick} />
+      {laidOutEvents.map(({ event, layout }) => (
+        <WeekCalendarEvent key={event.id} event={event} layout={layout} onEventClick={onEventClick} />
       ))}
       {isToday ? <CurrentTimeLine top={currentTimeTop} /> : null}
     </Box>
   );
 }
 
-function WeekCalendarEvent({ event, onEventClick }) {
+function WeekCalendarEvent({ event, layout, onEventClick }) {
   const color = PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   const top = eventTop(event.startsAt);
   const height = eventHeight(event.durationMinutes);
   const isCompact = height < 44;
+  const leftInset = layout?.column === 0 ? 6 : 2;
+  const widthInset = layout?.widthPercent === 100 ? 12 : 8;
+  const left = layout ? `calc(${layout.leftPercent}% + ${leftInset}px)` : 6;
+  const width = layout ? `calc(${layout.widthPercent}% - ${widthInset}px)` : 'calc(100% - 12px)';
   return (
     <Tooltip
       title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
@@ -253,8 +274,8 @@ function WeekCalendarEvent({ event, onEventClick }) {
           position: 'absolute',
           top,
           height,
-          left: 6,
-          right: 6,
+          left,
+          width,
           minHeight: 18,
           borderLeft: 3,
           borderColor: color.main,
@@ -274,8 +295,10 @@ function WeekCalendarEvent({ event, onEventClick }) {
           cursor: 'pointer',
           font: 'inherit',
           textAlign: 'left',
+          zIndex: layout?.column + 1 || 1,
           '&:hover': {
             boxShadow: '0 2px 7px rgba(15, 23, 42, 0.22)',
+            zIndex: 10,
           },
         }}
       >
@@ -438,7 +461,7 @@ function CalendarEventDialog({ event, onClose }) {
               <Typography fontWeight={900} noWrap>
                 {event.title}
               </Typography>
-              <Typography variant="body2" color="text.secondary" noWrap>
+              <Typography variant="body2" color="text.secondary" fontWeight={800} noWrap>
                 {compactEventLabel(event)}
               </Typography>
             </Box>
@@ -492,10 +515,28 @@ function DetailRow({ label, value, multiline = false }) {
         {label}
       </Typography>
       <Typography variant="body2" sx={{ whiteSpace: multiline ? 'pre-wrap' : 'normal', overflowWrap: 'anywhere' }}>
-        {value || '-'}
+        <LinkifiedText value={value} />
       </Typography>
     </Box>
   );
+}
+
+function LinkifiedText({ value }) {
+  const text = String(value || '-');
+  const parts = text.split(/(https?:\/\/[^\s<>"']+)/gi);
+  return parts.map((part, index) => {
+    if (!/^https?:\/\//i.test(part)) return part;
+    const trailingPunctuation = part.match(/[),.;:!?]+$/)?.[0] || '';
+    const href = trailingPunctuation ? part.slice(0, -trailingPunctuation.length) : part;
+    return (
+      <span key={`${href}-${index}`}>
+        <Link href={href} target="_blank" rel="noreferrer" fontWeight={800} underline="always">
+          {href}
+        </Link>
+        {trailingPunctuation}
+      </span>
+    );
+  });
 }
 
 function timeLabel(date) {
@@ -514,6 +555,74 @@ function eventTop(value) {
   const parts = zonedDateParts(value);
   const minutes = parts.hour * 60 + parts.minute;
   return (minutes / 60) * HOUR_HEIGHT + 4;
+}
+
+function layoutOverlappingEvents(events) {
+  const orderedEvents = [...events].sort((left, right) => {
+    const startDiff = eventStartMinutes(left) - eventStartMinutes(right);
+    if (startDiff) return startDiff;
+    return eventEndMinutes(right) - eventEndMinutes(left);
+  });
+  const groups = [];
+  let currentGroup = [];
+  let groupEnd = -1;
+
+  orderedEvents.forEach((event) => {
+    const start = eventStartMinutes(event);
+    const end = eventEndMinutes(event);
+    if (currentGroup.length && start >= groupEnd) {
+      groups.push(currentGroup);
+      currentGroup = [];
+      groupEnd = -1;
+    }
+    currentGroup.push(event);
+    groupEnd = Math.max(groupEnd, end);
+  });
+  if (currentGroup.length) groups.push(currentGroup);
+
+  return groups.flatMap(layoutEventGroup);
+}
+
+function layoutEventGroup(events) {
+  const columns = [];
+  const placed = events.map((event) => {
+    const start = eventStartMinutes(event);
+    const column = columns.findIndex((columnEnd) => columnEnd <= start);
+    const assignedColumn = column === -1 ? columns.length : column;
+    columns[assignedColumn] = eventEndMinutes(event);
+    return { event, column: assignedColumn };
+  });
+
+  const columnCount = Math.max(columns.length, 1);
+  return placed.map((item) => {
+    let span = 1;
+    while (item.column + span < columnCount) {
+      const hasConflict = placed.some((other) => other.column === item.column + span && eventsOverlap(item.event, other.event));
+      if (hasConflict) break;
+      span += 1;
+    }
+    return {
+      event: item.event,
+      layout: {
+        column: item.column,
+        leftPercent: (item.column / columnCount) * 100,
+        widthPercent: (span / columnCount) * 100,
+      },
+    };
+  });
+}
+
+function eventsOverlap(left, right) {
+  return eventStartMinutes(left) < eventEndMinutes(right) && eventStartMinutes(right) < eventEndMinutes(left);
+}
+
+function eventStartMinutes(event) {
+  const parts = zonedDateParts(event.startsAt);
+  return parts.hour * 60 + parts.minute;
+}
+
+function eventEndMinutes(event) {
+  return eventStartMinutes(event) + Number(event.durationMinutes || 60);
 }
 
 function eventHeight(durationMinutes = 60) {
