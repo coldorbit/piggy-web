@@ -608,16 +608,13 @@ export async function listBidJobs(req, res, next) {
       });
     };
 
-    const [rows, count, todoCount, tailoredCount, doneCount, interviewsCount] = await Promise.all([
+    const [rows, todoCount, tailoredCount, doneCount, interviewsCount] = await Promise.all([
       ScrapedJob.findAll({
         where: activeTabQuery.where,
         order: activeTabQuery.order || jobOrder,
-        limit,
-        offset,
         subQuery: false,
         include: activeTabQuery.include,
       }),
-      countBidTab(bidTab),
       countBidTab('todo'),
       countBidTab('tailored'),
       countBidTab('done'),
@@ -643,17 +640,22 @@ export async function listBidJobs(req, res, next) {
       : [];
     const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
-    res.json({
-      jobs: rows.map((job) => ({
+    const groupedJobs = groupedBidJobs(
+      rows.map((job) => ({
         ...formatJob(job),
         bid: job.bids?.[0] ? formatBidWithUser(job.bids[0], bidUsersById, callerUsersById) : null,
         tailoredResume: tailoredResumesByUrl.get(job.url) || null,
         sameCompanyTailoring: sameCompanyTailoringByUrl.get(job.url) || null,
       })),
+    );
+    const pagedJobs = groupedJobs.slice(offset, offset + limit);
+
+    res.json({
+      jobs: pagedJobs,
       bidUsers,
       callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
       currentUser: { id: user.id, username: user.username },
-      total: count,
+      total: groupedJobs.length,
       tabCounts: {
         todo: todoCount,
         tailored: tailoredCount,
@@ -666,6 +668,66 @@ export async function listBidJobs(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+function groupedBidJobs(jobs) {
+  const groups = new Map();
+
+  for (const job of jobs) {
+    const groupKey = bidJobGroupKey(job);
+    const group = groups.get(groupKey);
+    const option = bidJobLocationOption(job);
+    if (!group) {
+      groups.set(groupKey, {
+        ...job,
+        representativeJobId: job.id,
+        locationOptions: [option],
+      });
+      continue;
+    }
+
+    group.locationOptions.push(option);
+    group.location = groupedBidLocationLabel(group.locationOptions);
+    group.postedAt = latestDateValue(group.postedAt, job.postedAt);
+    group.scrapedAt = latestDateValue(group.scrapedAt, job.scrapedAt);
+  }
+
+  return [...groups.values()].map((group) => ({
+    ...group,
+    locationOptions: group.locationOptions.sort(compareBidLocationOptions),
+  }));
+}
+
+function bidJobGroupKey(job) {
+  return `${normalizeBidGroupValue(job.title || 'Untitled role')}::${normalizeBidGroupValue(job.company || 'Unknown company')}`;
+}
+
+function normalizeBidGroupValue(value) {
+  return clean(value).toLowerCase().replace(/\s+/g, ' ') || 'unknown';
+}
+
+function bidJobLocationOption(job) {
+  return {
+    ...job,
+    groupJobId: job.id,
+    locationLabel: job.location || 'Location not listed',
+  };
+}
+
+function groupedBidLocationLabel(options) {
+  const locations = [...new Set(options.map((option) => option.locationLabel).filter(Boolean))];
+  if (locations.length <= 1) return locations[0] || '';
+  return `${locations[0]} + ${locations.length - 1} more`;
+}
+
+function compareBidLocationOptions(left, right) {
+  return String(left.locationLabel || '').localeCompare(String(right.locationLabel || ''));
+}
+
+function latestDateValue(left, right) {
+  const leftTime = left ? new Date(left).getTime() : 0;
+  const rightTime = right ? new Date(right).getTime() : 0;
+  return rightTime > leftTime ? right : left;
 }
 
 async function listInterviewJobs(req, res, { user, profile }) {

@@ -287,6 +287,13 @@ export default function BidJobCard({
                     sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
                   />
                 ) : null}
+                {job.locationOptions?.length > 1 ? (
+                  <Chip
+                    label={`${job.locationOptions.length} locations`}
+                    size="small"
+                    sx={{ bgcolor: '#F0FDFA', color: '#115E59', fontWeight: 900 }}
+                  />
+                ) : null}
                 {hasUpdatedJobLink ? (
                   <Chip
                     icon={<LinkIcon />}
