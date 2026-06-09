@@ -94,7 +94,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                       ) : (
                         'Unknown company'
                       )}
-                      {job.location ? ` · ${job.location}` : null}
+                      {job.locationOptions?.length > 1 ? ` · ${job.locationOptions[0]?.locationLabel || job.location || 'Multiple locations'}` : job.location ? ` · ${job.location}` : null}
                     </Typography>
                   </Box>
                   <Box
@@ -125,6 +125,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                         </span>
                       </Tooltip>
                       {job.isManual ? <ManualJobBadge /> : null}
+                      {job.locationOptions?.length > 1 ? <LocationCountBadge count={job.locationOptions.length} /> : null}
                       <SpamBadge job={job} />
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
@@ -143,6 +144,23 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       </List>
       <Pagination filters={filters} total={total} onPage={onPage} onPageSize={onPageSize} />
     </Paper>
+  );
+}
+
+function LocationCountBadge({ count }) {
+  return (
+    <Chip
+      label={`${count} locations`}
+      size="small"
+      sx={{
+        height: 20,
+        bgcolor: '#F0FDFA',
+        color: '#115E59',
+        fontSize: 11,
+        fontWeight: 900,
+        '& .MuiChip-label': { px: 0.75 },
+      }}
+    />
   );
 }
 

@@ -4,7 +4,9 @@ import {
   buildJobQuery,
   canImportJobs,
   formatJob,
+  groupedJobsFromRows,
   jobsFromCsv,
+  paginateGroupedJobs,
   parseHiddenState,
   parseSpamReview,
   validJobUrl,
@@ -18,16 +20,15 @@ export async function listJobs(req, res, next) {
     await ensureWebModels();
     const ScrapedJob = getScrapedJobModel();
     const { where, order, limit, offset } = buildJobQuery(req.query);
-    const { rows, count } = await ScrapedJob.findAndCountAll({
+    const rows = await ScrapedJob.findAll({
       where,
       order,
-      limit,
-      offset,
     });
+    const grouped = paginateGroupedJobs(rows, { limit, offset });
 
     res.json({
-      jobs: rows.map(formatJob),
-      total: count,
+      jobs: grouped.rows,
+      total: grouped.count,
       limit,
       offset,
     });
@@ -275,15 +276,16 @@ export async function getMeta(_req, res, next) {
     await ensureWebModels();
     const ScrapedJob = getScrapedJobModel();
     const sequelize = getSequelize();
-    const [sources, total, latest] = await Promise.all([
+    const [sources, allRows, latest] = await Promise.all([
       ScrapedJob.findAll({
         attributes: ['source', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
         group: ['source'],
         order: [['source', 'ASC']],
       }),
-      ScrapedJob.count(),
+      ScrapedJob.findAll(),
       ScrapedJob.max('scrapedAt'),
     ]);
+    const total = groupedJobsFromRows(allRows).length;
 
     res.json({
       total,

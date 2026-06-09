@@ -35,6 +35,7 @@ const DEFAULT_FILTERS = {
 export default function JobsPage({ currentUser }) {
   const [filters, setFilters] = useState(() => readPersistedFilters(JOB_FILTERS_STORAGE_KEY, DEFAULT_FILTERS, JOB_FILTER_KEYS));
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedLocationByJobId, setSelectedLocationByJobId] = useState({});
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
@@ -66,6 +67,11 @@ export default function JobsPage({ currentUser }) {
     () => jobs.find((job) => String(job.id) === String(selectedId)) || jobs[0] || null,
     [jobs, selectedId],
   );
+  const selectedLocationId = selectedJob ? selectedLocationByJobId[selectedJob.id] || selectedJob.locationOptions?.[0]?.id || selectedJob.id : '';
+  const selectedLocationJob = useMemo(
+    () => selectedLocationForJob(selectedJob, selectedLocationId),
+    [selectedJob, selectedLocationId],
+  );
 
   useEffect(() => {
     writePersistedFilters(JOB_FILTERS_STORAGE_KEY, filters, JOB_FILTER_KEYS);
@@ -91,7 +97,7 @@ export default function JobsPage({ currentUser }) {
   async function updateSpamReview(jobId, isSpam) {
     const updatedJob = await markSpam({ jobId, isSpam });
     if (!matchesSpamFilter(updatedJob, filters.spam)) {
-      setSelectedId((current) => (String(current) === String(jobId) ? null : current));
+      clearSelectionForLocation(jobId);
     }
     return updatedJob;
   }
@@ -99,14 +105,33 @@ export default function JobsPage({ currentUser }) {
   async function updateHiddenState(jobId, isHidden) {
     const updatedJob = await markHidden({ jobId, isHidden });
     if (!matchesVisibilityFilter(updatedJob, filters.visibility)) {
-      setSelectedId((current) => (String(current) === String(jobId) ? null : current));
+      clearSelectionForLocation(jobId);
     }
     return updatedJob;
   }
 
   async function deleteJobPermanently(jobId) {
     await deleteJob({ jobId });
-    setSelectedId((current) => (String(current) === String(jobId) ? null : current));
+    clearSelectionForLocation(jobId);
+  }
+
+  function clearSelectionForLocation(jobId) {
+    setSelectedId((current) => {
+      const selectedLocationIds = new Set((selectedJob?.locationOptions || []).map((option) => String(option.id)));
+      return selectedLocationIds.has(String(jobId)) || String(current) === String(jobId) ? null : current;
+    });
+  }
+
+  function selectJob(jobId) {
+    setSelectedId(jobId);
+    const job = jobs.find((item) => String(item.id) === String(jobId));
+    if (!job?.locationOptions?.length || selectedLocationByJobId[job.id]) return;
+    setSelectedLocationByJobId((current) => ({ ...current, [job.id]: job.locationOptions[0].id }));
+  }
+
+  function selectJobLocation(locationJobId) {
+    if (!selectedJob) return;
+    setSelectedLocationByJobId((current) => ({ ...current, [selectedJob.id]: locationJobId }));
   }
 
   function importCsv(event) {
@@ -196,14 +221,17 @@ export default function JobsPage({ currentUser }) {
           total={total}
           onPage={(page) => updateFilter('page', page)}
           onPageSize={(limit) => updateFilter('limit', limit)}
-          onSelectJob={setSelectedId}
+          onSelectJob={selectJob}
         />
         <JobDetail
           canDelete={isAdminRole(currentUser)}
           isDeleting={deletingJob}
-          job={selectedJob}
+          job={selectedLocationJob}
+          groupJob={selectedJob}
+          selectedLocationId={selectedLocationId}
           onDelete={deleteJobPermanently}
           onHiddenChange={updateHiddenState}
+          onLocationChange={selectJobLocation}
           onSpamReview={updateSpamReview}
         />
       </Box>
@@ -230,4 +258,10 @@ export default function JobsPage({ currentUser }) {
       </Dialog>
     </Box>
   );
+}
+
+function selectedLocationForJob(job, selectedLocationId) {
+  if (!job) return null;
+  const locationOption = (job.locationOptions || []).find((option) => String(option.id) === String(selectedLocationId));
+  return locationOption || job;
 }

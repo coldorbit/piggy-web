@@ -13,8 +13,12 @@ import {
   Button,
   Chip,
   Divider,
+  FormControl,
   IconButton,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Stack,
   Tooltip,
   Typography,
@@ -22,7 +26,17 @@ import {
 import { formatDateTime, spamStatusLabel } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
 
-export default function JobDetail({ canDelete = false, isDeleting = false, job, onDelete, onHiddenChange, onSpamReview }) {
+export default function JobDetail({
+  canDelete = false,
+  groupJob,
+  isDeleting = false,
+  job,
+  selectedLocationId,
+  onDelete,
+  onHiddenChange,
+  onLocationChange,
+  onSpamReview,
+}) {
   const [savingSpam, setSavingSpam] = useState(false);
   const [savingHidden, setSavingHidden] = useState(false);
   const [spamError, setSpamError] = useState('');
@@ -48,6 +62,9 @@ export default function JobDetail({ canDelete = false, isDeleting = false, job, 
       </Paper>
     );
   }
+
+  const locationOptions = groupJob?.locationOptions || job.locationOptions || [];
+  const hasLocationOptions = locationOptions.length > 1;
 
   async function handleSpamReview(isSpam) {
     setSavingSpam(true);
@@ -158,6 +175,21 @@ export default function JobDetail({ canDelete = false, isDeleting = false, job, 
       </Box>
 
       <Divider sx={{ my: 1.25 }} />
+
+      {hasLocationOptions ? (
+        <FormControl fullWidth size="small" sx={{ mb: 1.25 }}>
+          <InputLabel>Location</InputLabel>
+          <Select label="Location" value={selectedLocationId || job.id} onChange={(event) => onLocationChange(event.target.value)}>
+            {locationOptions.map((option) => (
+              <MenuItem key={option.id} value={option.id}>
+                {[option.locationLabel || option.location || 'Location not listed', option.source, formatDateTime(option.postedAt || option.scrapedAt)]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      ) : null}
 
       <Box
         component="dl"

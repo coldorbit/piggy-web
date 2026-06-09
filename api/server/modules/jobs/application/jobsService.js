@@ -161,6 +161,75 @@ export function formatJob(row) {
   };
 }
 
+export function groupedJobsFromRows(rows) {
+  const groups = new Map();
+
+  for (const row of rows) {
+    const job = formatJob(row);
+    const groupKey = jobGroupKey(job);
+    const group = groups.get(groupKey);
+    if (!group) {
+      groups.set(groupKey, {
+        ...job,
+        id: `job-group:${groupKey}`,
+        representativeJobId: job.id,
+        locationOptions: [locationOption(job)],
+      });
+      continue;
+    }
+
+    group.locationOptions.push(locationOption(job));
+    group.location = groupedLocationLabel(group.locationOptions);
+    group.postedAt = latestDateValue(group.postedAt, job.postedAt);
+    group.scrapedAt = latestDateValue(group.scrapedAt, job.scrapedAt);
+  }
+
+  return [...groups.values()].map((group) => ({
+    ...group,
+    locationOptions: group.locationOptions.sort(compareLocationOptions),
+  }));
+}
+
+export function paginateGroupedJobs(rows, { limit, offset }) {
+  const groupedJobs = groupedJobsFromRows(rows);
+  return {
+    rows: groupedJobs.slice(offset, offset + limit),
+    count: groupedJobs.length,
+  };
+}
+
+function jobGroupKey(job) {
+  return `${normalizeGroupValue(job.title || 'Untitled role')}::${normalizeGroupValue(job.company || 'Unknown company')}`;
+}
+
+function normalizeGroupValue(value) {
+  return clean(value).toLowerCase().replace(/\s+/g, ' ') || 'unknown';
+}
+
+function locationOption(job) {
+  return {
+    ...job,
+    groupJobId: job.id,
+    locationLabel: job.location || 'Location not listed',
+  };
+}
+
+function groupedLocationLabel(options) {
+  const locations = [...new Set(options.map((option) => option.locationLabel).filter(Boolean))];
+  if (locations.length <= 1) return locations[0] || '';
+  return `${locations[0]} + ${locations.length - 1} more`;
+}
+
+function latestDateValue(left, right) {
+  if (!left) return right || null;
+  if (!right) return left;
+  return new Date(left) > new Date(right) ? left : right;
+}
+
+function compareLocationOptions(left, right) {
+  return String(left.locationLabel || '').localeCompare(String(right.locationLabel || '')) || Number(left.id) - Number(right.id);
+}
+
 function applyMode(source, rawJob) {
   const sourceKey = String(source || '').trim().toLowerCase();
   if (sourceKey === 'linkedin') return linkedInApplyMode(rawJob);
