@@ -20,6 +20,7 @@ const HOUR_HEIGHT = 64;
 
 export default function CalendarGrid({ cursorDate, eventsByDay, visibleDays, view }) {
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const selectedEventId = selectedEvent?.id || '';
 
   return (
     <>
@@ -35,9 +36,15 @@ export default function CalendarGrid({ cursorDate, eventsByDay, visibleDays, vie
         }}
       >
         {view === CALENDAR_VIEWS.week ? (
-          <WeekCalendar days={visibleDays} eventsByDay={eventsByDay} onEventClick={setSelectedEvent} />
+          <WeekCalendar days={visibleDays} eventsByDay={eventsByDay} selectedEventId={selectedEventId} onEventClick={setSelectedEvent} />
         ) : (
-          <MonthCalendar cursorDate={cursorDate} days={visibleDays} eventsByDay={eventsByDay} onEventClick={setSelectedEvent} />
+          <MonthCalendar
+            cursorDate={cursorDate}
+            days={visibleDays}
+            eventsByDay={eventsByDay}
+            selectedEventId={selectedEventId}
+            onEventClick={setSelectedEvent}
+          />
         )}
       </Paper>
       <CalendarEventDialog event={selectedEvent} onClose={() => setSelectedEvent(null)} />
@@ -45,7 +52,7 @@ export default function CalendarGrid({ cursorDate, eventsByDay, visibleDays, vie
   );
 }
 
-function MonthCalendar({ cursorDate, days, eventsByDay, onEventClick }) {
+function MonthCalendar({ cursorDate, days, eventsByDay, selectedEventId, onEventClick }) {
   return (
     <>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', borderBottom: 1, borderColor: 'divider' }}>
@@ -80,6 +87,7 @@ function MonthCalendar({ cursorDate, days, eventsByDay, onEventClick }) {
             day={day}
             events={eventsByDay.get(day) || []}
             isCurrentMonth={dateKeyMonth(day) === dateKeyMonth(cursorDate)}
+            selectedEventId={selectedEventId}
             onEventClick={onEventClick}
           />
         ))}
@@ -88,7 +96,7 @@ function MonthCalendar({ cursorDate, days, eventsByDay, onEventClick }) {
   );
 }
 
-function WeekCalendar({ days, eventsByDay, onEventClick }) {
+function WeekCalendar({ days, eventsByDay, selectedEventId, onEventClick }) {
   const [now, setNow] = useState(() => new Date());
   const scrollRef = useRef(null);
   const centeredRangeRef = useRef('');
@@ -168,7 +176,15 @@ function WeekCalendar({ days, eventsByDay, onEventClick }) {
         </Box>
 
         {days.map((day, index) => (
-          <WeekDayColumn key={day} day={day} column={index + 2} events={eventsByDay.get(day) || []} now={now} onEventClick={onEventClick} />
+          <WeekDayColumn
+            key={day}
+            day={day}
+            column={index + 2}
+            events={eventsByDay.get(day) || []}
+            now={now}
+            selectedEventId={selectedEventId}
+            onEventClick={onEventClick}
+          />
         ))}
       </Box>
     </Box>
@@ -217,7 +233,7 @@ function WeekDayHeader({ day }) {
   );
 }
 
-function WeekDayColumn({ day, column, events, now, onEventClick }) {
+function WeekDayColumn({ day, column, events, now, selectedEventId, onEventClick }) {
   const isToday = day === defaultTimezoneTodayKey();
   const currentTimeTop = isToday ? eventTop(now) : null;
   const laidOutEvents = layoutOverlappingEvents(events);
@@ -244,14 +260,20 @@ function WeekDayColumn({ day, column, events, now, onEventClick }) {
         />
       ) : null}
       {laidOutEvents.map(({ event, layout }) => (
-        <WeekCalendarEvent key={event.id} event={event} layout={layout} onEventClick={onEventClick} />
+        <WeekCalendarEvent
+          key={event.id}
+          event={event}
+          isSelected={event.id === selectedEventId}
+          layout={layout}
+          onEventClick={onEventClick}
+        />
       ))}
       {isToday ? <CurrentTimeLine top={currentTimeTop} /> : null}
     </Box>
   );
 }
 
-function WeekCalendarEvent({ event, layout, onEventClick }) {
+function WeekCalendarEvent({ event, isSelected, layout, onEventClick }) {
   const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   const top = eventTop(event.startsAt);
   const height = eventHeight(event.durationMinutes);
@@ -269,6 +291,7 @@ function WeekCalendarEvent({ event, layout, onEventClick }) {
       <Box
         component="button"
         type="button"
+        aria-pressed={isSelected}
         onClick={() => onEventClick(event)}
         sx={{
           position: 'absolute',
@@ -277,14 +300,16 @@ function WeekCalendarEvent({ event, layout, onEventClick }) {
           left,
           width,
           minHeight: 18,
-          borderLeft: 3,
+          borderLeft: isSelected ? 5 : 3,
           borderColor: color.main,
-          bgcolor: color.soft,
-          color: color.dark,
+          bgcolor: isSelected ? color.main : color.soft,
+          color: isSelected ? '#FFFFFF' : color.dark,
           borderRadius: 1,
           px: 0.75,
           py: 0.5,
-          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.16)',
+          outline: isSelected ? '2px solid rgba(15, 23, 42, 0.28)' : '1px solid transparent',
+          outlineOffset: isSelected ? 1 : 0,
+          boxShadow: isSelected ? '0 8px 18px rgba(15, 23, 42, 0.28)' : '0 1px 3px rgba(15, 23, 42, 0.16)',
           overflow: 'hidden',
           display: 'grid',
           alignContent: 'start',
@@ -295,10 +320,14 @@ function WeekCalendarEvent({ event, layout, onEventClick }) {
           cursor: 'pointer',
           font: 'inherit',
           textAlign: 'left',
-          zIndex: layout?.column + 1 || 1,
+          zIndex: isSelected ? 20 : layout?.column + 1 || 1,
           '&:hover': {
-            boxShadow: '0 2px 7px rgba(15, 23, 42, 0.22)',
-            zIndex: 10,
+            boxShadow: isSelected ? '0 10px 22px rgba(15, 23, 42, 0.32)' : '0 2px 7px rgba(15, 23, 42, 0.22)',
+            zIndex: isSelected ? 20 : 10,
+          },
+          '&:focus-visible': {
+            outline: '3px solid rgba(37, 99, 235, 0.42)',
+            outlineOffset: 2,
           },
         }}
       >
@@ -311,7 +340,7 @@ function WeekCalendarEvent({ event, layout, onEventClick }) {
             <Typography variant="caption" fontWeight={900} noWrap>
               {event.title}
             </Typography>
-            <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
+            <Typography variant="caption" noWrap sx={{ opacity: isSelected ? 1 : 0.9 }}>
               {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {compactEventLabel(event)}
             </Typography>
           </>
@@ -348,7 +377,7 @@ function CurrentTimeLine({ top }) {
   );
 }
 
-function CalendarDay({ day, events, isCurrentMonth, onEventClick }) {
+function CalendarDay({ day, events, isCurrentMonth, selectedEventId, onEventClick }) {
   const isToday = day === defaultTimezoneTodayKey();
   const displayedEvents = events.slice(0, 4);
   const hiddenCount = events.length - displayedEvents.length;
@@ -390,7 +419,7 @@ function CalendarDay({ day, events, isCurrentMonth, onEventClick }) {
       </Box>
       <Box sx={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start', gap: 0.5 }}>
         {displayedEvents.map((event) => (
-          <CalendarEvent key={event.id} event={event} onEventClick={onEventClick} />
+          <CalendarEvent key={event.id} event={event} isSelected={event.id === selectedEventId} onEventClick={onEventClick} />
         ))}
         {hiddenCount > 0 ? (
           <Typography variant="caption" color="text.secondary" sx={{ px: 0.25 }}>
@@ -402,7 +431,7 @@ function CalendarDay({ day, events, isCurrentMonth, onEventClick }) {
   );
 }
 
-function CalendarEvent({ event, onEventClick }) {
+function CalendarEvent({ event, isSelected, onEventClick }) {
   const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   return (
     <Tooltip
@@ -413,16 +442,17 @@ function CalendarEvent({ event, onEventClick }) {
       <Box
         component="button"
         type="button"
+        aria-pressed={isSelected}
         onClick={() => onEventClick(event)}
         sx={{
           minWidth: 0,
-          borderLeft: 3,
+          borderLeft: isSelected ? 5 : 3,
           borderTop: 0,
           borderRight: 0,
           borderBottom: 0,
           borderColor: color.main,
-          bgcolor: color.soft,
-          color: color.dark,
+          bgcolor: isSelected ? color.main : color.soft,
+          color: isSelected ? '#FFFFFF' : color.dark,
           borderRadius: 1,
           px: 0.75,
           py: 0.5,
@@ -431,8 +461,15 @@ function CalendarEvent({ event, onEventClick }) {
           cursor: 'pointer',
           font: 'inherit',
           textAlign: 'left',
+          outline: isSelected ? '2px solid rgba(15, 23, 42, 0.25)' : '1px solid transparent',
+          outlineOffset: isSelected ? 1 : 0,
+          boxShadow: isSelected ? '0 5px 12px rgba(15, 23, 42, 0.24)' : 'none',
           '&:hover': {
-            boxShadow: '0 1px 4px rgba(15, 23, 42, 0.18)',
+            boxShadow: isSelected ? '0 7px 16px rgba(15, 23, 42, 0.28)' : '0 1px 4px rgba(15, 23, 42, 0.18)',
+          },
+          '&:focus-visible': {
+            outline: '3px solid rgba(37, 99, 235, 0.42)',
+            outlineOffset: 2,
           },
         }}
       >
