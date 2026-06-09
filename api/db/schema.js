@@ -6,6 +6,10 @@ import {
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
+  getMarketplaceCallerProfileModel,
+  getMarketplaceInterviewOpportunityModel,
+  getMarketplaceMatchModel,
+  getMarketplaceParticipantModel,
   getProfileShareRequestModel,
   getScrapedJobModel,
   getTailoredResumeModel,
@@ -34,6 +38,10 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await getInterviewModel().sync();
       await getInterviewLogModel().sync();
       await getTailoredResumeModel().sync();
+      await getMarketplaceParticipantModel().sync();
+      await getMarketplaceInterviewOpportunityModel().sync();
+      await getMarketplaceCallerProfileModel().sync();
+      await getMarketplaceMatchModel().sync();
       await ensureWebUserSessionColumns();
       await ensureBidProfileColumns();
       await ensureJobBidInterviewColumns();
@@ -48,6 +56,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await ensureProfileShareIndexes();
       await ensureJobBidProfileScopedUniqueness();
       await ensureInterviewIndexes();
+      await ensureMarketplaceIndexes();
       await backfillInterviewsFromJobBids();
       await backfillInterviewStageNotes();
     })().catch((error) => {
@@ -57,6 +66,27 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
   }
 
   await initializationPromise;
+}
+
+async function ensureMarketplaceIndexes() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS marketplace_participants_user_id_unique
+    ON marketplace_participants (user_id)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS marketplace_interviews_owner_review_idx
+    ON marketplace_interview_opportunities (owner_user_id, review_status, match_status)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS marketplace_callers_owner_review_idx
+    ON marketplace_caller_profiles (owner_user_id, review_status, availability_status)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS marketplace_matches_status_scheduled_idx
+    ON marketplace_matches (status, scheduled_at ASC NULLS LAST)
+  `);
 }
 
 async function ensureInterviewJourneyColumns() {

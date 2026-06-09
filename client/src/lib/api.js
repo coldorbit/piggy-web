@@ -894,6 +894,13 @@ export function useDeleteInterview() {
   });
 }
 
+export function useMarketplace() {
+  return useQuery({
+    queryKey: ['marketplace'],
+    queryFn: () => api('/api/marketplace'),
+  });
+}
+
 export function useRequestTailoredResume() {
   const queryClient = useQueryClient();
   return useMutation({

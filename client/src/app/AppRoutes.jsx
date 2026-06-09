@@ -18,6 +18,7 @@ const FaqEditorPage = lazy(() => import('../pages/FaqEditorPage.jsx'));
 const FaqsPage = lazy(() => import('../pages/FaqsPage.jsx'));
 const InterviewsPage = lazy(() => import('../pages/InterviewsPage.jsx'));
 const JobsPage = lazy(() => import('../pages/JobsPage.jsx'));
+const MarketplacePage = lazy(() => import('../pages/MarketplacePage.jsx'));
 const PricingPage = lazy(() => import('../components/auth/PricingPage.jsx'));
 const ProfilesPage = lazy(() => import('../pages/ProfilesPage.jsx'));
 
@@ -75,6 +76,14 @@ export function AuthenticatedRoutes({ user }) {
             <RequireInterviewAccess user={user}>
               <CalendarPage currentUser={user} />
             </RequireInterviewAccess>
+          }
+        />
+        <Route
+          path="/marketplace"
+          element={
+            <RequireAdmin user={user}>
+              <MarketplacePage currentUser={user} />
+            </RequireAdmin>
           }
         />
         <Route

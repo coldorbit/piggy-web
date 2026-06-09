@@ -4,6 +4,7 @@ import BadgeIcon from '@mui/icons-material/Badge';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
+import HandshakeIcon from '@mui/icons-material/Handshake';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -52,6 +53,7 @@ export default function AppLayout({ user }) {
   const isCalendarRoute = location.pathname.startsWith('/calendar');
   const isFaqRoute = location.pathname.startsWith('/faqs');
   const isInterviewRoute = location.pathname.startsWith('/interviews');
+  const isMarketplaceRoute = location.pathname.startsWith('/marketplace');
   const isProfileRoute = location.pathname.startsWith('/profiles');
   const [headerSearch, setHeaderSearch] = useState(EMPTY_HEADER_SEARCH);
   const headerSearchContext = useMemo(
@@ -68,13 +70,15 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminRoute ? 'Users' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminRoute ? 'Users' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminRoute
     ? 'Manage back-office accounts'
     : isFaqRoute
       ? 'Browse answers and publish help content'
     : isBidderRoute
       ? 'Review bidder output and interview pass-through'
+    : isMarketplaceRoute
+      ? 'Review caller-interview matching workflow'
     : isCallerRoute
       ? 'Track caller assignments and interview workload'
     : isCalendarRoute
@@ -139,6 +143,9 @@ export default function AppLayout({ user }) {
           ) : null}
           {canAccessInterviews ? (
             <NavItem to="/calendar" icon={<CalendarMonthIcon />} label="Calendar" onNavigate={() => setMobileOpen(false)} />
+          ) : null}
+          {isAdminRole(user) ? (
+            <NavItem to="/marketplace" icon={<HandshakeIcon />} label="Marketplace" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canManageCallers ? (
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
