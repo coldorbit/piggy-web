@@ -1,4 +1,5 @@
 import { readValidSession } from '../../auth.js';
+import { isAdminRole } from '../utils/roles.js';
 
 export async function requireAuth(req, res, next) {
   try {
@@ -16,7 +17,7 @@ export async function requireAuth(req, res, next) {
 
 export function requireAdmin(req, res, next) {
   requireAuth(req, res, () => {
-    if (req.user.role !== 'admin') {
+    if (!isAdminRole(req.user)) {
       res.status(403).json({ error: 'Admin access required' });
       return;
     }

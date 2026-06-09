@@ -69,7 +69,7 @@ export default function AdminUsersPage({ currentUser }) {
 
       {error || usersError ? <Alert severity="error">{error || usersError?.message}</Alert> : null}
 
-      <UserForm form={form} isSaving={isSaving} onChange={setForm} onSubmit={handleCreateUser} />
+      <UserForm currentUser={currentUser} form={form} isSaving={isSaving} onChange={setForm} onSubmit={handleCreateUser} />
       <UsersTable
         currentUser={currentUser}
         editing={editing}

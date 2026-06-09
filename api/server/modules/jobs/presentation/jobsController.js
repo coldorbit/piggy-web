@@ -11,6 +11,7 @@ import {
 } from '../application/jobsService.js';
 import { InputError } from '../../../utils/errors.js';
 import { clean } from '../../../utils/index.js';
+import { isAdminRole } from '../../../utils/roles.js';
 
 export async function listJobs(req, res, next) {
   try {
@@ -237,7 +238,7 @@ function isLinkedInUrl(value) {
 export async function deleteJob(req, res, next) {
   try {
     await ensureWebModels();
-    if (req.user?.role !== 'admin') {
+    if (!isAdminRole(req.user)) {
       res.status(403).json({ error: 'Only admins can delete jobs permanently' });
       return;
     }

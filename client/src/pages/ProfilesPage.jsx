@@ -36,6 +36,7 @@ import {
   useUpdateBidProfile,
   useUpdateBidProfileStatus,
 } from '../lib/api.js';
+import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../lib/roles.js';
 
 export default function ProfilesPage({ currentUser }) {
   const [searchParams] = useSearchParams();
@@ -50,7 +51,7 @@ export default function ProfilesPage({ currentUser }) {
   const [error, setError] = useState('');
 
   const { data: profiles = [], isLoading, error: loadError } = useBidProfiles(
-    currentUser?.role === 'admin' ? { scope: 'manage' } : {},
+    isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
   const { data: shareRequests = {}, error: sharesError } = useProfileShareRequests();
   const { data: shareRecipients = [], isLoading: recipientsLoading, error: recipientsError } = useProfileShareRecipients();
@@ -187,9 +188,9 @@ export default function ProfilesPage({ currentUser }) {
     (user) => String(user.id) !== String(currentUser?.id) && String(user.id) !== String(sharingProfile?.userId),
   );
   const pageError = error || loadError?.message || sharesError?.message || recipientsError?.message || '';
-  const canManageProfiles = !['bidder', 'readonly_bidder', 'editable_bidder'].includes(currentUser?.role);
-  const canUpdateProfileStatus = ['admin', 'user'].includes(currentUser?.role);
-  const canRestoreProfiles = currentUser?.role === 'admin';
+  const canManageProfiles = !BIDDER_ROLES.includes(currentUser?.role);
+  const canUpdateProfileStatus = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
+  const canRestoreProfiles = isAdminRole(currentUser);
   const highlightedProfileId = searchParams.get('profileId') || '';
 
   useEffect(() => {

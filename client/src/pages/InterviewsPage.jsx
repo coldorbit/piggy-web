@@ -39,6 +39,7 @@ import {
 } from '../components/interviews/interviewUtils.js';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { authUrl, useBidJobs, useBidProfiles, useCreateManualInterview, useDeleteInterview, useUpdateJobBid } from '../lib/api.js';
+import { isAdminRole } from '../lib/roles.js';
 import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
 const EMPTY_MANUAL_INTERVIEW = {
@@ -67,7 +68,7 @@ export default function InterviewsPage({ currentUser }) {
   const [error, setError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
-    currentUser?.role === 'admin' ? { scope: 'manage' } : {},
+    isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
   const activeProfiles = useMemo(
     () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
@@ -349,8 +350,8 @@ export default function InterviewsPage({ currentUser }) {
                   activeDropStage={activeDropStage}
                   callerUsers={callerUsers}
                   currentUser={interviewsData?.currentUser || currentUser}
-                  canAssignCallers={currentUser?.role === 'admin'}
-                  canDeleteInterviews={currentUser?.role === 'admin'}
+                  canAssignCallers={isAdminRole(currentUser)}
+                  canDeleteInterviews={isAdminRole(currentUser)}
                   draftFor={draftFor}
                   isDeleting={deletingInterview}
                   isSaving={updatingBid || !canEditInterviews}
@@ -437,7 +438,7 @@ export default function InterviewsPage({ currentUser }) {
                 ))}
               </Select>
             </FormControl>
-            {currentUser?.role === 'admin' ? (
+            {isAdminRole(currentUser) ? (
               <FormControl>
                 <InputLabel>Assignee</InputLabel>
                 <Select
@@ -587,7 +588,7 @@ export default function InterviewsPage({ currentUser }) {
                   disabled={updatingBid || !canEditInterviews}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
-                {currentUser?.role === 'admin' ? (
+                {isAdminRole(currentUser) ? (
                   <FormControl size="small">
                     <InputLabel>Assignee</InputLabel>
                     <Select
@@ -632,7 +633,7 @@ export default function InterviewsPage({ currentUser }) {
             </DialogContent>
             <DialogActions sx={{ justifyContent: 'space-between' }}>
               <Box>
-                {currentUser?.role === 'admin' ? (
+                {isAdminRole(currentUser) ? (
                   <Button color="error" startIcon={<DeleteIcon />} disabled={deletingInterview || updatingBid} onClick={() => handleDeleteInterview(selectedJob)}>
                     Delete
                   </Button>

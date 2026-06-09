@@ -10,6 +10,7 @@ import {
 } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
+import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../../utils/roles.js';
 
 export async function currentDbUser(req) {
   const user = await repositories.findUserByUsername(req.user.username);
@@ -33,7 +34,7 @@ export async function accessibleProfile(req, profileId) {
 
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
-  if (user.role === 'admin') return profile;
+  if (isAdminRole(user)) return profile;
   if (String(profile.userId) === String(user.id)) return profile;
 
   const share = await getProfileShareRequestModel().findOne({
@@ -57,10 +58,10 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
   });
   if (!appliedProfile) throw new NotFoundError('Profile not found');
 
-  if (!['admin', 'user'].includes(user.role)) return accessibleProfile(req, profileId);
+  if (!PRIVILEGED_USER_ROLES.includes(user.role)) return accessibleProfile(req, profileId);
   if ((appliedProfile.profileStatus || 'active') !== 'active') throw new NotFoundError('Profile not found');
   if ((appliedProfile.profileBadge || 'SWE') !== (profile.profileBadge || 'SWE')) throw new NotFoundError('Profile not found');
-  if (!['user', 'admin'].includes(appliedProfile.user?.role)) throw new NotFoundError('Profile not found');
+  if (!PRIVILEGED_USER_ROLES.includes(appliedProfile.user?.role)) throw new NotFoundError('Profile not found');
 
   return appliedProfile;
 }
@@ -240,7 +241,7 @@ export async function profilesManagedByUser(user) {
   const BidProfile = getBidProfileModel();
   const WebUser = getWebUserModel();
 
-  if (user.role === 'admin') {
+  if (isAdminRole(user)) {
     return BidProfile.findAll({
       include: [{ model: WebUser, as: 'user', required: false }],
       order: [['createdAt', 'ASC']],
@@ -251,7 +252,7 @@ export async function profilesManagedByUser(user) {
 }
 
 export async function profilesForAppliedFilter(user) {
-  if (!['admin', 'user'].includes(user?.role)) return [];
+  if (!PRIVILEGED_USER_ROLES.includes(user?.role)) return [];
   const BidProfile = getBidProfileModel();
   const WebUser = getWebUserModel();
 
@@ -262,7 +263,7 @@ export async function profilesForAppliedFilter(user) {
         model: WebUser,
         as: 'user',
         required: true,
-        where: { role: user.role === 'admin' ? ['admin', 'user'] : 'user' },
+        where: { role: isAdminRole(user) ? ADMIN_MANAGED_PROFILE_OWNER_ROLES : 'user' },
       },
     ],
     order: [

@@ -1,6 +1,7 @@
 import { literal, Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
+import { ROLES } from '../../../utils/roles.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],
@@ -323,7 +324,7 @@ function validImageUrl(value) {
 }
 
 export function canImportJobs(user) {
-  return ['admin', 'user', 'editable_bidder'].includes(user?.role);
+  return [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.editableBidder].includes(user?.role);
 }
 
 export function jobsFromCsv(csvText, { importedBy } = {}) {

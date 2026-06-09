@@ -1,7 +1,9 @@
 import AddIcon from '@mui/icons-material/Add';
 import { Button, FormControl, InputLabel, MenuItem, Paper, Select, TextField } from '@mui/material';
+import { roleOptionsFor } from '../../lib/roles.js';
 
-export default function UserForm({ form, isSaving, onChange, onSubmit }) {
+export default function UserForm({ currentUser, form, isSaving, onChange, onSubmit }) {
+  const roleOptions = roleOptionsFor(currentUser);
   return (
     <Paper
       component="form"
@@ -34,12 +36,11 @@ export default function UserForm({ form, isSaving, onChange, onSubmit }) {
       <FormControl size="small">
         <InputLabel>Role</InputLabel>
         <Select label="Role" value={form.role} onChange={(event) => onChange((current) => ({ ...current, role: event.target.value }))}>
-          <MenuItem value="user">User</MenuItem>
-          <MenuItem value="internal">Internal</MenuItem>
-          <MenuItem value="caller">Caller</MenuItem>
-          <MenuItem value="readonly_bidder">Readonly bidder</MenuItem>
-          <MenuItem value="editable_bidder">Editable bidder</MenuItem>
-          <MenuItem value="admin">Admin</MenuItem>
+          {roleOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
       <Button type="submit" disabled={isSaving} startIcon={<AddIcon />} variant="contained">

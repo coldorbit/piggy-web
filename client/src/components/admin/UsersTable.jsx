@@ -21,6 +21,7 @@ import {
   Typography,
 } from '@mui/material';
 import { formatDateTime } from '../../lib/formatters.js';
+import { isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UsersTable({
   currentUser,
@@ -86,6 +87,8 @@ function EmptyRow({ children }) {
 function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDelete, onEdit, onEditingChange, onSave }) {
   const isEditing = String(editingId) === String(user.id);
   const isSelf = user.username === currentUser.username;
+  const roleOptions = roleOptionsWithCurrent(roleOptionsFor(currentUser), editing.role);
+  const canEditRole = isSuperadmin(currentUser) || !isAdminRole(user);
 
   if (isEditing) {
     return (
@@ -104,14 +107,14 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
             <Select
               label="Role"
               value={editing.role}
+              disabled={!canEditRole}
               onChange={(event) => onEditingChange((current) => ({ ...current, role: event.target.value }))}
             >
-              <MenuItem value="user">User</MenuItem>
-              <MenuItem value="internal">Internal</MenuItem>
-              <MenuItem value="caller">Caller</MenuItem>
-              <MenuItem value="readonly_bidder">Readonly bidder</MenuItem>
-              <MenuItem value="editable_bidder">Editable bidder</MenuItem>
-              <MenuItem value="admin">Admin</MenuItem>
+              {roleOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </TableCell>
@@ -160,7 +163,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
         ) : null}
       </TableCell>
       <TableCell>
-        <Chip color={user.role === 'admin' ? 'warning' : 'default'} label={roleLabel(user.role)} size="small" variant="outlined" />
+        <Chip color={isAdminRole(user) ? 'warning' : 'default'} label={roleLabel(user.role)} size="small" variant="outlined" />
       </TableCell>
       <TableCell>
         <Chip
@@ -199,10 +202,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
   );
 }
 
-function roleLabel(role) {
-  if (role === 'readonly_bidder' || role === 'bidder') return 'readonly bidder';
-  if (role === 'editable_bidder') return 'editable bidder';
-  if (role === 'internal') return 'internal';
-  if (role === 'caller') return 'caller';
-  return role;
+function roleOptionsWithCurrent(options, role) {
+  if (!role || options.some((option) => option.value === role)) return options;
+  return [...options, { value: role, label: roleLabel(role) }];
 }

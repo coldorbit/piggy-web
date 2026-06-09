@@ -1,11 +1,9 @@
 import { Navigate, useLocation } from 'react-router-dom';
-
-const INTERVIEW_ROLES = ['admin', 'internal', 'user', 'caller'];
-const CALLER_BLOCKED_ROLES = ['bidder', 'readonly_bidder', 'editable_bidder', 'caller'];
+import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, isAdminRole } from '../lib/roles.js';
 
 export function RequireAdmin({ user, children }) {
   const location = useLocation();
-  if (user.role !== 'admin') return <Navigate to="/jobs" replace state={{ from: location }} />;
+  if (!isAdminRole(user)) return <Navigate to="/jobs" replace state={{ from: location }} />;
   return children;
 }
 

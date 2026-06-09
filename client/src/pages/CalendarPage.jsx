@@ -9,6 +9,7 @@ import { INTERVIEW_FILTERS } from '../components/interviews/interviewUtils.js';
 import { CALENDAR_PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { api, useBidProfiles } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
+import { isAdminRole } from '../lib/roles.js';
 import {
   addDaysToDateKey,
   addMonthsToDateKey,
@@ -26,7 +27,7 @@ export default function CalendarPage({ currentUser }) {
   const [checkedProfileIds, setCheckedProfileIds] = useState([]);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
-    currentUser?.role === 'admin' ? { scope: 'manage' } : {},
+    isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
   const activeProfiles = useMemo(
     () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),

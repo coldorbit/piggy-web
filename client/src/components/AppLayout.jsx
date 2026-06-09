@@ -31,6 +31,7 @@ import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout } from '../lib/api.js';
+import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, ROLES, isAdminRole, roleLabel } from '../lib/roles.js';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
@@ -55,8 +56,8 @@ export default function AppLayout({ user }) {
     () => ({ search: headerSearch, setSearch: setHeaderSearch }),
     [headerSearch],
   );
-  const canAccessInterviews = ['admin', 'internal', 'user', 'caller'].includes(user.role);
-  const canManageCallers = !['bidder', 'readonly_bidder', 'editable_bidder', 'caller'].includes(user.role);
+  const canAccessInterviews = INTERVIEW_ROLES.includes(user.role);
+  const canManageCallers = !CALLER_BLOCKED_ROLES.includes(user.role);
   const isCaller = user.role === 'caller';
 
   async function handleLogout() {
@@ -126,7 +127,7 @@ export default function AppLayout({ user }) {
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.5 }}>
           {!isCaller ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller ? <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} /> : null}
-          {!isCaller && ['admin', 'user', 'bidder', 'readonly_bidder', 'editable_bidder'].includes(user.role) ? (
+          {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
             <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canAccessInterviews ? (
@@ -139,7 +140,7 @@ export default function AppLayout({ user }) {
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {!isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} /> : null}
-          {user.role === 'admin' ? (
+          {isAdminRole(user) ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" onNavigate={() => setMobileOpen(false)} />
           ) : null}
         </List>
@@ -343,12 +344,4 @@ function NavItem({ icon, label, onNavigate, to }) {
       <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 700 }} />
     </ListItemButton>
   );
-}
-
-function roleLabel(role) {
-  if (role === 'readonly_bidder' || role === 'bidder') return 'Readonly bidder';
-  if (role === 'editable_bidder') return 'Editable bidder';
-  if (role === 'internal') return 'Internal';
-  if (role === 'caller') return 'Caller';
-  return role;
 }

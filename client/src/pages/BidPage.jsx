@@ -23,6 +23,7 @@ import {
   useUpdateJobBid,
 } from '../lib/api.js';
 import { mergeKnownFilters, readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
+import { PRIVILEGED_USER_ROLES, isAdminRole } from '../lib/roles.js';
 
 const BID_FILTER_KEYS = [
   'search',
@@ -55,9 +56,9 @@ export default function BidPage({ currentUser }) {
   const { setSearch: setHeaderSearch } = useHeaderSearch();
 
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
-    currentUser?.role === 'admin' ? { scope: 'manage' } : {},
+    isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
-  const canUseCrossUserAppliedFilter = ['admin', 'user'].includes(currentUser?.role);
+  const canUseCrossUserAppliedFilter = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
   const { data: appliedFilterProfiles = [] } = useBidProfiles(
     canUseCrossUserAppliedFilter ? { scope: 'applied-filter' } : {},
     { enabled: canUseCrossUserAppliedFilter },

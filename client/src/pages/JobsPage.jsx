@@ -14,6 +14,7 @@ import { PAGE_SIZE } from '../lib/constants.js';
 import { formatDateTime } from '../lib/formatters.js';
 import { matchesSpamFilter, matchesVisibilityFilter } from '../lib/jobFilters.js';
 import { readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
+import { ROLES, isAdminRole } from '../lib/roles.js';
 
 const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const JOB_FILTERS_STORAGE_KEY = 'applypilot.jobs.filters';
@@ -59,7 +60,7 @@ export default function JobsPage({ currentUser }) {
   const jobs = jobsData?.jobs || [];
   const total = jobsData?.total || 0;
   const meta = metaData || { total: 0, sources: [], latestScrapedAt: null };
-  const canImportJobs = ['admin', 'user', 'editable_bidder'].includes(currentUser?.role);
+  const canImportJobs = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.editableBidder].includes(currentUser?.role);
 
   const selectedJob = useMemo(
     () => jobs.find((job) => String(job.id) === String(selectedId)) || jobs[0] || null,
@@ -198,7 +199,7 @@ export default function JobsPage({ currentUser }) {
           onSelectJob={setSelectedId}
         />
         <JobDetail
-          canDelete={currentUser?.role === 'admin'}
+          canDelete={isAdminRole(currentUser)}
           isDeleting={deletingJob}
           job={selectedJob}
           onDelete={deleteJobPermanently}

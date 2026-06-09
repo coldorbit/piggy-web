@@ -2,6 +2,7 @@ import { ensureDefaultUsers, hashPassword, publicUser } from '../../../../auth.j
 import { getWebUserModel, repositories } from '../../../../db.js';
 import { userAttributesFromBody } from '../application/usersService.js';
 import { handleUserWriteError } from '../../../utils/errors.js';
+import { ADMIN_ROLES, ROLES, canAssignAdminRole, isSuperadmin } from '../../../utils/roles.js';
 
 export async function listUsers(_req, res, next) {
   try {
@@ -17,6 +18,10 @@ export async function createUser(req, res, next) {
   try {
     await ensureDefaultUsers();
     const attrs = userAttributesFromBody(req.body, { requirePassword: true });
+    if (ADMIN_ROLES.includes(attrs.role) && !canAssignAdminRole(req.user)) {
+      res.status(403).json({ error: 'Only superadmins can create admin users' });
+      return;
+    }
     const user = await repositories.createUser({
       username: attrs.username,
       passwordHash: hashPassword(attrs.password),
@@ -45,12 +50,21 @@ export async function updateUser(req, res, next) {
         return;
       }
     }
-    if (user.role === 'admin' && attrs.role !== 'admin') {
-      const adminCount = await WebUser.count({ where: { role: 'admin' } });
-      if (adminCount <= 1) {
-        res.status(400).json({ error: 'At least one admin user is required' });
-        return;
-      }
+    if (!isSuperadmin(req.user) && user.role === ROLES.admin && attrs.role !== ROLES.admin) {
+      res.status(403).json({ error: 'Only superadmins can change an admin role' });
+      return;
+    }
+    if (!isSuperadmin(req.user) && user.role === ROLES.superadmin && attrs.role !== ROLES.superadmin) {
+      res.status(403).json({ error: 'Only superadmins can change a superadmin role' });
+      return;
+    }
+    if (!isSuperadmin(req.user) && ADMIN_ROLES.includes(attrs.role) && attrs.role !== user.role) {
+      res.status(403).json({ error: 'Only superadmins can assign admin roles' });
+      return;
+    }
+    if (ADMIN_ROLES.includes(user.role) && !ADMIN_ROLES.includes(attrs.role)) {
+      const adminCount = await WebUser.count({ where: { role: ADMIN_ROLES } });
+      if (adminCount <= 1) return res.status(400).json({ error: 'At least one admin or superadmin user is required' });
     }
 
     const updates = {
@@ -78,12 +92,13 @@ export async function deleteUser(req, res, next) {
       res.status(400).json({ error: 'You cannot delete your own user' });
       return;
     }
-    if (user.role === 'admin') {
-      const adminCount = await WebUser.count({ where: { role: 'admin' } });
-      if (adminCount <= 1) {
-        res.status(400).json({ error: 'At least one admin user is required' });
-        return;
-      }
+    if (user.role === ROLES.superadmin && !isSuperadmin(req.user)) {
+      res.status(403).json({ error: 'Only superadmins can delete superadmin users' });
+      return;
+    }
+    if (ADMIN_ROLES.includes(user.role)) {
+      const adminCount = await WebUser.count({ where: { role: ADMIN_ROLES } });
+      if (adminCount <= 1) return res.status(400).json({ error: 'At least one admin or superadmin user is required' });
     }
 
     await user.destroy();

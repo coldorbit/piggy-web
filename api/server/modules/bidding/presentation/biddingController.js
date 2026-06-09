@@ -43,6 +43,7 @@ import { enqueueTailoredResumeRequest } from '../application/tailoringQueueServi
 import { userAttributesFromBody } from '../../admin/application/usersService.js';
 import { clean } from '../../../utils/index.js';
 import { handleInputError, handleUserWriteError, NotFoundError } from '../../../utils/errors.js';
+import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, INTERNAL_DATA_ROLES, INTERVIEW_ACCESS_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../../utils/roles.js';
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
@@ -56,7 +57,7 @@ export async function listProfiles(req, res, next) {
     const profiles =
       scope === 'applied-filter'
         ? await profilesForAppliedFilter(user)
-        : scope === 'manage' && user.role === 'admin'
+        : scope === 'manage' && isAdminRole(user)
         ? await profilesManagedByUser(user)
         : await profilesVisibleToUser(user);
     res.json({ profiles: (await profilesWithSharing(await profilesWithProgress(profiles, { user }))).map(formatProfile) });
@@ -226,7 +227,7 @@ export async function listBidders(req, res, next) {
          )
       ORDER BY web_users.username ASC
     `);
-    const visibleBidders = user.role === 'admin'
+    const visibleBidders = isAdminRole(user)
       ? bidderRows
       : bidderRows.filter((bidder) => String(bidder.id) === String(user.id));
     const bidderIds = visibleBidders.map((bidder) => Number(bidder.id)).filter((id) => Number.isFinite(id));
@@ -533,30 +534,30 @@ export async function deleteProfile(req, res, next) {
 }
 
 function canManageProfiles(req, res) {
-  if (!['bidder', 'readonly_bidder', 'editable_bidder'].includes(req.user?.role)) return true;
+  if (!BIDDER_ROLES.includes(req.user?.role)) return true;
   res.status(403).json({ error: 'Bidders cannot add, edit, share, or remove profiles' });
   return false;
 }
 
 function canUpdateProfileStatus(req, res, status) {
   if (status === 'active') {
-    if (req.user?.role === 'admin') return true;
+    if (isAdminRole(req.user)) return true;
     res.status(403).json({ error: 'Only admins can restore closed profiles' });
     return false;
   }
 
-  if (['admin', 'user'].includes(req.user?.role)) return true;
+  if (PRIVILEGED_USER_ROLES.includes(req.user?.role)) return true;
   res.status(403).json({ error: 'Only user and admin roles can close profiles' });
   return false;
 }
 
 async function manageableProfile(req, profileId) {
-  if (req.user?.role === 'admin') return adminManagedProfile(req, profileId);
+  if (isAdminRole(req.user)) return adminManagedProfile(req, profileId);
   return ownedProfile(req, profileId);
 }
 
 async function adminManagedProfile(req, profileId) {
-  if (req.user?.role !== 'admin') return ownedProfile(req, profileId);
+  if (!isAdminRole(req.user)) return ownedProfile(req, profileId);
   const id = clean(profileId);
   if (!id) throw new NotFoundError('Profile not found');
   const profile = await getBidProfileModel().findByPk(id);
@@ -704,7 +705,7 @@ async function listInterviewJobs(req, res, { user, profile }) {
     user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'done', query: req.query }),
     Interview.count({ where: { profileId: profile.id, ...(user.role === 'caller' ? { callerUserId: user.id } : {}) } }),
     bidUsersForProfile(profile),
-    user.role === 'admin' ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }) : Promise.resolve([]),
+    isAdminRole(user) ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }) : Promise.resolve([]),
   ]);
   const logsByInterviewId = await interviewLogsByInterviewId(interviews);
   const tailoredResumesByUrl = await tailoredResumesForJobs({
@@ -777,11 +778,11 @@ function requireInterviewAccessUser(user, res) {
 }
 
 function isInternalUser(user) {
-  return ['admin', 'internal'].includes(user?.role);
+  return INTERNAL_DATA_ROLES.includes(user?.role);
 }
 
 function canAccessInterviews(user) {
-  return ['admin', 'internal', 'user', 'caller'].includes(user?.role);
+  return INTERVIEW_ACCESS_ROLES.includes(user?.role);
 }
 
 function requireCallerManagementUser(user, res) {
@@ -790,7 +791,7 @@ function requireCallerManagementUser(user, res) {
 }
 
 function canManageCallers(user) {
-  return !['bidder', 'readonly_bidder', 'editable_bidder', 'caller'].includes(user?.role);
+  return !CALLER_BLOCKED_ROLES.includes(user?.role);
 }
 
 async function bidUsersForProfile(profile) {
@@ -1130,7 +1131,7 @@ export async function createJobBid(req, res, next) {
     const now = new Date();
     const attrs = bidAttributesFromBody(req.body);
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
-    if (req.user?.role !== 'admin') delete attrs.callerUserId;
+    if (!isAdminRole(req.user)) delete attrs.callerUserId;
 
     const bid = await getJobBidModel().create({
       ...bidUpdateValuesFromAttrs(attrs),
@@ -1176,7 +1177,7 @@ export async function createManualInterview(req, res, next) {
 
     const attrs = bidAttributesFromBody({ ...req.body, status: 'interviewing' });
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
-    if (req.user?.role !== 'admin') delete attrs.callerUserId;
+    if (!isAdminRole(req.user)) delete attrs.callerUserId;
 
     const interview = await getInterviewModel().create({
       ...interviewValuesFromAttrs(attrs),
@@ -1501,7 +1502,7 @@ export async function updateJobBid(req, res, next) {
     }
     const attrs = bidAttributesFromBody(req.body);
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
-    if (req.user?.role !== 'admin') {
+    if (!isAdminRole(req.user)) {
       await accessibleProfile(req, bid.profileId);
       if (String(bid.userId) !== String(user.id)) {
         res.status(404).json({ error: 'Bid not found' });
@@ -1531,7 +1532,7 @@ export async function updateInterview(req, res, next) {
     }
     const attrs = bidAttributesFromBody({ ...req.body, status: req.body?.status || interview.status });
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
-    if (req.user?.role !== 'admin') {
+    if (!isAdminRole(req.user)) {
       await accessibleProfile(req, interview.profileId);
       if (String(interview.userId) !== String(user.id)) {
         res.status(404).json({ error: 'Interview not found' });
@@ -1555,7 +1556,7 @@ export async function updateInterview(req, res, next) {
 export async function deleteInterview(req, res, next) {
   try {
     await ensureWebModels();
-    if (req.user?.role !== 'admin') {
+    if (!isAdminRole(req.user)) {
       res.status(403).json({ error: 'Admin access is required' });
       return;
     }
