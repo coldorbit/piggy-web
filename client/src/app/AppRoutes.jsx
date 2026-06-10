@@ -7,6 +7,7 @@ import {
   RequireCallerManagement,
   RequireInterviewAccess,
   RequireMarketplaceAccess,
+  RequireSuperadmin,
 } from './routeGuards.jsx';
 
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
@@ -22,6 +23,7 @@ const JobsPage = lazy(() => import('../pages/JobsPage.jsx'));
 const MarketplacePage = lazy(() => import('../pages/MarketplacePage.jsx'));
 const PricingPage = lazy(() => import('../components/auth/PricingPage.jsx'));
 const ProfilesPage = lazy(() => import('../pages/ProfilesPage.jsx'));
+const TailoringRequestsPage = lazy(() => import('../pages/TailoringRequestsPage.jsx'));
 
 export function PublicRoutes() {
   return (
@@ -126,6 +128,14 @@ export function AuthenticatedRoutes({ user }) {
             <RequireAdmin user={user}>
               <AdminUsersPage currentUser={user} />
             </RequireAdmin>
+          }
+        />
+        <Route
+          path="/tailoring-requests"
+          element={
+            <RequireSuperadmin user={user}>
+              <TailoringRequestsPage currentUser={user} />
+            </RequireSuperadmin>
           }
         />
         <Route path="*" element={<Navigate to="/jobs" replace />} />

@@ -1,9 +1,15 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, isAdminRole } from '../lib/roles.js';
+import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, isAdminRole, isSuperadmin } from '../lib/roles.js';
 
 export function RequireAdmin({ user, children }) {
   const location = useLocation();
   if (!isAdminRole(user)) return <Navigate to="/jobs" replace state={{ from: location }} />;
+  return children;
+}
+
+export function RequireSuperadmin({ user, children }) {
+  const location = useLocation();
+  if (!isSuperadmin(user)) return <Navigate to="/jobs" replace state={{ from: location }} />;
   return children;
 }
 

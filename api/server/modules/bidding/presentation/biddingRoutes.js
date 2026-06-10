@@ -14,6 +14,7 @@ import {
   listBidJobs,
   listProfileShareRequests,
   listProfileShareRecipients,
+  listTailoringRequests,
   listProfiles,
   respondToProfileShare,
   shareProfile,
@@ -39,6 +40,7 @@ export function registerBidRoutes(app) {
   app.patch('/api/bid/profile-shares/:id', requireAuth, respondToProfileShare);
   app.get('/api/bid/tailored-resume-events', requireAuth, subscribeTailoredResumeEvents);
   app.get('/api/bid/jobs', requireAuth, listBidJobs);
+  app.get('/api/bid/tailoring-requests', requireAuth, listTailoringRequests);
   app.get('/api/bid/tailored-resumes/download', requireAuth, downloadTailoredResumesZip);
   app.get('/api/bid/tailored-resumes/:id/download', requireAuth, downloadTailoredResume);
   app.post('/api/bid/interviews/manual', requireAuth, createManualInterview);

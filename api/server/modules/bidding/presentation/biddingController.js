@@ -12,7 +12,7 @@ import {
   repositories,
 } from '../../../../db.js';
 import { Readable } from 'node:stream';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../../../env.js';
 import { hashPassword, publicUser } from '../../../../auth.js';
@@ -43,9 +43,10 @@ import { enqueueTailoredResumeRequest } from '../application/tailoringQueueServi
 import { userAttributesFromBody } from '../../admin/application/usersService.js';
 import { clean } from '../../../utils/index.js';
 import { handleInputError, handleUserWriteError, NotFoundError } from '../../../utils/errors.js';
-import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, INTERNAL_DATA_ROLES, INTERVIEW_ACCESS_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../../utils/roles.js';
+import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, INTERNAL_DATA_ROLES, INTERVIEW_ACCESS_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../../../utils/roles.js';
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
+const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'invalid'];
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -1099,6 +1100,117 @@ export async function createTailoredResume(req, res, next) {
   }
 }
 
+export async function listTailoringRequests(req, res, next) {
+  try {
+    await ensureWebModels();
+    if (!isSuperadmin(req.user)) {
+      res.status(403).json({ error: 'Superadmin access is required' });
+      return;
+    }
+
+    const sequelize = getSequelize();
+    const requestedStatus = clean(req.query?.status || 'all').toLowerCase();
+    const status = TAILORED_REQUEST_STATUSES.includes(requestedStatus) ? requestedStatus : 'all';
+    const search = clean(req.query?.search).toLowerCase();
+    const page = Math.max(1, Number(req.query?.page) || 1);
+    const limit = Math.max(1, Math.min(Number(req.query?.limit) || 50, 100));
+    const replacements = {
+      status,
+      searchPattern: `%${search}%`,
+      limit,
+      offset: (page - 1) * limit,
+    };
+    const whereSql = `
+      WHERE (:status = 'all' OR tailored_resumes.status = :status)
+        AND (
+          :searchPattern = '%%'
+          OR LOWER(COALESCE(scraped_jobs.title, '')) LIKE :searchPattern
+          OR LOWER(COALESCE(scraped_jobs.company, '')) LIKE :searchPattern
+          OR LOWER(COALESCE(scraped_jobs.location, '')) LIKE :searchPattern
+          OR LOWER(COALESCE(bid_profiles.name, '')) LIKE :searchPattern
+          OR LOWER(COALESCE(request_user.username, '')) LIKE :searchPattern
+          OR LOWER(COALESCE(owner_user.username, '')) LIKE :searchPattern
+          OR LOWER(COALESCE(tailored_resumes.job_url, '')) LIKE :searchPattern
+        )
+    `;
+
+    const requests = await sequelize.query(
+      `
+      SELECT
+        tailored_resumes.id,
+        tailored_resumes.user_id,
+        tailored_resumes.profile_id,
+        tailored_resumes.job_url,
+        tailored_resumes.status,
+        tailored_resumes.file_path,
+        tailored_resumes.ready_at,
+        tailored_resumes.attempts,
+        tailored_resumes.max_attempts,
+        tailored_resumes.last_error,
+        tailored_resumes.dead_letter_at,
+        tailored_resumes.downloaded_at,
+        tailored_resumes.created_at,
+        tailored_resumes.updated_at,
+        request_user.username AS requester_username,
+        bid_profiles.name AS profile_name,
+        bid_profiles.user_id AS profile_owner_user_id,
+        owner_user.username AS profile_owner_username,
+        scraped_jobs.id AS job_id,
+        scraped_jobs.title,
+        scraped_jobs.company,
+        scraped_jobs.location,
+        scraped_jobs.source,
+        scraped_jobs.posted_at,
+        scraped_jobs.scraped_at
+      FROM tailored_resumes
+      LEFT JOIN web_users request_user ON request_user.id = tailored_resumes.user_id
+      LEFT JOIN bid_profiles ON bid_profiles.id = tailored_resumes.profile_id
+      LEFT JOIN web_users owner_user ON owner_user.id = bid_profiles.user_id
+      LEFT JOIN scraped_jobs ON scraped_jobs.url = tailored_resumes.job_url
+      ${whereSql}
+      ORDER BY tailored_resumes.updated_at DESC
+      LIMIT :limit
+      OFFSET :offset
+      `,
+      { replacements, type: QueryTypes.SELECT },
+    );
+
+    const [totalRows, statusCounts] = await Promise.all([
+      sequelize.query(
+        `
+        SELECT COUNT(*)::int AS count
+        FROM tailored_resumes
+        LEFT JOIN web_users request_user ON request_user.id = tailored_resumes.user_id
+        LEFT JOIN bid_profiles ON bid_profiles.id = tailored_resumes.profile_id
+        LEFT JOIN web_users owner_user ON owner_user.id = bid_profiles.user_id
+        LEFT JOIN scraped_jobs ON scraped_jobs.url = tailored_resumes.job_url
+        ${whereSql}
+        `,
+        { replacements, type: QueryTypes.SELECT },
+      ),
+      sequelize.query(
+        `
+        SELECT status, COUNT(*)::int AS count
+        FROM tailored_resumes
+        GROUP BY status
+        ORDER BY status ASC
+        `,
+        { type: QueryTypes.SELECT },
+      ),
+    ]);
+
+    res.json({
+      requests: requests.map(formatTailoringRequest),
+      total: Number(totalRows[0]?.count || 0),
+      page,
+      limit,
+      statusCounts: Object.fromEntries(statusCounts.map((row) => [row.status, Number(row.count || 0)])),
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 export async function downloadTailoredResume(req, res, next) {
   try {
     await ensureWebModels();
@@ -1514,6 +1626,49 @@ function formatProfileShareRequest(row) {
     profile: row.profile ? formatProfile(row.profile) : null,
     owner: row.owner ? { id: row.owner.id, username: row.owner.username } : null,
     recipient: row.recipient ? { id: row.recipient.id, username: row.recipient.username } : null,
+  };
+}
+
+function formatTailoringRequest(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    profileId: row.profile_id,
+    jobUrl: row.job_url,
+    status: row.status,
+    filePath: row.file_path,
+    readyAt: row.ready_at,
+    attempts: row.attempts,
+    maxAttempts: row.max_attempts,
+    lastError: row.last_error,
+    deadLetterAt: row.dead_letter_at,
+    downloadedAt: row.downloaded_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    requester: row.user_id
+      ? {
+          id: row.user_id,
+          username: row.requester_username || 'Unknown user',
+        }
+      : null,
+    profile: row.profile_id
+      ? {
+          id: row.profile_id,
+          name: row.profile_name || 'Untitled profile',
+          ownerUserId: row.profile_owner_user_id,
+          ownerUsername: row.profile_owner_username || 'Unknown owner',
+        }
+      : null,
+    job: {
+      id: row.job_id,
+      title: row.title || 'Untitled role',
+      company: row.company || 'Unknown company',
+      location: row.location,
+      source: row.source,
+      postedAt: row.posted_at,
+      scrapedAt: row.scraped_at,
+      url: row.job_url,
+    },
   };
 }
 

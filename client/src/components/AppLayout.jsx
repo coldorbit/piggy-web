@@ -11,6 +11,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import PeopleIcon from '@mui/icons-material/People';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import SearchIcon from '@mui/icons-material/Search';
+import StyleIcon from '@mui/icons-material/Style';
 import WorkIcon from '@mui/icons-material/Work';
 import {
   AppBar,
@@ -33,7 +34,7 @@ import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout } from '../lib/authApi.js';
-import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, isAdminRole, roleLabel } from '../lib/roles.js';
+import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, isAdminRole, isSuperadmin, roleLabel } from '../lib/roles.js';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
@@ -55,6 +56,7 @@ export default function AppLayout({ user }) {
   const isInterviewRoute = location.pathname.startsWith('/interviews');
   const isMarketplaceRoute = location.pathname.startsWith('/marketplace');
   const isProfileRoute = location.pathname.startsWith('/profiles');
+  const isTailoringRoute = location.pathname.startsWith('/tailoring-requests');
   const [headerSearch, setHeaderSearch] = useState(EMPTY_HEADER_SEARCH);
   const headerSearchContext = useMemo(
     () => ({ search: headerSearch, setSearch: setHeaderSearch }),
@@ -71,9 +73,11 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminRoute ? 'Users' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminRoute
     ? 'Manage back-office accounts'
+    : isTailoringRoute
+      ? 'Review all resume tailoring activity'
     : isFaqRoute
       ? 'Browse answers and publish help content'
     : isBidderRoute
@@ -152,6 +156,9 @@ export default function AppLayout({ user }) {
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {!isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} /> : null}
+          {isSuperadmin(user) ? (
+            <NavItem to="/tailoring-requests" icon={<StyleIcon />} label="Tailoring" onNavigate={() => setMobileOpen(false)} />
+          ) : null}
           <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" onNavigate={() => setMobileOpen(false)} />
           {isAdminRole(user) ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" onNavigate={() => setMobileOpen(false)} />

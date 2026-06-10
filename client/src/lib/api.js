@@ -133,6 +133,15 @@ export function useBidders() {
   });
 }
 
+export function useTailoringRequests(filters = {}) {
+  const queryParams = new URLSearchParams(filters).toString();
+  return useQuery({
+    queryKey: ['bid', 'tailoring-requests', filters],
+    queryFn: () => api(`/api/bid/tailoring-requests${queryParams ? `?${queryParams}` : ''}`),
+    staleTime: 15_000,
+  });
+}
+
 export function useMarkJobSpam() {
   const queryClient = useQueryClient();
   return useMutation({
