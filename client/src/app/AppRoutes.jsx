@@ -6,6 +6,7 @@ import {
   RequireAdmin,
   RequireCallerManagement,
   RequireInterviewAccess,
+  RequireMarketplaceAccess,
 } from './routeGuards.jsx';
 
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
@@ -80,7 +81,11 @@ export function AuthenticatedRoutes({ user }) {
         />
         <Route
           path="/marketplace"
-          element={<MarketplacePage currentUser={user} />}
+          element={
+            <RequireMarketplaceAccess user={user}>
+              <MarketplacePage currentUser={user} />
+            </RequireMarketplaceAccess>
+          }
         />
         <Route
           path="/callers"

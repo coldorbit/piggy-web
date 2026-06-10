@@ -33,7 +33,7 @@ import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout } from '../lib/authApi.js';
-import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, ROLES, isAdminRole, roleLabel } from '../lib/roles.js';
+import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, isAdminRole, roleLabel } from '../lib/roles.js';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
@@ -61,6 +61,7 @@ export default function AppLayout({ user }) {
     [headerSearch],
   );
   const canAccessInterviews = INTERVIEW_ROLES.includes(user.role);
+  const canAccessMarketplace = MARKETPLACE_ACCESS_ROLES.includes(user.role);
   const canManageCallers = !CALLER_BLOCKED_ROLES.includes(user.role);
   const isCaller = user.role === 'caller';
 
@@ -144,7 +145,9 @@ export default function AppLayout({ user }) {
           {canAccessInterviews ? (
             <NavItem to="/calendar" icon={<CalendarMonthIcon />} label="Calendar" onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          <NavItem to="/marketplace" icon={<HandshakeIcon />} label="Marketplace" onNavigate={() => setMobileOpen(false)} />
+          {canAccessMarketplace ? (
+            <NavItem to="/marketplace" icon={<HandshakeIcon />} label="Marketplace" onNavigate={() => setMobileOpen(false)} />
+          ) : null}
           {canManageCallers ? (
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
           ) : null}

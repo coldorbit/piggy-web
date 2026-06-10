@@ -11,6 +11,7 @@ export const ROLES = {
 
 export const ADMIN_ROLES = [ROLES.superadmin, ROLES.admin];
 export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user];
+export const MARKETPLACE_ACCESS_ROLES = PRIVILEGED_USER_ROLES;
 export const INTERVIEW_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal, ROLES.user, ROLES.caller];
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
 export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller];

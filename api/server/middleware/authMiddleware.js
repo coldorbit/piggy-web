@@ -1,5 +1,5 @@
 import { readValidSession } from '../../auth.js';
-import { isAdminRole } from '../utils/roles.js';
+import { MARKETPLACE_ACCESS_ROLES, isAdminRole } from '../utils/roles.js';
 
 export async function requireAuth(req, res, next) {
   try {
@@ -19,6 +19,16 @@ export function requireAdmin(req, res, next) {
   requireAuth(req, res, () => {
     if (!isAdminRole(req.user)) {
       res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireMarketplaceAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!MARKETPLACE_ACCESS_ROLES.includes(req.user?.role)) {
+      res.status(403).json({ error: 'Marketplace access requires a user or admin role' });
       return;
     }
     next();
