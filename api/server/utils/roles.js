@@ -22,7 +22,7 @@ export const VALID_USER_ROLES = [
 
 export const ADMIN_ROLES = [ROLES.superadmin, ROLES.admin];
 export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user];
-export const MARKETPLACE_ACCESS_ROLES = PRIVILEGED_USER_ROLES;
+export const MARKETPLACE_ACCESS_ROLES = ADMIN_ROLES;
 export const INTERVIEW_ACCESS_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal, ROLES.user, ROLES.caller];
 export const INTERNAL_DATA_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal];
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
