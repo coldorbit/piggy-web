@@ -99,9 +99,9 @@ export default function AppLayout({ user }) {
     <>
       <Toolbar
         sx={{
-          minHeight: 84,
-          gap: 1.25,
-          px: 2,
+          minHeight: 68,
+          gap: 1,
+          px: 1.5,
           borderBottom: 1,
           borderColor: shellLine,
           bgcolor: '#ffffff',
@@ -109,8 +109,8 @@ export default function AppLayout({ user }) {
       >
         <Box
           sx={{
-            width: 46,
-            height: 46,
+            width: 38,
+            height: 38,
             display: 'grid',
             placeItems: 'center',
             border: 1,
@@ -124,7 +124,7 @@ export default function AppLayout({ user }) {
             src="/assets/applypilot-logo.png"
             alt="ApplyPilot logo"
             variant="rounded"
-            sx={{ width: 32, height: 32, bgcolor: 'background.paper', borderRadius: 1.5 }}
+            sx={{ width: 26, height: 26, bgcolor: 'background.paper', borderRadius: 1.25 }}
           />
         </Box>
         <Box minWidth={0}>
@@ -136,8 +136,8 @@ export default function AppLayout({ user }) {
           </Typography>
         </Box>
       </Toolbar>
-      <Box sx={{ px: 1.25, py: 1.25 }}>
-        <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.5 }}>
+      <Box sx={{ px: 1, py: 1 }}>
+        <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.35 }}>
           {!isCaller ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller ? <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
@@ -165,13 +165,13 @@ export default function AppLayout({ user }) {
           ) : null}
         </List>
       </Box>
-      <Box sx={{ mt: 'auto', p: 1.5 }}>
+      <Box sx={{ mt: 'auto', p: 1 }}>
         <Box
           sx={{
             border: 1,
             borderColor: shellLine,
             borderRadius: 1,
-            p: 1.25,
+            p: 1,
             bgcolor: '#F8FAFC',
           }}
         >
@@ -234,11 +234,11 @@ export default function AppLayout({ user }) {
         >
           <Toolbar
             sx={{
-              minHeight: 76,
+              minHeight: 60,
               justifyContent: 'space-between',
-              gap: { xs: 1, sm: 2 },
-              px: { xs: 1.5, sm: 2.5 },
-              py: { xs: headerSearch.isVisible ? 1 : 0, sm: 0 },
+              gap: { xs: 0.75, sm: 1.5 },
+              px: { xs: 1.25, sm: 2 },
+              py: { xs: headerSearch.isVisible ? 0.75 : 0, sm: 0 },
               flexWrap: { xs: 'wrap', sm: 'nowrap' },
             }}
           >
@@ -315,7 +315,7 @@ export default function AppLayout({ user }) {
             width: '100%',
             maxWidth: 1680,
             mx: 'auto',
-            p: { xs: 1.25, sm: 2, xl: 3 },
+            p: { xs: 1, sm: 1.5, xl: 2 },
             minWidth: 0,
             minHeight: 0,
             flex: 1,
@@ -338,7 +338,7 @@ function NavItem({ icon, label, onNavigate, to }) {
       to={to}
       onClick={onNavigate}
       sx={{
-        minHeight: 46,
+        minHeight: 38,
         borderRadius: 1,
         border: 1,
         borderColor: 'transparent',
@@ -360,8 +360,8 @@ function NavItem({ icon, label, onNavigate, to }) {
         },
       }}
     >
-      <ListItemIcon sx={{ minWidth: 38 }}>{icon}</ListItemIcon>
-      <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 700 }} />
-    </ListItemButton>
+    <ListItemIcon sx={{ minWidth: 32, '& .MuiSvgIcon-root': { fontSize: 20 } }}>{icon}</ListItemIcon>
+    <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 700, fontSize: 13 }} />
+  </ListItemButton>
   );
 }
