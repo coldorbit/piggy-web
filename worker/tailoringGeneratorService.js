@@ -109,7 +109,7 @@ ATS optimization rules:
 - Prefer exact terms from the job description over synonyms or abbreviations unless the posting itself uses the abbreviation.
 - Use standard resume section concepts only: Summary, Core Skills, Work Experience, Education, Skills.
 - Use plain text content only: no icons, emojis, decorative symbols, tables, columns, headers, footers, or graphics.
-- Use consistent date formatting everywhere: "Month Year" or "Present" for current roles.
+- Use consistent date formatting everywhere: "MMM yyyy" for dates, such as "Jan 2024" or "Sep 2022", and "Present" for current roles. Do not use full month names like "January 2024".
 - Preserve the provided LinkedIn profile as an actual URL in "linkedin_profile". If the profile includes any LinkedIn value, you MUST include it in "linkedin_profile" using the display format "linkedin.com/in/profile-slug". If no LinkedIn profile is provided, leave it blank. Never invent a LinkedIn URL.
 - Normalize noisy target job titles before setting the top-level "role": remove locations, remote/hybrid tags, agency/recruiter names, team names, department labels, requisition IDs, contract labels, and parenthetical clutter. Keep the plain role name commonly used in job postings, such as "Software Engineer", "Senior Data Engineer", or "Product Manager".
 
