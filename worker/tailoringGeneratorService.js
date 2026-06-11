@@ -110,7 +110,7 @@ ATS optimization rules:
 - Use standard resume section concepts only: Summary, Core Skills, Work Experience, Education, Skills.
 - Use plain text content only: no icons, emojis, decorative symbols, tables, columns, headers, footers, or graphics.
 - Use consistent date formatting everywhere: "Month Year" or "Present" for current roles.
-- Preserve the provided LinkedIn profile as an actual URL in "linkedin_profile". Use the display format "linkedin.com/in/profile-slug". If no LinkedIn profile is provided, leave it blank. Never invent a LinkedIn URL.
+- Preserve the provided LinkedIn profile as an actual URL in "linkedin_profile". If the profile includes any LinkedIn value, you MUST include it in "linkedin_profile" using the display format "linkedin.com/in/profile-slug". If no LinkedIn profile is provided, leave it blank. Never invent a LinkedIn URL.
 - Normalize noisy target job titles before setting the top-level "role": remove locations, remote/hybrid tags, agency/recruiter names, team names, department labels, requisition IDs, contract labels, and parenthetical clutter. Keep the plain role name commonly used in job postings, such as "Software Engineer", "Senior Data Engineer", or "Product Manager".
 
 Instructions:
@@ -119,7 +119,8 @@ Instructions:
 - Produce work_experience entries for each company in the profile.
 - Never modify existing role titles/positions for companies in the profile; preserve provided titles exactly when available.
 - Use achievement bullets of 20-30 words each.
-- Include metrics such as counts, quantities, time reductions, performance, speed, accuracy, or financial impact when reasonable.
+- Use metrics sparingly and only when plausible. Prefer concrete counts, scale, scope, latency, throughput, team size, systems, users, data volume, or time saved over percentage claims.
+- Do not overload work_experience bullets with percentages. Use at most one percentage-style metric per role unless the profile explicitly provides more, because unverifiable percentage claims can look fabricated.
 - Include a single-string "tech" field per work experience and an overall "core_skills" string. Each work_experience "tech" field must contain only technologies valid for that role's dates and context.
 - Select 6 exact core skills highly relevant to the job description, using exact job-posting language where possible.
 - Summary must be exactly 4 lines and 65 to 70 words.
@@ -315,7 +316,7 @@ function contactParagraph(profile, data) {
     runs.push(new TextRun({ text: String(value), size: 20 }));
   }
 
-  const linkedin = normalizedLinkedInUrl(profile.linkedin || data.linkedin_profile);
+  const linkedin = normalizedLinkedInUrl(profile.linkedin || data.linkedin_profile || linkedinFromProfileResume(profile.resumeText));
   if (linkedin) {
     addContactSeparator(runs);
     runs.push(
@@ -337,6 +338,11 @@ function contactParagraph(profile, data) {
 
 function addContactSeparator(runs) {
   if (runs.length) runs.push(new TextRun({ text: ' | ', size: 20 }));
+}
+
+function linkedinFromProfileResume(value) {
+  const match = String(value || '').match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[A-Za-z0-9_%.-]+\/?/i);
+  return match?.[0] || '';
 }
 
 function normalizedLinkedInUrl(value) {
