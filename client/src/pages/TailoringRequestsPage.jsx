@@ -39,18 +39,28 @@ const statusOptions = [
 
 export default function TailoringRequestsPage() {
   const [status, setStatus] = useState('all');
+  const [profileId, setProfileId] = useState('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
-  const filters = useMemo(() => ({ status, search, page: page + 1, limit: rowsPerPage }), [page, rowsPerPage, search, status]);
+  const filters = useMemo(
+    () => ({ status, profileId, search, page: page + 1, limit: rowsPerPage }),
+    [page, profileId, rowsPerPage, search, status],
+  );
   const { data, isFetching, isLoading, error, refetch } = useTailoringRequests(filters);
   const requests = data?.requests || [];
   const statusCounts = data?.statusCounts || {};
+  const profileOptions = data?.profiles || [];
   const totalCount = Object.values(statusCounts).reduce((sum, count) => sum + Number(count || 0), 0);
   const filteredCount = Number(data?.total || 0);
 
   function handleStatusChange(nextStatus) {
     setStatus(nextStatus);
+    setPage(0);
+  }
+
+  function handleProfileChange(nextProfileId) {
+    setProfileId(nextProfileId);
     setPage(0);
   }
 
@@ -76,6 +86,21 @@ export default function TailoringRequestsPage() {
             {statusOptions.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Profile"
+            size="small"
+            value={profileId}
+            onChange={(event) => handleProfileChange(event.target.value)}
+            sx={{ width: { xs: '100%', sm: 260 } }}
+          >
+            <MenuItem value="all">All profiles</MenuItem>
+            {profileOptions.map((profile) => (
+              <MenuItem key={profile.id || 'unknown'} value={String(profile.id || '')}>
+                {profile.name} ({Number(profile.count || 0).toLocaleString()})
               </MenuItem>
             ))}
           </TextField>

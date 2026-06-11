@@ -1113,17 +1113,20 @@ export async function listTailoringRequests(req, res, next) {
     const sequelize = getSequelize();
     const requestedStatus = clean(req.query?.status || 'all').toLowerCase();
     const status = TAILORED_REQUEST_STATUSES.includes(requestedStatus) ? requestedStatus : 'all';
+    const profileId = clean(req.query?.profileId || 'all');
     const search = clean(req.query?.search).toLowerCase();
     const page = Math.max(1, Number(req.query?.page) || 1);
     const limit = Math.max(1, Math.min(Number(req.query?.limit) || 50, 100));
     const replacements = {
       status,
+      profileId,
       searchPattern: `%${search}%`,
       limit,
       offset: (page - 1) * limit,
     };
     const whereSql = `
       WHERE (:status = 'all' OR tailored_resumes.status = :status)
+        AND (:profileId = 'all' OR tailored_resumes.profile_id::text = :profileId)
         AND (
           :searchPattern = '%%'
           OR LOWER(COALESCE(scraped_jobs.title, '')) LIKE :searchPattern
@@ -1177,7 +1180,7 @@ export async function listTailoringRequests(req, res, next) {
       { replacements, type: QueryTypes.SELECT },
     );
 
-    const [totalRows, statusCounts] = await Promise.all([
+    const [totalRows, statusCounts, profileRows] = await Promise.all([
       sequelize.query(
         `
         SELECT COUNT(*)::int AS count
@@ -1199,6 +1202,21 @@ export async function listTailoringRequests(req, res, next) {
         `,
         { type: QueryTypes.SELECT },
       ),
+      sequelize.query(
+        `
+        SELECT
+          tailored_resumes.profile_id AS id,
+          COALESCE(bid_profiles.name, 'Unknown profile') AS name,
+          COALESCE(owner_user.username, 'Unknown owner') AS owner_username,
+          COUNT(*)::int AS count
+        FROM tailored_resumes
+        LEFT JOIN bid_profiles ON bid_profiles.id = tailored_resumes.profile_id
+        LEFT JOIN web_users owner_user ON owner_user.id = bid_profiles.user_id
+        GROUP BY tailored_resumes.profile_id, bid_profiles.name, owner_user.username
+        ORDER BY COALESCE(bid_profiles.name, 'Unknown profile') ASC, tailored_resumes.profile_id ASC
+        `,
+        { type: QueryTypes.SELECT },
+      ),
     ]);
 
     res.json({
@@ -1207,6 +1225,12 @@ export async function listTailoringRequests(req, res, next) {
       page,
       limit,
       statusCounts: Object.fromEntries(statusCounts.map((row) => [row.status, Number(row.count || 0)])),
+      profiles: profileRows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        ownerUsername: row.owner_username,
+        count: Number(row.count || 0),
+      })),
     });
   } catch (error) {
     handleInputError(error, res, next);
