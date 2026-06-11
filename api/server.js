@@ -3,7 +3,7 @@ import http from 'node:http';
 import { ensureWebModels } from './db.js';
 import { ENV } from './env.js';
 import { requestLogger } from './server/middleware/requestLogger.js';
-import { registerApiRoutes, startModuleWorkers } from './server/modules/index.js';
+import { registerApiRoutes } from './server/modules/index.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -38,7 +38,6 @@ app.use((error, _req, res, _next) => {
 });
 
 await ensureWebModels();
-startModuleWorkers();
 
 const port = ENV.WEB_PORT;
 server.listen(port, '0.0.0.0', () => {

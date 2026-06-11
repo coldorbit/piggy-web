@@ -1,0 +1,22 @@
+{
+  "name": "applypilot-tailoring-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SQS worker for ApplyPilot tailored resume generation.",
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "node tailoringWorker.js",
+    "start": "NODE_ENV=production node tailoringWorker.js",
+    "check": "node --check env.js && node --check errors.js && node --check db.js && node --check db/connection.js && node --check db/models/bidProfile.js && node --check db/models/scrapedJob.js && node --check db/models/tailoredResume.js && node --check db/models/index.js && node --check tailoringWorker.js && node --check tailoringGeneratorService.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1054.0",
+    "@aws-sdk/client-sqs": "^3.1054.0",
+    "dotenv": "^16.4.7",
+    "openai": "^5.5.1",
+    "pdfkit": "^0.15.2",
+    "pg": "^8.21.0",
+    "sequelize": "^6.37.8"
+  }
+}

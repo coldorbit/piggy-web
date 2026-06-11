@@ -1,29 +1,15 @@
-import { EventEmitter } from 'node:events';
-import {
-  DeleteMessageCommand,
-  ReceiveMessageCommand,
-  SendMessageCommand,
-  SQSClient,
-} from '@aws-sdk/client-sqs';
+import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
 import { Op } from 'sequelize';
 import {
   ensureWebModels,
-  getBidProfileModel,
-  getScrapedJobModel,
   getTailoredResumeModel,
   repositories,
 } from '../../../../db.js';
 import { ENV } from '../../../../env.js';
-import { formatTailoredResume, generateTailoredResumeWithService } from './biddingService.js';
+import { formatTailoredResume } from './biddingService.js';
 
-const events = new EventEmitter();
-const MAX_ATTEMPTS = 3;
-const TAILORING_CONCURRENCY = 4;
-const MAX_MESSAGES_PER_POLL = 4;
-const RECEIVE_WAIT_TIME_SECONDS = 20;
-const VISIBILITY_TIMEOUT_SECONDS = 10 * 60;
 const MAX_SQS_DELAY_SECONDS = 15 * 60;
-let workerStarted = false;
+const EVENT_POLL_INTERVAL_MS = 5000;
 let sqsClient;
 
 export async function enqueueTailoredResumeRequest({ tailoredResumeId, delaySeconds = 0 }) {
@@ -41,16 +27,6 @@ export async function enqueueTailoredResumeRequest({ tailoredResumeId, delaySeco
       }),
     }),
   );
-}
-
-export function startTailoringQueueWorker() {
-  if (workerStarted) return;
-  workerStarted = true;
-  if (!ENV.TAILORING_QUEUE_URL) {
-    console.warn('TAILORING_QUEUE_URL is not set; tailored resume SQS worker is disabled.');
-    return;
-  }
-  void runTailoringQueueWorker();
 }
 
 export async function subscribeTailoredResumeEvents(req, res, next) {
@@ -77,183 +53,50 @@ export async function subscribeTailoredResumeEvents(req, res, next) {
   });
   res.write('event: ready\ndata: {}\n\n');
 
-  const onUpdate = (payload) => {
-    if (String(payload.userId) !== String(userId)) return;
-    if (profileId && String(payload.profileId) !== profileId) return;
-    res.write(`event: tailored-resume\ndata: ${JSON.stringify(payload)}\n\n`);
+  let lastSeenAt = new Date(Date.now() - 1000);
+  let closed = false;
+
+  const poll = async () => {
+    if (closed) return;
+    try {
+      const updates = await recentTailoredResumeUpdates({ userId, profileId, lastSeenAt });
+      for (const tailoredResume of updates) {
+        res.write(`event: tailored-resume\ndata: ${JSON.stringify({
+          tailoredResume: formatTailoredResume(tailoredResume),
+          userId: tailoredResume.userId,
+          profileId: tailoredResume.profileId,
+        })}\n\n`);
+        lastSeenAt = maxDate(lastSeenAt, tailoredResume.updatedAt);
+      }
+    } catch (error) {
+      console.error('Tailored resume event poll failed:', error);
+    }
   };
 
+  await poll();
+
+  const pollInterval = setInterval(poll, EVENT_POLL_INTERVAL_MS);
   const heartbeat = setInterval(() => {
     res.write(': heartbeat\n\n');
   }, 30000);
 
-  events.on('tailored-resume', onUpdate);
   req.on('close', () => {
+    closed = true;
+    clearInterval(pollInterval);
     clearInterval(heartbeat);
-    events.off('tailored-resume', onUpdate);
     res.end();
   });
 }
 
-async function runTailoringQueueWorker() {
-  console.log(`Tailoring SQS worker started with concurrency ${TAILORING_CONCURRENCY}.`);
-  const inFlightMessages = new Set();
-
-  while (true) {
-    try {
-      await ensureWebModels();
-      while (inFlightMessages.size >= TAILORING_CONCURRENCY) {
-        await waitForInFlightMessage(inFlightMessages);
-      }
-
-      const messageCapacity = TAILORING_CONCURRENCY - inFlightMessages.size;
-      const response = await getSqsClient().send(
-        new ReceiveMessageCommand({
-          QueueUrl: ENV.TAILORING_QUEUE_URL,
-          MaxNumberOfMessages: Math.min(MAX_MESSAGES_PER_POLL, messageCapacity),
-          WaitTimeSeconds: RECEIVE_WAIT_TIME_SECONDS,
-          VisibilityTimeout: VISIBILITY_TIMEOUT_SECONDS,
-        }),
-      );
-
-      for (const message of response.Messages || []) {
-        let messageTask;
-        messageTask = processQueueMessage(message)
-          .catch((error) => {
-            console.error('Tailoring SQS message failed:', {
-              messageId: message.MessageId || 'unknown',
-              error,
-            });
-          })
-          .finally(() => {
-            inFlightMessages.delete(messageTask);
-          });
-        inFlightMessages.add(messageTask);
-      }
-    } catch (error) {
-      console.error('Tailoring SQS worker failed:', error);
-      await sleep(5000);
-    }
-  }
-}
-
-async function waitForInFlightMessage(inFlightMessages) {
-  if (!inFlightMessages.size) return;
-  await Promise.race(inFlightMessages);
-}
-
-async function processQueueMessage(message) {
-  const receiptHandle = message.ReceiptHandle;
-  if (!receiptHandle) return;
-
-  const tailoredResumeId = parseTailoredResumeId(message.Body);
-  if (!tailoredResumeId) {
-    console.warn('Deleting invalid tailored resume SQS message:', message.MessageId || 'unknown');
-    await deleteQueueMessage(receiptHandle);
-    return;
-  }
-
-  const tailoredResume = await claimTailoringJob(tailoredResumeId);
-  if (!tailoredResume) {
-    await deleteQueueMessage(receiptHandle);
-    return;
-  }
-
-  await processTailoredResume(tailoredResume);
-  await deleteQueueMessage(receiptHandle);
-}
-
-async function claimTailoringJob(tailoredResumeId) {
-  const TailoredResume = getTailoredResumeModel();
-  const tailoredResume = await TailoredResume.findByPk(tailoredResumeId);
-  if (!tailoredResume) return null;
-  if (tailoredResume.status === 'ready' || tailoredResume.status === 'dead_letter') return null;
-
-  const attempts = Number(tailoredResume.attempts || 0);
-  const staleProcessingBefore = new Date(Date.now() - VISIBILITY_TIMEOUT_SECONDS * 1000);
-  const [claimedCount] = await TailoredResume.update(
-    {
-      status: 'processing',
-      attempts: attempts + 1,
-      maxAttempts: tailoredResume.maxAttempts || MAX_ATTEMPTS,
+async function recentTailoredResumeUpdates({ userId, profileId, lastSeenAt }) {
+  return getTailoredResumeModel().findAll({
+    where: {
+      userId,
+      updatedAt: { [Op.gt]: lastSeenAt },
+      ...(profileId ? { profileId } : {}),
     },
-    {
-      where: {
-        id: tailoredResumeId,
-        attempts,
-        [Op.or]: [
-          { status: 'requested' },
-          {
-            status: 'processing',
-            updatedAt: { [Op.lte]: staleProcessingBefore },
-          },
-        ],
-      },
-    },
-  );
-
-  if (!claimedCount) return null;
-  await tailoredResume.reload();
-
-  return tailoredResume;
-}
-
-async function processTailoredResume(tailoredResume) {
-  try {
-    const [job, profile] = await Promise.all([
-      getScrapedJobModel().findOne({ where: { url: tailoredResume.jobUrl } }),
-      getBidProfileModel().findByPk(tailoredResume.profileId),
-    ]);
-
-    if (!job) throw new Error('Job not found for tailoring request');
-    if (!profile) throw new Error('Profile not found for tailoring request');
-
-    const tailorResult = await generateTailoredResumeWithService({ job, profile, tailoredResume });
-    await tailoredResume.update({
-      status: 'ready',
-      filePath: tailorResult.s3Key,
-      readyAt: new Date(),
-      lastError: null,
-      deadLetterAt: null,
-    });
-  } catch (error) {
-    await failTailoredResume(tailoredResume, error);
-  }
-
-  emitTailoredResumeEvent(tailoredResume);
-}
-
-async function failTailoredResume(tailoredResume, error) {
-  const attempts = Number(tailoredResume.attempts || 0);
-  const maxAttempts = Number(tailoredResume.maxAttempts || MAX_ATTEMPTS);
-  const lastError = error.message || 'Tailoring service failed';
-  const exhausted = attempts >= maxAttempts;
-  const retryAt = exhausted ? null : nextRetryDate(attempts);
-
-  console.error(`Tailoring request ${tailoredResume.id} failed on attempt ${attempts}/${maxAttempts}: ${lastError}`);
-
-  await tailoredResume.update({
-    status: exhausted ? 'dead_letter' : 'requested',
-    lastError,
-    deadLetterAt: exhausted ? new Date() : null,
-  });
-
-  if (retryAt) {
-    const delaySeconds = Math.ceil((retryAt.getTime() - Date.now()) / 1000);
-    await enqueueTailoredResumeRequest({ tailoredResumeId: tailoredResume.id, delaySeconds });
-  }
-}
-
-function nextRetryDate(attempts) {
-  const backoffSeconds = Math.min(2 ** Math.max(attempts - 1, 0) * 60, 15 * 60);
-  return new Date(Date.now() + backoffSeconds * 1000);
-}
-
-function emitTailoredResumeEvent(tailoredResume) {
-  events.emit('tailored-resume', {
-    tailoredResume: formatTailoredResume(tailoredResume),
-    userId: tailoredResume.userId,
-    profileId: tailoredResume.profileId,
+    order: [['updatedAt', 'ASC']],
+    limit: 50,
   });
 }
 
@@ -266,30 +109,12 @@ function getSqsClient() {
   return sqsClient;
 }
 
-async function deleteQueueMessage(receiptHandle) {
-  await getSqsClient().send(
-    new DeleteMessageCommand({
-      QueueUrl: ENV.TAILORING_QUEUE_URL,
-      ReceiptHandle: receiptHandle,
-    }),
-  );
-}
-
-function parseTailoredResumeId(body) {
-  try {
-    const payload = JSON.parse(body || '{}');
-    return payload.tailoredResumeId ? String(payload.tailoredResumeId) : '';
-  } catch {
-    return '';
-  }
-}
-
 function clampDelaySeconds(value) {
   return Math.max(0, Math.min(Number(value) || 0, MAX_SQS_DELAY_SECONDS));
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+function maxDate(left, right) {
+  const leftDate = left instanceof Date ? left : new Date(left);
+  const rightDate = right instanceof Date ? right : new Date(right);
+  return rightDate > leftDate ? rightDate : leftDate;
 }

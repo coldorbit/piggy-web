@@ -2,7 +2,7 @@
   "name": "applypilot",
   "version": "1.0.0",
   "private": true,
-  "description": "ApplyPilot web workspace with separate React client and Express API apps.",
+  "description": "ApplyPilot web workspace with separate React client, Express API, and tailoring worker apps.",
   "type": "module",
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -13,6 +13,7 @@
   },
   "workspaces": [
     "api",
-    "client"
+    "client",
+    "worker"
   ]
 }

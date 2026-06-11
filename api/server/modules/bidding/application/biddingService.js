@@ -1,8 +1,5 @@
 import { Op, Sequelize } from 'sequelize';
-import axios from 'axios';
-import { ENV } from '../../../../env.js';
 import { formatJob } from '../../jobs/application/jobsService.js';
-import { InputError } from '../../../utils/errors.js';
 import { clean } from '../../../utils/index.js';
 
 const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
@@ -129,66 +126,6 @@ export function formatTailoredResume(row) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
-}
-
-export async function generateTailoredResumeWithService({ job, profile, tailoredResume = null }) {
-  try {
-    const response = await axios.post(
-      `${ENV.TAILOR_SERVICE_URL.replace(/\/+$/, '')}/api/generate`,
-      {
-        jobDescription: buildTailorJobDescription(job),
-        profileResume: profile.resumeText || '',
-        profile: profileForTailorService(profile),
-        tailoredResumeId: tailoredResume?.id,
-        userId: tailoredResume?.userId,
-        profileId: profile.id,
-        jobUrl: job.url,
-      },
-      {
-        headers: { 'content-type': 'application/json' },
-        timeout: 180000,
-      },
-    );
-    const data = response.data || {};
-    if (!data.s3Key) {
-      throw new InputError('Tailor service did not return an S3 resume key');
-    }
-    return data;
-  } catch (error) {
-    if (error.code === 'ECONNABORTED') {
-      throw new InputError('Tailor service timed out while generating the resume');
-    }
-    if (error.response) {
-      throw new InputError(error.response.data?.error || `Tailor service failed with ${error.response.status}`);
-    }
-    throw error;
-  }
-}
-
-function profileForTailorService(profile) {
-  return {
-    id: profile.id,
-    name: profile.name,
-    location: profile.location || '',
-    phone: profile.phone || '',
-    email: profile.email || '',
-    linkedin: profile.linkedin || '',
-    years_of_experience: profile.yearsOfExperience || '',
-    resume_text: profile.resumeText || '',
-  };
-}
-
-function buildTailorJobDescription(job) {
-  const parts = [
-    job.title ? `Title: ${job.title}` : '',
-    job.company ? `Company: ${job.company}` : '',
-    job.location ? `Location: ${job.location}` : '',
-    job.listingText || '',
-  ].filter(Boolean);
-
-  if (parts.length) return parts.join('\n\n');
-  if (job.rawJob) return typeof job.rawJob === 'string' ? job.rawJob : JSON.stringify(job.rawJob, null, 2);
-  return [job.title, job.company, job.location].filter(Boolean).join(' - ');
 }
 
 export async function tailoredResumesForJobs({ TailoredResume, jobs, profileId }) {

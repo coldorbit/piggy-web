@@ -13,12 +13,33 @@ services:
       WEB_USERS: ${WEB_USERS:-}
       WEB_USERNAME: ${WEB_USERNAME}
       WEB_PASSWORD: ${WEB_PASSWORD}
-      TAILOR_SERVICE_URL: ${TAILOR_SERVICE_URL:-http://resume-tailor:5000}
       AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
       AWS_SQS_ENDPOINT: ${AWS_SQS_ENDPOINT:-}
       TAILORING_QUEUE_URL: ${TAILORING_QUEUE_URL:-}
     ports:
       - 0.0.0.0:${API_PORT:-4000}:4000
+    init: true
+
+  worker:
+    build:
+      context: ./worker
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_SSL: ${DATABASE_SSL:-false}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-300}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_SQS_ENDPOINT: ${AWS_SQS_ENDPOINT:-}
+      TAILORING_QUEUE_URL: ${TAILORING_QUEUE_URL:-}
+      TAILORING_CONCURRENCY: ${TAILORING_CONCURRENCY:-4}
+      TAILORING_MAX_ATTEMPTS: ${TAILORING_MAX_ATTEMPTS:-3}
+      TAILORING_VISIBILITY_TIMEOUT_SECONDS: ${TAILORING_VISIBILITY_TIMEOUT_SECONDS:-600}
+    depends_on:
+      - api
     init: true
 
   client:

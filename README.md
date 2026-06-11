@@ -3,7 +3,8 @@
 ApplyPilot is split into two dedicated apps:
 
 - `client/`: React + Vite browser app.
-- `api/`: Express API and database layer.
+- `api/`: Express API, database layer, SQS publisher, and resume download endpoints.
+- `worker/`: SQS consumer for tailored resume generation.
 
 Each directory has its own `package.json`, Dockerfile, README, and `.env.example`, so either app can be moved into a separate repository.
 
@@ -45,13 +46,18 @@ WEB_SESSION_SECRET=change-me
 WEB_USERNAME=admin@example.com
 WEB_PASSWORD=change-me
 
-TAILOR_SERVICE_URL=http://localhost:5000
 AWS_REGION=us-east-1
 AWS_S3_BUCKET=your-private-resume-bucket
 TAILORING_QUEUE_URL=
+
+# Worker-only values.
+OPENAI_API_KEY=sk-your-api-key-here
+OPENAI_TIMEOUT_SECONDS=300
+OPENAI_MODEL=gpt-5-mini
+TAILORING_CONCURRENCY=4
 ```
 
-For API-only development, use `api/.env`. For client-only development, use `client/.env` with `VITE_API_BASE_URL`.
+For API-only development, use `api/.env`. For worker-only development, use `worker/.env`. For client-only development, use `client/.env` with `VITE_API_BASE_URL`.
 
 ## Build
 
@@ -68,10 +74,10 @@ pnpm check
 docker compose up --build
 ```
 
-The compose file runs `api` and `client` as separate services.
+The compose file runs `api`, `worker`, and `client` as separate services.
 It also starts a local Postgres service using `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from `.env`.
 
-Tailored resume generation uses AWS SQS, and resume downloads use private S3. Set `TAILORING_QUEUE_URL` and `AWS_S3_BUCKET` in `.env`; set `AWS_SQS_ENDPOINT` too when using LocalStack or another SQS-compatible local endpoint.
+Tailored resume generation runs in the separate SQS worker using OpenAI, and resume downloads use private S3 through the API. Set `TAILORING_QUEUE_URL` and `AWS_S3_BUCKET` for both API and worker. Set `OPENAI_API_KEY` only on the worker host. Set `AWS_SQS_ENDPOINT` too when using LocalStack or another SQS-compatible local endpoint.
 
 ## Split Repository Notes
 
@@ -79,11 +85,12 @@ To split into multiple repositories:
 
 1. Move `web/client` into a new React client repository.
 2. Move `web/api` into a new Express API repository.
-3. Configure `client/.env` with the deployed API URL:
+3. Move `web/worker` into a worker repository, or keep `worker/` in the same deployment repository and build `worker/Dockerfile`.
+4. Configure `client/.env` with the deployed API URL:
    ```bash
    VITE_API_BASE_URL=https://api.example.com
    ```
-4. Configure API CORS:
+5. Configure API CORS:
    ```bash
    CLIENT_ORIGIN=https://app.example.com
    CORS_ORIGINS=https://app.example.com
