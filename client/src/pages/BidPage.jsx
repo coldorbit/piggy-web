@@ -264,7 +264,7 @@ export default function BidPage({ currentUser }) {
       activeColor,
       activeProfileId: activeProfile?.id || '',
       activeTab: activeBidTab,
-      currentUser: bidJobsData?.currentUser || currentUser,
+      currentUser: { ...(currentUser || {}), ...(bidJobsData?.currentUser || {}) },
       draftsForJob: draftFor,
       isSaving: creatingBid || updatingBid,
       isUpdatingLinkedInJob: updatingLinkedInExternalUrl,

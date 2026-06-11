@@ -656,7 +656,7 @@ export async function listBidJobs(req, res, next) {
       jobs: pagedJobs,
       bidUsers,
       callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
-      currentUser: { id: user.id, username: user.username },
+      currentUser: { id: user.id, username: user.username, role: user.role },
       total: groupedJobs.length,
       tabCounts: {
         todo: todoCount,
@@ -787,7 +787,7 @@ async function listInterviewJobs(req, res, { user, profile }) {
     }),
     bidUsers,
     callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
-    currentUser: { id: user.id, username: user.username },
+    currentUser: { id: user.id, username: user.username, role: user.role },
     total: count,
     tabCounts: {
       todo: todoCount,
