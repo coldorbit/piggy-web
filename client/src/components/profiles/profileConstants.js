@@ -6,11 +6,18 @@ export const EMPTY_PROFILE = {
   linkedin: '',
   yearsOfExperience: '',
   resumeText: '',
+  resumeTemplate: 'classic',
   colorScheme: 'blue',
   profileBadge: 'SWE',
 };
 
 export const COLOR_OPTIONS = ['green', 'blue', 'violet', 'amber', 'rose', 'slate'];
+
+export const RESUME_TEMPLATE_OPTIONS = [
+  { value: 'classic', label: 'Classic', description: 'Traditional ATS' },
+  { value: 'compact', label: 'Compact', description: 'Dense single page' },
+  { value: 'modern', label: 'Modern', description: 'Clean ATS' },
+];
 
 export const PROFILE_BADGE_OPTIONS = [
   { value: 'ML', label: 'ML', description: 'AI/ML' },

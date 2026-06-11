@@ -35,6 +35,10 @@ export function getBidProfileModel() {
         type: DataTypes.TEXT,
         field: 'resume_text',
       },
+      resumeTemplate: {
+        type: DataTypes.TEXT,
+        field: 'resume_template',
+      },
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,

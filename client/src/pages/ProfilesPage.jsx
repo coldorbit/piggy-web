@@ -79,6 +79,7 @@ export default function ProfilesPage({ currentUser }) {
       linkedin: profile.linkedin || '',
       yearsOfExperience: profile.yearsOfExperience || '',
       resumeText: profile.resumeText || '',
+      resumeTemplate: profile.resumeTemplate || 'classic',
       colorScheme: profile.colorScheme || 'green',
       profileBadge: profile.profileBadge || 'SWE',
     });

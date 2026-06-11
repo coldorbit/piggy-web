@@ -13,6 +13,53 @@ import { ENV } from './env.js';
 import { InputError } from './errors.js';
 
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const RESUME_TEMPLATES = {
+  classic: {
+    headingColor: '111827',
+    nameSize: 32,
+    roleSize: 22,
+    bodySize: 20,
+    metaSize: 19,
+    techSize: 18,
+    sectionSize: 22,
+    margin: 720,
+    sectionBefore: 180,
+    sectionAfter: 80,
+    paragraphAfter: 100,
+    bulletAfter: 50,
+    experienceBefore: 120,
+  },
+  compact: {
+    headingColor: '111827',
+    nameSize: 28,
+    roleSize: 20,
+    bodySize: 18,
+    metaSize: 17,
+    techSize: 16,
+    sectionSize: 20,
+    margin: 540,
+    sectionBefore: 120,
+    sectionAfter: 50,
+    paragraphAfter: 70,
+    bulletAfter: 30,
+    experienceBefore: 80,
+  },
+  modern: {
+    headingColor: '1E3A8A',
+    nameSize: 34,
+    roleSize: 22,
+    bodySize: 20,
+    metaSize: 19,
+    techSize: 18,
+    sectionSize: 21,
+    margin: 720,
+    sectionBefore: 160,
+    sectionAfter: 90,
+    paragraphAfter: 100,
+    bulletAfter: 50,
+    experienceBefore: 120,
+  },
+};
 
 let openaiClient;
 let s3Client;
@@ -199,68 +246,69 @@ async function generateDocxAndUpload({ generatedResume, profile }) {
 
 async function renderResumeDocx(data, profile) {
   const children = [];
+  const template = resumeTemplate(profile.resumeTemplate);
 
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 80 },
-      children: [new TextRun({ text: profile.name || data.name || 'Resume', bold: true, size: 32 })],
+      children: [new TextRun({ text: profile.name || data.name || 'Resume', bold: true, size: template.nameSize })],
     }),
   );
-  const contact = contactParagraph(profile, data);
+  const contact = contactParagraph(profile, data, template);
   if (contact) children.push(contact);
-  if (data.role) children.push(centeredText(data.role, { bold: true, size: 22, after: 160 }));
+  if (data.role) children.push(centeredText(data.role, template, { bold: true, size: template.roleSize, after: 160 }));
 
-  addSection(children, 'Summary');
-  addText(children, data.summary);
-  addSection(children, 'Core Skills');
-  addText(children, data.core_skills);
+  addSection(children, 'Summary', template);
+  addText(children, data.summary, {}, template);
+  addSection(children, 'Core Skills', template);
+  addText(children, data.core_skills, {}, template);
 
-  addSection(children, 'Work Experience');
+  addSection(children, 'Work Experience', template);
   for (const exp of workExperienceEntries(data)) {
     const position = String(exp.position || '').trim() || 'Role not provided';
     children.push(
       new Paragraph({
-        spacing: { before: 120, after: 40 },
+        spacing: { before: template.experienceBefore, after: 40 },
         children: [
-          new TextRun({ text: position, bold: true }),
-          ...(exp.company ? [new TextRun({ text: ` | ${exp.company}`, bold: true })] : []),
+          new TextRun({ text: position, bold: true, size: template.bodySize }),
+          ...(exp.company ? [new TextRun({ text: ` | ${exp.company}`, bold: true, size: template.bodySize })] : []),
         ],
       }),
     );
     addText(children, [exp.location, [exp.start_date, exp.end_date].filter(Boolean).join(' - ')].filter(Boolean).join(' | '), {
-      size: 19,
+      size: template.metaSize,
       after: 60,
-    });
+    }, template);
     for (const bullet of exp.bullets || []) {
       children.push(
         new Paragraph({
           bullet: { level: 0 },
-          spacing: { after: 50 },
-          children: [new TextRun({ text: String(bullet || ''), size: 19 })],
+          spacing: { after: template.bulletAfter },
+          children: [new TextRun({ text: String(bullet || ''), size: template.metaSize })],
         }),
       );
     }
-    if (exp.tech) addText(children, `Tech stack: ${exp.tech}`, { italics: true, size: 18, after: 100 });
+    if (exp.tech) addText(children, `Tech stack: ${exp.tech}`, { italics: true, size: template.techSize, after: template.paragraphAfter }, template);
   }
 
-  addSection(children, 'Education');
+  addSection(children, 'Education', template);
   for (const ed of data.education || []) {
-    addText(children, [ed.degree, ed.area].filter(Boolean).join(', '), { bold: true, after: 40 });
+    addText(children, [ed.degree, ed.area].filter(Boolean).join(', '), { bold: true, after: 40 }, template);
     addText(children, [ed.institution, [ed.start_date, ed.end_date].filter(Boolean).join(' - ')].filter(Boolean).join(' | '), {
-      size: 19,
+      size: template.metaSize,
       after: 80,
-    });
+    }, template);
   }
 
-  addSection(children, 'Skills');
+  addSection(children, 'Skills', template);
   for (const [label, items] of Object.entries(data.skills || {})) {
     children.push(
       new Paragraph({
         spacing: { after: 60 },
         children: [
-          new TextRun({ text: `${label}: `, bold: true, size: 19 }),
-          new TextRun({ text: Array.isArray(items) ? items.join(', ') : String(items || ''), size: 19 }),
+          new TextRun({ text: `${label}: `, bold: true, size: template.metaSize }),
+          new TextRun({ text: Array.isArray(items) ? items.join(', ') : String(items || ''), size: template.metaSize }),
         ],
       }),
     );
@@ -271,7 +319,7 @@ async function renderResumeDocx(data, profile) {
       {
         properties: {
           page: {
-            margin: { top: 720, right: 720, bottom: 720, left: 720 },
+            margin: { top: template.margin, right: template.margin, bottom: template.margin, left: template.margin },
           },
         },
         children,
@@ -281,48 +329,48 @@ async function renderResumeDocx(data, profile) {
   return Packer.toBuffer(document);
 }
 
-function addSection(children, title) {
+function addSection(children, title, template) {
   children.push(
     new Paragraph({
       heading: HeadingLevel.HEADING_2,
-      spacing: { before: 180, after: 80 },
-      children: [new TextRun({ text: title, bold: true, size: 22 })],
+      spacing: { before: template.sectionBefore, after: template.sectionAfter },
+      children: [new TextRun({ text: title, bold: true, size: template.sectionSize, color: template.headingColor })],
     }),
   );
 }
 
-function addText(children, value, { after = 100, bold = false, italics = false, size = 20 } = {}) {
+function addText(children, value, { after, bold = false, italics = false, size } = {}, template = RESUME_TEMPLATES.classic) {
   if (!value) return;
   children.push(
     new Paragraph({
-      spacing: { after },
-      children: [new TextRun({ text: String(value), bold, italics, size })],
+      spacing: { after: after ?? template.paragraphAfter },
+      children: [new TextRun({ text: String(value), bold, italics, size: size ?? template.bodySize })],
     }),
   );
 }
 
-function centeredText(value, { after = 80, bold = false, size = 20 } = {}) {
+function centeredText(value, template, { after = 80, bold = false, size } = {}) {
   return new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after },
-    children: [new TextRun({ text: String(value), bold, size })],
+    children: [new TextRun({ text: String(value), bold, size: size ?? template.bodySize })],
   });
 }
 
-function contactParagraph(profile, data) {
+function contactParagraph(profile, data, template) {
   const runs = [];
   for (const value of [profile.location, profile.email, profile.phone].filter(Boolean)) {
-    addContactSeparator(runs);
-    runs.push(new TextRun({ text: String(value), size: 20 }));
+    addContactSeparator(runs, template);
+    runs.push(new TextRun({ text: String(value), size: template.bodySize }));
   }
 
   const linkedin = normalizedLinkedInUrl(profile.linkedin || data.linkedin_profile || linkedinFromProfileResume(profile.resumeText));
   if (linkedin) {
-    addContactSeparator(runs);
+    addContactSeparator(runs, template);
     runs.push(
       new ExternalHyperlink({
         link: linkedin,
-        children: [new TextRun({ text: linkedinDisplayText(linkedin), style: 'Hyperlink', size: 20 })],
+        children: [new TextRun({ text: linkedinDisplayText(linkedin), style: 'Hyperlink', size: template.bodySize })],
       }),
     );
   }
@@ -336,8 +384,12 @@ function contactParagraph(profile, data) {
     : null;
 }
 
-function addContactSeparator(runs) {
-  if (runs.length) runs.push(new TextRun({ text: ' | ', size: 20 }));
+function addContactSeparator(runs, template = RESUME_TEMPLATES.classic) {
+  if (runs.length) runs.push(new TextRun({ text: ' | ', size: template.bodySize }));
+}
+
+function resumeTemplate(value) {
+  return RESUME_TEMPLATES[value] || RESUME_TEMPLATES.classic;
 }
 
 function linkedinFromProfileResume(value) {

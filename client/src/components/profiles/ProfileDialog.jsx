@@ -13,7 +13,7 @@ import {
   Select,
   TextField,
 } from '@mui/material';
-import { COLOR_OPTIONS, PROFILE_BADGE_COLORS, PROFILE_BADGE_OPTIONS } from './profileConstants.js';
+import { COLOR_OPTIONS, PROFILE_BADGE_COLORS, PROFILE_BADGE_OPTIONS, RESUME_TEMPLATE_OPTIONS } from './profileConstants.js';
 
 export default function ProfileDialog({ form, isOpen, isSaving, mode = 'create', onChange, onClose, onSubmit }) {
   return (
@@ -54,6 +54,21 @@ export default function ProfileDialog({ form, isOpen, isSaving, mode = 'create',
               value={form.yearsOfExperience}
               onChange={(event) => onChange((current) => ({ ...current, yearsOfExperience: event.target.value }))}
             />
+            <FormControl>
+              <InputLabel>Resume template</InputLabel>
+              <Select
+                label="Resume template"
+                value={form.resumeTemplate || 'classic'}
+                onChange={(event) => onChange((current) => ({ ...current, resumeTemplate: event.target.value }))}
+              >
+                {RESUME_TEMPLATE_OPTIONS.map((template) => (
+                  <MenuItem key={template.value} value={template.value}>
+                    {template.label} - {template.description}
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>Rotate ATS-friendly single-column DOCX layouts by profile.</FormHelperText>
+            </FormControl>
             <FormControl>
               <InputLabel>Color</InputLabel>
               <Select

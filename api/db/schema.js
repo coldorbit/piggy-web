@@ -401,6 +401,7 @@ async function ensureBidProfileColumns() {
     linkedin: { type: DataTypes.TEXT, allowNull: true },
     years_of_experience: { type: DataTypes.TEXT, allowNull: true },
     resume_text: { type: DataTypes.TEXT, allowNull: true },
+    resume_template: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'classic' },
     profile_badge: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'SWE' },
     profile_status: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'active' },
     closed_reason: { type: DataTypes.TEXT, allowNull: true },

@@ -35,6 +35,12 @@ export function getBidProfileModel() {
         type: DataTypes.TEXT,
         field: 'resume_text',
       },
+      resumeTemplate: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+        defaultValue: 'classic',
+        field: 'resume_template',
+      },
       colorScheme: {
         type: DataTypes.TEXT,
         allowNull: false,

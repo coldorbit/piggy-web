@@ -77,6 +77,7 @@ export function formatProfile(row) {
     linkedin: row.linkedin,
     yearsOfExperience: row.yearsOfExperience,
     resumeText: row.resumeText,
+    resumeTemplate: row.resumeTemplate || 'classic',
     colorScheme: row.colorScheme,
     profileBadge: row.profileBadge || 'SWE',
     profileStatus: row.profileStatus || 'active',
@@ -321,10 +322,13 @@ export function profileAttributesFromBody(body) {
   const name = clean(body?.name);
   const colorScheme = clean(body?.colorScheme || 'green');
   const profileBadge = profileBadgeFromBody(body?.profileBadge);
+  const resumeTemplate = clean(body?.resumeTemplate || 'classic');
   const allowedColors = new Set(['green', 'blue', 'violet', 'amber', 'rose', 'slate']);
+  const allowedResumeTemplates = new Set(['classic', 'compact', 'modern']);
 
   if (!name) throw new InputError('Profile name is required');
   if (!allowedColors.has(colorScheme)) throw new InputError('Choose a valid profile color');
+  if (!allowedResumeTemplates.has(resumeTemplate)) throw new InputError('Choose a valid resume template');
 
   return {
     name,
@@ -334,6 +338,7 @@ export function profileAttributesFromBody(body) {
     linkedin: clean(body?.linkedin) || null,
     yearsOfExperience: clean(body?.yearsOfExperience) || null,
     resumeText: clean(body?.resumeText) || null,
+    resumeTemplate,
     colorScheme,
     profileBadge,
   };
