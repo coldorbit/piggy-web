@@ -65,16 +65,21 @@ export default function BidJobCard({
   const statusDefault = activeTab === BID_TABS.interviews ? 'interviewing' : activeTab === BID_TABS.done ? 'submitted' : undefined;
   const isAdmin = isAdminRole(currentUser);
   const isBidder = BIDDER_ROLES.includes(currentUser?.role);
-  const canMoveDoneJobToInterview = activeTab === BID_TABS.done && PRIVILEGED_USER_ROLES.includes(currentUser?.role) && !isAdmin && !isBidder;
+  const bidStatus = job.bid?.status || draft.status || 'planned';
+  const reviewStatus = reviewStatusValue(bidStatus);
+  const isInvalidReviewJob = Boolean(reviewStatus);
+  const canMoveDoneJobToInterview = activeTab === BID_TABS.done && PRIVILEGED_USER_ROLES.includes(currentUser?.role) && !isBidder;
   const canReviewDoneJob = activeTab === BID_TABS.done && isAdmin;
-  const showBidStatusChip = activeTab !== BID_TABS.tailored;
+  const canReviewTailoredJob = activeTab === BID_TABS.tailored && isAdmin && hasActiveTailoredResumeStatus(job.tailoredResume?.status);
+  const showReviewControl = canReviewDoneJob || canReviewTailoredJob;
+  const showBidStatusChip = activeTab !== BID_TABS.tailored || isInvalidReviewJob;
   const showStatusControl = activeTab === BID_TABS.interviews;
   const showAppliedAction = activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready';
-  const bidChipLabel = job.bid
-    ? reviewStatusLabel(job.bid.status) || `Bid ${formatDate(job.bid.bidAt)}`
+  const bidChipLabel = reviewStatusLabel(bidStatus) || (job.bid
+    ? `Bid ${formatDate(job.bid.bidAt)}`
     : draft.status === 'planned'
       ? 'Not bid yet'
-      : `Bid ${statusLabel(draft.status)}`;
+      : `Bid ${statusLabel(draft.status)}`);
   const tailoredStatus = job.tailoredResume?.status || '';
   const showTailorAction = activeTab === BID_TABS.todo || tailoredStatus === 'dead_letter';
   const showRetailorAction = activeTab === BID_TABS.tailored && tailoredStatus === 'ready';
@@ -93,8 +98,9 @@ export default function BidJobCard({
   const hasUpdatedJobLink = isLinkedInJob && isExternalLinkMode(job.applyMode);
   const showLinkedInTodoActions = activeTab === BID_TABS.todo && isLinkedInJob;
   const showUpdateExternalLinkAction = showLinkedInTodoActions;
+  const hasDownloadableResume = tailoredStatus === 'ready' && job.tailoredResume?.filePath;
   const downloadUrl =
-    tailoredStatus === 'ready' && job.tailoredResume?.filePath
+    hasDownloadableResume && !isInvalidReviewJob
       ? authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(job.tailoredResume.id)}/download`)
       : '';
   const downloadFilename = job.tailoredResume?.filePath ? String(job.tailoredResume.filePath).split('/').pop() : 'tailored-resume.docx';
@@ -328,7 +334,7 @@ export default function BidJobCard({
                   <Chip
                     label={bidChipLabel}
                     size="small"
-                    sx={{ bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }}
+                    sx={isInvalidReviewJob ? reviewStatusSx(reviewStatus) : { bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }}
                   />
                 ) : null}
                 {activeTab !== BID_TABS.done && activeTab !== BID_TABS.interviews && tailoredStatus ? (
@@ -384,7 +390,7 @@ export default function BidJobCard({
                     </Select>
                   </FormControl>
                 ) : null}
-                {canReviewDoneJob ? (
+                {showReviewControl ? (
                   <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>Review</InputLabel>
                     <Select
@@ -413,7 +419,7 @@ export default function BidJobCard({
                 ) : null}
                 {showAppliedAction ? (
                   <Button
-                    disabled={draft.status === 'submitted'}
+                    disabled={isInvalidReviewJob || draft.status === 'submitted'}
                     onClick={handleApplied}
                     size="small"
                     startIcon={<CheckCircleIcon />}
@@ -423,33 +429,37 @@ export default function BidJobCard({
                     Mark as applied
                   </Button>
                 ) : null}
-                {downloadUrl ? (
-                  <Tooltip title={isResumeDownloaded ? 'Download again' : 'Download resume'}>
-                    <IconButton
-                      component="a"
-                      href={downloadUrl}
-                      download={downloadFilename}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={isResumeDownloaded ? 'Download resume again' : 'Download resume'}
-                      color={isResumeDownloaded ? 'success' : 'primary'}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onResumeDownload(job.tailoredResume.id);
-                      }}
-                      sx={{
-                        ...iconButtonSx,
-                        bgcolor: isResumeDownloaded ? '#dcfce7' : 'background.paper',
-                        borderColor: isResumeDownloaded ? '#86efac' : 'divider',
-                        color: isResumeDownloaded ? '#15803d' : 'primary.main',
-                        '&:hover': {
-                          bgcolor: isResumeDownloaded ? '#bbf7d0' : 'action.hover',
-                          borderColor: isResumeDownloaded ? '#22c55e' : 'primary.main',
-                        },
-                      }}
-                    >
-                      <DownloadIcon />
-                    </IconButton>
+                {hasDownloadableResume ? (
+                  <Tooltip title={isInvalidReviewJob ? 'Marked as not applicable' : isResumeDownloaded ? 'Download again' : 'Download resume'}>
+                    <Box component="span" sx={{ display: 'inline-flex' }}>
+                      <IconButton
+                        component={isInvalidReviewJob ? 'button' : 'a'}
+                        href={downloadUrl || undefined}
+                        download={downloadUrl ? downloadFilename : undefined}
+                        target={downloadUrl ? '_blank' : undefined}
+                        rel={downloadUrl ? 'noopener noreferrer' : undefined}
+                        disabled={isInvalidReviewJob}
+                        aria-label={isResumeDownloaded ? 'Download resume again' : 'Download resume'}
+                        color={isResumeDownloaded ? 'success' : 'primary'}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (isInvalidReviewJob) return;
+                          onResumeDownload(job.tailoredResume.id);
+                        }}
+                        sx={{
+                          ...iconButtonSx,
+                          bgcolor: isResumeDownloaded ? '#dcfce7' : 'background.paper',
+                          borderColor: isResumeDownloaded ? '#86efac' : 'divider',
+                          color: isResumeDownloaded ? '#15803d' : 'primary.main',
+                          '&:hover': {
+                            bgcolor: isResumeDownloaded ? '#bbf7d0' : 'action.hover',
+                            borderColor: isResumeDownloaded ? '#22c55e' : 'primary.main',
+                          },
+                        }}
+                      >
+                        <DownloadIcon />
+                      </IconButton>
+                    </Box>
                   </Tooltip>
                 ) : null}
                 {showUpdateExternalLinkAction ? (
@@ -489,7 +499,7 @@ export default function BidJobCard({
                     <Box component="span" sx={{ display: 'inline-flex' }}>
                       <IconButton
                         aria-label={tailorActionLabel}
-                        disabled={isTailoring || hasTailoringRequest}
+                        disabled={isInvalidReviewJob || isTailoring || hasTailoringRequest}
                         onClick={() => onTailorResume(job)}
                         sx={tailorButtonSx}
                       >
@@ -503,7 +513,7 @@ export default function BidJobCard({
                     <Box component="span" sx={{ display: 'inline-flex' }}>
                       <IconButton
                         aria-label={retailorActionLabel}
-                        disabled={isTailoring}
+                        disabled={isInvalidReviewJob || isTailoring}
                         onClick={() => onTailorResume(job)}
                         sx={tailorButtonSx}
                       >
@@ -594,6 +604,15 @@ function reviewStatusLabel(status) {
 function reviewStatusValue(status) {
   if (status === 'mismatching_bid' || status === 'spam_job') return status;
   return '';
+}
+
+function reviewStatusSx(status) {
+  if (status === 'spam_job') return { bgcolor: '#fee2e2', color: '#991b1b', fontWeight: 900 };
+  return { bgcolor: '#ffedd5', color: '#9a3412', fontWeight: 900 };
+}
+
+function hasActiveTailoredResumeStatus(status) {
+  return ['requested', 'processing', 'ready', 'dead_letter'].includes(status);
 }
 
 function tailoredStatusLabel(status) {

@@ -21,7 +21,7 @@ import {
 import ArchiveIcon from '@mui/icons-material/Archive';
 import { PAGE_SIZE_OPTIONS } from '../../lib/constants.js';
 import { authUrl, useMarkTailoredResumesDownloaded } from '../../lib/api.js';
-import { BID_TABS } from './bidConstants.js';
+import { BID_TABS, REVIEW_STATUSES } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
 import BidJobCard from './BidJobCard.jsx';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
@@ -46,6 +46,7 @@ export default function BidJobsPanel() {
   const markTailoredResumesDownloaded = useMarkTailoredResumesDownloaded();
   const [selectedJobIds, setSelectedJobIds] = useState(() => new Set());
   const readyResumeIds = jobs
+    .filter((job) => !isReviewBidStatus(job.bid?.status))
     .map((job) => job.tailoredResume)
     .filter((resume) => resume?.status === 'ready' && resume.filePath)
     .map((resume) => resume.id);
@@ -322,7 +323,11 @@ export default function BidJobsPanel() {
 }
 
 function isJobSelectionDisabled(job, activeTab) {
-  return activeTab === BID_TABS.todo && isTodoTailoringLocked(job);
+  return isReviewBidStatus(job.bid?.status) || (activeTab === BID_TABS.todo && isTodoTailoringLocked(job));
+}
+
+function isReviewBidStatus(status) {
+  return REVIEW_STATUSES.has(status);
 }
 
 function tabLabel(tab) {

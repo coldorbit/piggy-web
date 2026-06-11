@@ -1724,7 +1724,7 @@ export async function updateJobBid(req, res, next) {
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (!isAdminRole(req.user)) {
       await accessibleProfile(req, bid.profileId);
-      if (String(bid.userId) !== String(user.id)) {
+      if (!PRIVILEGED_USER_ROLES.includes(user.role) && String(bid.userId) !== String(user.id)) {
         res.status(404).json({ error: 'Bid not found' });
         return;
       }

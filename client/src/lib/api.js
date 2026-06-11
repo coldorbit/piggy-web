@@ -559,16 +559,18 @@ function bidTabForJob(job) {
 function bidTabsForJob(job) {
   const tabs = new Set();
   const status = job?.bid?.status || 'planned';
+  const hasTailoredResumeActivity = ['requested', 'processing', 'ready', 'dead_letter'].includes(job?.tailoredResume?.status);
   if (status === 'interviewing') {
     tabs.add('interviews');
     return tabs;
   }
   if (['submitted', 'won', 'lost', 'mismatching_bid', 'spam_job'].includes(status)) {
     tabs.add('done');
+    if (['mismatching_bid', 'spam_job'].includes(status) && hasTailoredResumeActivity) tabs.add('tailored');
     return tabs;
   }
   tabs.add('todo');
-  if (['requested', 'processing', 'ready', 'dead_letter'].includes(job?.tailoredResume?.status)) {
+  if (hasTailoredResumeActivity) {
     tabs.add('tailored');
   }
   return tabs;

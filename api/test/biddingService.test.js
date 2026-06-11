@@ -29,7 +29,7 @@ describe('buildBidTabQuery', () => {
     assertHasPlannedBidClause(query);
   });
 
-  it('filters the tailored tab to jobs with tailored resume activity that are not done', () => {
+  it('filters the tailored tab to jobs with tailored resume activity that are not applied or review-blocked', () => {
     const query = buildBidTabQuery({
       where: {},
       tab: 'tailored',
@@ -51,6 +51,7 @@ describe('buildBidTabQuery', () => {
       true,
     );
     assertHasPlannedBidClause(query);
+    assertHasReviewBidClause(query);
     assert.equal(query.order[0][0].val.includes('MAX(tailored_resume.updated_at)'), true);
     assert.equal(query.order[0][1], 'DESC NULLS LAST');
     assert.equal(query.order[1][0].val.includes('MAX(tailored_resume.created_at)'), true);
@@ -104,6 +105,19 @@ function assertHasPlannedBidClause(query) {
   assert.equal(
     (query.where[Op.and] || []).some(
       (clause) => clause?.[Op.or]?.some((condition) => condition?.['$bids.status$'] === 'planned'),
+    ),
+    true,
+  );
+}
+
+function assertHasReviewBidClause(query) {
+  assert.equal(
+    (query.where[Op.and] || []).some(
+      (clause) =>
+        clause?.[Op.or]?.some(
+          (condition) => condition?.['$bids.status$']?.[Op.in]?.includes('mismatching_bid')
+            && condition?.['$bids.status$']?.[Op.in]?.includes('spam_job'),
+        ),
     ),
     true,
   );
