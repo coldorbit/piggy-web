@@ -246,7 +246,7 @@ async function generateDocxAndUpload({ generatedResume, profile }) {
 
 async function renderResumeDocx(data, profile) {
   const children = [];
-  const template = resumeTemplate(profile.resumeTemplate);
+  const template = randomResumeTemplate();
 
   children.push(
     new Paragraph({
@@ -388,8 +388,9 @@ function addContactSeparator(runs, template = RESUME_TEMPLATES.classic) {
   if (runs.length) runs.push(new TextRun({ text: ' | ', size: template.bodySize }));
 }
 
-function resumeTemplate(value) {
-  return RESUME_TEMPLATES[value] || RESUME_TEMPLATES.classic;
+function randomResumeTemplate() {
+  const templates = Object.values(RESUME_TEMPLATES);
+  return templates[Math.floor(Math.random() * templates.length)] || RESUME_TEMPLATES.classic;
 }
 
 function linkedinFromProfileResume(value) {
