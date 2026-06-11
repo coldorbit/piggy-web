@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -44,6 +44,7 @@ export default function BidJobsPanel() {
     onTailorResume,
   } = useBidWorkspace();
   const markTailoredResumesDownloaded = useMarkTailoredResumesDownloaded();
+  const jobsScrollRef = useRef(null);
   const [selectedJobIds, setSelectedJobIds] = useState(() => new Set());
   const readyResumeIds = jobs
     .filter((job) => !isReviewBidStatus(job.bid?.status))
@@ -68,6 +69,10 @@ export default function BidJobsPanel() {
       return next.size === current.size ? current : next;
     });
   }, [visibleJobIdsKey]);
+
+  useEffect(() => {
+    jobsScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [activeProfileId, activeTab, page, pageSize]);
 
   function toggleJobSelected(jobId) {
     setSelectedJobIds((current) => {
@@ -249,7 +254,7 @@ export default function BidJobsPanel() {
         }}
       >
         {loading && jobs.length ? <LoadingOverlay label="Loading bid workspace..." /> : null}
-        <Stack spacing={0.75} aria-busy={loading} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
+        <Stack ref={jobsScrollRef} spacing={0.75} aria-busy={loading} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
           {loading && !jobs.length ? <LoadingState label="Loading bid workspace..." /> : null}
           {!loading && jobs.length === 0 ? (
             <EmptyState>No {tabLabel(activeTab)} jobs match this search.</EmptyState>
