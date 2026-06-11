@@ -5,6 +5,7 @@ import { clean } from '../../../utils/index.js';
 const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
 const DONE_BID_STATUSES = ['submitted', 'won', 'lost', 'mismatching_bid', 'spam_job'];
 const INTERVIEW_BID_STATUSES = ['interviewing', 'won', 'lost'];
+const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 export const REVIEW_BID_STATUSES = new Set(['mismatching_bid', 'spam_job']);
 
 export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', JobBid, sequelize }) {
@@ -22,6 +23,8 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
         [{ model: JobBid, as: 'bids' }, 'updatedAt', 'DESC'],
         [{ model: JobBid, as: 'bids' }, 'id', 'DESC'],
       ]
+    : isTailoredTab
+    ? tailoredTabOrder({ profileId, sequelize })
     : null;
   const include = [
     {
@@ -82,9 +85,33 @@ function tailoredResumeExistsSql({ profileId, sequelize }) {
     SELECT 1
     FROM tailored_resumes tailored_resume
     WHERE tailored_resume.job_url = "ScrapedJob"."url"
-      AND tailored_resume.status IN ('requested', 'processing', 'ready', 'dead_letter')
+      AND tailored_resume.status IN (${activeTailoredResumeStatusesSql(sequelize)})
       AND tailored_resume.profile_id = ${escapedProfileId}
   )`;
+}
+
+function tailoredTabOrder({ profileId, sequelize }) {
+  return [
+    [Sequelize.literal(tailoredResumeTimestampSql({ profileId, sequelize, column: 'updated_at' })), 'DESC NULLS LAST'],
+    [Sequelize.literal(tailoredResumeTimestampSql({ profileId, sequelize, column: 'created_at' })), 'DESC NULLS LAST'],
+    ['id', 'DESC'],
+  ];
+}
+
+function tailoredResumeTimestampSql({ profileId, sequelize, column }) {
+  const escapedProfileId = sequelize.escape(profileId);
+
+  return `(
+    SELECT MAX(tailored_resume.${column})
+    FROM tailored_resumes tailored_resume
+    WHERE tailored_resume.job_url = "ScrapedJob"."url"
+      AND tailored_resume.status IN (${activeTailoredResumeStatusesSql(sequelize)})
+      AND tailored_resume.profile_id = ${escapedProfileId}
+  )`;
+}
+
+function activeTailoredResumeStatusesSql(sequelize) {
+  return ACTIVE_TAILORED_RESUME_STATUSES.map((status) => sequelize.escape(status)).join(', ');
 }
 
 export function formatBid(row) {
@@ -135,7 +162,7 @@ export async function tailoredResumesForJobs({ TailoredResume, jobs, profileId }
   const rows = await TailoredResume.findAll({
     where: {
       jobUrl: { [Op.in]: jobUrls },
-      status: { [Op.in]: ['requested', 'processing', 'ready', 'dead_letter'] },
+      status: { [Op.in]: ACTIVE_TAILORED_RESUME_STATUSES },
       profileId,
     },
     order: [
