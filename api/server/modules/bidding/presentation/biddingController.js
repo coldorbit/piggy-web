@@ -1556,7 +1556,7 @@ async function fetchTailoredResumeFromS3(bucket, key, tailoredResume) {
   const data = await streamToBuffer(body);
   return {
     filename: filenameFromPath(key),
-    contentType: response.ContentType || 'application/pdf',
+    contentType: response.ContentType || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     data,
   };
 }
@@ -1595,11 +1595,11 @@ function getS3Client() {
 }
 
 function filenameFromPath(filePath) {
-  return sanitizeFilename(String(filePath).split('/').pop() || 'resume.pdf');
+  return sanitizeFilename(String(filePath).split('/').pop() || 'resume.docx');
 }
 
 function sanitizeFilename(value) {
-  return String(value || 'resume.pdf').replace(/[/\\?%*:|"<>]/g, '_') || 'resume.pdf';
+  return String(value || 'resume.docx').replace(/[/\\?%*:|"<>]/g, '_') || 'resume.docx';
 }
 
 function escapeHeaderValue(value) {

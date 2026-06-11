@@ -2,7 +2,7 @@
 
 Dedicated Express API for ApplyPilot.
 
-The API publishes tailored resume requests to SQS. The actual OpenAI/PDF generation runs in the separate `worker/` app.
+The API publishes tailored resume requests to SQS. The actual OpenAI/DOCX generation runs in the separate `worker/` app.
 
 ## Setup
 

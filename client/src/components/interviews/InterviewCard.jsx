@@ -232,5 +232,5 @@ function resumeDownloadUrl(resume) {
 }
 
 function resumeFileName(filePath) {
-  return filePath ? String(filePath).split('/').pop() || 'tailored-resume.pdf' : 'tailored-resume.pdf';
+  return filePath ? String(filePath).split('/').pop() || 'tailored-resume.docx' : 'tailored-resume.docx';
 }

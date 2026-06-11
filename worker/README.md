@@ -2,7 +2,7 @@
 
 Dedicated SQS worker for tailored resume generation.
 
-The API creates `tailored_resumes` rows and pushes request messages to SQS. This worker runs on a separate host, receives those messages, generates the tailored resume, uploads the PDF to S3, and updates the row status to `ready` or `dead_letter`.
+The API creates `tailored_resumes` rows and pushes request messages to SQS. This worker runs on a separate host, receives those messages, generates the tailored resume, uploads the DOCX to S3, and updates the row status to `ready` or `dead_letter`.
 
 The worker is intentionally standalone: it has its own env loader, DB connection, Sequelize models, package dependencies, lockfile, and Dockerfile.
 
@@ -20,7 +20,7 @@ Required environment:
 - `TAILORING_QUEUE_URL`: SQS queue used by the API publisher.
 - `OPENAI_API_KEY`: OpenAI API key for resume generation.
 - `AWS_REGION`: AWS region for SQS and S3.
-- `AWS_S3_BUCKET`: private bucket for generated PDFs.
+- `AWS_S3_BUCKET`: private bucket for generated DOCX resumes.
 
 Optional environment:
 

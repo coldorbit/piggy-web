@@ -97,7 +97,7 @@ export default function BidJobCard({
     tailoredStatus === 'ready' && job.tailoredResume?.filePath
       ? authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(job.tailoredResume.id)}/download`)
       : '';
-  const downloadFilename = job.tailoredResume?.filePath ? String(job.tailoredResume.filePath).split('/').pop() : 'tailored-resume.pdf';
+  const downloadFilename = job.tailoredResume?.filePath ? String(job.tailoredResume.filePath).split('/').pop() : 'tailored-resume.docx';
 
   function handleStatusChange(event) {
     const status = event.target.value;

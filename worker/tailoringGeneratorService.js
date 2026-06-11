@@ -1,8 +1,17 @@
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  AlignmentType,
+  Document,
+  HeadingLevel,
+  Packer,
+  Paragraph,
+  TextRun,
+} from 'docx';
 import OpenAI from 'openai';
-import PDFDocument from 'pdfkit';
 import { ENV } from './env.js';
 import { InputError } from './errors.js';
+
+const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 let openaiClient;
 let s3Client;
@@ -18,7 +27,7 @@ export async function generateTailoredResume({ job, profile }) {
   const jobDescription = buildTailorJobDescription(job);
   const profileResume = profile.resumeText || '';
   const generatedResume = await generateResumeJson({ jobDescription, profileResume });
-  const resumeFile = await generatePdfAndUpload({ generatedResume, profile });
+  const resumeFile = await generateDocxAndUpload({ generatedResume, profile });
 
   return {
     generatedResume,
@@ -85,8 +94,8 @@ ${inferNote}${promptBody}
 
 Hard truthfulness rules:
 - NEVER fabricate previous roles, previous titles, promotions, seniority, employers, education, certifications, dates, or employment history.
-- Preserve every provided company and experience position/title exactly as written. Do not change "Developer" into "Senior Developer", "Lead", "Architect", "Manager", or any other title unless that exact title is present in the profile.
-- If a role/title is missing for a previous company, leave "position" blank or use a neutral provided phrase from the profile; do not invent a title.
+- Preserve every provided company and work experience position/title exactly as written. Do not change "Developer" into "Senior Developer", "Lead", "Architect", "Manager", or any other title unless that exact title is present in the profile.
+- Every work_experience entry must show a visible "position". If a role/title is provided in the profile, copy it exactly. If no role/title is provided, use "Role not provided" and do not invent a title.
 - You may tailor wording, achievements, metrics, and technology emphasis only when they remain plausible for the provided role/company and do not imply a different title or responsibility level.
 - The top-level "role" field is the target resume headline. It may match the exact job-posting title for ATS visibility, but it must not be used as a previous experience title unless the profile already has that title.
 
@@ -95,18 +104,18 @@ ATS optimization rules:
 - Weave in 25-35 relevant, role-specific keywords copied exactly from the job description across summary, core_skills, bullets, tech, and skills.
 - Do not keyword-stuff, hide keywords, repeat unnatural keyword lists, or add irrelevant terms.
 - Prefer exact terms from the job description over synonyms or abbreviations unless the posting itself uses the abbreviation.
-- Use standard resume section concepts only: Summary, Core Skills, Experience, Education, Skills.
+- Use standard resume section concepts only: Summary, Core Skills, Work Experience, Education, Skills.
 - Use plain text content only: no icons, emojis, decorative symbols, tables, columns, headers, footers, or graphics.
 - Use consistent date formatting everywhere: "Month Year" or "Present" for current roles.
 
 Instructions:
 - If a full resume/profile is provided, base the output on that content.
 - If only a minimal profile is provided, infer accomplishment framing, metrics, and technologies that fit the provided companies and explicitly provided roles. Do not infer previous roles/titles.
-- Produce experience entries for each company in the profile.
+- Produce work_experience entries for each company in the profile.
 - Never modify existing role titles/positions for companies in the profile; preserve provided titles exactly when available.
 - Use achievement bullets of 20-30 words each.
 - Include metrics such as counts, quantities, time reductions, performance, speed, accuracy, or financial impact when reasonable.
-- Include a single-string "tech" field per experience and an overall "core_skills" string.
+- Include a single-string "tech" field per work experience and an overall "core_skills" string.
 - Select 6 exact core skills highly relevant to the job description, using exact job-posting language where possible.
 - Summary must be exactly 4 lines and 65 to 70 words.
 - Skills should contain more than 7 large area categories with 7-9 specific items each.
@@ -122,7 +131,7 @@ Instructions:
   "role": "",
   "summary": "",
   "core_skills": "",
-  "experience": [
+  "work_experience": [
     {
       "company": "",
       "location": "",
@@ -164,7 +173,7 @@ function buildTailorJobDescription(job) {
   return [job.title, job.company, job.location].filter(Boolean).join(' - ');
 }
 
-async function generatePdfAndUpload({ generatedResume, profile }) {
+async function generateDocxAndUpload({ generatedResume, profile }) {
   const startedAt = performance.now();
   let data;
   try {
@@ -173,75 +182,128 @@ async function generatePdfAndUpload({ generatedResume, profile }) {
     throw new InputError(`Generated resume was not valid JSON: ${error.message}`);
   }
 
-  const { s3Key, filename } = buildResumeS3Key(profile, data, '.pdf');
-  const pdfBuffer = await renderResumePdf(data, profile || {});
-  const uploadResult = await uploadResumeToS3(pdfBuffer, s3Key, filename);
+  const { s3Key, filename } = buildResumeS3Key(profile, data, '.docx');
+  const docxBuffer = await renderResumeDocx(data, profile || {});
+  const uploadResult = await uploadResumeToS3(docxBuffer, s3Key, filename);
 
-  console.info('resume_timing stage=pdf_and_upload_total elapsed_ms=%s filename=%s', elapsedMs(startedAt), filename);
+  console.info('resume_timing stage=docx_and_upload_total elapsed_ms=%s filename=%s', elapsedMs(startedAt), filename);
   return { filename, s3Key, s3: uploadResult };
 }
 
-function renderResumePdf(data, profile) {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'LETTER', margin: 36, bufferPages: true });
-    const chunks = [];
-    doc.on('data', (chunk) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
+async function renderResumeDocx(data, profile) {
+  const children = [];
 
-    doc.font('Helvetica-Bold').fontSize(18).text(profile.name || data.name || 'Resume', { align: 'center' });
-    doc
-      .font('Helvetica')
-      .fontSize(10)
-      .text([profile.location, profile.email, profile.phone, profile.linkedin].filter(Boolean).join(' | '), { align: 'center' });
-    if (data.role) doc.moveDown(0.35).font('Helvetica-Bold').fontSize(11).text(data.role, { align: 'center' });
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 80 },
+      children: [new TextRun({ text: profile.name || data.name || 'Resume', bold: true, size: 32 })],
+    }),
+  );
+  const contact = [profile.location, profile.email, profile.phone, profile.linkedin].filter(Boolean).join(' | ');
+  if (contact) children.push(centeredText(contact, { size: 20, after: 80 }));
+  if (data.role) children.push(centeredText(data.role, { bold: true, size: 22, after: 160 }));
 
-    section(doc, 'Summary');
-    paragraph(doc, data.summary);
-    section(doc, 'Core Skills');
-    paragraph(doc, data.core_skills);
+  addSection(children, 'Summary');
+  addText(children, data.summary);
+  addSection(children, 'Core Skills');
+  addText(children, data.core_skills);
 
-    section(doc, 'Experience');
-    for (const exp of data.experience || []) {
-      ensureSpace(doc, 100);
-      doc.font('Helvetica-Bold').fontSize(10).text(`${exp.position || ''}${exp.company ? ` | ${exp.company}` : ''}`);
-      doc.font('Helvetica').fontSize(9).text([exp.location, [exp.start_date, exp.end_date].filter(Boolean).join(' - ')].filter(Boolean).join(' | '));
-      for (const bullet of exp.bullets || []) {
-        doc.font('Helvetica').fontSize(9).text(`- ${bullet}`, { indent: 10 });
-      }
-      if (exp.tech) doc.font('Helvetica-Oblique').fontSize(8.5).text(`Tech stack: ${exp.tech}`);
-      doc.moveDown(0.4);
+  addSection(children, 'Work Experience');
+  for (const exp of workExperienceEntries(data)) {
+    const position = String(exp.position || '').trim() || 'Role not provided';
+    children.push(
+      new Paragraph({
+        spacing: { before: 120, after: 40 },
+        children: [
+          new TextRun({ text: position, bold: true }),
+          ...(exp.company ? [new TextRun({ text: ` | ${exp.company}`, bold: true })] : []),
+        ],
+      }),
+    );
+    addText(children, [exp.location, [exp.start_date, exp.end_date].filter(Boolean).join(' - ')].filter(Boolean).join(' | '), {
+      size: 19,
+      after: 60,
+    });
+    for (const bullet of exp.bullets || []) {
+      children.push(
+        new Paragraph({
+          bullet: { level: 0 },
+          spacing: { after: 50 },
+          children: [new TextRun({ text: String(bullet || ''), size: 19 })],
+        }),
+      );
     }
+    if (exp.tech) addText(children, `Tech stack: ${exp.tech}`, { italics: true, size: 18, after: 100 });
+  }
 
-    section(doc, 'Education');
-    for (const ed of data.education || []) {
-      doc.font('Helvetica-Bold').fontSize(9.5).text([ed.degree, ed.area].filter(Boolean).join(', '));
-      doc.font('Helvetica').fontSize(9).text([ed.institution, [ed.start_date, ed.end_date].filter(Boolean).join(' - ')].filter(Boolean).join(' | '));
-    }
+  addSection(children, 'Education');
+  for (const ed of data.education || []) {
+    addText(children, [ed.degree, ed.area].filter(Boolean).join(', '), { bold: true, after: 40 });
+    addText(children, [ed.institution, [ed.start_date, ed.end_date].filter(Boolean).join(' - ')].filter(Boolean).join(' | '), {
+      size: 19,
+      after: 80,
+    });
+  }
 
-    section(doc, 'Skills');
-    for (const [label, items] of Object.entries(data.skills || {})) {
-      doc.font('Helvetica-Bold').fontSize(9).text(`${label}: `, { continued: true });
-      doc.font('Helvetica').text(Array.isArray(items) ? items.join(', ') : String(items || ''));
-    }
+  addSection(children, 'Skills');
+  for (const [label, items] of Object.entries(data.skills || {})) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 60 },
+        children: [
+          new TextRun({ text: `${label}: `, bold: true, size: 19 }),
+          new TextRun({ text: Array.isArray(items) ? items.join(', ') : String(items || ''), size: 19 }),
+        ],
+      }),
+    );
+  }
 
-    doc.end();
+  const document = new Document({
+    sections: [
+      {
+        properties: {
+          page: {
+            margin: { top: 720, right: 720, bottom: 720, left: 720 },
+          },
+        },
+        children,
+      },
+    ],
+  });
+  return Packer.toBuffer(document);
+}
+
+function addSection(children, title) {
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 180, after: 80 },
+      children: [new TextRun({ text: title, bold: true, size: 22 })],
+    }),
+  );
+}
+
+function addText(children, value, { after = 100, bold = false, italics = false, size = 20 } = {}) {
+  if (!value) return;
+  children.push(
+    new Paragraph({
+      spacing: { after },
+      children: [new TextRun({ text: String(value), bold, italics, size })],
+    }),
+  );
+}
+
+function centeredText(value, { after = 80, bold = false, size = 20 } = {}) {
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after },
+    children: [new TextRun({ text: String(value), bold, size })],
   });
 }
 
-function section(doc, title) {
-  ensureSpace(doc, 48);
-  doc.moveDown(0.8).font('Helvetica-Bold').fontSize(11).text(title.toUpperCase());
-  doc.moveTo(doc.x, doc.y + 2).lineTo(576, doc.y + 2).strokeColor('#333333').lineWidth(0.5).stroke();
-  doc.moveDown(0.4);
-}
-
-function paragraph(doc, value) {
-  doc.font('Helvetica').fontSize(9.5).text(String(value || ''), { lineGap: 1.5 });
-}
-
-function ensureSpace(doc, minSpace) {
-  if (doc.y > doc.page.height - doc.page.margins.bottom - minSpace) doc.addPage();
+function workExperienceEntries(data) {
+  return Array.isArray(data.work_experience) ? data.work_experience : data.experience || [];
 }
 
 function buildResumeS3Key(profile, generatedData, extension) {
@@ -260,7 +322,7 @@ async function uploadResumeToS3(buffer, s3Key, filename) {
       Bucket: ENV.AWS_S3_BUCKET,
       Key: s3Key,
       Body: buffer,
-      ContentType: 'application/pdf',
+      ContentType: DOCX_CONTENT_TYPE,
       ContentDisposition: `attachment; filename="${filename}"`,
     }),
   );
