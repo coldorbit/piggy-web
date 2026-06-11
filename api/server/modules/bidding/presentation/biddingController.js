@@ -198,6 +198,7 @@ export async function createCaller(req, res, next) {
     const attrs = userAttributesFromBody({ ...req.body, role: 'caller' }, { requirePassword: true });
     const caller = await repositories.createUser({
       username: attrs.username,
+      email: attrs.email,
       passwordHash: hashPassword(attrs.password),
       role: 'caller',
     });

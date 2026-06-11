@@ -24,6 +24,7 @@ export async function createUser(req, res, next) {
     }
     const user = await repositories.createUser({
       username: attrs.username,
+      email: attrs.email,
       passwordHash: hashPassword(attrs.password),
       role: attrs.role,
     });
@@ -69,6 +70,7 @@ export async function updateUser(req, res, next) {
 
     const updates = {
       username: attrs.username,
+      email: attrs.email,
       role: attrs.role,
     };
     if (attrs.password) updates.passwordHash = hashPassword(attrs.password);

@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-export { api, authToken, authUrl, clearAuthToken, setAuthToken, useLogin, useLogout, useMe } from './authApi.js';
+export { api, authToken, authUrl, clearAuthToken, setAuthToken, useLogin, useLogout, useMe, useUpdateMe } from './authApi.js';
 import { api, authUrl } from './authApi.js';
 
 export function useJobs(filters) {

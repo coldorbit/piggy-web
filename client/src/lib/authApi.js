@@ -88,3 +88,19 @@ export function useLogout() {
     },
   });
 }
+
+export function useUpdateMe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userData) =>
+      api('/api/me', {
+        method: 'PATCH',
+        body: JSON.stringify(userData),
+      }),
+    onSuccess: (data) => {
+      setAuthToken(data.token);
+      queryClient.setQueryData(['me'], data.user);
+      queryClient.invalidateQueries();
+    },
+  });
+}

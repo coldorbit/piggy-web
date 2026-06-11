@@ -42,6 +42,7 @@ export default function UsersTable({
         <TableHead>
           <TableRow>
             <TableCell>User</TableCell>
+            <TableCell>Email</TableCell>
             <TableCell>Role</TableCell>
             <TableCell>Status</TableCell>
             <TableCell>Last seen</TableCell>
@@ -77,7 +78,7 @@ export default function UsersTable({
 function EmptyRow({ children }) {
   return (
     <TableRow>
-      <TableCell colSpan={7}>
+      <TableCell colSpan={8}>
         <Typography color="text.secondary">{children}</Typography>
       </TableCell>
     </TableRow>
@@ -86,7 +87,7 @@ function EmptyRow({ children }) {
 
 function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDelete, onEdit, onEditingChange, onSave }) {
   const isEditing = String(editingId) === String(user.id);
-  const isSelf = user.username === currentUser.username;
+  const isSelf = String(user.id) === String(currentUser.id);
   const roleOptions = roleOptionsWithCurrent(roleOptionsFor(currentUser), editing.role);
   const canEditRole = isSuperadmin(currentUser) || !isAdminRole(user);
 
@@ -96,9 +97,19 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
         <TableCell>
           <TextField
             fullWidth
+            label="Username"
             size="small"
             value={editing.username}
             onChange={(event) => onEditingChange((current) => ({ ...current, username: event.target.value }))}
+          />
+        </TableCell>
+        <TableCell>
+          <TextField
+            fullWidth
+            label="Email"
+            size="small"
+            value={editing.email}
+            onChange={(event) => onEditingChange((current) => ({ ...current, email: event.target.value }))}
           />
         </TableCell>
         <TableCell>
@@ -162,6 +173,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
           </Typography>
         ) : null}
       </TableCell>
+      <TableCell>{user.email || '-'}</TableCell>
       <TableCell>
         <Chip color={isAdminRole(user) ? 'warning' : 'default'} label={roleLabel(user.role)} size="small" variant="outlined" />
       </TableCell>

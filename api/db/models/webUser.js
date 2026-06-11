@@ -19,6 +19,11 @@ export function getWebUserModel() {
         allowNull: false,
         unique: true,
       },
+      email: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        unique: true,
+      },
       passwordHash: {
         type: DataTypes.TEXT,
         allowNull: false,

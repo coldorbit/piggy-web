@@ -7,7 +7,7 @@ export function handleUserWriteError(error, res, next) {
     return;
   }
   if (error.name === 'SequelizeUniqueConstraintError') {
-    res.status(409).json({ error: 'A user with that username already exists' });
+    res.status(409).json({ error: 'A user with that username or email already exists' });
     return;
   }
   next(error);

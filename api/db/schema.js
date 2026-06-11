@@ -47,6 +47,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await ensureJobBidInterviewColumns();
       await ensureInterviewJourneyColumns();
       await ensureTailoredResumeStatusColumns();
+      await ensureWebUserEmailColumn();
       if (runBackfills) await runTailoredResumeFilePathBackfill();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
@@ -291,6 +292,28 @@ async function ensureWebUserSessionColumns() {
     last_login_at: { type: DataTypes.DATE, allowNull: true },
     last_seen_at: { type: DataTypes.DATE, allowNull: true },
   });
+}
+
+async function ensureWebUserEmailColumn() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'web_users';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    email: { type: DataTypes.TEXT, allowNull: true },
+  });
+
+  await queryInterface.sequelize.query(`
+    UPDATE web_users
+    SET email = lower(username)
+    WHERE email IS NULL
+      AND username LIKE '%@%'
+  `);
+  await queryInterface.sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS web_users_email_unique
+    ON web_users (lower(email))
+    WHERE email IS NOT NULL
+  `);
 }
 
 async function ensureTailoredResumeStatusColumns() {

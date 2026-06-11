@@ -27,7 +27,7 @@ export function getConfiguredUsers() {
 
 export async function authenticateUser(username, password) {
   await ensureDefaultUsers();
-  const user = await repositories.findUserByUsername(username);
+  const user = await repositories.findUserByLogin(username);
   if (!user) return null;
   if (!verifyPassword(password, user.passwordHash)) return null;
   return publicUser(user);
@@ -65,6 +65,7 @@ export async function ensureDefaultUsers() {
   for (const user of configuredUsers) {
     await WebUser.create({
       username: user.username,
+      email: user.username.includes('@') ? user.username.toLowerCase() : null,
       passwordHash: hashPassword(user.password),
       role: user.role || 'admin',
     });
@@ -138,6 +139,7 @@ export function publicUser(row) {
   return {
     id: row.id,
     username: row.username,
+    email: row.email || null,
     role: row.role,
     lastLoginAt: row.lastLoginAt || null,
     lastSeenAt,

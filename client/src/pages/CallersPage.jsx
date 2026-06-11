@@ -11,7 +11,7 @@ import CallerRegisterDialog from '../components/callers/CallerRegisterDialog.jsx
 import CallersHeader from '../components/callers/CallersHeader.jsx';
 import { useCallers, useCreateCaller } from '../lib/api.js';
 
-const EMPTY_CALLER = { username: '', password: '' };
+const EMPTY_CALLER = { email: '', username: '', password: '' };
 
 export default function CallersPage() {
   const { data: callers = [], isLoading, error } = useCallers();

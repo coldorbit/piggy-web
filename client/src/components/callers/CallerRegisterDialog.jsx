@@ -11,6 +11,12 @@ export default function CallerRegisterDialog({ callerForm, isOpen, isSaving, onC
             label="Email"
             required
             type="email"
+            value={callerForm.email}
+            onChange={(event) => onChange({ ...callerForm, email: event.target.value })}
+          />
+          <TextField
+            label="Username"
+            required
             value={callerForm.username}
             onChange={(event) => onChange({ ...callerForm, username: event.target.value })}
           />

@@ -12,15 +12,22 @@ export default function UserForm({ currentUser, form, isSaving, onChange, onSubm
       sx={{
         p: 1.5,
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1fr) minmax(180px, .75fr) 140px auto' },
+        gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1fr) minmax(180px, .75fr) minmax(180px, .75fr) 140px auto' },
         gap: 1.25,
         alignItems: 'center',
         boxShadow: 1,
       }}
     >
       <TextField
+        autoComplete="email"
+        label="Email"
+        size="small"
+        value={form.email}
+        onChange={(event) => onChange((current) => ({ ...current, email: event.target.value }))}
+      />
+      <TextField
         autoComplete="username"
-        label="Email or username"
+        label="Username"
         size="small"
         value={form.username}
         onChange={(event) => onChange((current) => ({ ...current, username: event.target.value }))}

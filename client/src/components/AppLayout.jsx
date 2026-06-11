@@ -3,6 +3,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import BadgeIcon from '@mui/icons-material/Badge';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EventNoteIcon from '@mui/icons-material/EventNote';
+import EditIcon from '@mui/icons-material/Edit';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
@@ -17,8 +18,13 @@ import {
   AppBar,
   Avatar,
   Box,
+  Button,
   Drawer,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   InputAdornment,
   List,
@@ -33,7 +39,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useLogout } from '../lib/authApi.js';
+import { useLogout, useUpdateMe } from '../lib/authApi.js';
 import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, isAdminRole, isSuperadmin, roleLabel } from '../lib/roles.js';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
@@ -46,7 +52,11 @@ export default function AppLayout({ user }) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
+  const [accountUsername, setAccountUsername] = useState(user.username || '');
+  const [accountError, setAccountError] = useState('');
   const { mutate: logout } = useLogout();
+  const { mutate: updateMe, isPending: isUpdatingMe } = useUpdateMe();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isBidRoute = location.pathname.startsWith('/bids');
   const isBidderRoute = location.pathname.startsWith('/bidders');
@@ -71,6 +81,28 @@ export default function AppLayout({ user }) {
     logout(undefined, {
       onSettled: () => navigate('/', { replace: true }),
     });
+  }
+
+  function openAccountDialog() {
+    setAccountUsername(user.username || '');
+    setAccountError('');
+    setIsAccountDialogOpen(true);
+  }
+
+  function closeAccountDialog() {
+    if (!isUpdatingMe) setIsAccountDialogOpen(false);
+  }
+
+  function submitAccount(event) {
+    event.preventDefault();
+    setAccountError('');
+    updateMe(
+      { username: accountUsername },
+      {
+        onSuccess: () => setIsAccountDialogOpen(false),
+        onError: (error) => setAccountError(error.message),
+      },
+    );
   }
 
   const title = isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
@@ -178,9 +210,19 @@ export default function AppLayout({ user }) {
           <Typography variant="caption" color="text.secondary">
             Signed in as
           </Typography>
-          <Typography fontWeight={900} noWrap>
-            {user.username}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+            <Typography fontWeight={900} noWrap sx={{ minWidth: 0, flex: 1 }}>
+              {user.username}
+            </Typography>
+            <IconButton size="small" onClick={openAccountDialog} aria-label="Edit username">
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Box>
+          {user.email ? (
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {user.email}
+            </Typography>
+          ) : null}
           <Chip label={roleLabel(user.role)} size="small" sx={{ mt: 1, bgcolor: 'secondary.main', color: '#ffffff' }} />
         </Box>
       </Box>
@@ -326,6 +368,30 @@ export default function AppLayout({ user }) {
           <Outlet />
         </Box>
       </Box>
+        <Dialog open={isAccountDialogOpen} onClose={closeAccountDialog} fullWidth maxWidth="xs">
+          <Box component="form" onSubmit={submitAccount}>
+            <DialogTitle>Set username</DialogTitle>
+            <DialogContent sx={{ pt: 1 }}>
+              <TextField
+                autoFocus
+                disabled={isUpdatingMe}
+                error={Boolean(accountError)}
+                fullWidth
+                helperText={accountError || 'Use this username to sign in and identify your work.'}
+                label="Username"
+                onChange={(event) => {
+                  setAccountUsername(event.target.value);
+                  if (accountError) setAccountError('');
+                }}
+                value={accountUsername}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button disabled={isUpdatingMe} onClick={closeAccountDialog}>Cancel</Button>
+              <Button disabled={isUpdatingMe} type="submit" variant="contained">Save</Button>
+            </DialogActions>
+          </Box>
+        </Dialog>
       </Box>
     </HeaderSearchProvider>
   );
