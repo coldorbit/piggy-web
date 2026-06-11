@@ -68,8 +68,8 @@ function buildResumePrompt(jobDescription, profileResume) {
     if (profileResume.trim().length < 400) {
       inferNote = [
         'The provided profile is brief (likely only name, years of experience, companies, and education).',
-        'Infer reasonable professional details for a senior software engineer based on these seeds:',
-        'timeframes, measurable achievements, and technologies. Do not infer or rewrite role titles.',
+        'Infer reasonable accomplishment framing, measurable impact, and technologies only from these seeds.',
+        'Never infer, invent, rewrite, upgrade, or embellish previous role titles or positions.',
         'Do not invent unverifiable company facts; keep achievements plausible and aligned with the job description.\n\n',
       ].join(' ');
     }
@@ -83,20 +83,36 @@ You are an expert resume writer. Create a full, ATS-friendly resume using the in
 
 ${inferNote}${promptBody}
 
+Hard truthfulness rules:
+- NEVER fabricate previous roles, previous titles, promotions, seniority, employers, education, certifications, dates, or employment history.
+- Preserve every provided company and experience position/title exactly as written. Do not change "Developer" into "Senior Developer", "Lead", "Architect", "Manager", or any other title unless that exact title is present in the profile.
+- If a role/title is missing for a previous company, leave "position" blank or use a neutral provided phrase from the profile; do not invent a title.
+- You may tailor wording, achievements, metrics, and technology emphasis only when they remain plausible for the provided role/company and do not imply a different title or responsibility level.
+- The top-level "role" field is the target resume headline. It may match the exact job-posting title for ATS visibility, but it must not be used as a previous experience title unless the profile already has that title.
+
+ATS optimization rules:
+- Match the exact job title from the posting in the top-level "role" field when available.
+- Weave in 25-35 relevant, role-specific keywords copied exactly from the job description across summary, core_skills, bullets, tech, and skills.
+- Do not keyword-stuff, hide keywords, repeat unnatural keyword lists, or add irrelevant terms.
+- Prefer exact terms from the job description over synonyms or abbreviations unless the posting itself uses the abbreviation.
+- Use standard resume section concepts only: Summary, Core Skills, Experience, Education, Skills.
+- Use plain text content only: no icons, emojis, decorative symbols, tables, columns, headers, footers, or graphics.
+- Use consistent date formatting everywhere: "Month Year" or "Present" for current roles.
+
 Instructions:
 - If a full resume/profile is provided, base the output on that content.
-- If only a minimal profile is provided, infer durations, accomplishments, metrics, and technologies that fit the candidate level and companies listed.
+- If only a minimal profile is provided, infer accomplishment framing, metrics, and technologies that fit the provided companies and explicitly provided roles. Do not infer previous roles/titles.
 - Produce experience entries for each company in the profile.
 - Never modify existing role titles/positions for companies in the profile; preserve provided titles exactly when available.
 - Use achievement bullets of 20-30 words each.
 - Include metrics such as counts, quantities, time reductions, performance, speed, accuracy, or financial impact when reasonable.
 - Include a single-string "tech" field per experience and an overall "core_skills" string.
-- Select 6 exact core skills highly relevant to the job description.
+- Select 6 exact core skills highly relevant to the job description, using exact job-posting language where possible.
 - Summary must be exactly 4 lines and 65 to 70 words.
 - Skills should contain more than 7 large area categories with 7-9 specific items each.
 - Keep language ATS-friendly, professional, and grammatically perfect.
 - Set target_company to the company from the job description. If unavailable, use "Company".
-- Set the top-level "role" field to the existing title from the latest company in the profile when available.
+- Set the top-level "role" field to the exact job title from the job description when available; otherwise use the existing title from the latest company in the profile when available.
 - Keep each company's real industry/domain; do not fabricate industry context.
 - Output ONLY valid JSON. Do NOT include markdown or explanations.
 - The JSON must match this shape:
