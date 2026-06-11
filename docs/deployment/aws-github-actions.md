@@ -117,6 +117,8 @@ DATABASE_SSL=true
 DATABASE_SSL_REJECT_UNAUTHORIZED=false
 ```
 
+If the database username or password contains URL-reserved characters such as `@`, `:`, `/`, `?`, `#`, or `%`, percent-encode them in `DATABASE_URL`. For example, `p@ss:word` becomes `p%40ss%3Aword`.
+
 The RDS security group must allow inbound PostgreSQL `5432` from the API EC2 security group.
 
 ## IAM Permissions For GitHub Role

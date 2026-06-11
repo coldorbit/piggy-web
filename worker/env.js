@@ -1,5 +1,8 @@
 import 'dotenv/config';
 
+validateOptionalUrl('AWS_SQS_ENDPOINT', process.env.AWS_SQS_ENDPOINT);
+validateRequiredUrl('TAILORING_QUEUE_URL', process.env.TAILORING_QUEUE_URL);
+
 export const ENV = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   DATABASE_URL: process.env.DATABASE_URL,
@@ -11,3 +14,19 @@ export const ENV = {
   AWS_SQS_ENDPOINT: process.env.AWS_SQS_ENDPOINT,
   TAILORING_QUEUE_URL: process.env.TAILORING_QUEUE_URL,
 };
+
+function validateRequiredUrl(name, value) {
+  if (!value) {
+    throw new Error(`${name} is required for the tailoring worker`);
+  }
+  validateOptionalUrl(name, value);
+}
+
+function validateOptionalUrl(name, value) {
+  if (!value) return;
+  try {
+    new URL(value);
+  } catch {
+    throw new Error(`${name} must be a valid URL`);
+  }
+}

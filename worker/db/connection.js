@@ -4,11 +4,9 @@ let sequelize;
 
 export function getSequelize() {
   if (!sequelize) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL is required for the tailoring worker');
-    }
+    const databaseUrl = requiredDatabaseUrl('tailoring worker');
 
-    sequelize = new Sequelize(process.env.DATABASE_URL, {
+    sequelize = new Sequelize(databaseUrl, {
       dialect: 'postgres',
       logging: false,
       dialectOptions: databaseDialectOptions(),
@@ -22,6 +20,26 @@ export function getSequelize() {
   }
 
   return sequelize;
+}
+
+function requiredDatabaseUrl(serviceName) {
+  const value = process.env.DATABASE_URL;
+  if (!value) {
+    throw new Error(`DATABASE_URL is required for the ${serviceName}`);
+  }
+
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('DATABASE_URL must be a valid postgres:// or postgresql:// URL');
+  }
+
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
+    throw new Error('DATABASE_URL must start with postgres:// or postgresql://');
+  }
+
+  return value;
 }
 
 function databaseDialectOptions() {

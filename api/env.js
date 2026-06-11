@@ -1,5 +1,8 @@
 import 'dotenv/config';
 
+validateOptionalUrl('AWS_SQS_ENDPOINT', process.env.AWS_SQS_ENDPOINT);
+validateOptionalUrl('TAILORING_QUEUE_URL', process.env.TAILORING_QUEUE_URL);
+
 export const ENV = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   WEB_PORT: Number(process.env.WEB_PORT || process.env.PORT || 3000),
@@ -24,4 +27,13 @@ export function isProduction() {
 
 export function isDevelopment() {
   return ENV.NODE_ENV === 'development';
+}
+
+function validateOptionalUrl(name, value) {
+  if (!value) return;
+  try {
+    new URL(value);
+  } catch {
+    throw new Error(`${name} must be a valid URL`);
+  }
 }
