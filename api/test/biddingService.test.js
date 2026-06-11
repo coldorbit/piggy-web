@@ -53,7 +53,7 @@ describe('buildBidTabQuery', () => {
     assertHasPlannedBidClause(query);
   });
 
-  it('requires submitted-style bids on the done tab', () => {
+  it('requires submitted-style and review bids on the done tab', () => {
     const query = buildBidTabQuery({
       where: {},
       tab: 'done',
@@ -63,7 +63,7 @@ describe('buildBidTabQuery', () => {
     });
 
     assert.equal(query.include[0].required, true);
-    assert.deepEqual(query.include[0].where.status[Op.in], ['submitted', 'won', 'lost']);
+    assert.deepEqual(query.include[0].where.status[Op.in], ['submitted', 'won', 'lost', 'mismatching_bid', 'spam_job']);
     assert.deepEqual(query.order[0], [{ model: JobBid, as: 'bids' }, 'updatedAt', 'DESC']);
     assert.equal(query.where[Op.and], undefined);
   });
@@ -83,7 +83,7 @@ describe('buildBidTabQuery', () => {
         (sql) =>
           sql.includes('FROM job_bids applied_bid') &&
           sql.includes("applied_bid.profile_id = '99'") &&
-          sql.includes("'submitted', 'interviewing', 'won', 'lost'"),
+          sql.includes("'submitted', 'interviewing', 'won', 'lost', 'mismatching_bid', 'spam_job'"),
       ),
       true,
     );

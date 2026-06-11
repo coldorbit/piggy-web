@@ -22,7 +22,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
-import { BID_TABS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
+import { BID_TABS, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.jsx';
 import InterviewLoadingState from '../components/interviews/InterviewLoadingState.jsx';
@@ -248,6 +248,7 @@ export default function InterviewsPage({ currentUser }) {
     : null;
   const selectedDraft = selectedJob ? draftFor(selectedJob) : null;
   const selectedStage = selectedDraft?.interviewStage || INTERVIEW_STAGES[0].value;
+  const selectedColumn = selectedJob ? interviewColumnValue(selectedJob, draftFor) : selectedStage;
   const selectedStageNotes = selectedDraft?.stageNotes || {};
   const selectedStageNote = selectedStageNotes[selectedStage] || selectedDraft?.interviewNotes || '';
   const selectedStageMeetingLinks = selectedDraft?.stageMeetingLinks || {};
@@ -258,9 +259,14 @@ export default function InterviewsPage({ currentUser }) {
   const selectedResumeStatus = selectedJob?.tailoredResume?.status || '';
   const callerUsers = interviewsData?.callerUsers || [];
   const jobsByStage = groupJobsByStage(jobs, draftFor);
+  const effectiveCurrentUser = interviewsData?.currentUser || currentUser;
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
   const totalInterviewCount = Number(activeProfile?.progress?.totalInterviews || interviewsData?.total || 0);
   const canEditInterviews = currentUser?.role !== 'caller';
+  const canDeleteSelectedInterview =
+    selectedJob &&
+    canEditInterviews &&
+    (isAdminRole(currentUser) || String(selectedJob.bid?.userId || '') === String(effectiveCurrentUser?.id || ''));
   const loading = profilesLoading || interviewsLoading;
   const pageError = error || profilesError?.message || interviewsError?.message || '';
 
@@ -349,9 +355,9 @@ export default function InterviewsPage({ currentUser }) {
                   activeColor={activeColor}
                   activeDropStage={activeDropStage}
                   callerUsers={callerUsers}
-                  currentUser={interviewsData?.currentUser || currentUser}
+                  currentUser={effectiveCurrentUser}
                   canAssignCallers={isAdminRole(currentUser)}
-                  canDeleteInterviews={isAdminRole(currentUser)}
+                  canDeleteInterviews={canEditInterviews}
                   draftFor={draftFor}
                   isDeleting={deletingInterview}
                   isSaving={updatingBid || !canEditInterviews}
@@ -488,7 +494,7 @@ export default function InterviewsPage({ currentUser }) {
                   <Typography fontWeight={900} noWrap>
                     {selectedJob.title || 'Untitled role'}
                   </Typography>
-                  <Chip label={stageLabel(selectedStage)} size="small" sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 900 }} />
+                  <Chip label={interviewColumnLabel(selectedColumn)} size="small" sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 900 }} />
                 </Box>
                 <Typography variant="body2" color="text.secondary" noWrap>
                   {[selectedJob.company, selectedJob.location].filter(Boolean).join(' · ') || 'Interview'}
@@ -532,21 +538,24 @@ export default function InterviewsPage({ currentUser }) {
               </Box>
               <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', pt: 0.5 }}>
                 <FormControl size="small">
-                  <InputLabel sx={{ bgcolor: 'background.paper', px: 0.5 }}>Step</InputLabel>
+                  <InputLabel sx={{ bgcolor: 'background.paper', px: 0.5 }}>Status</InputLabel>
                   <Select
-                    label="Step"
-                    value={selectedStage}
+                    label="Status"
+                    value={selectedColumn}
                     onChange={(event) => {
-                      const nextStage = event.target.value;
+                      const nextColumn = event.target.value;
+                      const nextStage = interviewStageForColumn(nextColumn, selectedStage);
+                      const nextStatus = interviewStatusForColumn(nextColumn);
                       updateDraft(selectedJob, 'interviewStage', nextStage);
+                      updateDraft(selectedJob, 'status', nextStatus);
                       updateDraft(selectedJob, 'interviewNotes', selectedStageNotes[nextStage] || '');
                       updateDraft(selectedJob, 'meetingLink', selectedStageMeetingLinks[nextStage] || '');
                     }}
                     disabled={updatingBid || !canEditInterviews}
                   >
-                    {INTERVIEW_STAGES.map((stage) => (
-                      <MenuItem key={stage.value} value={stage.value}>
-                        {stage.label}
+                    {INTERVIEW_KANBAN_COLUMNS.map((column) => (
+                      <MenuItem key={column.value} value={column.value}>
+                        {column.label}
                       </MenuItem>
                     ))}
                   </Select>
@@ -633,7 +642,7 @@ export default function InterviewsPage({ currentUser }) {
             </DialogContent>
             <DialogActions sx={{ justifyContent: 'space-between' }}>
               <Box>
-                {isAdminRole(currentUser) ? (
+                {canDeleteSelectedInterview ? (
                   <Button color="error" startIcon={<DeleteIcon />} disabled={deletingInterview || updatingBid} onClick={() => handleDeleteInterview(selectedJob)}>
                     Delete
                   </Button>
@@ -677,6 +686,10 @@ function resumeFileName(filePath) {
 
 function stageLabel(value) {
   return INTERVIEW_STAGES.find((stage) => stage.value === value)?.label || 'Stage';
+}
+
+function interviewColumnLabel(value) {
+  return INTERVIEW_KANBAN_COLUMNS.find((column) => column.value === value)?.label || stageLabel(value);
 }
 
 function formatJourneyLog(log) {

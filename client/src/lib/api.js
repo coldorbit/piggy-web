@@ -563,7 +563,7 @@ function bidTabsForJob(job) {
     tabs.add('interviews');
     return tabs;
   }
-  if (['submitted', 'won', 'lost'].includes(status)) {
+  if (['submitted', 'won', 'lost', 'mismatching_bid', 'spam_job'].includes(status)) {
     tabs.add('done');
     return tabs;
   }

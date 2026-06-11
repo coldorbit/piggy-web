@@ -31,6 +31,7 @@ import {
 import { formatDate } from '../../lib/formatters.js';
 import { authUrl } from '../../lib/api.js';
 import { jobSourceImageUrl, sourceLabel } from '../../lib/jobSourceImage.js';
+import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../lib/roles.js';
 import { BID_TABS } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
@@ -62,11 +63,15 @@ export default function BidJobCard({
   const draft = draftsForJob(job);
   const isTailoring = Boolean(tailoringByJobId[job.id]);
   const statusDefault = activeTab === BID_TABS.interviews ? 'interviewing' : activeTab === BID_TABS.done ? 'submitted' : undefined;
+  const isAdmin = isAdminRole(currentUser);
+  const isBidder = BIDDER_ROLES.includes(currentUser?.role);
+  const canMoveDoneJobToInterview = activeTab === BID_TABS.done && PRIVILEGED_USER_ROLES.includes(currentUser?.role) && !isAdmin && !isBidder;
+  const canReviewDoneJob = activeTab === BID_TABS.done && isAdmin;
   const showBidStatusChip = activeTab !== BID_TABS.tailored;
-  const showStatusControl = activeTab === BID_TABS.done || activeTab === BID_TABS.interviews;
+  const showStatusControl = activeTab === BID_TABS.interviews;
   const showAppliedAction = activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready';
   const bidChipLabel = job.bid
-    ? `Bid ${formatDate(job.bid.bidAt)}`
+    ? reviewStatusLabel(job.bid.status) || `Bid ${formatDate(job.bid.bidAt)}`
     : draft.status === 'planned'
       ? 'Not bid yet'
       : `Bid ${statusLabel(draft.status)}`;
@@ -102,6 +107,12 @@ export default function BidJobCard({
 
   function handleApplied() {
     const status = 'submitted';
+    onDraftChange(job.id, 'status', status);
+    onStatusChange(job, { ...draft, status });
+  }
+
+  function handleMoveToInterview() {
+    const status = 'interviewing';
     onDraftChange(job.id, 'status', status);
     onStatusChange(job, { ...draft, status });
   }
@@ -373,6 +384,33 @@ export default function BidJobCard({
                     </Select>
                   </FormControl>
                 ) : null}
+                {canReviewDoneJob ? (
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel>Review</InputLabel>
+                    <Select
+                      label="Review"
+                      value={reviewStatusValue(draft.status)}
+                      onChange={handleStatusChange}
+                      disabled={isSaving}
+                    >
+                      <MenuItem value="" disabled>Review status</MenuItem>
+                      <MenuItem value="mismatching_bid">Mismatching</MenuItem>
+                      <MenuItem value="spam_job">Spam work</MenuItem>
+                    </Select>
+                  </FormControl>
+                ) : null}
+                {canMoveDoneJobToInterview ? (
+                  <Button
+                    disabled={draft.status === 'interviewing' || isSaving}
+                    onClick={handleMoveToInterview}
+                    size="small"
+                    startIcon={<CheckCircleIcon />}
+                    variant="contained"
+                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                  >
+                    Move to interview
+                  </Button>
+                ) : null}
                 {showAppliedAction ? (
                   <Button
                     disabled={draft.status === 'submitted'}
@@ -542,7 +580,20 @@ const tailorButtonSx = {
 };
 
 function statusLabel(status) {
+  if (status === 'mismatching_bid') return 'Mismatching bid';
+  if (status === 'spam_job') return 'Spam job';
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function reviewStatusLabel(status) {
+  if (status === 'mismatching_bid') return 'Mismatching bid';
+  if (status === 'spam_job') return 'Spam job';
+  return '';
+}
+
+function reviewStatusValue(status) {
+  if (status === 'mismatching_bid' || status === 'spam_job') return status;
+  return '';
 }
 
 function tailoredStatusLabel(status) {

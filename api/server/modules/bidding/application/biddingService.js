@@ -6,6 +6,9 @@ import { InputError } from '../../../utils/errors.js';
 import { clean } from '../../../utils/index.js';
 
 const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
+const DONE_BID_STATUSES = ['submitted', 'won', 'lost', 'mismatching_bid', 'spam_job'];
+const INTERVIEW_BID_STATUSES = ['interviewing', 'won', 'lost'];
+export const REVIEW_BID_STATUSES = new Set(['mismatching_bid', 'spam_job']);
 
 export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', JobBid, sequelize }) {
   const tabWhere = { ...where };
@@ -30,8 +33,8 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
       required: isDoneTab || isInterviewsTab,
       where: {
         profileId,
-        ...(isDoneTab ? { status: { [Op.in]: ['submitted', 'won', 'lost'] } } : {}),
-        ...(isInterviewsTab ? { status: { [Op.in]: ['interviewing', 'won', 'lost'] } } : {}),
+        ...(isDoneTab ? { status: { [Op.in]: DONE_BID_STATUSES } } : {}),
+        ...(isInterviewsTab ? { status: { [Op.in]: INTERVIEW_BID_STATUSES } } : {}),
       },
     },
   ];
@@ -71,7 +74,7 @@ function appliedProfileExistsSql({ profileId, sequelize }) {
     FROM job_bids applied_bid
     WHERE applied_bid.job_id = "ScrapedJob"."id"
       AND applied_bid.profile_id = ${escapedProfileId}
-      AND applied_bid.status IN ('submitted', 'interviewing', 'won', 'lost')
+      AND applied_bid.status IN ('submitted', 'interviewing', 'won', 'lost', 'mismatching_bid', 'spam_job')
   )`;
 }
 
@@ -326,7 +329,7 @@ export function bidAttributesFromBody(body) {
   const stageMeetingLinks = hasStageMeetingLinks ? normalizeStageMeetingLinks(body?.stageMeetingLinks) : {};
   const interviewMeetingLink = hasInterviewMeetingLink ? clean(body?.interviewMeetingLink || body?.meetingLink) : undefined;
   const allowedInterviewStages = new Set(['', 'todo', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
-  const allowedStatuses = new Set(['planned', 'submitted', 'interviewing', 'won', 'lost']);
+  const allowedStatuses = new Set(['planned', 'submitted', 'interviewing', 'won', 'lost', ...REVIEW_BID_STATUSES]);
   const normalizedInterviewStage = status === 'interviewing' && !interviewStage ? 'todo' : interviewStage;
 
   if (!allowedStatuses.has(status)) throw new InputError('Choose a valid bid status');

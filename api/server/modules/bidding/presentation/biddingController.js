@@ -22,6 +22,7 @@ import {
   buildZip,
   formatBid,
   formatTailoredResume,
+  REVIEW_BID_STATUSES,
   tailoredResumesForJobs,
 } from '../application/biddingService.js';
 import { buildJobQuery, formatJob } from '../../jobs/application/jobsService.js';
@@ -1304,6 +1305,7 @@ export async function createJobBid(req, res, next) {
 
     const now = new Date();
     const attrs = bidAttributesFromBody(req.body);
+    if (rejectReviewStatusForNonAdmin(req, res, attrs)) return;
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (!isAdminRole(req.user)) delete attrs.callerUserId;
 
@@ -1718,6 +1720,7 @@ export async function updateJobBid(req, res, next) {
       return;
     }
     const attrs = bidAttributesFromBody(req.body);
+    if (rejectReviewStatusForNonAdmin(req, res, attrs)) return;
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (!isAdminRole(req.user)) {
       await accessibleProfile(req, bid.profileId);
@@ -1773,14 +1776,18 @@ export async function updateInterview(req, res, next) {
 export async function deleteInterview(req, res, next) {
   try {
     await ensureWebModels();
-    if (!isAdminRole(req.user)) {
-      res.status(403).json({ error: 'Admin access is required' });
-      return;
-    }
+    const user = await currentDbUser(req);
     const interview = await getInterviewModel().findByPk(req.params.id);
     if (!interview) {
       res.status(404).json({ error: 'Interview not found' });
       return;
+    }
+    if (!isAdminRole(req.user)) {
+      await accessibleProfile(req, interview.profileId);
+      if (String(interview.userId) !== String(user.id)) {
+        res.status(404).json({ error: 'Interview not found' });
+        return;
+      }
     }
     if (interview.jobBidId) {
       const bid = await getJobBidModel().findByPk(interview.jobBidId);
@@ -1858,6 +1865,12 @@ function interviewValuesFromAttrs(attrs, existing = null) {
     stageNotes,
     stageMeetingLinks,
   };
+}
+
+function rejectReviewStatusForNonAdmin(req, res, attrs) {
+  if (!REVIEW_BID_STATUSES.has(attrs.status) || isAdminRole(req.user)) return false;
+  res.status(403).json({ error: 'Admin access is required' });
+  return true;
 }
 
 function bidUpdateValuesFromAttrs(attrs) {
