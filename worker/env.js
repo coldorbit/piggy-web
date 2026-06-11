@@ -1,4 +1,11 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const workerDir = dirname(fileURLToPath(import.meta.url));
+
+dotenv.config({ path: process.env.WORKER_ENV_FILE || join(workerDir, 'worker.env') });
+dotenv.config({ path: join(workerDir, '.env') });
 
 validateOptionalUrl('AWS_SQS_ENDPOINT', process.env.AWS_SQS_ENDPOINT);
 validateRequiredUrl('TAILORING_QUEUE_URL', process.env.TAILORING_QUEUE_URL);

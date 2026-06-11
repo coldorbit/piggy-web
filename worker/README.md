@@ -9,7 +9,7 @@ The worker is intentionally standalone: it has its own env loader, DB connection
 ## Local Development
 
 ```bash
-cp worker/.env.example worker/.env
+cp worker/.env.example worker/worker.env
 pnpm install
 pnpm --dir worker dev
 ```
@@ -35,5 +35,5 @@ Build from the workspace root:
 
 ```bash
 docker build -t applypilot-tailoring-worker worker
-docker run --env-file worker/.env applypilot-tailoring-worker
+docker run --env-file worker/worker.env applypilot-tailoring-worker
 ```

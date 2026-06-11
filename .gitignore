@@ -8,5 +8,7 @@ client/dist/
 .env.local
 api/.env
 client/.env
+worker/.env
+worker/worker.env
 .DS_Store
 *.log
