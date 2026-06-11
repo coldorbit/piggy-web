@@ -13,6 +13,7 @@ import { ENV } from './env.js';
 import { InputError } from './errors.js';
 
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const LONG_RESUME_TEXT_CHAR_THRESHOLD = 6500;
 const RESUME_TEMPLATES = {
   classic: {
     headingColor: '111827',
@@ -246,7 +247,7 @@ async function generateDocxAndUpload({ generatedResume, profile }) {
 
 async function renderResumeDocx(data, profile) {
   const children = [];
-  const template = randomResumeTemplate();
+  const template = resumeTemplateForContent(data, profile);
 
   children.push(
     new Paragraph({
@@ -388,8 +389,59 @@ function addContactSeparator(runs, template = RESUME_TEMPLATES.classic) {
   if (runs.length) runs.push(new TextRun({ text: ' | ', size: template.bodySize }));
 }
 
-function randomResumeTemplate() {
-  const templates = Object.values(RESUME_TEMPLATES);
+function resumeTemplateForContent(data, profile) {
+  if (renderedResumeTextLength(data, profile) > LONG_RESUME_TEXT_CHAR_THRESHOLD) {
+    return RESUME_TEMPLATES.compact;
+  }
+  return randomTemplate(['classic', 'modern']);
+}
+
+function renderedResumeTextLength(data, profile) {
+  return renderedResumeTextParts(data, profile).join(' ').length;
+}
+
+function renderedResumeTextParts(data, profile) {
+  const parts = [
+    profile.name || data.name || 'Resume',
+    profile.location,
+    profile.email,
+    profile.phone,
+    profile.linkedin || data.linkedin_profile,
+    data.role,
+    'Summary',
+    data.summary,
+    'Core Skills',
+    data.core_skills,
+    'Work Experience',
+  ];
+
+  for (const exp of workExperienceEntries(data)) {
+    parts.push(
+      exp.position,
+      exp.company,
+      exp.location,
+      exp.start_date,
+      exp.end_date,
+      ...(exp.bullets || []),
+      exp.tech ? `Tech stack: ${exp.tech}` : '',
+    );
+  }
+
+  parts.push('Education');
+  for (const ed of data.education || []) {
+    parts.push(ed.degree, ed.area, ed.institution, ed.start_date, ed.end_date);
+  }
+
+  parts.push('Skills');
+  for (const [label, items] of Object.entries(data.skills || {})) {
+    parts.push(label, Array.isArray(items) ? items.join(', ') : items);
+  }
+
+  return parts.filter(Boolean).map(String);
+}
+
+function randomTemplate(names) {
+  const templates = names.map((name) => RESUME_TEMPLATES[name]).filter(Boolean);
   return templates[Math.floor(Math.random() * templates.length)] || RESUME_TEMPLATES.classic;
 }
 
