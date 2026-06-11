@@ -429,8 +429,8 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
     jobs.push({
       url,
       duplicateKey: url,
-      source: csvValue(raw, 'source') || 'Manual',
-      sourceUrl: csvValue(raw, 'sourceUrl') || null,
+      source: 'Manual',
+      sourceUrl: null,
       title: title || 'Untitled role',
       company: csvValue(raw, 'company') || null,
       location: csvValue(raw, 'location') || null,
@@ -439,7 +439,7 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
       scrapedAt: importedAt,
       listingText: listingText || null,
       rawJob: {
-        ...raw,
+        ...manualRawJob(raw),
         importedBy: importedBy || null,
         importedAt: importedAt.toISOString(),
         importRowNumber: rowNumber,
@@ -457,6 +457,16 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
   if (errors.length) throw new InputError(errors.slice(0, 10).join('; '));
   if (!jobs.length) throw new InputError('CSV did not contain any importable jobs');
   return jobs;
+}
+
+function manualRawJob(raw) {
+  const rawJob = { ...raw };
+  for (const field of ['source', 'sourceUrl']) {
+    for (const column of JOB_CSV_COLUMNS[field]) {
+      delete rawJob[normalizeHeader(column)];
+    }
+  }
+  return rawJob;
 }
 
 function validateCsvHeaders(headers) {

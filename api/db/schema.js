@@ -52,6 +52,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await ensureDuplicateKeyColumn();
       await ensureSpamReviewColumns();
       await ensureHiddenJobColumns();
+      await backfillManualJobSources();
       await ensureBidPageIndexes();
       await ensureProfileShareIndexes();
       await ensureJobBidProfileScopedUniqueness();
@@ -86,6 +87,23 @@ async function ensureMarketplaceIndexes() {
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS marketplace_matches_status_scheduled_idx
     ON marketplace_matches (status, scheduled_at ASC NULLS LAST)
+  `);
+}
+
+async function backfillManualJobSources() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    UPDATE scraped_jobs
+    SET source = 'Manual',
+        source_url = NULL,
+        raw_job = COALESCE(raw_job, '{}'::jsonb)
+          - 'source'
+          - 'sourceurl'
+          - 'source_url'
+          - 'source url'
+    WHERE raw_job->>'importType' = 'manual'
+       OR raw_job->>'isManualImport' = 'true'
   `);
 }
 

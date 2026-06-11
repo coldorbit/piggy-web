@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { groupedJobsFromRows, paginateGroupedJobs } from '../server/modules/jobs/application/jobsService.js';
+import { groupedJobsFromRows, jobsFromCsv, paginateGroupedJobs } from '../server/modules/jobs/application/jobsService.js';
 
 describe('grouped scraped jobs', () => {
   it('groups matching title and company rows while preserving selectable locations', () => {
@@ -32,6 +32,24 @@ describe('grouped scraped jobs', () => {
 
     assert.equal(page.count, 2);
     assert.equal(page.rows.length, 1);
+  });
+});
+
+describe('manual CSV job imports', () => {
+  it('treats imported jobs as Manual even when source columns are present', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,source,source_url',
+        'https://example.com/jobs/manual-1,Software Engineer,Acme,LinkedIn,https://linkedin.com/jobs/view/1',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(job.source, 'Manual');
+    assert.equal(job.sourceUrl, null);
+    assert.equal(job.rawJob.importType, 'manual');
+    assert.equal(job.rawJob.source, undefined);
+    assert.equal(job.rawJob.source_url, undefined);
   });
 });
 
