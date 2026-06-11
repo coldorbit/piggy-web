@@ -2,6 +2,7 @@ import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s
 import {
   AlignmentType,
   Document,
+  ExternalHyperlink,
   HeadingLevel,
   Packer,
   Paragraph,
@@ -98,15 +99,19 @@ Hard truthfulness rules:
 - Every work_experience entry must show a visible "position". If a role/title is provided in the profile, copy it exactly. If no role/title is provided, use "Role not provided" and do not invent a title.
 - You may tailor wording, achievements, metrics, and technology emphasis only when they remain plausible for the provided role/company and do not imply a different title or responsibility level.
 - The top-level "role" field is the target resume headline. It may match the exact job-posting title for ATS visibility, but it must not be used as a previous experience title unless the profile already has that title.
+- Do not backdate technologies. Before adding any technology, tool, framework, model, API, platform, or vendor to a work_experience bullet or "tech" field, verify it plausibly existed and was publicly usable during that role's start/end dates and fits that role's domain. If unsure, omit it from that work_experience entry.
+- Newer target-job keywords may appear in Summary, Core Skills, or Skills when they reflect current candidate positioning, but do not place them inside older work_experience entries unless the profile explicitly supports that usage.
 
 ATS optimization rules:
 - Match the exact job title from the posting in the top-level "role" field when available.
-- Weave in 25-35 relevant, role-specific keywords copied exactly from the job description across summary, core_skills, bullets, tech, and skills.
+- Weave in 25-35 relevant, role-specific keywords copied exactly from the job description across summary, core_skills, bullets, tech, and skills, while respecting historical validity for work_experience.
 - Do not keyword-stuff, hide keywords, repeat unnatural keyword lists, or add irrelevant terms.
 - Prefer exact terms from the job description over synonyms or abbreviations unless the posting itself uses the abbreviation.
 - Use standard resume section concepts only: Summary, Core Skills, Work Experience, Education, Skills.
 - Use plain text content only: no icons, emojis, decorative symbols, tables, columns, headers, footers, or graphics.
 - Use consistent date formatting everywhere: "Month Year" or "Present" for current roles.
+- Preserve the provided LinkedIn profile as an actual URL in "linkedin_profile". Use the display format "linkedin.com/in/profile-slug". If no LinkedIn profile is provided, leave it blank. Never invent a LinkedIn URL.
+- Normalize noisy target job titles before setting the top-level "role": remove locations, remote/hybrid tags, agency/recruiter names, team names, department labels, requisition IDs, contract labels, and parenthetical clutter. Keep the plain role name commonly used in job postings, such as "Software Engineer", "Senior Data Engineer", or "Product Manager".
 
 Instructions:
 - If a full resume/profile is provided, base the output on that content.
@@ -115,13 +120,13 @@ Instructions:
 - Never modify existing role titles/positions for companies in the profile; preserve provided titles exactly when available.
 - Use achievement bullets of 20-30 words each.
 - Include metrics such as counts, quantities, time reductions, performance, speed, accuracy, or financial impact when reasonable.
-- Include a single-string "tech" field per work experience and an overall "core_skills" string.
+- Include a single-string "tech" field per work experience and an overall "core_skills" string. Each work_experience "tech" field must contain only technologies valid for that role's dates and context.
 - Select 6 exact core skills highly relevant to the job description, using exact job-posting language where possible.
 - Summary must be exactly 4 lines and 65 to 70 words.
 - Skills should contain more than 7 large area categories with 7-9 specific items each.
 - Keep language ATS-friendly, professional, and grammatically perfect.
 - Set target_company to the company from the job description. If unavailable, use "Company".
-- Set the top-level "role" field to the exact job title from the job description when available; otherwise use the existing title from the latest company in the profile when available.
+- Set the top-level "role" field to the cleaned, plain role name from the job description when available. Use the exact posting title only when it is already a clean role name; otherwise remove location, agency, team, department, contract, and requisition clutter.
 - Keep each company's real industry/domain; do not fabricate industry context.
 - Output ONLY valid JSON. Do NOT include markdown or explanations.
 - The JSON must match this shape:
@@ -129,6 +134,7 @@ Instructions:
   "name": "",
   "target_company": "",
   "role": "",
+  "linkedin_profile": "",
   "summary": "",
   "core_skills": "",
   "work_experience": [
@@ -200,8 +206,8 @@ async function renderResumeDocx(data, profile) {
       children: [new TextRun({ text: profile.name || data.name || 'Resume', bold: true, size: 32 })],
     }),
   );
-  const contact = [profile.location, profile.email, profile.phone, profile.linkedin].filter(Boolean).join(' | ');
-  if (contact) children.push(centeredText(contact, { size: 20, after: 80 }));
+  const contact = contactParagraph(profile, data);
+  if (contact) children.push(contact);
   if (data.role) children.push(centeredText(data.role, { bold: true, size: 22, after: 160 }));
 
   addSection(children, 'Summary');
@@ -300,6 +306,69 @@ function centeredText(value, { after = 80, bold = false, size = 20 } = {}) {
     spacing: { after },
     children: [new TextRun({ text: String(value), bold, size })],
   });
+}
+
+function contactParagraph(profile, data) {
+  const runs = [];
+  for (const value of [profile.location, profile.email, profile.phone].filter(Boolean)) {
+    addContactSeparator(runs);
+    runs.push(new TextRun({ text: String(value), size: 20 }));
+  }
+
+  const linkedin = normalizedLinkedInUrl(profile.linkedin || data.linkedin_profile);
+  if (linkedin) {
+    addContactSeparator(runs);
+    runs.push(
+      new ExternalHyperlink({
+        link: linkedin,
+        children: [new TextRun({ text: linkedinDisplayText(linkedin), style: 'Hyperlink', size: 20 })],
+      }),
+    );
+  }
+
+  return runs.length
+    ? new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        children: runs,
+      })
+    : null;
+}
+
+function addContactSeparator(runs) {
+  if (runs.length) runs.push(new TextRun({ text: ' | ', size: 20 }));
+}
+
+function normalizedLinkedInUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const withProtocol = /^https?:\/\//i.test(raw)
+    ? raw
+    : raw.startsWith('/in/')
+      ? `https://www.linkedin.com${raw}`
+      : `https://${raw}`;
+
+  try {
+    const url = new URL(withProtocol);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, '');
+    if (hostname !== 'linkedin.com' || !url.pathname.startsWith('/in/')) return '';
+    url.protocol = 'https:';
+    url.hostname = 'www.linkedin.com';
+    url.hash = '';
+    url.search = '';
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return '';
+  }
+}
+
+function linkedinDisplayText(value) {
+  try {
+    const url = new URL(value);
+    return `${url.hostname.replace(/^www\./, '')}${url.pathname}`.replace(/\/$/, '');
+  } catch {
+    return value;
+  }
 }
 
 function workExperienceEntries(data) {
