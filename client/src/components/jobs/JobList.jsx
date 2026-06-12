@@ -28,6 +28,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       sx={{
         position: 'relative',
         minHeight: 0,
+        minWidth: 0,
         maxHeight: { lg: '100%' },
         overflow: 'hidden',
         boxShadow: 1,
@@ -38,17 +39,18 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       {loading && jobs.length ? <LoadingOverlay label="Loading jobs..." /> : null}
       {loading && !jobs.length ? <LoadingState label="Loading jobs..." /> : null}
       {!loading && jobs.length === 0 ? <EmptyState>No jobs match the current filters.</EmptyState> : null}
-      <List disablePadding sx={{ overflow: 'auto', flex: '1 1 auto', minHeight: 0 }}>
+      <List disablePadding sx={{ overflowY: 'auto', overflowX: 'hidden', flex: '1 1 auto', minHeight: 0, minWidth: 0 }}>
         {jobs.map((job) => {
           const selected = String(selectedJob?.id) === String(job.id);
           const isLinkedInJob = String(job.source || '').trim().toLowerCase() === 'linkedin';
           return (
-            <ListItem key={job.id} disablePadding divider sx={{ borderColor: 'divider' }}>
+            <ListItem key={job.id} disablePadding divider sx={{ minWidth: 0, borderColor: 'divider' }}>
               <ButtonBase
                 component="div"
                 onClick={() => onSelectJob(job.id)}
                 sx={{
                   width: '100%',
+                  minWidth: 0,
                   minHeight: 64,
                   px: 1.1,
                   py: 0.85,
@@ -64,6 +66,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                 <Box
                   sx={{
                     width: '100%',
+                    minWidth: 0,
                     display: 'grid',
                     gridTemplateColumns: job.companyLogoUrl ? '36px minmax(0, 1fr) max-content' : 'minmax(0, 1fr) max-content',
                     gap: 1,
@@ -89,6 +92,8 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                   <Box
                     sx={{
                       minWidth: 96,
+                      maxWidth: '100%',
+                      overflow: 'hidden',
                       display: 'grid',
                       gap: 0.15,
                       justifyItems: 'end',
@@ -96,7 +101,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                       flexShrink: 0,
                     }}
                   >
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0, overflow: 'hidden' }}>
                       <Tooltip title="Copy description">
                         <span>
                           <IconButton
@@ -117,7 +122,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                       {job.locationOptions?.length > 1 ? <LocationCountBadge count={job.locationOptions.length} /> : null}
                       <SpamBadge job={job} />
                     </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0, overflow: 'hidden' }}>
                       {job.source ? <SourceBadge isManual={job.isManual} source={job.source} sourceUrl={job.sourceUrl} /> : null}
                       {job.applyMode && !isLinkedInJob ? <ApplyModeBadge applyMode={job.applyMode} /> : null}
                       <Typography color="text.secondary" variant="caption" fontWeight={700} noWrap>

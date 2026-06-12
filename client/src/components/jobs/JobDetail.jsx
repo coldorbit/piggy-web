@@ -111,7 +111,8 @@ export default function JobDetail({
         height: { lg: '100%' },
         maxHeight: { lg: '100%' },
         p: { xs: 1.25, sm: 1.5 },
-        overflow: 'auto',
+        overflowY: 'auto',
+        overflowX: 'hidden',
         boxShadow: 1,
       }}
     >
@@ -263,7 +264,16 @@ export default function JobDetail({
         <Typography variant="subtitle2" fontWeight={900} gutterBottom>
           Listing Text
         </Typography>
-        <Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.62, color: 'text.primary' }}>
+        <Typography
+          sx={{
+            maxWidth: '100%',
+            overflow: 'hidden',
+            overflowWrap: 'anywhere',
+            whiteSpace: 'pre-wrap',
+            lineHeight: 1.62,
+            color: 'text.primary',
+          }}
+        >
           {job.listingText || job.rawJob?.description || 'No listing text stored.'}
         </Typography>
       </Box>

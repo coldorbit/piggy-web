@@ -3,7 +3,7 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import { Box, Button, Drawer, IconButton, Stack, Typography } from '@mui/material';
 import JobFiltersToolbar from './JobFiltersToolbar.jsx';
 
-const FILTER_DRAWER_WIDTH = { xs: '100%', sm: 480, md: 570, lg: 645 };
+const FILTER_DRAWER_WIDTH = { xs: '100%', sm: 240, md: 285, lg: 323 };
 
 export default function JobFiltersDrawer({ ariaLabel = 'Job filters', filters, isOpen, meta, onClose, onFilterChange, onOpen, onRefresh }) {
   return (

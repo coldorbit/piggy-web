@@ -232,11 +232,15 @@ export default function JobsPage({ currentUser }) {
         component="section"
         sx={{
           minHeight: 0,
+          minWidth: 0,
           height: { lg: 'calc(100vh - 230px)' },
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', lg: 'minmax(360px, 0.9fr) minmax(420px, 1.1fr)' },
           gap: 1.5,
           alignItems: { xs: 'start', lg: 'stretch' },
+          '& > *': {
+            minWidth: 0,
+          },
         }}
       >
         <JobList
