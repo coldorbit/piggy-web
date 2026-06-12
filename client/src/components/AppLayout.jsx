@@ -421,6 +421,16 @@ function NavItem({ alwaysHighlighted = false, icon, label, onNavigate, to }) {
     '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
     '& .MuiListItemText-primary': { color: 'primary.contrastText' },
   };
+  const persistentHighlightStyles = {
+    bgcolor: '#F0FDFA',
+    borderColor: '#14B8A6',
+    borderLeftWidth: 4,
+    color: '#0F766E',
+    boxShadow: 'inset 0 0 0 1px rgba(20, 184, 166, 0.12)',
+    fontWeight: 800,
+    '& .MuiListItemIcon-root': { color: '#0F766E' },
+    '& .MuiListItemText-primary': { color: '#0F766E' },
+  };
 
   return (
     <ListItemButton
@@ -432,16 +442,16 @@ function NavItem({ alwaysHighlighted = false, icon, label, onNavigate, to }) {
         borderRadius: 1,
         border: 1,
         borderColor: 'transparent',
-        color: alwaysHighlighted ? 'primary.contrastText' : 'text.secondary',
-        '& .MuiListItemIcon-root': { color: alwaysHighlighted ? 'primary.contrastText' : 'text.secondary' },
+        color: alwaysHighlighted ? '#0F766E' : 'text.secondary',
+        '& .MuiListItemIcon-root': { color: alwaysHighlighted ? '#0F766E' : 'text.secondary' },
         '&:hover': {
-          bgcolor: '#EFF6FF',
-          borderColor: '#DBEAFE',
-          color: 'primary.dark',
-          '& .MuiListItemIcon-root': { color: 'primary.dark' },
-          '& .MuiListItemText-primary': { color: 'primary.dark' },
+          bgcolor: alwaysHighlighted ? '#CCFBF1' : '#EFF6FF',
+          borderColor: alwaysHighlighted ? '#0D9488' : '#DBEAFE',
+          color: alwaysHighlighted ? '#115E59' : 'primary.dark',
+          '& .MuiListItemIcon-root': { color: alwaysHighlighted ? '#115E59' : 'primary.dark' },
+          '& .MuiListItemText-primary': { color: alwaysHighlighted ? '#115E59' : 'primary.dark' },
         },
-        ...(alwaysHighlighted ? highlightedStyles : {}),
+        ...(alwaysHighlighted ? persistentHighlightStyles : {}),
         '&.active': highlightedStyles,
       }}
     >
