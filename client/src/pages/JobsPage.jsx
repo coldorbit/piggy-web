@@ -273,7 +273,7 @@ export default function JobsPage({ currentUser }) {
               minRows={4}
               maxRows={8}
               fullWidth
-              sx={{ mt: 1 }}
+              sx={{ mt: 2 }}
             />
             <Button
               type="button"
