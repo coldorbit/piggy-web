@@ -53,7 +53,7 @@ export default function CallersPage() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
+          gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' },
           gap: 1.5,
         }}
       >
@@ -79,7 +79,7 @@ function CallerSkeletonGrid() {
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
+        gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' },
         gap: 1.5,
       }}
     >
