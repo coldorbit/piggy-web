@@ -107,7 +107,7 @@ async function claimTailoringJob(tailoredResumeId) {
   const TailoredResume = getTailoredResumeModel();
   const tailoredResume = await TailoredResume.findByPk(tailoredResumeId);
   if (!tailoredResume) return null;
-  if (['ready', 'dead_letter', 'invalid'].includes(tailoredResume.status)) return null;
+  if (['ready', 'dead_letter', 'invalid', 'cancelled'].includes(tailoredResume.status)) return null;
 
   const attempts = Number(tailoredResume.attempts || 0);
   const staleProcessingBefore = new Date(Date.now() - VISIBILITY_TIMEOUT_SECONDS * 1000);
@@ -150,6 +150,9 @@ async function processTailoredResume(tailoredResume) {
     if (!profile) throw new Error('Profile not found for tailoring request');
 
     const tailorResult = await generateTailoredResume({ job, profile, tailoredResume });
+    await tailoredResume.reload();
+    if (tailoredResume.status === 'cancelled') return;
+
     await tailoredResume.update({
       status: 'ready',
       filePath: tailorResult.s3Key,
@@ -177,6 +180,9 @@ function manualJobFromTailoredResume(tailoredResume) {
 }
 
 async function failTailoredResume(tailoredResume, error) {
+  await tailoredResume.reload();
+  if (tailoredResume.status === 'cancelled') return;
+
   const attempts = Number(tailoredResume.attempts || 0);
   const maxAttempts = Number(tailoredResume.maxAttempts || MAX_ATTEMPTS);
   const lastError = error.message || 'Tailoring service failed';

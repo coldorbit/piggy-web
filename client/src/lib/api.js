@@ -1118,6 +1118,39 @@ export function useRequestTailoredResume() {
   });
 }
 
+export function useStopTailoredResume() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tailoredResumeId }) =>
+      api(`/api/bid/tailored-resumes/${tailoredResumeId}/cancel`, {
+        method: 'PATCH',
+      }).then((data) => data.tailoredResume),
+    onMutate: async ({ jobId, tailoredResumeId }) => {
+      await queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] });
+      const previousBidJobsQueries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
+      if (jobId) {
+        updateCachedBidQueries(queryClient, jobId, {
+          tailoredResume: { id: tailoredResumeId, status: 'cancelled' },
+        });
+      }
+      return { previousBidJobsQueries };
+    },
+    onError: (_error, _variables, context) => {
+      restoreQueries(queryClient, context?.previousBidJobsQueries);
+    },
+    onSuccess: (_tailoredResume, { jobId, tailoredResumeId }) => {
+      if (jobId) {
+        updateCachedBidQueries(queryClient, jobId, {
+          tailoredResume: { id: tailoredResumeId, status: 'cancelled' },
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'tailoring-requests'] });
+    },
+  });
+}
+
 export function useTailoredResumeEvents(profileId) {
   const queryClient = useQueryClient();
 

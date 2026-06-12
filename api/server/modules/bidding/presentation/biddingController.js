@@ -1140,6 +1140,36 @@ export async function createManualTailoredResume(req, res, next) {
   }
 }
 
+export async function cancelTailoredResume(req, res, next) {
+  try {
+    await ensureWebModels();
+    const tailoredResume = await getTailoredResumeModel().findByPk(req.params.id);
+    if (!tailoredResume) {
+      res.status(404).json({ error: 'Tailoring request not found' });
+      return;
+    }
+    await ensureTailoredResumeAccess(req, tailoredResume);
+
+    if (!['requested', 'processing'].includes(tailoredResume.status)) {
+      res.status(400).json({ error: 'Only queued or processing tailoring requests can be stopped' });
+      return;
+    }
+
+    await tailoredResume.update({
+      status: 'cancelled',
+      filePath: null,
+      readyAt: null,
+      lastError: null,
+      deadLetterAt: null,
+      downloadedAt: null,
+    });
+
+    res.json({ tailoredResume: formatTailoredResume(tailoredResume) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 function manualTailoringAttributesFromBody(body = {}) {
   const company = clean(body.company || body.companyName);
   const role = clean(body.role || body.title || body.positionTitle);

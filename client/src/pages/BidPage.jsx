@@ -18,6 +18,7 @@ import {
   useJobsMeta,
   useMarkJobHidden,
   useRequestTailoredResume,
+  useStopTailoredResume,
   useTailoredResumeEvents,
   useUpdateLinkedInExternalUrl,
   useUpdateJobBid,
@@ -97,6 +98,7 @@ export default function BidPage({ currentUser }) {
   const { mutate: markHidden } = useMarkJobHidden();
   const { mutate: updateLinkedInExternalUrl, isPending: updatingLinkedInExternalUrl } = useUpdateLinkedInExternalUrl();
   const { mutate: requestTailoredResume } = useRequestTailoredResume();
+  const { mutate: stopTailoredResume, isPending: stoppingTailoredResume } = useStopTailoredResume();
   useTailoredResumeEvents(activeProfile?.id);
 
   useEffect(() => {
@@ -255,6 +257,17 @@ export default function BidPage({ currentUser }) {
     );
   }
 
+  function stopTailoring(job) {
+    if (!job.tailoredResume?.id) return;
+    setError('');
+    stopTailoredResume(
+      { jobId: job.id, tailoredResumeId: job.tailoredResume.id },
+      {
+        onError: (tailoredResumeError) => setError(tailoredResumeError.message),
+      },
+    );
+  }
+
   const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'];
   const jobs = bidJobsData?.jobs || [];
   const visibleJobs = jobs.filter((job) => isJobVisibleForTab(job, activeBidTab, draftFor(job)));
@@ -269,6 +282,7 @@ export default function BidPage({ currentUser }) {
       currentUser: { ...(currentUser || {}), ...(bidJobsData?.currentUser || {}) },
       draftsForJob: draftFor,
       isSaving: creatingBid || updatingBid,
+      isStoppingTailoring: stoppingTailoredResume,
       isUpdatingLinkedInJob: updatingLinkedInExternalUrl,
       jobs: visibleJobs,
       loading,
@@ -284,6 +298,7 @@ export default function BidPage({ currentUser }) {
       onPageChange: (page) => updateFilter('page', page),
       onPageSizeChange: (limit) => updateFilter('limit', limit),
       onStatusChange: saveBid,
+      onStopTailoring: stopTailoring,
       onTabChange: updateBidTab,
       onTailorResume: tailorResume,
     }),
@@ -301,6 +316,7 @@ export default function BidPage({ currentUser }) {
       loading,
       tailoringByProfileJobId,
       total,
+      stoppingTailoredResume,
       updatingBid,
       updatingLinkedInExternalUrl,
       visibleJobs,

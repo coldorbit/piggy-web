@@ -23,6 +23,7 @@ import {
   updateInterview,
   updateProfile,
   updateProfileStatus,
+  cancelTailoredResume,
 } from './biddingController.js';
 import { subscribeTailoredResumeEvents } from '../application/tailoringQueueService.js';
 
@@ -44,6 +45,7 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/tailoring-requests', requireAuth, listTailoringRequests);
   app.get('/api/bid/tailored-resumes/download', requireAuth, downloadTailoredResumesZip);
   app.get('/api/bid/tailored-resumes/:id/download', requireAuth, downloadTailoredResume);
+  app.patch('/api/bid/tailored-resumes/:id/cancel', requireAuth, cancelTailoredResume);
   app.post('/api/bid/tailored-resumes/manual', requireAuth, createManualTailoredResume);
   app.post('/api/bid/interviews/manual', requireAuth, createManualInterview);
   app.patch('/api/bid/interviews/:id', requireAuth, updateInterview);

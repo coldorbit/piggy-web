@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DownloadIcon from '@mui/icons-material/Download';
 import LinkIcon from '@mui/icons-material/Link';
@@ -49,12 +50,14 @@ export default function BidJobCard({
     currentUser,
     draftsForJob,
     isSaving,
+    isStoppingTailoring,
     isUpdatingLinkedInJob,
     tailoringByJobId = {},
     onDraftChange,
     onHiddenChange,
     onLinkedInExternalUrlChange,
     onStatusChange,
+    onStopTailoring,
     onTailorResume,
   } = useBidWorkspace();
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
@@ -83,6 +86,7 @@ export default function BidJobCard({
   const tailoredStatus = job.tailoredResume?.status || '';
   const showTailorAction = activeTab === BID_TABS.todo || tailoredStatus === 'dead_letter';
   const showRetailorAction = activeTab === BID_TABS.tailored && tailoredStatus === 'ready';
+  const showStopTailoringAction = activeTab === BID_TABS.tailored && ['requested', 'processing'].includes(tailoredStatus);
   const appliedByLabel = appliedByChipLabel(job.bid, currentUser);
   const tailoringInFlight = tailoredStatus === 'requested' || tailoredStatus === 'processing';
   const hasTailoringRequest = tailoringInFlight || tailoredStatus === 'ready';
@@ -483,6 +487,29 @@ export default function BidJobCard({
                     }}
                   >
                     Update job link
+                  </Button>
+                ) : null}
+                {showStopTailoringAction ? (
+                  <Button
+                    disabled={isStoppingTailoring}
+                    onClick={() => onStopTailoring(job)}
+                    size="small"
+                    startIcon={isStoppingTailoring ? <CircularProgress color="inherit" size={14} /> : <CancelIcon />}
+                    variant="outlined"
+                    sx={{
+                      minHeight: 32,
+                      whiteSpace: 'nowrap',
+                      borderColor: '#fecaca',
+                      color: '#991b1b',
+                      bgcolor: '#fef2f2',
+                      fontWeight: 800,
+                      '&:hover': {
+                        borderColor: '#ef4444',
+                        bgcolor: '#fee2e2',
+                      },
+                    }}
+                  >
+                    Stop tailoring
                   </Button>
                 ) : null}
                 <Tooltip title={job.isHidden ? 'Unhide job' : 'Hide job'}>
