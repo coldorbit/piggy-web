@@ -21,6 +21,7 @@ import {
   ensureTailoredResumeFilePathNormalizer,
   selectTailoredResumeFilePathRows,
 } from './backfills/tailoredResumeFilePaths.js';
+import { backfillManualJobCategoriesByTitle } from './backfills/manualJobCategoriesByTitle.js';
 import { addMissingColumns, removeExistingColumns } from './utils.js';
 
 let initializationPromise;
@@ -55,6 +56,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await ensureSpamReviewColumns();
       await ensureHiddenJobColumns();
       await backfillManualJobSources();
+      if (runBackfills) await runManualJobCategoryBackfill();
       await ensureBidPageIndexes();
       await ensureProfileShareIndexes();
       await ensureJobBidProfileScopedUniqueness();
@@ -107,6 +109,13 @@ async function backfillManualJobSources() {
     WHERE raw_job->>'importType' = 'manual'
        OR raw_job->>'isManualImport' = 'true'
   `);
+}
+
+async function runManualJobCategoryBackfill() {
+  const summary = await backfillManualJobCategoriesByTitle({ apply: true, onlySoftware: true });
+  if (summary.candidateCount) {
+    console.log(`Manual job category backfill updated ${summary.candidateCount} row${summary.candidateCount === 1 ? '' : 's'}.`);
+  }
 }
 
 async function ensureInterviewJourneyColumns() {
