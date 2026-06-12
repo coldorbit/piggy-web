@@ -30,7 +30,6 @@ export function getConsumptionTransactionModel() {
         { fields: ['occurred_at'] },
         { fields: ['type', 'occurred_at'] },
         { fields: ['tx_hash'] },
-        { fields: ['spent_by_type', 'spent_by_user_id'] },
       ],
     },
   );
