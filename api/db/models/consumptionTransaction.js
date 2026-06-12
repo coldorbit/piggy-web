@@ -15,6 +15,8 @@ export function getConsumptionTransactionModel() {
       notes: { type: DataTypes.TEXT, allowNull: false, defaultValue: '' },
       etherscanUrl: { type: DataTypes.TEXT, allowNull: true, field: 'etherscan_url' },
       txHash: { type: DataTypes.TEXT, allowNull: true, field: 'tx_hash' },
+      spentByType: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'team', field: 'spent_by_type' },
+      spentByUserId: { type: DataTypes.BIGINT, allowNull: true, field: 'spent_by_user_id' },
       createdByUserId: { type: DataTypes.BIGINT, allowNull: true, field: 'created_by_user_id' },
       createdAt: { type: DataTypes.DATE, allowNull: false, field: 'created_at' },
       updatedAt: { type: DataTypes.DATE, allowNull: false, field: 'updated_at' },
@@ -28,6 +30,7 @@ export function getConsumptionTransactionModel() {
         { fields: ['occurred_at'] },
         { fields: ['type', 'occurred_at'] },
         { fields: ['tx_hash'] },
+        { fields: ['spent_by_type', 'spent_by_user_id'] },
       ],
     },
   );

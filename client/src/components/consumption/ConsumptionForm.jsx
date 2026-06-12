@@ -4,9 +4,9 @@ import { CRYPTO_CURRENCIES, TYPE_OPTIONS } from './consumptionConstants.js';
 
 const DENSE_TRANSACTION_TYPES = new Set(['card_deposit', 'swap']);
 const DEFAULT_FIELD_SIZE = 2;
-const DENSE_FIELD_SIZE = 1.6;
+const DENSE_FIELD_SIZE = 1.2;
 
-export default function ConsumptionForm({ accountOptions, form, isSaving, onChange, onSubmit }) {
+export default function ConsumptionForm({ accountOptions, form, isSaving, onChange, onSubmit, spenderOptions }) {
   const fieldSize = DENSE_TRANSACTION_TYPES.has(form.type) ? DENSE_FIELD_SIZE : DEFAULT_FIELD_SIZE;
 
   return (
@@ -14,6 +14,9 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
       <Grid container spacing={1.25} alignItems="flex-start">
         <Grid size={{ xs: 12, md: 2 }}>
           <SelectField label="Type" value={form.type} options={TYPE_OPTIONS} onChange={(type) => onChange({ type })} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 2 }}>
+          <SelectField label="Spent by" value={form.spentBy || 'team'} options={spenderOptions} onChange={(spentBy) => onChange({ spentBy })} />
         </Grid>
         <TransactionFields accountOptions={accountOptions} fieldSize={fieldSize} form={form} onChange={onChange} />
         <Grid size={{ xs: 12, md: 2 }}>

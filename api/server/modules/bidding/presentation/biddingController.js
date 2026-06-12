@@ -1217,9 +1217,8 @@ export async function listTailoringRequests(req, res, next) {
       limit,
       offset: (page - 1) * limit,
     };
-    const whereSql = `
+    const baseWhereSql = `
       WHERE (:canViewAllTailoring = true OR tailored_resumes.profile_id::text IN (:visibleProfileIds))
-        AND (:status = 'all' OR tailored_resumes.status = :status)
         AND (:profileId = 'all' OR tailored_resumes.profile_id::text = :profileId)
         AND (:hasDateFrom = false OR tailored_resumes.created_at >= CAST(:dateFromValue AS timestamptz))
         AND (:hasDateTo = false OR tailored_resumes.created_at < CAST(:dateToValue AS timestamptz))
@@ -1236,6 +1235,10 @@ export async function listTailoringRequests(req, res, next) {
           OR LOWER(COALESCE(owner_user.username, '')) LIKE :searchPattern
           OR LOWER(COALESCE(tailored_resumes.job_url, '')) LIKE :searchPattern
         )
+    `;
+    const whereSql = `
+      ${baseWhereSql}
+        AND (:status = 'all' OR tailored_resumes.status = :status)
     `;
 
     const requests = await sequelize.query(
@@ -1300,7 +1303,11 @@ export async function listTailoringRequests(req, res, next) {
         `
         SELECT status, COUNT(*)::int AS count
         FROM tailored_resumes
-        WHERE (:canViewAllTailoring = true OR tailored_resumes.profile_id::text IN (:visibleProfileIds))
+        LEFT JOIN web_users request_user ON request_user.id = tailored_resumes.user_id
+        LEFT JOIN bid_profiles ON bid_profiles.id = tailored_resumes.profile_id
+        LEFT JOIN web_users owner_user ON owner_user.id = bid_profiles.user_id
+        LEFT JOIN scraped_jobs ON scraped_jobs.url = tailored_resumes.job_url
+        ${baseWhereSql}
         GROUP BY status
         ORDER BY status ASC
         `,

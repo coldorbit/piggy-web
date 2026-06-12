@@ -51,6 +51,7 @@ export async function ensureWebModels() {
       await ensureInterviewJourneyColumns();
       await ensureTailoredResumeStatusColumns();
       await ensureTailoredResumeManualColumns();
+      await ensureConsumptionTransactionSpenderColumns();
       await ensureWebUserEmailColumn();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
@@ -345,6 +346,27 @@ async function ensureTailoredResumeManualColumns() {
     UPDATE tailored_resumes
     SET request_type = 'job'
     WHERE request_type IS NULL OR request_type = ''
+  `);
+}
+
+async function ensureConsumptionTransactionSpenderColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'consumption_transactions';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    spent_by_type: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'team' },
+    spent_by_user_id: { type: DataTypes.BIGINT, allowNull: true },
+  });
+
+  await queryInterface.sequelize.query(`
+    UPDATE consumption_transactions
+    SET spent_by_type = 'team'
+    WHERE spent_by_type IS NULL OR spent_by_type = ''
+  `);
+  await queryInterface.sequelize.query(`
+    CREATE INDEX IF NOT EXISTS consumption_transactions_spent_by_idx
+    ON consumption_transactions (spent_by_type, spent_by_user_id)
   `);
 }
 

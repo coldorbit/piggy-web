@@ -21,6 +21,7 @@ export const EMPTY_CONSUMPTION_FORM = {
   swapFee: '',
   accountName: 'USDC Wallet',
   direction: 'inflow',
+  spentBy: 'team',
   occurredAt: new Date().toISOString().slice(0, 10),
   etherscanUrl: '',
   notes: '',

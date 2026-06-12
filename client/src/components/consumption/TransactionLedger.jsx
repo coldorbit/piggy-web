@@ -15,6 +15,7 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
             <TableRow>
               <TableCell>Date</TableCell>
               <TableCell>Type</TableCell>
+              <TableCell>Spent by</TableCell>
               <TableCell>Entries</TableCell>
               <TableCell>Notes</TableCell>
               <TableCell>Tx</TableCell>
@@ -27,6 +28,7 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
               <TableRow key={transaction.id} hover>
                 <TableCell>{formatDate(transaction.occurredAt)}</TableCell>
                 <TableCell>{typeLabel(transaction.type)}</TableCell>
+                <TableCell>{transaction.spentBy?.label || 'Team'}</TableCell>
                 <TableCell>
                   {(transaction.entries || []).map((entry) => (
                     <Typography key={entry.id} variant="caption" sx={{ display: 'block' }}>
@@ -46,7 +48,7 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
             ))}
             {!transactions.length ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={8}>
                   <Typography color="text.secondary" sx={{ py: 2 }}>{isLoading ? 'Loading transactions...' : 'No transactions yet.'}</Typography>
                 </TableCell>
               </TableRow>

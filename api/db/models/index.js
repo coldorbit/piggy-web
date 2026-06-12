@@ -63,6 +63,8 @@ export function setupWebAssociations() {
   TeamConsumptionModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
   WebUserModel.hasMany(ConsumptionTransactionModel, { foreignKey: 'createdByUserId', as: 'consumptionTransactions' });
   ConsumptionTransactionModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
+  WebUserModel.hasMany(ConsumptionTransactionModel, { foreignKey: 'spentByUserId', as: 'spentConsumptionTransactions' });
+  ConsumptionTransactionModel.belongsTo(WebUserModel, { foreignKey: 'spentByUserId', as: 'spentByUser' });
   ConsumptionTransactionModel.hasMany(ConsumptionLedgerEntryModel, { foreignKey: 'transactionId', as: 'entries', onDelete: 'CASCADE' });
   ConsumptionLedgerEntryModel.belongsTo(ConsumptionTransactionModel, { foreignKey: 'transactionId', as: 'transaction' });
   ConsumptionAccountModel.hasMany(ConsumptionLedgerEntryModel, { foreignKey: 'accountId', as: 'entries' });

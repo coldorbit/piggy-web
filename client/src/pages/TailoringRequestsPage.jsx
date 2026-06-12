@@ -153,7 +153,16 @@ export default function TailoringRequestsPage() {
   }
 
   return (
-    <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateRows: 'auto auto auto minmax(0, 1fr)',
+        gap: 1.5,
+        height: '100%',
+        minHeight: 0,
+        overflow: 'hidden',
+      }}
+    >
       {error ? <Alert severity="error">{error.message}</Alert> : null}
       {manualError ? <Alert severity="error">{manualError.message}</Alert> : null}
 
@@ -233,59 +242,58 @@ export default function TailoringRequestsPage() {
         status={status}
       />
 
-      <Typography color="text.secondary" sx={{ textAlign: { xs: 'left', lg: 'right' } }}>
-        {filteredCount.toLocaleString()} matching{totalCount ? ` · ${totalCount.toLocaleString()} total` : ''}
-      </Typography>
-
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(6, minmax(0, 1fr))' }, gap: 1 }}>
+        <TailoringCountCard label="Total requests" value={totalCount || filteredCount} active={status === 'all'} />
         {statusOptions.slice(1).map((option) => (
-          <Paper key={option.value} variant="outlined" sx={{ p: 1.25, borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              {option.label}
-            </Typography>
-            <Typography fontWeight={900}>{Number(statusCounts[option.value] || 0).toLocaleString()}</Typography>
-          </Paper>
+          <TailoringCountCard
+            key={option.value}
+            label={option.label}
+            value={statusCounts[option.value] || 0}
+            active={status === option.value}
+          />
         ))}
       </Box>
 
-      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 1 }}>
-        <Table size="small" sx={{ minWidth: 1120 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell>Request</TableCell>
-              <TableCell>Job</TableCell>
-              <TableCell>Profile</TableCell>
-              <TableCell>Requester</TableCell>
-              <TableCell>Attempts</TableCell>
-              <TableCell>Updated</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
+      <Paper variant="outlined" sx={{ borderRadius: 1, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateRows: 'minmax(0, 1fr) auto' }}>
+        <TableContainer sx={{ minHeight: 0, overflow: 'auto' }}>
+          <Table stickyHeader size="small" sx={{ minWidth: 1120 }}>
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={7}>
-                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ py: 4 }}>
-                    <CircularProgress size={22} />
-                    <Typography color="text.secondary">Loading tailoring requests...</Typography>
-                  </Stack>
-                </TableCell>
+                <TableCell>Request</TableCell>
+                <TableCell>Job</TableCell>
+                <TableCell>Profile</TableCell>
+                <TableCell>Requester</TableCell>
+                <TableCell>Attempts</TableCell>
+                <TableCell>Updated</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
-            ) : null}
-            {!isLoading && !requests.length ? (
-              <TableRow>
-                <TableCell colSpan={7}>
-                  <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
-                    No tailoring requests match these filters.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : null}
-            {requests.map((request) => (
-              <TailoringRequestRow key={request.id} request={request} />
-            ))}
-          </TableBody>
-        </Table>
+            </TableHead>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7}>
+                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ py: 4 }}>
+                      <CircularProgress size={22} />
+                      <Typography color="text.secondary">Loading tailoring requests...</Typography>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ) : null}
+              {!isLoading && !requests.length ? (
+                <TableRow>
+                  <TableCell colSpan={7}>
+                    <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+                      No tailoring requests match these filters.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : null}
+              {requests.map((request) => (
+                <TailoringRequestRow key={request.id} request={request} />
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
         <TablePagination
           component="div"
           count={filteredCount}
@@ -298,7 +306,7 @@ export default function TailoringRequestsPage() {
             setPage(0);
           }}
         />
-      </TableContainer>
+      </Paper>
     </Box>
   );
 }
@@ -379,10 +387,36 @@ function TailoringFilters({
           },
         }}
       />
-      <IconButton type="button" onClick={() => onRefresh()} title="Refresh tailoring requests" sx={{ alignSelf: { xs: 'flex-end', lg: 'center' } }}>
-        {isFetching ? <CircularProgress size={20} /> : <RefreshIcon />}
-      </IconButton>
+      <Button
+        type="button"
+        onClick={() => onRefresh()}
+        startIcon={isFetching ? <CircularProgress color="inherit" size={16} /> : <RefreshIcon />}
+        variant="outlined"
+        sx={{ minHeight: 40, alignSelf: { xs: 'stretch', lg: 'center' }, whiteSpace: 'nowrap' }}
+      >
+        Refresh
+      </Button>
     </Stack>
+  );
+}
+
+function TailoringCountCard({ active = false, label, value }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 1.25,
+        borderRadius: 1,
+        borderColor: active ? 'primary.main' : 'divider',
+        borderWidth: active ? 2 : 1,
+        bgcolor: active ? '#EFF6FF' : 'background.paper',
+      }}
+    >
+      <Typography variant="caption" color={active ? 'primary.main' : 'text.secondary'} fontWeight={active ? 900 : 500}>
+        {label}
+      </Typography>
+      <Typography fontWeight={900}>{Number(value || 0).toLocaleString()}</Typography>
+    </Paper>
   );
 }
 

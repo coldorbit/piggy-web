@@ -7,10 +7,14 @@ import {
 } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
+import { BIDDER_ROLES, ROLES } from '../../../utils/roles.js';
 
 const FIAT_CURRENCY = 'USD';
 const CRYPTO_CURRENCIES = ['USDT', 'USDC', 'ETH', 'SOL', 'BTC', 'BNB', 'MATIC', 'AVAX', 'TRX', 'XRP', 'ADA', 'DOGE', 'DOT', 'LINK'];
 const TRANSACTION_TYPES = ['crypto_spend', 'card_pay', 'card_deposit', 'swap', 'eth_fee', 'adjustment'];
+const SPENDER_TEAM = 'team';
+const SPENDER_USER = 'user';
+const EXCLUDED_SPENDER_ROLES = new Set([ROLES.caller, ...BIDDER_ROLES]);
 const DEFAULT_ACCOUNTS = [
   { name: 'USDC Wallet', currency: 'USDC', type: 'crypto_wallet', sortOrder: 10 },
   { name: 'USDT Wallet', currency: 'USDT', type: 'crypto_wallet', sortOrder: 20 },
@@ -30,6 +34,7 @@ export async function listConsumptionRecords() {
     Transaction.findAll({
       include: [
         { model: WebUser, as: 'createdBy', attributes: ['id', 'username'] },
+        { model: WebUser, as: 'spentByUser', attributes: ['id', 'username', 'role'] },
         { model: LedgerEntry, as: 'entries', include: [{ model: Account, as: 'account' }] },
       ],
       order: [['occurredAt', 'DESC'], ['id', 'DESC']],
@@ -37,6 +42,7 @@ export async function listConsumptionRecords() {
     }),
   ]);
   const balances = balancesForAccounts(accounts, transactions.flatMap((transaction) => transaction.entries || []));
+  const spenderOptions = await consumptionSpenderOptions();
 
   return {
     accounts: accounts.map((account) => formatAccount(account, balances.get(String(account.id)) || 0)),
@@ -46,12 +52,13 @@ export async function listConsumptionRecords() {
     totals: accounts.map((account) => ({ currency: account.currency, amount: balances.get(String(account.id)) || 0, accountName: account.name })),
     transactionTypes: TRANSACTION_TYPES,
     cryptoCurrencies: CRYPTO_CURRENCIES,
+    spenderOptions,
   };
 }
 
 export async function createConsumptionRecord(body, user) {
   await ensureDefaultConsumptionAccounts();
-  const attrs = transactionAttrsFromBody(body);
+  const attrs = await transactionAttrsFromBody(body);
   const entries = await ledgerEntriesFromBody(attrs, body);
   const sequelize = getSequelize();
   const Transaction = getConsumptionTransactionModel();
@@ -65,6 +72,8 @@ export async function createConsumptionRecord(body, user) {
         notes: attrs.notes,
         etherscanUrl: attrs.etherscanUrl,
         txHash: attrs.txHash,
+        spentByType: attrs.spentByType,
+        spentByUserId: attrs.spentByUserId,
         createdByUserId: user?.id || null,
       },
       { transaction: dbTransaction },
@@ -105,17 +114,31 @@ async function ensureDefaultConsumptionAccounts() {
   }
 }
 
-function transactionAttrsFromBody(body = {}) {
+async function transactionAttrsFromBody(body = {}) {
   const type = clean(body.type || 'crypto_spend');
   const occurredAt = body.occurredAt || body.spentAt ? new Date(body.occurredAt || body.spentAt) : new Date();
   const notes = clean(body.notes);
   const etherscanUrl = clean(body.etherscanUrl);
   const txHash = txHashFromValue(body.txHash || etherscanUrl);
+  const { spentByType, spentByUserId } = await spenderAttrsFromBody(body);
 
   if (!TRANSACTION_TYPES.includes(type)) throw new InputError('Transaction type is invalid');
   if (Number.isNaN(occurredAt.getTime())) throw new InputError('Transaction date is invalid');
 
-  return { type, occurredAt, notes, etherscanUrl: etherscanUrl || null, txHash: txHash || null };
+  return { type, occurredAt, notes, etherscanUrl: etherscanUrl || null, txHash: txHash || null, spentByType, spentByUserId };
+}
+
+async function spenderAttrsFromBody(body = {}) {
+  const rawValue = clean(body.spentBy || body.spentByUserId || SPENDER_TEAM);
+  if (!rawValue || rawValue === SPENDER_TEAM) return { spentByType: SPENDER_TEAM, spentByUserId: null };
+
+  const userId = Number(rawValue);
+  if (!Number.isInteger(userId) || userId <= 0) throw new InputError('Spender is invalid');
+
+  const user = await getWebUserModel().findByPk(userId, { attributes: ['id', 'role'] });
+  if (!user || EXCLUDED_SPENDER_ROLES.has(user.role)) throw new InputError('Selected spender is not eligible');
+
+  return { spentByType: SPENDER_USER, spentByUserId: user.id };
 }
 
 async function ledgerEntriesFromBody(attrs, body = {}) {
@@ -171,10 +194,30 @@ async function transactionWithEntries(id) {
   const transaction = await getConsumptionTransactionModel().findByPk(id, {
     include: [
       { model: getWebUserModel(), as: 'createdBy', attributes: ['id', 'username'] },
+      { model: getWebUserModel(), as: 'spentByUser', attributes: ['id', 'username', 'role'] },
       { model: getConsumptionLedgerEntryModel(), as: 'entries', include: [{ model: getConsumptionAccountModel(), as: 'account' }] },
     ],
   });
   return formatTransaction(transaction);
+}
+
+async function consumptionSpenderOptions() {
+  const users = await getWebUserModel().findAll({
+    attributes: ['id', 'username', 'role'],
+    order: [['username', 'ASC']],
+  });
+
+  return [
+    { value: SPENDER_TEAM, label: 'Team', type: SPENDER_TEAM },
+    ...users
+      .filter((user) => !EXCLUDED_SPENDER_ROLES.has(user.role))
+      .map((user) => ({
+        value: String(user.id),
+        label: user.username,
+        type: SPENDER_USER,
+        role: user.role,
+      })),
+  ];
 }
 
 function balancesForAccounts(accounts, entries) {
@@ -206,6 +249,7 @@ function formatTransaction(transaction) {
     notes: plain.notes || '',
     etherscanUrl: plain.etherscanUrl || '',
     txHash: plain.txHash || '',
+    spentBy: formatSpender(plain),
     createdBy: plain.createdBy ? { id: plain.createdBy.id, username: plain.createdBy.username } : null,
     entries: (plain.entries || []).map((entry) => ({
       id: entry.id,
@@ -216,6 +260,21 @@ function formatTransaction(transaction) {
       currency: entry.currency,
       entryKind: entry.entryKind,
     })),
+  };
+}
+
+function formatSpender(transaction) {
+  if (transaction.spentByType !== SPENDER_USER || !transaction.spentByUser) {
+    return { type: SPENDER_TEAM, label: 'Team', user: null };
+  }
+  return {
+    type: SPENDER_USER,
+    label: transaction.spentByUser.username,
+    user: {
+      id: transaction.spentByUser.id,
+      username: transaction.spentByUser.username,
+      role: transaction.spentByUser.role,
+    },
   };
 }
 

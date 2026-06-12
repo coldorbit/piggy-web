@@ -17,6 +17,7 @@ export default function AdminConsumptionPage() {
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteConsumptionRecord();
   const accounts = data?.accounts || data?.balances || [];
   const transactions = data?.transactions || data?.records || [];
+  const spenderOptions = data?.spenderOptions || [{ value: 'team', label: 'Team' }];
   const accountOptions = useMemo(() => accounts.map((account) => account.name), [accounts]);
   const isSaving = isCreating || isDeleting;
 
@@ -54,7 +55,7 @@ export default function AdminConsumptionPage() {
       {error || queryError ? <Alert severity="error">{error || queryError?.message}</Alert> : null}
 
       <BalanceCards accounts={accounts} />
-      <ConsumptionForm accountOptions={accountOptions} form={form} isSaving={isSaving} onChange={updateForm} onSubmit={submitRecord} />
+      <ConsumptionForm accountOptions={accountOptions} form={form} isSaving={isSaving} onChange={updateForm} onSubmit={submitRecord} spenderOptions={spenderOptions} />
       <ConsumptionHelp />
       <TransactionLedger isLoading={isLoading} isSaving={isSaving} transactions={transactions} onDelete={removeRecord} />
     </Box>
