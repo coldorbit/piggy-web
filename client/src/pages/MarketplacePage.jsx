@@ -8,7 +8,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -19,6 +18,7 @@ import {
   MenuItem,
   Paper,
   Select,
+  Skeleton,
   Stack,
   Tab,
   Tabs,
@@ -670,10 +670,27 @@ function Metric({ icon, label, value }) {
 
 function LoadingState() {
   return (
-    <Paper variant="outlined" sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-      <CircularProgress size={22} />
-      <Typography color="text.secondary">Loading marketplace...</Typography>
-    </Paper>
+    <ResponsiveGrid>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Paper key={`marketplace-loading-${index}`} variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 1, boxShadow: 1 }}>
+          <Stack direction="row" justifyContent="space-between" spacing={1}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Skeleton width="52%" />
+              <Skeleton width="38%" />
+            </Box>
+            <Stack direction="row" spacing={0.5}>
+              <Skeleton variant="rounded" width={76} height={24} />
+              <Skeleton variant="rounded" width={88} height={24} />
+            </Stack>
+          </Stack>
+          <Skeleton variant="rounded" height={74} />
+          <Stack direction="row" spacing={0.75} justifyContent="flex-end">
+            <Skeleton variant="rounded" width={92} height={32} />
+            <Skeleton variant="rounded" width={92} height={32} />
+          </Stack>
+        </Paper>
+      ))}
+    </ResponsiveGrid>
   );
 }
 

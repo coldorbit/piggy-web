@@ -1,5 +1,5 @@
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { Avatar, Box, ButtonBase, Chip, CircularProgress, IconButton, List, ListItem, Paper, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, ButtonBase, Chip, CircularProgress, IconButton, List, ListItem, Paper, Skeleton, Tooltip, Typography } from '@mui/material';
 import Pagination from './Pagination.jsx';
 import SpamBadge from './SpamBadge.jsx';
 import JobRegionBadge from './JobRegionBadge.jsx';
@@ -39,7 +39,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       }}
     >
       {loading && jobs.length ? <LoadingOverlay label="Loading jobs..." /> : null}
-      {loading && !jobs.length ? <LoadingState label="Loading jobs..." /> : null}
+      {loading && !jobs.length ? <JobListSkeleton /> : null}
       {!loading && jobs.length === 0 ? (
         <EmptyState
           title="No jobs found"
@@ -268,14 +268,40 @@ function CompanyLogo({ job }) {
   );
 }
 
-function LoadingState({ label }) {
+function JobListSkeleton() {
   return (
-    <Box sx={{ minHeight: 160, p: 3, display: 'grid', placeItems: 'center', gap: 1 }}>
-      <CircularProgress size={28} />
-      <Typography color="text.secondary" variant="body2">
-        {label}
-      </Typography>
-    </Box>
+    <List disablePadding aria-hidden="true" sx={{ overflow: 'hidden', flex: '1 1 auto' }}>
+      {Array.from({ length: 8 }).map((_, index) => (
+        <ListItem key={`job-loading-${index}`} disablePadding divider sx={{ minHeight: 64, px: 1.1, py: 0.85 }}>
+          <Box
+            sx={{
+              width: '100%',
+              display: 'grid',
+              gridTemplateColumns: '36px minmax(0, 1fr) max-content',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
+            <Skeleton variant="rounded" width={36} height={36} />
+            <Box sx={{ minWidth: 0 }}>
+              <Skeleton width="62%" />
+              <Skeleton width="42%" />
+            </Box>
+            <Box sx={{ display: 'grid', gap: 0.5, justifyItems: 'end' }}>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Skeleton variant="rounded" width={54} height={20} />
+                <Skeleton variant="rounded" width={68} height={20} />
+                <Skeleton variant="rounded" width={42} height={20} />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Skeleton variant="rounded" width={76} height={20} />
+                <Skeleton width={56} />
+              </Box>
+            </Box>
+          </Box>
+        </ListItem>
+      ))}
+    </List>
   );
 }
 

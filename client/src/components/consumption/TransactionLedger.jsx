@@ -3,20 +3,6 @@ import { Box, IconButton, Paper, Skeleton, Stack, Table, TableBody, TableCell, T
 import EmptyState from '../common/EmptyState.jsx';
 import { formatAmount, formatDate, shortHash, typeLabel } from './consumptionFormatters.js';
 
-const actionCellSx = {
-  position: 'sticky',
-  right: 0,
-  bgcolor: 'background.paper',
-  boxShadow: '-10px 0 14px rgba(15, 23, 42, 0.08)',
-  zIndex: 1,
-};
-
-const actionHeadCellSx = {
-  ...actionCellSx,
-  bgcolor: '#F8FAFC',
-  zIndex: 3,
-};
-
 export default function TransactionLedger({ isLoading, isSaving, onDelete, transactions }) {
   return (
     <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
@@ -35,7 +21,7 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
               <TableCell>Notes</TableCell>
               <TableCell>Tx</TableCell>
               <TableCell>Created by</TableCell>
-              <TableCell align="right" sx={actionHeadCellSx}>Actions</TableCell>
+              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -57,7 +43,7 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
                 </TableCell>
                 <TableCell>{transaction.txHash ? <Typography variant="caption">{shortHash(transaction.txHash)}</Typography> : '-'}</TableCell>
                 <TableCell>{transaction.createdBy?.username || '-'}</TableCell>
-                <TableCell align="right" sx={actionCellSx}>
+                <TableCell align="right">
                   <IconButton disabled={isSaving} onClick={() => onDelete(transaction.id)} title="Delete"><DeleteIcon /></IconButton>
                 </TableCell>
               </TableRow>
@@ -96,7 +82,7 @@ function LedgerSkeletonRows() {
       <TableCell><Skeleton width={220} /></TableCell>
       <TableCell><Skeleton width={86} /></TableCell>
       <TableCell><Skeleton width={92} /></TableCell>
-      <TableCell align="right" sx={actionCellSx}><Skeleton width={34} sx={{ ml: 'auto' }} /></TableCell>
+      <TableCell align="right"><Skeleton width={34} sx={{ ml: 'auto' }} /></TableCell>
     </TableRow>
   ));
 }

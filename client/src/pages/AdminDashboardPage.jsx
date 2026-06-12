@@ -4,7 +4,7 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WorkIcon from '@mui/icons-material/Work';
-import { Alert, Box, CircularProgress, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
+import { Alert, Box, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import BidderPerformanceTable from '../components/adminDashboard/BidderPerformanceTable.jsx';
 import CallerPerformanceTable from '../components/adminDashboard/CallerPerformanceTable.jsx';
@@ -100,9 +100,59 @@ function DashboardHeader({ generatedAt, grain, onGrainChange }) {
 
 function LoadingPanel() {
   return (
-    <Paper variant="outlined" sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
-      <CircularProgress size={22} />
-      <Typography color="text.secondary">Loading dashboard...</Typography>
+    <Box sx={{ display: 'grid', gap: 1.5 }}>
+      <Grid container spacing={1.25}>
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Grid key={`dashboard-metric-loading-${index}`} size={{ xs: 12, sm: 6, lg: 4, xl: 2 }}>
+            <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1, boxShadow: 1 }}>
+              <Stack spacing={1}>
+                <Skeleton variant="circular" width={32} height={32} />
+                <Skeleton width="54%" />
+                <Skeleton width="72%" />
+              </Stack>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1.35fr 1fr' }, gap: 1.5 }}>
+        <DashboardPanelSkeleton height={320} />
+        <DashboardPanelSkeleton height={320} />
+      </Box>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
+        <DashboardPanelSkeleton height={240} />
+        <DashboardPanelSkeleton height={240} />
+        <DashboardPanelSkeleton height={240} />
+      </Box>
+      <DashboardTableSkeleton />
+    </Box>
+  );
+}
+
+function DashboardPanelSkeleton({ height }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1, boxShadow: 1 }}>
+      <Skeleton width="38%" sx={{ mb: 1 }} />
+      <Skeleton variant="rounded" height={height} />
+    </Paper>
+  );
+}
+
+function DashboardTableSkeleton() {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1, boxShadow: 1 }}>
+      <Skeleton width="28%" sx={{ mb: 1.25 }} />
+      <Stack spacing={0.75}>
+        {Array.from({ length: 6 }).map((_, index) => (
+          <Box key={`dashboard-table-loading-${index}`} sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) repeat(5, minmax(72px, 1fr))', gap: 1 }}>
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+            <Skeleton />
+          </Box>
+        ))}
+      </Stack>
     </Paper>
   );
 }

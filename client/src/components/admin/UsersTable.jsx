@@ -9,6 +9,7 @@ import {
   InputLabel,
   MenuItem,
   Paper,
+  Skeleton,
   Select,
   Table,
   TableBody,
@@ -53,7 +54,7 @@ export default function UsersTable({
           </TableRow>
         </TableHead>
         <TableBody>
-          {isLoading ? <EmptyRow title="Loading users..." /> : null}
+          {isLoading ? <UserSkeletonRows /> : null}
           {!isLoading && users.length === 0 ? (
             <EmptyRow title="No users yet" detail="Created users will appear here for role and access management." />
           ) : null}
@@ -86,6 +87,24 @@ function EmptyRow({ detail, title }) {
       </TableCell>
     </TableRow>
   );
+}
+
+function UserSkeletonRows() {
+  return Array.from({ length: 6 }).map((_, index) => (
+    <TableRow key={`user-loading-${index}`}>
+      <TableCell>
+        <Skeleton width={120} />
+        <Skeleton width={80} />
+      </TableCell>
+      <TableCell><Skeleton width={180} /></TableCell>
+      <TableCell><Skeleton variant="rounded" width={96} height={24} /></TableCell>
+      <TableCell><Skeleton variant="rounded" width={74} height={24} /></TableCell>
+      <TableCell><Skeleton width={112} /></TableCell>
+      <TableCell><Skeleton width={112} /></TableCell>
+      <TableCell><Skeleton width={112} /></TableCell>
+      <TableCell align="right"><Skeleton variant="rounded" width={86} height={30} sx={{ ml: 'auto' }} /></TableCell>
+    </TableRow>
+  ));
 }
 
 function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDelete, onEdit, onEditingChange, onSave }) {

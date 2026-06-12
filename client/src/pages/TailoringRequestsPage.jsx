@@ -19,6 +19,7 @@ import {
   InputAdornment,
   MenuItem,
   Paper,
+  Skeleton,
   Stack,
   Table,
   TableBody,
@@ -277,14 +278,7 @@ export default function TailoringRequestsPage() {
             </TableHead>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={7}>
-                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ py: 4 }}>
-                      <CircularProgress size={22} />
-                      <Typography color="text.secondary">Loading tailoring requests...</Typography>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
+                <TailoringRequestSkeletonRows />
               ) : null}
               {!isLoading && !requests.length ? (
                 <TableRow>
@@ -426,6 +420,34 @@ function TailoringCountCard({ active = false, label, value }) {
       <Typography fontWeight={900}>{Number(value || 0).toLocaleString()}</Typography>
     </Paper>
   );
+}
+
+function TailoringRequestSkeletonRows() {
+  return Array.from({ length: 7 }).map((_, index) => (
+    <TableRow key={`tailoring-request-loading-${index}`}>
+      <TableCell>
+        <Stack spacing={0.75}>
+          <Skeleton width={90} />
+          <Skeleton width={150} />
+        </Stack>
+      </TableCell>
+      <TableCell>
+        <Skeleton width="72%" />
+        <Skeleton width="52%" />
+      </TableCell>
+      <TableCell>
+        <Skeleton width={130} />
+        <Skeleton width={90} />
+      </TableCell>
+      <TableCell><Skeleton width={96} /></TableCell>
+      <TableCell><Skeleton width={54} /></TableCell>
+      <TableCell>
+        <Skeleton width={126} />
+        <Skeleton width={90} />
+      </TableCell>
+      <TableCell align="right"><Skeleton variant="rounded" width={88} height={30} sx={{ ml: 'auto' }} /></TableCell>
+    </TableRow>
+  ));
 }
 
 const DateRangeInput = forwardRef(function DateRangeInput({ value, onClick, onChange }, ref) {

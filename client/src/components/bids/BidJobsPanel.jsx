@@ -13,6 +13,7 @@ import {
   Pagination as MuiPagination,
   Paper,
   Select,
+  Skeleton,
   Stack,
   Tab,
   Tabs,
@@ -256,7 +257,7 @@ export default function BidJobsPanel() {
       >
         {loading && jobs.length ? <LoadingOverlay label="Loading bid workspace..." /> : null}
         <Stack ref={jobsScrollRef} spacing={0.75} aria-busy={loading} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
-          {loading && !jobs.length ? <LoadingState label="Loading bid workspace..." /> : null}
+          {loading && !jobs.length ? <BidJobSkeletonList /> : null}
           {!loading && jobs.length === 0 ? (
             <EmptyState
               title={`No ${tabLabel(activeTab)} jobs found`}
@@ -407,17 +408,34 @@ function downloadCsv(csv, filename) {
   URL.revokeObjectURL(url);
 }
 
-function LoadingState({ label }) {
+function BidJobSkeletonList() {
   return (
-    <Paper
-      variant="outlined"
-      sx={{ minHeight: 180, p: 3, display: 'grid', placeItems: 'center', gap: 1 }}
-    >
-      <CircularProgress size={30} />
-      <Typography color="text.secondary" variant="body2">
-        {label}
-      </Typography>
-    </Paper>
+    <>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <Paper key={`bid-job-loading-${index}`} variant="outlined" sx={{ p: 1.25, borderRadius: 1, flexShrink: 0 }}>
+          <Stack spacing={1}>
+            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Skeleton width="58%" />
+                <Skeleton width="38%" />
+              </Box>
+              <Stack direction="row" spacing={0.75}>
+                <Skeleton variant="rounded" width={74} height={24} />
+                <Skeleton variant="rounded" width={92} height={24} />
+              </Stack>
+            </Stack>
+            <Skeleton variant="rounded" height={44} />
+            <Stack direction="row" justifyContent="space-between" spacing={1}>
+              <Skeleton width="35%" />
+              <Stack direction="row" spacing={0.75}>
+                <Skeleton variant="rounded" width={96} height={32} />
+                <Skeleton variant="rounded" width={116} height={32} />
+              </Stack>
+            </Stack>
+          </Stack>
+        </Paper>
+      ))}
+    </>
   );
 }
 

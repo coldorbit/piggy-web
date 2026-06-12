@@ -1,5 +1,5 @@
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { Box, Chip, Paper, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Chip, Paper, Skeleton, Tab, Tabs, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import EmptyState from '../common/EmptyState.jsx';
@@ -78,15 +78,30 @@ export default function BidProfileTabs({ activeColor, activeProfile, isLoading, 
             );
           })}
         </Tabs>
+      ) : isLoading ? (
+        <ProfileTabSkeletons />
       ) : (
         <EmptyState
-          title={isLoading ? 'Loading profiles...' : 'No profiles yet'}
-          detail={isLoading ? '' : 'Profiles will appear here once they are active and available.'}
+          title="No profiles yet"
+          detail="Profiles will appear here once they are active and available."
           variant="plain"
           sx={{ flex: 1, p: 1.5, justifyItems: 'start', textAlign: 'left', bgcolor: 'transparent' }}
         />
       )}
     </Paper>
+  );
+}
+
+function ProfileTabSkeletons() {
+  return (
+    <Box sx={{ display: 'grid', alignContent: 'start' }}>
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Box key={`profile-tab-loading-${index}`} sx={{ minHeight: 64, px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider' }}>
+          <Skeleton width="72%" />
+          <Skeleton width="46%" />
+        </Box>
+      ))}
+    </Box>
   );
 }
 

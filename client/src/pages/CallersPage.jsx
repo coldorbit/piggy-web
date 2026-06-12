@@ -1,9 +1,9 @@
 import {
   Alert,
   Box,
-  CircularProgress,
   Paper,
-  Typography,
+  Skeleton,
+  Stack,
 } from '@mui/material';
 import { useState } from 'react';
 import CallerCard from '../components/callers/CallerCard.jsx';
@@ -42,12 +42,7 @@ export default function CallersPage() {
       {registerError ? <Alert severity="error">{registerError}</Alert> : null}
       <CallersHeader callerCount={callers.length} isLoading={isLoading} onRegister={() => setIsRegisterOpen(true)} />
 
-      {isLoading && !callers.length ? (
-        <Paper variant="outlined" sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-          <CircularProgress size={22} />
-          <Typography color="text.secondary">Loading callers...</Typography>
-        </Paper>
-      ) : null}
+      {isLoading && !callers.length ? <CallerSkeletonGrid /> : null}
       {!isLoading && !callers.length ? (
         <EmptyState
           title="No caller accounts yet"
@@ -75,6 +70,38 @@ export default function CallersPage() {
         onClose={closeRegisterDialog}
         onSubmit={submitCaller}
       />
+    </Box>
+  );
+}
+
+function CallerSkeletonGrid() {
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
+        gap: 1.5,
+      }}
+    >
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Paper key={`caller-loading-${index}`} variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
+          <Stack spacing={1.25}>
+            <Stack direction="row" justifyContent="space-between" spacing={1}>
+              <Box sx={{ flex: 1 }}>
+                <Skeleton width="42%" />
+                <Skeleton width="30%" />
+              </Box>
+              <Skeleton variant="rounded" width={88} height={28} />
+            </Stack>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1 }}>
+              <Skeleton variant="rounded" height={56} />
+              <Skeleton variant="rounded" height={56} />
+              <Skeleton variant="rounded" height={56} />
+            </Box>
+            <Skeleton variant="rounded" height={72} />
+          </Stack>
+        </Paper>
+      ))}
     </Box>
   );
 }

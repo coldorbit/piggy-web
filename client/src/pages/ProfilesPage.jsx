@@ -18,6 +18,7 @@ import {
   ListItemText,
   MenuItem,
   Select,
+  Skeleton,
   Stack,
   TextField,
   Typography,
@@ -274,6 +275,7 @@ export default function ProfilesPage({ currentUser }) {
           gap: 1.5,
         }}
       >
+        {isLoading && !profiles.length ? <ProfileSkeletonCards /> : null}
         {profiles.map((profile) => (
           <ProfileCard
             key={profile.id}
@@ -379,6 +381,31 @@ export default function ProfilesPage({ currentUser }) {
       <ProfileReadOnlyDialog profile={viewingProfile} onClose={() => setViewingProfile(null)} />
     </Box>
   );
+}
+
+function ProfileSkeletonCards() {
+  return Array.from({ length: 6 }).map((_, index) => (
+    <Card key={`profile-loading-${index}`} variant="outlined" sx={{ boxShadow: 1 }}>
+      <CardContent sx={{ display: 'grid', gap: 1.25 }}>
+        <Stack direction="row" justifyContent="space-between" spacing={1}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Skeleton width="58%" />
+            <Skeleton width="38%" />
+          </Box>
+          <Skeleton variant="rounded" width={72} height={24} />
+        </Stack>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1 }}>
+          <Skeleton variant="rounded" height={54} />
+          <Skeleton variant="rounded" height={54} />
+        </Box>
+        <Skeleton variant="rounded" height={96} />
+        <Stack direction="row" spacing={0.75} justifyContent="flex-end">
+          <Skeleton variant="rounded" width={74} height={30} />
+          <Skeleton variant="rounded" width={74} height={30} />
+        </Stack>
+      </CardContent>
+    </Card>
+  ));
 }
 
 function ProfileReadOnlyDialog({ profile, onClose }) {
