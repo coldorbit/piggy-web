@@ -1,9 +1,11 @@
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import SaveIcon from '@mui/icons-material/Save';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -24,43 +26,45 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
-import {
-  useAdminConsumption,
-  useCreateConsumptionRecord,
-  useDeleteConsumptionRecord,
-  useUpdateConsumptionRecord,
-} from '../lib/api.js';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useMemo, useState } from 'react';
+import { useAdminConsumption, useCreateConsumptionRecord, useDeleteConsumptionRecord } from '../lib/api.js';
 
-const CHANNELS = [
-  { value: 'card', label: 'Card' },
-  { value: 'crypto', label: 'Crypto' },
-  { value: 'bank', label: 'Bank' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'other', label: 'Other' },
-];
-const FIAT_CURRENCY = 'USD';
 const CRYPTO_CURRENCIES = ['USDT', 'USDC', 'ETH', 'SOL', 'BTC', 'BNB', 'MATIC', 'AVAX', 'TRX', 'XRP', 'ADA', 'DOGE', 'DOT', 'LINK'];
+const TYPE_OPTIONS = [
+  { value: 'crypto_spend', label: 'Crypto spend' },
+  { value: 'card_pay', label: 'Card pay' },
+  { value: 'card_deposit', label: 'Deposit to card' },
+  { value: 'swap', label: 'Swap to ETH' },
+  { value: 'eth_fee', label: 'ETH fee only' },
+  { value: 'adjustment', label: 'Balance adjustment' },
+];
 const EMPTY_FORM = {
+  type: 'crypto_spend',
   amount: '',
-  currency: FIAT_CURRENCY,
-  channel: 'card',
-  spentAt: new Date().toISOString().slice(0, 10),
+  currency: 'USDC',
+  fromCurrency: 'USDC',
+  toEthAmount: '',
+  ethFee: '',
+  receivedUsd: '',
+  cardFee: '',
+  accountName: 'USDC Wallet',
+  direction: 'inflow',
+  occurredAt: new Date().toISOString().slice(0, 10),
+  etherscanUrl: '',
   notes: '',
 };
 
 export default function AdminConsumptionPage() {
   const [form, setForm] = useState(EMPTY_FORM);
-  const [editingId, setEditingId] = useState(null);
-  const [editing, setEditing] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
   const { data, isLoading, error: queryError, refetch } = useAdminConsumption();
   const { mutate: createRecord, isPending: isCreating } = useCreateConsumptionRecord();
-  const { mutate: updateRecord, isPending: isUpdating } = useUpdateConsumptionRecord();
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteConsumptionRecord();
-  const records = data?.records || [];
-  const totals = data?.totals || [];
-  const isSaving = isCreating || isUpdating || isDeleting;
+  const accounts = data?.accounts || data?.balances || [];
+  const transactions = data?.transactions || data?.records || [];
+  const accountOptions = useMemo(() => accounts.map((account) => account.name), [accounts]);
+  const isSaving = isCreating || isDeleting;
 
   function submitRecord(event) {
     event.preventDefault();
@@ -71,29 +75,8 @@ export default function AdminConsumptionPage() {
     });
   }
 
-  function startEditing(record) {
-    setEditingId(record.id);
-    setEditing(normalizeFormForChannel({
-      amount: String(record.amount || ''),
-      currency: record.currency || FIAT_CURRENCY,
-      channel: record.channel || 'other',
-      spentAt: dateInputValue(record.spentAt),
-      notes: record.notes || '',
-    }));
-  }
-
-  function saveRecord(recordId) {
-    setError('');
-    updateRecord(
-      { recordId, recordData: editing },
-      {
-        onSuccess: () => {
-          setEditingId(null);
-          setEditing(EMPTY_FORM);
-        },
-        onError: (recordError) => setError(recordError.message),
-      },
-    );
+  function updateForm(updates) {
+    setForm((current) => normalizeForm({ ...current, ...updates }));
   }
 
   function removeRecord(recordId) {
@@ -107,7 +90,7 @@ export default function AdminConsumptionPage() {
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}>
         <Typography color="text.secondary">
-          Track team spend across card, crypto, bank, cash, and other consumption.
+          Track wallet balances, card balance, crypto spend, card funding, swaps, gas fees, and reconciliation adjustments.
         </Typography>
         <IconButton type="button" onClick={() => refetch()} title="Refresh consumption">
           <RefreshIcon />
@@ -117,73 +100,91 @@ export default function AdminConsumptionPage() {
       {error || queryError ? <Alert severity="error">{error || queryError?.message}</Alert> : null}
 
       <Grid container spacing={1.25}>
-        {totals.map((total) => (
-          <Grid key={total.currency} size={{ xs: 12, sm: 6, md: 3 }}>
+        {accounts.map((account) => (
+          <Grid key={account.id || account.name} size={{ xs: 12, sm: 6, md: 3 }}>
             <Paper variant="outlined" sx={{ p: 1.5, boxShadow: 1 }}>
-              <Typography variant="caption" color="text.secondary">{total.currency}</Typography>
-              <Typography variant="h5" fontWeight={900}>{formatAmount(total.amount, total.currency)}</Typography>
+              <Typography variant="caption" color="text.secondary">{account.name}</Typography>
+              <Typography variant="h5" fontWeight={900}>{formatAmount(account.balance, account.currency)}</Typography>
             </Paper>
           </Grid>
         ))}
-        {!totals.length ? (
-          <Grid size={{ xs: 12 }}>
-            <Paper variant="outlined" sx={{ p: 1.5 }}>
-              <Typography color="text.secondary">No consumption has been recorded yet.</Typography>
-            </Paper>
-          </Grid>
-        ) : null}
       </Grid>
 
-      <ConsumptionForm
-        form={form}
-        isSaving={isSaving}
-        submitLabel="Add consumption"
-        submitIcon={<AddIcon fontSize="small" />}
-        onChange={setForm}
-        onSubmit={submitRecord}
-      />
+      <Paper component="form" variant="outlined" onSubmit={submitRecord} sx={{ p: 1.5, boxShadow: 1 }}>
+        <Grid container spacing={1.25} alignItems="flex-start">
+          <Grid size={{ xs: 12, md: 2 }}>
+            <SelectField label="Type" value={form.type} options={TYPE_OPTIONS} onChange={(type) => updateForm({ type })} />
+          </Grid>
+          <TransactionFields accountOptions={accountOptions} form={form} onChange={updateForm} />
+          <Grid size={{ xs: 12, md: 2 }}>
+            <TextField fullWidth size="small" label="Date" type="date" value={form.occurredAt} onChange={(event) => updateForm({ occurredAt: event.target.value })} InputLabelProps={{ shrink: true }} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <TextField fullWidth size="small" label="Etherscan link / tx hash" value={form.etherscanUrl} onChange={(event) => updateForm({ etherscanUrl: event.target.value })} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField fullWidth size="small" label="Notes" value={form.notes} onChange={(event) => updateForm({ notes: event.target.value })} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 2 }}>
+            <Button
+              fullWidth
+              type="submit"
+              size="small"
+              variant="contained"
+              disabled={isSaving}
+              startIcon={<AddIcon fontSize="small" />}
+              sx={{ minHeight: 40, whiteSpace: 'nowrap', '& .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 } }}
+            >
+              Add transaction
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <ConsumptionHelp />
 
       <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
         <Box sx={{ p: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-          <Typography fontWeight={900}>Consumption records</Typography>
-          <Typography variant="caption" color="text.secondary">
-            {records.length.toLocaleString()} records, newest first.
-          </Typography>
+          <Typography fontWeight={900}>Transaction ledger</Typography>
+          <Typography variant="caption" color="text.secondary">{transactions.length.toLocaleString()} transactions, newest first.</Typography>
         </Box>
         <TableContainer sx={{ maxHeight: 560 }}>
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
                 <TableCell>Date</TableCell>
-                <TableCell align="right">Amount</TableCell>
-                <TableCell>Currency</TableCell>
-                <TableCell>Channel</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Entries</TableCell>
                 <TableCell>Notes</TableCell>
+                <TableCell>Tx</TableCell>
                 <TableCell>Created by</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {records.map((record) => (
-                <ConsumptionRow
-                  key={record.id}
-                  editing={editing}
-                  isEditing={editingId === record.id}
-                  isSaving={isSaving}
-                  record={record}
-                  onCancel={() => setEditingId(null)}
-                  onDelete={() => removeRecord(record.id)}
-                  onEdit={() => startEditing(record)}
-                  onEditingChange={setEditing}
-                  onSave={() => saveRecord(record.id)}
-                />
+              {transactions.map((transaction) => (
+                <TableRow key={transaction.id} hover>
+                  <TableCell>{formatDate(transaction.occurredAt)}</TableCell>
+                  <TableCell>{typeLabel(transaction.type)}</TableCell>
+                  <TableCell>
+                    {(transaction.entries || []).map((entry) => (
+                      <Typography key={entry.id} variant="caption" sx={{ display: 'block' }}>
+                        {entry.accountName}: {entry.direction === 'inflow' ? '+' : '-'}{formatAmount(entry.amount, entry.currency)} · {entry.entryKind.replace(/_/g, ' ')}
+                      </Typography>
+                    ))}
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 320 }}><Typography variant="body2" noWrap title={transaction.notes}>{transaction.notes || '-'}</Typography></TableCell>
+                  <TableCell>{transaction.txHash ? <Typography variant="caption">{shortHash(transaction.txHash)}</Typography> : '-'}</TableCell>
+                  <TableCell>{transaction.createdBy?.username || '-'}</TableCell>
+                  <TableCell align="right">
+                    <IconButton disabled={isSaving} onClick={() => removeRecord(transaction.id)} title="Delete"><DeleteIcon /></IconButton>
+                  </TableCell>
+                </TableRow>
               ))}
-              {!records.length ? (
+              {!transactions.length ? (
                 <TableRow>
                   <TableCell colSpan={7}>
-                    <Typography color="text.secondary" sx={{ py: 2 }}>
-                      {isLoading ? 'Loading consumption records...' : 'No consumption records yet.'}
-                    </Typography>
+                    <Typography color="text.secondary" sx={{ py: 2 }}>{isLoading ? 'Loading transactions...' : 'No transactions yet.'}</Typography>
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -195,123 +196,125 @@ export default function AdminConsumptionPage() {
   );
 }
 
-function ConsumptionForm({ form, isSaving, onChange, onSubmit, submitIcon, submitLabel }) {
-  return (
-    <Paper component="form" variant="outlined" onSubmit={onSubmit} sx={{ p: 1.5, boxShadow: 1 }}>
-      <Grid container spacing={1.25} alignItems="flex-start">
-        <Grid size={{ xs: 12, md: 2 }}>
-          <TextField required fullWidth size="small" label="Amount" type="number" inputProps={{ min: 0, step: 'any' }} value={form.amount} onChange={(event) => onChange({ ...form, amount: event.target.value })} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-          <CurrencyField channel={form.channel} value={form.currency} onChange={(currency) => onChange({ ...form, currency })} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-          <ChannelField value={form.channel} onChange={(channel) => onChange(normalizeFormForChannel({ ...form, channel }))} />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-          <TextField required fullWidth size="small" label="Date" type="date" value={form.spentAt} onChange={(event) => onChange({ ...form, spentAt: event.target.value })} InputLabelProps={{ shrink: true }} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 2 }}>
-          <TextField fullWidth size="small" label="Notes" value={form.notes} onChange={(event) => onChange({ ...form, notes: event.target.value })} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 2 }}>
-          <Button
-            fullWidth
-            type="submit"
-            size="small"
-            variant="contained"
-            disabled={isSaving}
-            startIcon={submitIcon}
-            sx={{
-              minHeight: 40,
-              px: 1.25,
-              whiteSpace: 'nowrap',
-              '& .MuiButton-startIcon': { mr: 0.5 },
-              '& .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 },
-            }}
-          >
-            {submitLabel}
-          </Button>
-        </Grid>
-      </Grid>
-    </Paper>
-  );
-}
-
-function ConsumptionRow({ editing, isEditing, isSaving, onCancel, onDelete, onEdit, onEditingChange, onSave, record }) {
-  if (isEditing) {
+function TransactionFields({ accountOptions, form, onChange }) {
+  if (form.type === 'card_pay') {
+    return <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />;
+  }
+  if (form.type === 'card_deposit') {
     return (
-      <TableRow hover>
-        <TableCell><TextField size="small" type="date" value={editing.spentAt} onChange={(event) => onEditingChange({ ...editing, spentAt: event.target.value })} /></TableCell>
-        <TableCell align="right"><TextField size="small" type="number" inputProps={{ min: 0, step: 'any' }} value={editing.amount} onChange={(event) => onEditingChange({ ...editing, amount: event.target.value })} /></TableCell>
-        <TableCell><CurrencyField channel={editing.channel} value={editing.currency} onChange={(currency) => onEditingChange({ ...editing, currency })} /></TableCell>
-        <TableCell><ChannelField value={editing.channel} onChange={(channel) => onEditingChange((current) => normalizeFormForChannel({ ...current, channel }))} /></TableCell>
-        <TableCell><TextField fullWidth size="small" value={editing.notes} onChange={(event) => onEditingChange({ ...editing, notes: event.target.value })} /></TableCell>
-        <TableCell>{record.createdBy?.username || '-'}</TableCell>
-        <TableCell align="right">
-          <IconButton disabled={isSaving} onClick={onSave} title="Save"><SaveIcon /></IconButton>
-          <Button disabled={isSaving} onClick={onCancel}>Cancel</Button>
-        </TableCell>
-      </TableRow>
+      <>
+        <CryptoSelect label="From" value={form.currency} onChange={(currency) => onChange({ currency })} />
+        <AmountField label="Crypto amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+        <AmountField label="ETH fee" value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
+        <AmountField label="Received USD" value={form.receivedUsd} onChange={(receivedUsd) => onChange({ receivedUsd })} />
+        <AmountField label="Card fee" value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
+      </>
     );
   }
-
+  if (form.type === 'swap') {
+    return (
+      <>
+        <CryptoSelect label="From" value={form.fromCurrency} onChange={(fromCurrency) => onChange({ fromCurrency })} exclude={['ETH']} />
+        <AmountField label="From amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+        <AmountField label="ETH received" value={form.toEthAmount} onChange={(toEthAmount) => onChange({ toEthAmount })} />
+        <AmountField label="ETH fee" value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
+        <AmountField label="Swap fee" value={form.swapFee} onChange={(swapFee) => onChange({ swapFee })} />
+      </>
+    );
+  }
+  if (form.type === 'eth_fee') {
+    return <AmountField label="ETH fee" value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />;
+  }
+  if (form.type === 'adjustment') {
+    return (
+      <>
+        <SelectField label="Account" value={form.accountName} options={accountOptions.map((name) => ({ value: name, label: name }))} onChange={(accountName) => onChange({ accountName })} />
+        <SelectField label="Direction" value={form.direction} options={[{ value: 'inflow', label: 'Increase' }, { value: 'outflow', label: 'Decrease' }]} onChange={(direction) => onChange({ direction })} />
+        <AmountField label="Amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+      </>
+    );
+  }
   return (
-    <TableRow hover>
-      <TableCell>{formatDate(record.spentAt)}</TableCell>
-      <TableCell align="right">{formatAmount(record.amount, record.currency)}</TableCell>
-      <TableCell>{record.currency}</TableCell>
-      <TableCell>{channelLabel(record.channel)}</TableCell>
-      <TableCell sx={{ maxWidth: 420 }}>
-        <Typography variant="body2" noWrap title={record.notes}>{record.notes || '-'}</Typography>
-      </TableCell>
-      <TableCell>{record.createdBy?.username || '-'}</TableCell>
-      <TableCell align="right">
-        <IconButton disabled={isSaving} onClick={onEdit} title="Edit"><EditIcon /></IconButton>
-        <IconButton disabled={isSaving} onClick={onDelete} title="Delete"><DeleteIcon /></IconButton>
-      </TableCell>
-    </TableRow>
+    <>
+      <CryptoSelect label="Currency" value={form.currency} onChange={(currency) => onChange({ currency })} />
+      <AmountField label="Amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+      <AmountField label="ETH fee" value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
+    </>
   );
 }
 
-function CurrencyField({ channel, value, onChange }) {
-  const isCrypto = channel === 'crypto';
+function ConsumptionHelp() {
   return (
-    <FormControl fullWidth size="small">
-      <InputLabel>Currency</InputLabel>
-      <Select
-        disabled={!isCrypto}
-        label="Currency"
-        value={isCrypto ? cryptoCurrencyValue(value) : FIAT_CURRENCY}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {isCrypto ? (
-          CRYPTO_CURRENCIES.map((currency) => (
-            <MenuItem key={currency} value={currency}>{currency}</MenuItem>
-          ))
-        ) : (
-          <MenuItem value={FIAT_CURRENCY}>{FIAT_CURRENCY}</MenuItem>
-        )}
-      </Select>
-    </FormControl>
+    <Accordion variant="outlined" sx={{ boxShadow: 1 }}>
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <HelpOutlinedIcon fontSize="small" />
+          <Typography fontWeight={900}>Help and FAQ</Typography>
+        </Stack>
+      </AccordionSummary>
+      <AccordionDetails>
+        <Grid container spacing={1.25}>
+          {[
+            ['Crypto spend', 'Use this for USDC/USDT vendor payments. It subtracts the token amount and the ETH gas fee.'],
+            ['Card pay', 'Use this for card purchases. It only subtracts Card USD and has no ETH fee.'],
+            ['Deposit to card', 'Use this when funding card from USDC/USDT. It subtracts crypto, subtracts ETH gas, adds received USD, and can record card fees.'],
+            ['Swap to ETH', 'Use this when swapping USDC/USDT into ETH for future gas. It subtracts the input token, adds ETH received, and subtracts ETH gas.'],
+            ['ETH fee only', 'Use this for failed transactions or wallet actions where only gas was spent.'],
+            ['Adjustment', 'Use this only when reconciling balances against the real wallet/card balance.'],
+          ].map(([title, text]) => (
+            <Grid key={title} size={{ xs: 12, md: 6 }}>
+              <Typography fontWeight={900}>{title}</Typography>
+              <Typography color="text.secondary" variant="body2">{text}</Typography>
+            </Grid>
+          ))}
+        </Grid>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 
-function ChannelField({ value, onChange }) {
+function AmountField({ label, value, onChange }) {
+  return (
+    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+      <TextField fullWidth size="small" label={label} type="number" inputProps={{ min: 0, step: 'any' }} value={value || ''} onChange={(event) => onChange(event.target.value)} />
+    </Grid>
+  );
+}
+
+function CryptoSelect({ exclude = [], label, value, onChange }) {
+  return (
+    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+      <SelectField
+        label={label}
+        value={value}
+        options={CRYPTO_CURRENCIES.filter((currency) => !exclude.includes(currency)).map((currency) => ({ value: currency, label: currency }))}
+        onChange={onChange}
+      />
+    </Grid>
+  );
+}
+
+function SelectField({ label, value, options, onChange }) {
   return (
     <FormControl fullWidth size="small">
-      <InputLabel>Channel</InputLabel>
-      <Select label="Channel" value={value} onChange={(event) => onChange(event.target.value)}>
-        {CHANNELS.map((channel) => (
-          <MenuItem key={channel.value} value={channel.value}>{channel.label}</MenuItem>
+      <InputLabel>{label}</InputLabel>
+      <Select label={label} value={value || ''} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
         ))}
       </Select>
     </FormControl>
   );
 }
 
+function normalizeForm(form) {
+  if (form.type === 'card_pay') return { ...form, currency: 'USD' };
+  if (form.type === 'swap' && form.fromCurrency === 'ETH') return { ...form, fromCurrency: 'USDC' };
+  return form;
+}
+
 function formatAmount(amount, currency) {
-  const maximumFractionDigits = ['ETH', 'BTC'].includes(currency) ? 8 : 2;
+  const maximumFractionDigits = ['ETH', 'BTC', 'SOL'].includes(currency) ? 8 : 2;
   return `${Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits })} ${currency}`;
 }
 
@@ -319,28 +322,10 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleDateString() : '-';
 }
 
-function dateInputValue(value) {
-  return value ? new Date(value).toISOString().slice(0, 10) : EMPTY_FORM.spentAt;
+function typeLabel(value) {
+  return TYPE_OPTIONS.find((option) => option.value === value)?.label || value;
 }
 
-function channelLabel(value) {
-  return CHANNELS.find((channel) => channel.value === value)?.label || 'Other';
-}
-
-function normalizeFormForChannel(form) {
-  if (form.channel === 'crypto') {
-    return {
-      ...form,
-      currency: CRYPTO_CURRENCIES.includes(form.currency) ? form.currency : 'USDT',
-    };
-  }
-
-  return {
-    ...form,
-    currency: FIAT_CURRENCY,
-  };
-}
-
-function cryptoCurrencyValue(value) {
-  return CRYPTO_CURRENCIES.includes(value) ? value : 'USDT';
+function shortHash(value) {
+  return `${String(value).slice(0, 8)}...${String(value).slice(-6)}`;
 }

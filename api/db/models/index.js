@@ -1,5 +1,8 @@
 export { getBidProfileModel } from './bidProfile.js';
 export { getFaqModel } from './faq.js';
+export { getConsumptionAccountModel } from './consumptionAccount.js';
+export { getConsumptionLedgerEntryModel } from './consumptionLedgerEntry.js';
+export { getConsumptionTransactionModel } from './consumptionTransaction.js';
 export { getInterviewLogModel } from './interviewLog.js';
 export { getInterviewModel } from './interview.js';
 export { getJobBidModel } from './jobBid.js';
@@ -15,6 +18,9 @@ export { getWebUserModel } from './webUser.js';
 
 import { getBidProfileModel } from './bidProfile.js';
 import { getFaqModel } from './faq.js';
+import { getConsumptionAccountModel } from './consumptionAccount.js';
+import { getConsumptionLedgerEntryModel } from './consumptionLedgerEntry.js';
+import { getConsumptionTransactionModel } from './consumptionTransaction.js';
 import { getInterviewLogModel } from './interviewLog.js';
 import { getInterviewModel } from './interview.js';
 import { getJobBidModel } from './jobBid.js';
@@ -33,6 +39,9 @@ export function setupWebAssociations() {
   const ScrapedJobModel = getScrapedJobModel();
   const BidProfileModel = getBidProfileModel();
   const FaqModel = getFaqModel();
+  const ConsumptionAccountModel = getConsumptionAccountModel();
+  const ConsumptionLedgerEntryModel = getConsumptionLedgerEntryModel();
+  const ConsumptionTransactionModel = getConsumptionTransactionModel();
   const InterviewLogModel = getInterviewLogModel();
   const InterviewModel = getInterviewModel();
   const JobBidModel = getJobBidModel();
@@ -52,6 +61,12 @@ export function setupWebAssociations() {
   FaqModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
   WebUserModel.hasMany(TeamConsumptionModel, { foreignKey: 'createdByUserId', as: 'consumptionRecords' });
   TeamConsumptionModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
+  WebUserModel.hasMany(ConsumptionTransactionModel, { foreignKey: 'createdByUserId', as: 'consumptionTransactions' });
+  ConsumptionTransactionModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
+  ConsumptionTransactionModel.hasMany(ConsumptionLedgerEntryModel, { foreignKey: 'transactionId', as: 'entries', onDelete: 'CASCADE' });
+  ConsumptionLedgerEntryModel.belongsTo(ConsumptionTransactionModel, { foreignKey: 'transactionId', as: 'transaction' });
+  ConsumptionAccountModel.hasMany(ConsumptionLedgerEntryModel, { foreignKey: 'accountId', as: 'entries' });
+  ConsumptionLedgerEntryModel.belongsTo(ConsumptionAccountModel, { foreignKey: 'accountId', as: 'account' });
   WebUserModel.hasOne(MarketplaceParticipantModel, { foreignKey: 'userId', as: 'marketplaceParticipant' });
   MarketplaceParticipantModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'user' });
   MarketplaceParticipantModel.belongsTo(WebUserModel, { foreignKey: 'reviewedByUserId', as: 'reviewedBy' });

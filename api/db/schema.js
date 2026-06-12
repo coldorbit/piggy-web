@@ -2,6 +2,9 @@ import { DataTypes } from 'sequelize';
 import { getSequelize } from './connection.js';
 import {
   getBidProfileModel,
+  getConsumptionAccountModel,
+  getConsumptionLedgerEntryModel,
+  getConsumptionTransactionModel,
   getFaqModel,
   getInterviewLogModel,
   getInterviewModel,
@@ -39,6 +42,9 @@ export async function ensureWebModels() {
       await getMarketplaceCallerProfileModel().sync();
       await getMarketplaceMatchModel().sync();
       await getTeamConsumptionModel().sync();
+      await getConsumptionAccountModel().sync();
+      await getConsumptionTransactionModel().sync();
+      await getConsumptionLedgerEntryModel().sync();
       await ensureWebUserSessionColumns();
       await ensureBidProfileColumns();
       await ensureJobBidInterviewColumns();
