@@ -483,6 +483,7 @@ function validateCsvHeaders(headers) {
 
 function parseCsv(csvText) {
   const text = String(csvText || '').replace(/^\uFEFF/, '');
+  const delimiter = csvDelimiter(text);
   const rows = [];
   let row = [];
   let value = '';
@@ -506,7 +507,7 @@ function parseCsv(csvText) {
 
     if (char === '"') {
       inQuotes = true;
-    } else if (char === ',') {
+    } else if (char === delimiter) {
       row.push(value);
       value = '';
     } else if (char === '\n') {
@@ -526,6 +527,11 @@ function parseCsv(csvText) {
   }
 
   return rows;
+}
+
+function csvDelimiter(text) {
+  const firstLine = String(text || '').split(/\r?\n/, 1)[0] || '';
+  return firstLine.includes('\t') ? '\t' : ',';
 }
 
 function rowObjectFromCsvRow(headers, row) {

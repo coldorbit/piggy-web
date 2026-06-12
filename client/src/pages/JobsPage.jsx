@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import WorkIcon from '@mui/icons-material/Work';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, TextField, Typography } from '@mui/material';
 import JobDetail from '../components/jobs/JobDetail.jsx';
 import JobFiltersDrawer from '../components/jobs/JobFiltersDrawer.jsx';
 import JobList from '../components/jobs/JobList.jsx';
@@ -18,6 +19,7 @@ import { ROLES, isAdminRole } from '../lib/roles.js';
 
 const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const JOB_FILTERS_STORAGE_KEY = 'applypilot.jobs.filters';
+const PASTED_JOB_HEADERS = ['title', 'company', 'url', 'location', 'category', 'postedAt', 'source', 'sourceUrl', 'listingText'];
 
 const DEFAULT_FILTERS = {
   search: '',
@@ -39,6 +41,7 @@ export default function JobsPage({ currentUser }) {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
+  const [pastedJobRow, setPastedJobRow] = useState('');
   const [importMessage, setImportMessage] = useState('');
   const [importResult, setImportResult] = useState(null);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
@@ -137,14 +140,31 @@ export default function JobsPage({ currentUser }) {
 
   function importCsv(event) {
     event.preventDefault();
+    submitJobsImport(csvText, {
+      onSuccess: () => {
+        setCsvText('');
+        setIsImportOpen(false);
+      },
+    });
+  }
+
+  function importPastedJob() {
+    submitJobsImport(csvFromPastedJobRow(pastedJobRow), {
+      onSuccess: () => {
+        setPastedJobRow('');
+        setIsImportOpen(false);
+      },
+    });
+  }
+
+  function submitJobsImport(nextCsvText, options = {}) {
     setImportMessage('');
     setImportResult(null);
     importJobsCsv(
-      { csvText },
+      { csvText: nextCsvText },
       {
         onSuccess: (result) => {
-          setCsvText('');
-          setIsImportOpen(false);
+          options.onSuccess?.(result);
           setImportResult(result);
         },
         onError: (importError) => {
@@ -175,7 +195,7 @@ export default function JobsPage({ currentUser }) {
             action={
               canImportJobs ? (
                 <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setIsImportOpen(true)}>
-                  Import CSV
+                  Import
                 </Button>
               ) : null
             }
@@ -244,6 +264,27 @@ export default function JobsPage({ currentUser }) {
         <Box component="form" onSubmit={importCsv}>
           <DialogTitle>Import Jobs</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1 }}>
+            <TextField
+              label="Paste one job row"
+              value={pastedJobRow}
+              onChange={(event) => setPastedJobRow(event.target.value)}
+              placeholder={PASTED_JOB_HEADERS.join('\t')}
+              multiline
+              minRows={4}
+              fullWidth
+            />
+            <Button
+              type="button"
+              variant="contained"
+              startIcon={<ContentPasteIcon />}
+              disabled={importingCsv || !pastedJobRow.trim()}
+              onClick={importPastedJob}
+            >
+              Import pasted row
+            </Button>
+            <Typography color="text.secondary" variant="body2">
+              Column order: {PASTED_JOB_HEADERS.join(', ')}
+            </Typography>
             <Button component="label" variant="outlined" startIcon={<UploadFileIcon />}>
               Choose CSV
               <input type="file" accept=".csv,text/csv" hidden onChange={readCsvFile} />
@@ -253,15 +294,23 @@ export default function JobsPage({ currentUser }) {
             </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setIsImportOpen(false)}>Cancel</Button>
+            <Button type="button" onClick={() => setIsImportOpen(false)}>Cancel</Button>
             <Button type="submit" variant="contained" disabled={importingCsv || !csvText}>
-              Import
+              Import CSV
             </Button>
           </DialogActions>
         </Box>
       </Dialog>
     </Box>
   );
+}
+
+function csvFromPastedJobRow(value) {
+  const rowText = String(value || '').trim();
+  const firstLine = rowText.split(/\r?\n/, 1)[0] || '';
+  const pastedHeaders = firstLine.split('\t').map((item) => item.trim()).join(',');
+  const body = pastedHeaders === PASTED_JOB_HEADERS.join(',') ? rowText.split(/\r?\n/).slice(1).join('\n') : rowText;
+  return [PASTED_JOB_HEADERS.join('\t'), body].join('\n');
 }
 
 function ImportCsvResultAlert({ result }) {

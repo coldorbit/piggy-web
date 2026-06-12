@@ -51,6 +51,36 @@ describe('manual CSV job imports', () => {
     assert.equal(job.rawJob.source, undefined);
     assert.equal(job.rawJob.source_url, undefined);
   });
+
+  it('imports a tab-delimited row copied from Google Sheets', () => {
+    const [job] = jobsFromCsv(
+      [
+        'title\tcompany\turl\tlocation\tcategory\tpostedAt\tsource\tsourceUrl\tlistingText',
+        [
+          'Backend Engineer',
+          'Acme',
+          'https://example.com/jobs/sheets-1',
+          'Remote',
+          'software',
+          '2026-06-01',
+          'LinkedIn',
+          'https://linkedin.com/jobs/view/1',
+          'Build reliable services',
+        ].join('\t'),
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(job.title, 'Backend Engineer');
+    assert.equal(job.company, 'Acme');
+    assert.equal(job.url, 'https://example.com/jobs/sheets-1');
+    assert.equal(job.location, 'Remote');
+    assert.equal(job.category, 'software');
+    assert.equal(job.listingText, 'Build reliable services');
+    assert.equal(job.source, 'Manual');
+    assert.equal(job.sourceUrl, null);
+    assert.equal(job.rawJob.importType, 'manual');
+  });
 });
 
 function jobRow(overrides) {
