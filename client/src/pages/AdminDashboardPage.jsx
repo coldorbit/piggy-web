@@ -73,8 +73,8 @@ export default function AdminDashboardPage() {
 
 function DashboardHeader({ generatedAt, grain, onGrainChange }) {
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.25} alignItems={{ xs: 'stretch', sm: 'center' }}>
-      <Box>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) auto' }, gap: 1.25, alignItems: 'center' }}>
+      <Box sx={{ minWidth: 0 }}>
         <Typography color="text.secondary">
           User and bidder performance across jobs, applications, interviews, and offers.
         </Typography>
@@ -84,7 +84,7 @@ function DashboardHeader({ generatedAt, grain, onGrainChange }) {
           </Typography>
         ) : null}
       </Box>
-      <FormControl size="small" sx={{ minWidth: 180 }}>
+      <FormControl size="small" sx={{ width: { xs: '100%', sm: 180 }, justifySelf: { xs: 'stretch', sm: 'end' } }}>
         <InputLabel>Period</InputLabel>
         <Select label="Period" value={grain} onChange={(event) => onGrainChange(event.target.value)}>
           {GRAIN_OPTIONS.map((option) => (
@@ -94,7 +94,7 @@ function DashboardHeader({ generatedAt, grain, onGrainChange }) {
           ))}
         </Select>
       </FormControl>
-    </Stack>
+    </Box>
   );
 }
 
