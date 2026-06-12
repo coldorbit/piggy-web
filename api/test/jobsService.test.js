@@ -120,6 +120,30 @@ describe('manual CSV job imports', () => {
     assert.equal(plan.duplicateExistingRows.length, 1);
     assert.deepEqual(plan.categoryUpdates, [{ url: 'https://example.com/jobs/existing-1', category: 'data' }]);
   });
+
+  it('does not update existing categories when the CSV category is blank', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,category',
+        'https://example.com/jobs/existing-2,ML Engineer,Acme,',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    const plan = planCsvJobImport([job], [
+      {
+        url: 'https://example.com/jobs/existing-2',
+        title: 'ML Engineer',
+        company: 'Acme',
+        category: 'ai_ml',
+      },
+    ]);
+
+    assert.equal(job.category, 'software');
+    assert.equal(plan.insertRows.length, 0);
+    assert.equal(plan.duplicateExistingRows.length, 1);
+    assert.deepEqual(plan.categoryUpdates, []);
+  });
 });
 
 function jobRow(overrides) {

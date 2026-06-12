@@ -423,7 +423,9 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
       return;
     }
 
-    const category = categoryFromCsvValue(csvValue(raw, 'category'), rowNumber, errors);
+    const rawCategory = csvValue(raw, 'category');
+    const category = categoryFromCsvValue(rawCategory, rowNumber, errors);
+    const hasImportCategory = Boolean(clean(rawCategory));
     const postedAt = dateFromCsvValue(csvValue(raw, 'postedAt'), rowNumber, errors) || importedAt;
     const listingText = csvValue(raw, 'listingText');
 
@@ -446,6 +448,7 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
         importRowNumber: rowNumber,
         importType: 'manual',
         isManualImport: true,
+        importCategoryProvided: hasImportCategory,
         roleFamily: category,
         category,
       },
@@ -481,7 +484,7 @@ export function planCsvJobImport(rows, existingRows = []) {
         existingTitle: existingJob?.title || null,
         existingCompany: existingJob?.company || null,
       });
-      if (!categoryUpdateUrls.has(row.url) && row.category && row.category !== existingJob?.category) {
+      if (!categoryUpdateUrls.has(row.url) && row.rawJob?.importCategoryProvided && row.category && row.category !== existingJob?.category) {
         categoryUpdates.push({ url: row.url, category: row.category });
         categoryUpdateUrls.add(row.url);
       }
