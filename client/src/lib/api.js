@@ -25,6 +25,15 @@ export function useAdminUsers() {
   });
 }
 
+export function useAdminDashboard(filters = {}) {
+  const queryParams = new URLSearchParams(filters).toString();
+  return useQuery({
+    queryKey: ['admin', 'dashboard', filters],
+    queryFn: () => api(`/api/admin/dashboard${queryParams ? `?${queryParams}` : ''}`).then((data) => data.dashboard),
+    staleTime: 30_000,
+  });
+}
+
 export function useFaqs() {
   return useQuery({
     queryKey: ['faqs'],

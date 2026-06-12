@@ -1,8 +1,18 @@
 import { ensureDefaultUsers, hashPassword, publicUser } from '../../../../auth.js';
 import { getWebUserModel, repositories } from '../../../../db.js';
+import { getDashboardMetrics } from '../application/dashboardService.js';
 import { userAttributesFromBody } from '../application/usersService.js';
 import { handleUserWriteError } from '../../../utils/errors.js';
 import { ADMIN_ROLES, ROLES, canAssignAdminRole, isSuperadmin } from '../../../utils/roles.js';
+
+export async function getDashboard(req, res, next) {
+  try {
+    const dashboard = await getDashboardMetrics(req.query);
+    res.json({ dashboard });
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function listUsers(_req, res, next) {
   try {

@@ -10,6 +10,7 @@ import {
 } from './routeGuards.jsx';
 
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
+const AdminDashboardPage = lazy(() => import('../pages/AdminDashboardPage.jsx'));
 const AppLayout = lazy(() => import('../components/AppLayout.jsx'));
 const BidPage = lazy(() => import('../pages/BidPage.jsx'));
 const BiddersPage = lazy(() => import('../pages/BiddersPage.jsx'));
@@ -118,6 +119,14 @@ export function AuthenticatedRoutes({ user }) {
           element={
             <RequireAdmin user={user}>
               <FaqEditorPage currentUser={user} />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <RequireAdmin user={user}>
+              <AdminDashboardPage currentUser={user} />
             </RequireAdmin>
           }
         />

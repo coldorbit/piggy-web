@@ -1,4 +1,5 @@
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BadgeIcon from '@mui/icons-material/Badge';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -57,7 +58,8 @@ export default function AppLayout({ user }) {
   const [accountError, setAccountError] = useState('');
   const { mutate: logout } = useLogout();
   const { mutate: updateMe, isPending: isUpdatingMe } = useUpdateMe();
-  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isAdminDashboardRoute = location.pathname.startsWith('/admin/dashboard');
+  const isAdminRoute = location.pathname.startsWith('/admin/users');
   const isBidRoute = location.pathname.startsWith('/bids');
   const isBidderRoute = location.pathname.startsWith('/bidders');
   const isCallerRoute = location.pathname.startsWith('/callers');
@@ -105,8 +107,10 @@ export default function AppLayout({ user }) {
     );
   }
 
-  const title = isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
-  const subtitle = isAdminRoute
+  const title = isAdminDashboardRoute ? 'Dashboard' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const subtitle = isAdminDashboardRoute
+    ? 'Monitor user and bidder performance'
+    : isAdminRoute
     ? 'Manage back-office accounts'
     : isTailoringRoute
       ? 'Review all resume tailoring activity'
@@ -192,6 +196,9 @@ export default function AppLayout({ user }) {
             <NavItem to="/tailoring-requests" icon={<StyleIcon />} label="Tailoring" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" onNavigate={() => setMobileOpen(false)} />
+          {isAdminRole(user) ? (
+            <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" onNavigate={() => setMobileOpen(false)} />
+          ) : null}
           {isAdminRole(user) ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" onNavigate={() => setMobileOpen(false)} />
           ) : null}
