@@ -1116,7 +1116,7 @@ export async function createManualTailoredResume(req, res, next) {
     const tailoredResume = await TailoredResume.create({
       userId: user.id,
       profileId: profile.id,
-      jobUrl: manualTailoringJobUrl(),
+      jobUrl: attrs.jobUrl,
       requestType: 'manual',
       manualCompany: attrs.company,
       manualRole: attrs.role,
@@ -1143,17 +1143,16 @@ export async function createManualTailoredResume(req, res, next) {
 function manualTailoringAttributesFromBody(body = {}) {
   const company = clean(body.company || body.companyName);
   const role = clean(body.role || body.title || body.positionTitle);
+  const jobUrl = clean(body.url || body.jobUrl);
   const jobDescription = clean(body.jobDescription || body.jdContent || body.listingText);
 
   if (!company) throw new InputError('Company name is required');
   if (!role) throw new InputError('Role or position title is required');
+  if (!jobUrl) throw new InputError('Job URL is required');
+  if (!validHttpUrl(jobUrl)) throw new InputError('Job URL must be a valid URL');
   if (!jobDescription) throw new InputError('Job description content is required');
 
-  return { company, role, jobDescription };
-}
-
-function manualTailoringJobUrl() {
-  return `manual://${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return { company, role, jobUrl, jobDescription };
 }
 
 export async function listTailoringRequests(req, res, next) {
@@ -1763,7 +1762,7 @@ function formatTailoringRequest(row) {
       source: row.request_type === 'manual' ? 'Manual' : row.source,
       postedAt: row.posted_at,
       scrapedAt: row.scraped_at,
-      url: row.request_type === 'manual' ? '' : row.job_url,
+      url: validHttpUrl(row.job_url) ? row.job_url : '',
     },
   };
 }

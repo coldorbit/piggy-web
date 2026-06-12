@@ -42,6 +42,7 @@ const emptyManualForm = {
   profileId: '',
   company: '',
   role: '',
+  jobUrl: '',
   jobDescription: '',
 };
 
@@ -75,6 +76,7 @@ export default function TailoringRequestsPage() {
     manualForm.profileId &&
     manualForm.company.trim() &&
     manualForm.role.trim() &&
+    manualForm.jobUrl.trim() &&
     manualForm.jobDescription.trim() &&
     !createManualTailoring.isPending;
 
@@ -105,6 +107,7 @@ export default function TailoringRequestsPage() {
         profileId: manualForm.profileId,
         company: manualForm.company,
         role: manualForm.role,
+        jobUrl: manualForm.jobUrl,
         jobDescription: manualForm.jobDescription,
       },
       {
@@ -131,7 +134,7 @@ export default function TailoringRequestsPage() {
         onSubmit={submitManualTailoring}
         sx={{ p: 1.5, borderRadius: 1, display: 'grid', gap: 1.25 }}
       >
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '260px minmax(0, 1fr) minmax(0, 1fr) auto' }, gap: 1, alignItems: 'start' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) auto' }, gap: 1, alignItems: 'start' }}>
           <TextField
             select
             label="Profile"
@@ -155,6 +158,13 @@ export default function TailoringRequestsPage() {
             label="Role / position title"
             value={manualForm.role}
             onChange={(event) => updateManualForm('role', event.target.value)}
+            required
+          />
+          <TextField
+            label="Job URL"
+            type="url"
+            value={manualForm.jobUrl}
+            onChange={(event) => updateManualForm('jobUrl', event.target.value)}
             required
           />
           <Button type="submit" variant="contained" startIcon={createManualTailoring.isPending ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />} disabled={!canSubmitManual} sx={{ minHeight: 37 }}>
@@ -353,7 +363,7 @@ function TailoringRequestRow({ request }) {
       </TableCell>
       <TableCell align="right">
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-          {request.requestType !== 'manual' && request.job?.url ? (
+          {request.job?.url ? (
             <Tooltip title="Open job">
               <IconButton component="a" href={request.job.url} target="_blank" rel="noreferrer" size="small">
                 <OpenInNewIcon fontSize="small" />

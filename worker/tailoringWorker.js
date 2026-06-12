@@ -172,6 +172,7 @@ function manualJobFromTailoredResume(tailoredResume) {
       importType: 'manual_tailoring',
       jobUrl: tailoredResume.jobUrl,
     },
+    url: tailoredResume.jobUrl,
   };
 }
 
