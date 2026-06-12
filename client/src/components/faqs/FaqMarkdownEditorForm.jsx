@@ -40,6 +40,12 @@ export default function FaqMarkdownEditorForm({ form, onChange }) {
               boxShadow: 'none',
               borderRadius: 0,
             },
+            '& .w-md-editor-content': {
+              minHeight: 0,
+            },
+            '& .w-md-editor-text, & .w-md-editor-text-input, & .w-md-editor-preview': {
+              overflowY: 'auto !important',
+            },
             '& .w-md-editor-toolbar': {
               borderBottomColor: '#E2E8F0',
             },
