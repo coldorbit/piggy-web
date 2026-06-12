@@ -159,9 +159,31 @@ export const theme = createTheme({
         variant: 'outlined',
       },
     },
+    MuiDialogContent: {
+      styleOverrides: {
+        root: {
+          '& > .MuiTextField-root:first-of-type, & > .MuiFormControl-root:first-of-type, & > .MuiBox-root:first-of-type > .MuiTextField-root:first-of-type, & > .MuiBox-root:first-of-type > .MuiFormControl-root:first-of-type': {
+            marginTop: 4,
+          },
+          '& .MuiTextField-root, & .MuiFormControl-root': {
+            overflow: 'visible',
+          },
+        },
+      },
+    },
     MuiFormControl: {
       defaultProps: {
         size: 'small',
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        outlined: {
+          backgroundColor: '#ffffff',
+          paddingLeft: 4,
+          paddingRight: 4,
+          maxWidth: 'calc(100% - 20px)',
+        },
       },
     },
     MuiSelect: {

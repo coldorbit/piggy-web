@@ -271,6 +271,7 @@ export default function JobsPage({ currentUser }) {
               placeholder={PASTED_JOB_HEADERS.join('\t')}
               multiline
               minRows={4}
+              maxRows={8}
               fullWidth
             />
             <Button
