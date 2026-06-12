@@ -263,7 +263,7 @@ export default function JobsPage({ currentUser }) {
       <Dialog open={isImportOpen} onClose={() => setIsImportOpen(false)} fullWidth maxWidth="sm">
         <Box component="form" onSubmit={importCsv}>
           <DialogTitle>Import Jobs</DialogTitle>
-          <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1.75 }}>
+          <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1 }}>
             <TextField
               label="Paste one job row"
               value={pastedJobRow}
@@ -273,9 +273,7 @@ export default function JobsPage({ currentUser }) {
               minRows={4}
               maxRows={8}
               fullWidth
-              slotProps={{
-                inputLabel: { shrink: true, sx: { bgcolor: 'background.paper', px: 0.5 } },
-              }}
+              sx={{ mt: 1 }}
             />
             <Button
               type="button"
