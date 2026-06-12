@@ -16,17 +16,11 @@ import {
   getWebUserModel,
   setupWebAssociations,
 } from './models/index.js';
-import {
-  backfillTailoredResumeFilePaths,
-  ensureTailoredResumeFilePathNormalizer,
-  selectTailoredResumeFilePathRows,
-} from './backfills/tailoredResumeFilePaths.js';
-import { backfillManualJobCategoriesByTitle } from './backfills/manualJobCategoriesByTitle.js';
 import { addMissingColumns, removeExistingColumns } from './utils.js';
 
 let initializationPromise;
 
-export async function ensureWebModels({ runBackfills = true } = {}) {
+export async function ensureWebModels() {
   if (!initializationPromise) {
     initializationPromise = (async () => {
       await getScrapedJobModel().sync();
@@ -50,13 +44,11 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await ensureTailoredResumeStatusColumns();
       await ensureTailoredResumeManualColumns();
       await ensureWebUserEmailColumn();
-      if (runBackfills) await runTailoredResumeFilePathBackfill();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
       await ensureSpamReviewColumns();
       await ensureHiddenJobColumns();
       await backfillManualJobSources();
-      if (runBackfills) await runManualJobCategoryBackfill();
       await ensureBidPageIndexes();
       await ensureProfileShareIndexes();
       await ensureJobBidProfileScopedUniqueness();
@@ -109,13 +101,6 @@ async function backfillManualJobSources() {
     WHERE raw_job->>'importType' = 'manual'
        OR raw_job->>'isManualImport' = 'true'
   `);
-}
-
-async function runManualJobCategoryBackfill() {
-  const summary = await backfillManualJobCategoriesByTitle({ apply: true, onlySoftware: true });
-  if (summary.candidateCount) {
-    console.log(`Manual job category backfill updated ${summary.candidateCount} row${summary.candidateCount === 1 ? '' : 's'}.`);
-  }
 }
 
 async function ensureInterviewJourneyColumns() {
@@ -244,21 +229,6 @@ async function backfillInterviewStageNotes() {
         AND interview_logs.event_type = 'created'
     )
   `);
-}
-
-async function runTailoredResumeFilePathBackfill() {
-  console.log('Running tailored resume file_path backfill.');
-  await ensureTailoredResumeFilePathNormalizer();
-  console.log(
-    'tailored_resumes rows before file_path backfill:',
-    JSON.stringify(await selectTailoredResumeFilePathRows(), null, 2),
-  );
-  const updatedCount = await backfillTailoredResumeFilePaths();
-  console.log(`Tailored resume file_path backfill completed; updated ${updatedCount} record${updatedCount === 1 ? '' : 's'}.`);
-  console.log(
-    'tailored_resumes rows after file_path backfill:',
-    JSON.stringify(await selectTailoredResumeFilePathRows(), null, 2),
-  );
 }
 
 async function ensureProfileShareIndexes() {
