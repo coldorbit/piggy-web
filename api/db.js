@@ -12,6 +12,7 @@ export {
   getProfileShareRequestModel,
   getScrapedJobModel,
   getTailoredResumeModel,
+  getTeamConsumptionModel,
   getWebUserModel,
   setupWebAssociations,
 } from './db/models/index.js';

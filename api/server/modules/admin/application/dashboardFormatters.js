@@ -4,7 +4,10 @@ export function formatDashboardResponse({
   overall,
   trend,
   users,
+  bidders,
   callers,
+  profileFunnels,
+  roleFamilyFunnels,
   userSources,
   userCategories,
   userProfiles,
@@ -30,13 +33,63 @@ export function formatDashboardResponse({
       categoryMix: categoryMixByUserId.get(String(row.id)) || [],
       profileMix: profileMixByUserId.get(String(row.id)) || [],
     })),
+    bidders: bidders.map(formatBidderRow),
     callers: callers.map((row) => formatCallerRow(row, { bucketCount })),
+    funnels: {
+      profiles: profileFunnels.map(formatFunnelRow('profile_name')),
+      roleFamilies: roleFamilyFunnels.map(formatFunnelRow('role_family')),
+    },
     breakdowns: {
       sources: sources.map(formatCountRow('source')),
       bidStatuses: bidStatuses.map(formatCountRow('status')),
       interviewStages: interviewStages.map(formatCountRow('stage')),
       interviewStatuses: interviewStatuses.map(formatCountRow('status')),
     },
+  };
+}
+
+function formatBidderRow(row) {
+  const values = camelizeKeys(numberFields(row, [
+    'applications',
+    'interviews',
+    'offers',
+    'lost',
+    'profiles_used',
+    'role_families',
+  ]));
+
+  return {
+    id: row.id,
+    username: row.username,
+    role: row.role,
+    ...values,
+    firstApplicationAt: row.first_application_at || null,
+    lastApplicationAt: row.last_application_at || null,
+    applicationToInterviewRate: rate(values.interviews, values.applications),
+    interviewToOfferRate: rate(values.offers, values.interviews),
+    applicationToOfferRate: rate(values.offers, values.applications),
+    lossRate: rate(values.lost, values.interviews),
+  };
+}
+
+function formatFunnelRow(nameKey) {
+  return (row) => {
+    const values = camelizeKeys(numberFields(row, [
+      'applications',
+      'interviews',
+      'offers',
+      'lost',
+    ]));
+
+    return {
+      id: row.id || row[nameKey],
+      name: row[nameKey] || 'Unknown',
+      ...values,
+      applicationToInterviewRate: rate(values.interviews, values.applications),
+      interviewToOfferRate: rate(values.offers, values.interviews),
+      applicationToOfferRate: rate(values.offers, values.applications),
+      lossRate: rate(values.lost, values.interviews),
+    };
   };
 }
 

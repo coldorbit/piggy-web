@@ -10,6 +10,7 @@ export { getMarketplaceParticipantModel } from './marketplaceParticipant.js';
 export { getProfileShareRequestModel } from './profileShareRequest.js';
 export { getScrapedJobModel } from './scrapedJob.js';
 export { getTailoredResumeModel } from './tailoredResume.js';
+export { getTeamConsumptionModel } from './teamConsumption.js';
 export { getWebUserModel } from './webUser.js';
 
 import { getBidProfileModel } from './bidProfile.js';
@@ -24,6 +25,7 @@ import { getMarketplaceParticipantModel } from './marketplaceParticipant.js';
 import { getProfileShareRequestModel } from './profileShareRequest.js';
 import { getScrapedJobModel } from './scrapedJob.js';
 import { getTailoredResumeModel } from './tailoredResume.js';
+import { getTeamConsumptionModel } from './teamConsumption.js';
 import { getWebUserModel } from './webUser.js';
 
 export function setupWebAssociations() {
@@ -40,6 +42,7 @@ export function setupWebAssociations() {
   const MarketplaceParticipantModel = getMarketplaceParticipantModel();
   const ProfileShareRequestModel = getProfileShareRequestModel();
   const TailoredResumeModel = getTailoredResumeModel();
+  const TeamConsumptionModel = getTeamConsumptionModel();
 
   if (BidProfileModel.associations.user) return;
 
@@ -47,6 +50,8 @@ export function setupWebAssociations() {
   BidProfileModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'user' });
   WebUserModel.hasMany(FaqModel, { foreignKey: 'createdByUserId', as: 'faqs' });
   FaqModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
+  WebUserModel.hasMany(TeamConsumptionModel, { foreignKey: 'createdByUserId', as: 'consumptionRecords' });
+  TeamConsumptionModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
   WebUserModel.hasOne(MarketplaceParticipantModel, { foreignKey: 'userId', as: 'marketplaceParticipant' });
   MarketplaceParticipantModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'user' });
   MarketplaceParticipantModel.belongsTo(WebUserModel, { foreignKey: 'reviewedByUserId', as: 'reviewedBy' });

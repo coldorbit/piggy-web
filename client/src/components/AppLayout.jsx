@@ -10,6 +10,7 @@ import HandshakeIcon from '@mui/icons-material/Handshake';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
+import PaidIcon from '@mui/icons-material/Paid';
 import PeopleIcon from '@mui/icons-material/People';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import SearchIcon from '@mui/icons-material/Search';
@@ -41,7 +42,7 @@ import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useUpdateMe } from '../lib/authApi.js';
-import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, isAdminRole, roleLabel } from '../lib/roles.js';
+import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, isAdminRole, isSuperadmin, roleLabel } from '../lib/roles.js';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
@@ -59,6 +60,7 @@ export default function AppLayout({ user }) {
   const { mutate: logout } = useLogout();
   const { mutate: updateMe, isPending: isUpdatingMe } = useUpdateMe();
   const isAdminDashboardRoute = location.pathname.startsWith('/admin/dashboard');
+  const isConsumptionRoute = location.pathname.startsWith('/admin/consumption');
   const isAdminRoute = location.pathname.startsWith('/admin/users');
   const isBidRoute = location.pathname.startsWith('/bids');
   const isBidderRoute = location.pathname.startsWith('/bidders');
@@ -107,9 +109,11 @@ export default function AppLayout({ user }) {
     );
   }
 
-  const title = isAdminDashboardRoute ? 'Dashboard' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminDashboardRoute
     ? 'Monitor user and bidder performance'
+    : isConsumptionRoute
+    ? 'Track team spend across currencies and channels'
     : isAdminRoute
     ? 'Manage back-office accounts'
     : isTailoringRoute
@@ -174,6 +178,12 @@ export default function AppLayout({ user }) {
       </Toolbar>
       <Box sx={{ px: 1, py: 1 }}>
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.35 }}>
+          {isAdminRole(user) ? (
+            <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted onNavigate={() => setMobileOpen(false)} />
+          ) : null}
+          {isSuperadmin(user) ? (
+            <NavItem to="/admin/consumption" icon={<PaidIcon />} label="Consumption" onNavigate={() => setMobileOpen(false)} />
+          ) : null}
           {!isCaller ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller ? <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
@@ -196,9 +206,6 @@ export default function AppLayout({ user }) {
             <NavItem to="/tailoring-requests" icon={<StyleIcon />} label="Tailoring" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" onNavigate={() => setMobileOpen(false)} />
-          {isAdminRole(user) ? (
-            <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" onNavigate={() => setMobileOpen(false)} />
-          ) : null}
           {isAdminRole(user) ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" onNavigate={() => setMobileOpen(false)} />
           ) : null}
@@ -404,7 +411,17 @@ export default function AppLayout({ user }) {
   );
 }
 
-function NavItem({ icon, label, onNavigate, to }) {
+function NavItem({ alwaysHighlighted = false, icon, label, onNavigate, to }) {
+  const highlightedStyles = {
+    bgcolor: 'primary.main',
+    borderColor: 'primary.main',
+    boxShadow: '0 10px 24px rgba(37, 99, 235, 0.22)',
+    color: 'primary.contrastText',
+    fontWeight: 800,
+    '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
+    '& .MuiListItemText-primary': { color: 'primary.contrastText' },
+  };
+
   return (
     <ListItemButton
       component={NavLink}
@@ -415,22 +432,17 @@ function NavItem({ icon, label, onNavigate, to }) {
         borderRadius: 1,
         border: 1,
         borderColor: 'transparent',
-        color: 'text.secondary',
-        '& .MuiListItemIcon-root': { color: 'text.secondary' },
+        color: alwaysHighlighted ? 'primary.contrastText' : 'text.secondary',
+        '& .MuiListItemIcon-root': { color: alwaysHighlighted ? 'primary.contrastText' : 'text.secondary' },
         '&:hover': {
           bgcolor: '#EFF6FF',
           borderColor: '#DBEAFE',
           color: 'primary.dark',
+          '& .MuiListItemIcon-root': { color: 'primary.dark' },
+          '& .MuiListItemText-primary': { color: 'primary.dark' },
         },
-        '&.active': {
-          bgcolor: 'primary.main',
-          borderColor: 'primary.main',
-          boxShadow: '0 10px 24px rgba(37, 99, 235, 0.22)',
-          color: 'primary.contrastText',
-          fontWeight: 800,
-          '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
-          '& .MuiListItemText-primary': { color: 'primary.contrastText' },
-        },
+        ...(alwaysHighlighted ? highlightedStyles : {}),
+        '&.active': highlightedStyles,
       }}
     >
     <ListItemIcon sx={{ minWidth: 32, '& .MuiSvgIcon-root': { fontSize: 20 } }}>{icon}</ListItemIcon>

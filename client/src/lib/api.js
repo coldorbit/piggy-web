@@ -34,6 +34,48 @@ export function useAdminDashboard(filters = {}) {
   });
 }
 
+export function useAdminConsumption() {
+  return useQuery({
+    queryKey: ['admin', 'consumption'],
+    queryFn: () => api('/api/admin/consumption').then((data) => data.consumption),
+  });
+}
+
+export function useCreateConsumptionRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (recordData) =>
+      api('/api/admin/consumption', {
+        method: 'POST',
+        body: JSON.stringify(recordData),
+      }).then((data) => data.record),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'consumption'] }),
+  });
+}
+
+export function useUpdateConsumptionRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ recordId, recordData }) =>
+      api(`/api/admin/consumption/${recordId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(recordData),
+      }).then((data) => data.record),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'consumption'] }),
+  });
+}
+
+export function useDeleteConsumptionRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (recordId) =>
+      api(`/api/admin/consumption/${recordId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'consumption'] }),
+  });
+}
+
 export function useFaqs() {
   return useQuery({
     queryKey: ['faqs'],

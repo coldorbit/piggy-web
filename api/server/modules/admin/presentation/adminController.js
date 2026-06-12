@@ -1,8 +1,14 @@
 import { ensureDefaultUsers, hashPassword, publicUser } from '../../../../auth.js';
 import { getWebUserModel, repositories } from '../../../../db.js';
+import {
+  createConsumptionRecord,
+  deleteConsumptionRecord,
+  listConsumptionRecords,
+  updateConsumptionRecord,
+} from '../application/consumptionService.js';
 import { getDashboardMetrics } from '../application/dashboardService.js';
 import { userAttributesFromBody } from '../application/usersService.js';
-import { handleUserWriteError } from '../../../utils/errors.js';
+import { handleInputError, handleUserWriteError } from '../../../utils/errors.js';
 import { ADMIN_ROLES, ROLES, canAssignAdminRole, isSuperadmin } from '../../../utils/roles.js';
 
 export async function getDashboard(req, res, next) {
@@ -11,6 +17,42 @@ export async function getDashboard(req, res, next) {
     res.json({ dashboard });
   } catch (error) {
     next(error);
+  }
+}
+
+export async function listConsumption(_req, res, next) {
+  try {
+    const consumption = await listConsumptionRecords();
+    res.json({ consumption });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function createConsumption(req, res, next) {
+  try {
+    const record = await createConsumptionRecord(req.body, req.user);
+    res.status(201).json({ record });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function updateConsumption(req, res, next) {
+  try {
+    const record = await updateConsumptionRecord(req.params.id, req.body);
+    res.json({ record });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function deleteConsumption(req, res, next) {
+  try {
+    await deleteConsumptionRecord(req.params.id);
+    res.json({ ok: true });
+  } catch (error) {
+    handleInputError(error, res, next);
   }
 }
 

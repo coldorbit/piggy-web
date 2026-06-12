@@ -6,10 +6,12 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WorkIcon from '@mui/icons-material/Work';
 import { Alert, Box, CircularProgress, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
+import BidderPerformanceTable from '../components/adminDashboard/BidderPerformanceTable.jsx';
 import CallerPerformanceTable from '../components/adminDashboard/CallerPerformanceTable.jsx';
-import { ActivityTrendChart, BreakdownChart, InterviewOutcomeChart } from '../components/adminDashboard/DashboardCharts.jsx';
+import { ActivityTrendChart, BreakdownChart, FunnelConversionChart, InterviewOutcomeChart } from '../components/adminDashboard/DashboardCharts.jsx';
 import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { GRAIN_OPTIONS, labelForGrain, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
+import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerformanceTable.jsx';
 import UserPerformanceTable from '../components/adminDashboard/UserPerformanceTable.jsx';
 import { useAdminDashboard } from '../lib/api.js';
 
@@ -51,7 +53,17 @@ export default function AdminDashboardPage() {
             <BreakdownChart title="Interview stages" data={dashboard.breakdowns.interviewStages} />
           </Box>
 
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 1.5 }}>
+            <FunnelConversionChart title="Profile success ratios" data={dashboard.funnels?.profiles || []} />
+            <FunnelConversionChart title="Role family success ratios" data={dashboard.funnels?.roleFamilies || []} />
+          </Box>
+
+          <BidderPerformanceTable bidders={dashboard.bidders || []} />
           <UserPerformanceTable users={dashboard.users || []} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 1.5 }}>
+            <FunnelPerformanceTable title="Profile funnel performance" rows={dashboard.funnels?.profiles || []} />
+            <FunnelPerformanceTable title="Role family funnel performance" rows={dashboard.funnels?.roleFamilies || []} />
+          </Box>
           <CallerPerformanceTable callers={dashboard.callers || []} />
         </>
       ) : null}

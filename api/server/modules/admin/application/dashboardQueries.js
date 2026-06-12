@@ -18,7 +18,10 @@ export function dashboardQueries(grainConfig) {
     overall: overallSql(),
     trend: trendSql(grainConfig),
     users: userPerformanceSql(grainConfig),
+    bidders: bidderPerformanceSql(grainConfig),
     callers: callerPerformanceSql(grainConfig),
+    profileFunnels: profileFunnelSql(grainConfig),
+    roleFamilyFunnels: roleFamilyFunnelSql(grainConfig),
     userSources: userSourceMixSql(grainConfig),
     userCategories: userCategoryMixSql(grainConfig),
     userProfiles: userProfileMixSql(grainConfig),
@@ -27,6 +30,21 @@ export function dashboardQueries(grainConfig) {
     interviewStages: interviewStageBreakdownSql(grainConfig),
     interviewStatuses: interviewStatusBreakdownSql(grainConfig),
   };
+}
+
+function funnelMetricsSelect() {
+  return `
+    COUNT(DISTINCT job_bids.id)::int AS applications,
+    COUNT(DISTINCT job_bids.id) FILTER (
+      WHERE interviews.id IS NOT NULL OR job_bids.status IN ('interviewing', 'won', 'lost')
+    )::int AS interviews,
+    COUNT(DISTINCT job_bids.id) FILTER (
+      WHERE COALESCE(interviews.status, job_bids.status) = 'won'
+    )::int AS offers,
+    COUNT(DISTINCT job_bids.id) FILTER (
+      WHERE COALESCE(interviews.status, job_bids.status) = 'lost'
+    )::int AS lost
+  `;
 }
 
 function rangeCte({ sql, step, lookback }) {
@@ -344,6 +362,71 @@ function callerPerformanceSql(grainConfig) {
     ORDER BY COALESCE(caller_metrics.active_interviews, 0) DESC,
       COALESCE(caller_metrics.assigned_interviews, 0) DESC,
       web_users.username ASC
+  `;
+}
+
+function bidderPerformanceSql(grainConfig) {
+  return `
+    ${rangeCte(grainConfig)}
+    SELECT
+      web_users.id,
+      web_users.username,
+      web_users.role,
+      ${funnelMetricsSelect()},
+      COUNT(DISTINCT job_bids.profile_id)::int AS profiles_used,
+      COUNT(DISTINCT scraped_jobs.category) FILTER (
+        WHERE NULLIF(scraped_jobs.category, '') IS NOT NULL
+      )::int AS role_families,
+      MIN(job_bids.bid_at) AS first_application_at,
+      MAX(job_bids.bid_at) AS last_application_at
+    FROM job_bids
+    JOIN web_users ON web_users.id = job_bids.user_id
+    LEFT JOIN interviews ON interviews.job_bid_id = job_bids.id
+    LEFT JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+    CROSS JOIN range
+    WHERE job_bids.bid_at >= starts_at
+    GROUP BY web_users.id, web_users.username, web_users.role
+    ORDER BY offers DESC, interviews DESC, applications DESC, web_users.username ASC
+  `;
+}
+
+function profileFunnelSql(grainConfig) {
+  return funnelByDimensionSql({
+    grainConfig,
+    dimension: "COALESCE(NULLIF(bid_profiles.name, ''), 'Unknown profile')",
+    idColumn: 'bid_profiles.id',
+    alias: 'profile_name',
+    joins: 'JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id',
+    groupBy: 'bid_profiles.id, bid_profiles.name',
+  });
+}
+
+function roleFamilyFunnelSql(grainConfig) {
+  return funnelByDimensionSql({
+    grainConfig,
+    dimension: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')",
+    idColumn: 'NULL',
+    alias: 'role_family',
+    joins: 'JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id',
+    groupBy: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')",
+  });
+}
+
+function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, groupBy }) {
+  return `
+    ${rangeCte(grainConfig)}
+    SELECT
+      ${idColumn} AS id,
+      ${dimension} AS ${alias},
+      ${funnelMetricsSelect()}
+    FROM job_bids
+    ${joins}
+    LEFT JOIN interviews ON interviews.job_bid_id = job_bids.id
+    CROSS JOIN range
+    WHERE job_bids.bid_at >= starts_at
+    GROUP BY ${groupBy}
+    ORDER BY offers DESC, interviews DESC, applications DESC, ${alias} ASC
+    LIMIT 24
   `;
 }
 

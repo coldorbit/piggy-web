@@ -1,5 +1,5 @@
 import { readValidSession } from '../../auth.js';
-import { MARKETPLACE_ACCESS_ROLES, isAdminRole } from '../utils/roles.js';
+import { MARKETPLACE_ACCESS_ROLES, isAdminRole, isSuperadmin } from '../utils/roles.js';
 
 export async function requireAuth(req, res, next) {
   try {
@@ -19,6 +19,16 @@ export function requireAdmin(req, res, next) {
   requireAuth(req, res, () => {
     if (!isAdminRole(req.user)) {
       res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireSuperadmin(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!isSuperadmin(req.user)) {
+      res.status(403).json({ error: 'Superadmin access required' });
       return;
     }
     next();

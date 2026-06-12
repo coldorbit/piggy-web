@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { CHART_COLORS, labelize, number } from './dashboardFormatters.js';
+import { CHART_COLORS, labelize, number, percent } from './dashboardFormatters.js';
 
 export function ChartPanel({ children, title }) {
   return (
@@ -68,12 +68,23 @@ export function InterviewOutcomeChart({ trend }) {
 }
 
 export function BreakdownChart({ data = [], title }) {
+  const total = data.reduce((sum, item) => sum + Number(item.count || 0), 0);
+
   return (
     <ChartPanel title={title}>
       {data.length ? (
         <ResponsiveContainer width="100%" height={240}>
           <PieChart>
-            <Pie data={data} dataKey="count" nameKey="name" innerRadius={54} outerRadius={86} paddingAngle={2}>
+            <Pie
+              data={data}
+              dataKey="count"
+              nameKey="name"
+              innerRadius={46}
+              outerRadius={76}
+              paddingAngle={2}
+              labelLine
+              label={(entry) => `${labelize(entry.name)} ${percent(Number(entry.count || 0) / Math.max(total, 1))}`}
+            >
               {data.map((entry, index) => (
                 <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
               ))}
@@ -85,6 +96,31 @@ export function BreakdownChart({ data = [], title }) {
       ) : (
         <Box sx={{ height: 240, display: 'grid', placeItems: 'center' }}>
           <Typography color="text.secondary">No data for this period.</Typography>
+        </Box>
+      )}
+    </ChartPanel>
+  );
+}
+
+export function FunnelConversionChart({ data = [], title }) {
+  return (
+    <ChartPanel title={title}>
+      {data.length ? (
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={data.slice(0, 10)} margin={{ top: 10, right: 12, bottom: 0, left: -18 }}>
+            <CartesianGrid stroke="#E2E8F0" vertical={false} />
+            <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={72} />
+            <YAxis tickFormatter={(value) => percent(value)} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <Tooltip formatter={(value) => percent(value)} />
+            <Legend />
+            <Bar dataKey="applicationToInterviewRate" name="App to interview" fill="#2563EB" maxBarSize={26} />
+            <Bar dataKey="interviewToOfferRate" name="Interview to offer" fill="#0F766E" maxBarSize={26} />
+            <Bar dataKey="applicationToOfferRate" name="App to offer" fill="#7C3AED" maxBarSize={26} />
+          </BarChart>
+        </ResponsiveContainer>
+      ) : (
+        <Box sx={{ height: 300, display: 'grid', placeItems: 'center' }}>
+          <Typography color="text.secondary">No funnel data for this period.</Typography>
         </Box>
       )}
     </ChartPanel>

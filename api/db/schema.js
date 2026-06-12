@@ -13,6 +13,7 @@ import {
   getProfileShareRequestModel,
   getScrapedJobModel,
   getTailoredResumeModel,
+  getTeamConsumptionModel,
   getWebUserModel,
   setupWebAssociations,
 } from './models/index.js';
@@ -37,6 +38,7 @@ export async function ensureWebModels() {
       await getMarketplaceInterviewOpportunityModel().sync();
       await getMarketplaceCallerProfileModel().sync();
       await getMarketplaceMatchModel().sync();
+      await getTeamConsumptionModel().sync();
       await ensureWebUserSessionColumns();
       await ensureBidProfileColumns();
       await ensureJobBidInterviewColumns();

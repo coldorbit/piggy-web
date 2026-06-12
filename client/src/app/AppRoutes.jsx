@@ -7,9 +7,11 @@ import {
   RequireCallerManagement,
   RequireInterviewAccess,
   RequireMarketplaceAccess,
+  RequireSuperadmin,
 } from './routeGuards.jsx';
 
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
+const AdminConsumptionPage = lazy(() => import('../pages/AdminConsumptionPage.jsx'));
 const AdminDashboardPage = lazy(() => import('../pages/AdminDashboardPage.jsx'));
 const AppLayout = lazy(() => import('../components/AppLayout.jsx'));
 const BidPage = lazy(() => import('../pages/BidPage.jsx'));
@@ -128,6 +130,14 @@ export function AuthenticatedRoutes({ user }) {
             <RequireAdmin user={user}>
               <AdminDashboardPage currentUser={user} />
             </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/consumption"
+          element={
+            <RequireSuperadmin user={user}>
+              <AdminConsumptionPage currentUser={user} />
+            </RequireSuperadmin>
           }
         />
         <Route
