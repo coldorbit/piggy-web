@@ -3,7 +3,8 @@ import { getTeamConsumptionModel, getWebUserModel } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
 
-const CURRENCIES = ['USD', 'USDT', 'ETH', 'BTC'];
+const FIAT_CURRENCY = 'USD';
+const CRYPTO_CURRENCIES = ['USDT', 'USDC', 'ETH', 'SOL', 'BTC', 'BNB', 'MATIC', 'AVAX', 'TRX', 'XRP', 'ADA', 'DOGE', 'DOT', 'LINK'];
 const CHANNELS = ['card', 'crypto', 'bank', 'cash', 'other'];
 
 export async function listConsumptionRecords() {
@@ -69,11 +70,17 @@ function consumptionAttrsFromBody(body = {}) {
   if (!Number.isFinite(amount) || amount <= 0) throw new InputError('Amount must be greater than 0');
   if (!currency || !/^[A-Z0-9]{2,10}$/.test(currency)) throw new InputError('Currency is required');
   if (!channel || !CHANNELS.includes(channel)) throw new InputError('Channel is invalid');
+  if (channel !== 'crypto' && currency !== FIAT_CURRENCY) {
+    throw new InputError('Non-crypto consumption must use USD');
+  }
+  if (channel === 'crypto' && !CRYPTO_CURRENCIES.includes(currency)) {
+    throw new InputError('Crypto consumption currency is not supported');
+  }
   if (Number.isNaN(spentAt.getTime())) throw new InputError('Spent date is invalid');
 
   return {
     amount,
-    currency: CURRENCIES.includes(currency) ? currency : currency.slice(0, 10),
+    currency,
     channel,
     notes,
     spentAt,

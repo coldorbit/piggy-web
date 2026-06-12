@@ -39,10 +39,11 @@ const CHANNELS = [
   { value: 'cash', label: 'Cash' },
   { value: 'other', label: 'Other' },
 ];
-const CURRENCIES = ['USD', 'USDT', 'ETH', 'BTC'];
+const FIAT_CURRENCY = 'USD';
+const CRYPTO_CURRENCIES = ['USDT', 'USDC', 'ETH', 'SOL', 'BTC', 'BNB', 'MATIC', 'AVAX', 'TRX', 'XRP', 'ADA', 'DOGE', 'DOT', 'LINK'];
 const EMPTY_FORM = {
   amount: '',
-  currency: 'USD',
+  currency: FIAT_CURRENCY,
   channel: 'card',
   spentAt: new Date().toISOString().slice(0, 10),
   notes: '',
@@ -72,13 +73,13 @@ export default function AdminConsumptionPage() {
 
   function startEditing(record) {
     setEditingId(record.id);
-    setEditing({
+    setEditing(normalizeFormForChannel({
       amount: String(record.amount || ''),
-      currency: record.currency || 'USD',
+      currency: record.currency || FIAT_CURRENCY,
       channel: record.channel || 'other',
       spentAt: dateInputValue(record.spentAt),
       notes: record.notes || '',
-    });
+    }));
   }
 
   function saveRecord(recordId) {
@@ -137,7 +138,7 @@ export default function AdminConsumptionPage() {
         form={form}
         isSaving={isSaving}
         submitLabel="Add consumption"
-        submitIcon={<AddIcon />}
+        submitIcon={<AddIcon fontSize="small" />}
         onChange={setForm}
         onSubmit={submitRecord}
       />
@@ -202,10 +203,10 @@ function ConsumptionForm({ form, isSaving, onChange, onSubmit, submitIcon, submi
           <TextField required fullWidth size="small" label="Amount" type="number" inputProps={{ min: 0, step: 'any' }} value={form.amount} onChange={(event) => onChange({ ...form, amount: event.target.value })} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-          <CurrencyField value={form.currency} onChange={(currency) => onChange({ ...form, currency })} />
+          <CurrencyField channel={form.channel} value={form.currency} onChange={(currency) => onChange({ ...form, currency })} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-          <ChannelField value={form.channel} onChange={(channel) => onChange({ ...form, channel })} />
+          <ChannelField value={form.channel} onChange={(channel) => onChange(normalizeFormForChannel({ ...form, channel }))} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 2 }}>
           <TextField required fullWidth size="small" label="Date" type="date" value={form.spentAt} onChange={(event) => onChange({ ...form, spentAt: event.target.value })} InputLabelProps={{ shrink: true }} />
@@ -214,7 +215,21 @@ function ConsumptionForm({ form, isSaving, onChange, onSubmit, submitIcon, submi
           <TextField fullWidth size="small" label="Notes" value={form.notes} onChange={(event) => onChange({ ...form, notes: event.target.value })} />
         </Grid>
         <Grid size={{ xs: 12, md: 2 }}>
-          <Button fullWidth type="submit" variant="contained" disabled={isSaving} startIcon={submitIcon} sx={{ minHeight: 40 }}>
+          <Button
+            fullWidth
+            type="submit"
+            size="small"
+            variant="contained"
+            disabled={isSaving}
+            startIcon={submitIcon}
+            sx={{
+              minHeight: 40,
+              px: 1.25,
+              whiteSpace: 'nowrap',
+              '& .MuiButton-startIcon': { mr: 0.5 },
+              '& .MuiButton-startIcon .MuiSvgIcon-root': { fontSize: 18 },
+            }}
+          >
             {submitLabel}
           </Button>
         </Grid>
@@ -229,8 +244,8 @@ function ConsumptionRow({ editing, isEditing, isSaving, onCancel, onDelete, onEd
       <TableRow hover>
         <TableCell><TextField size="small" type="date" value={editing.spentAt} onChange={(event) => onEditingChange({ ...editing, spentAt: event.target.value })} /></TableCell>
         <TableCell align="right"><TextField size="small" type="number" inputProps={{ min: 0, step: 'any' }} value={editing.amount} onChange={(event) => onEditingChange({ ...editing, amount: event.target.value })} /></TableCell>
-        <TableCell><CurrencyField value={editing.currency} onChange={(currency) => onEditingChange({ ...editing, currency })} /></TableCell>
-        <TableCell><ChannelField value={editing.channel} onChange={(channel) => onEditingChange({ ...editing, channel })} /></TableCell>
+        <TableCell><CurrencyField channel={editing.channel} value={editing.currency} onChange={(currency) => onEditingChange({ ...editing, currency })} /></TableCell>
+        <TableCell><ChannelField value={editing.channel} onChange={(channel) => onEditingChange((current) => normalizeFormForChannel({ ...current, channel }))} /></TableCell>
         <TableCell><TextField fullWidth size="small" value={editing.notes} onChange={(event) => onEditingChange({ ...editing, notes: event.target.value })} /></TableCell>
         <TableCell>{record.createdBy?.username || '-'}</TableCell>
         <TableCell align="right">
@@ -259,17 +274,26 @@ function ConsumptionRow({ editing, isEditing, isSaving, onCancel, onDelete, onEd
   );
 }
 
-function CurrencyField({ value, onChange }) {
+function CurrencyField({ channel, value, onChange }) {
+  const isCrypto = channel === 'crypto';
   return (
-    <TextField
-      required
-      fullWidth
-      size="small"
-      label="Currency"
-      value={value}
-      onChange={(event) => onChange(event.target.value.toUpperCase())}
-      helperText={CURRENCIES.includes(value) ? ' ' : 'Custom currency'}
-    />
+    <FormControl fullWidth size="small">
+      <InputLabel>Currency</InputLabel>
+      <Select
+        disabled={!isCrypto}
+        label="Currency"
+        value={isCrypto ? cryptoCurrencyValue(value) : FIAT_CURRENCY}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {isCrypto ? (
+          CRYPTO_CURRENCIES.map((currency) => (
+            <MenuItem key={currency} value={currency}>{currency}</MenuItem>
+          ))
+        ) : (
+          <MenuItem value={FIAT_CURRENCY}>{FIAT_CURRENCY}</MenuItem>
+        )}
+      </Select>
+    </FormControl>
   );
 }
 
@@ -301,4 +325,22 @@ function dateInputValue(value) {
 
 function channelLabel(value) {
   return CHANNELS.find((channel) => channel.value === value)?.label || 'Other';
+}
+
+function normalizeFormForChannel(form) {
+  if (form.channel === 'crypto') {
+    return {
+      ...form,
+      currency: CRYPTO_CURRENCIES.includes(form.currency) ? form.currency : 'USDT',
+    };
+  }
+
+  return {
+    ...form,
+    currency: FIAT_CURRENCY,
+  };
+}
+
+function cryptoCurrencyValue(value) {
+  return CRYPTO_CURRENCIES.includes(value) ? value : 'USDT';
 }
