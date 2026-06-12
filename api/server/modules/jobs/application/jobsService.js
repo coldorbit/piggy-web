@@ -69,7 +69,8 @@ export function buildJobQuery(query) {
 }
 
 function applyRoleFamilyFilter(where, roleFamily) {
-  if (['software', 'data', 'ai_ml'].includes(roleFamily)) where.category = roleFamily;
+  const category = normalizeJobCategory(roleFamily);
+  if (category) where.category = category;
 }
 
 function applyExperienceLevelFilter(where) {
@@ -606,13 +607,20 @@ function normalizeHeader(value) {
 }
 
 function categoryFromCsvValue(value, rowNumber, errors) {
+  const category = normalizeJobCategory(value);
+  if (!clean(value)) return 'software';
+  if (category) return category;
+  errors.push(`Row ${rowNumber}: invalid category`);
+  return 'software';
+}
+
+export function normalizeJobCategory(value) {
   const normalized = clean(value).toLowerCase().replace(/[\s-]+/g, '_');
-  if (!normalized) return 'software';
+  if (!normalized || normalized === 'all') return '';
   if (VALID_JOB_CATEGORIES.has(normalized)) return normalized;
   if (['ai', 'ml', 'aiml', 'ai/ml', 'ai_ml'].includes(normalized)) return 'ai_ml';
   if (normalized.includes('data')) return 'data';
-  errors.push(`Row ${rowNumber}: invalid category`);
-  return 'software';
+  return '';
 }
 
 export function validJobUrl(value) {

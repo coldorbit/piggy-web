@@ -1,6 +1,22 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { groupedJobsFromRows, jobsFromCsv, paginateGroupedJobs, planCsvJobImport } from '../server/modules/jobs/application/jobsService.js';
+import { buildJobQuery, groupedJobsFromRows, jobsFromCsv, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport } from '../server/modules/jobs/application/jobsService.js';
+
+describe('job query filters', () => {
+  it('filters roleFamily against the scraped_jobs category field', () => {
+    const query = buildJobQuery({ roleFamily: 'data', since: 'all', visibility: 'all' });
+
+    assert.equal(query.where.category, 'data');
+  });
+
+  it('normalizes friendly roleFamily values before comparing category', () => {
+    assert.equal(normalizeJobCategory('AI/ML'), 'ai_ml');
+    assert.equal(normalizeJobCategory('data engineering'), 'data');
+
+    const query = buildJobQuery({ roleFamily: 'AI/ML', since: 'all', visibility: 'all' });
+    assert.equal(query.where.category, 'ai_ml');
+  });
+});
 
 describe('grouped scraped jobs', () => {
   it('groups matching title and company rows while preserving selectable locations', () => {
