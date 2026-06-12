@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import EmptyState from '../common/EmptyState.jsx';
 import { CHART_COLORS, labelize, number, percent } from './dashboardFormatters.js';
 
 export function ChartPanel({ children, title }) {
@@ -96,7 +97,12 @@ export function BreakdownChart({ data = [], title }) {
         </ResponsiveContainer>
       ) : (
         <Box sx={{ height: 240, display: 'grid', placeItems: 'center' }}>
-          <Typography color="text.secondary">No data for this period.</Typography>
+          <EmptyState
+            title="No data for this period"
+            detail="Try another period or wait for more activity to be recorded."
+            variant="plain"
+            sx={{ p: 2 }}
+          />
         </Box>
       )}
     </ChartPanel>
@@ -121,7 +127,12 @@ export function FunnelConversionChart({ data = [], title }) {
         </ResponsiveContainer>
       ) : (
         <Box sx={{ height: 300, display: 'grid', placeItems: 'center' }}>
-          <Typography color="text.secondary">No funnel data for this period.</Typography>
+          <EmptyState
+            title="No funnel data for this period"
+            detail="Conversion ratios will appear after applications move into interviews or offers."
+            variant="plain"
+            sx={{ p: 2 }}
+          />
         </Box>
       )}
     </ChartPanel>

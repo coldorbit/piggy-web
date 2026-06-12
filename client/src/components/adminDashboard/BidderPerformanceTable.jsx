@@ -1,4 +1,5 @@
 import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import EmptyState from '../common/EmptyState.jsx';
 import { labelize, number, percent } from './dashboardFormatters.js';
 
 export default function BidderPerformanceTable({ bidders }) {
@@ -49,7 +50,12 @@ export default function BidderPerformanceTable({ bidders }) {
             {!bidders.length ? (
               <TableRow>
                 <TableCell colSpan={11}>
-                  <Typography color="text.secondary" sx={{ py: 2 }}>No bidder performance data for this period.</Typography>
+                  <EmptyState
+                    title="No bidder performance data"
+                    detail="Bidder metrics will appear once applications are linked to bidder activity."
+                    variant="plain"
+                    sx={{ py: 3 }}
+                  />
                 </TableCell>
               </TableRow>
             ) : null}

@@ -2,6 +2,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Chip, Paper, Tab, Tabs, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import EmptyState from '../common/EmptyState.jsx';
 import { PROFILE_BADGE_COLORS, PROFILE_COLORS } from '../profiles/profileConstants.js';
 
 export default function BidProfileTabs({ activeColor, activeProfile, isLoading, profiles, onProfileChange, showInterviewCounts = false }) {
@@ -78,9 +79,12 @@ export default function BidProfileTabs({ activeColor, activeProfile, isLoading, 
           })}
         </Tabs>
       ) : (
-        <Typography sx={{ flex: 1, color: 'text.secondary', px: 1.25, py: 1.5 }}>
-          {isLoading ? 'Loading profiles...' : 'No profiles yet.'}
-        </Typography>
+        <EmptyState
+          title={isLoading ? 'Loading profiles...' : 'No profiles yet'}
+          detail={isLoading ? '' : 'Profiles will appear here once they are active and available.'}
+          variant="plain"
+          sx={{ flex: 1, p: 1.5, justifyItems: 'start', textAlign: 'left', bgcolor: 'transparent' }}
+        />
       )}
     </Paper>
   );

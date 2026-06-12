@@ -31,6 +31,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import EmptyState from '../components/common/EmptyState.jsx';
 import RefreshButton from '../components/common/RefreshButton.jsx';
 import { authUrl, useBidProfiles, useCreateManualTailoredResume, useTailoringRequests } from '../lib/api.js';
 import { formatDateTime } from '../lib/formatters.js';
@@ -288,12 +289,12 @@ export default function TailoringRequestsPage() {
               {!isLoading && !requests.length ? (
                 <TableRow>
                   <TableCell colSpan={7}>
-                    <Box sx={{ py: 4, textAlign: 'center' }}>
-                      <Typography fontWeight={900}>No tailoring requests found</Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        Adjust the filters or create a manual tailoring request above.
-                      </Typography>
-                    </Box>
+                    <EmptyState
+                      title="No tailoring requests found"
+                      detail="Adjust the filters or create a manual tailoring request above."
+                      variant="plain"
+                      sx={{ py: 4 }}
+                    />
                   </TableCell>
                 </TableRow>
               ) : null}

@@ -9,6 +9,7 @@ import { useState } from 'react';
 import CallerCard from '../components/callers/CallerCard.jsx';
 import CallerRegisterDialog from '../components/callers/CallerRegisterDialog.jsx';
 import CallersHeader from '../components/callers/CallersHeader.jsx';
+import EmptyState from '../components/common/EmptyState.jsx';
 import { useCallers, useCreateCaller } from '../lib/api.js';
 
 const EMPTY_CALLER = { email: '', username: '', password: '' };
@@ -48,9 +49,10 @@ export default function CallersPage() {
         </Paper>
       ) : null}
       {!isLoading && !callers.length ? (
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography color="text.secondary">No caller accounts are available yet.</Typography>
-        </Paper>
+        <EmptyState
+          title="No caller accounts yet"
+          detail="Register a caller account to start tracking caller-assigned interview work."
+        />
       ) : null}
 
       <Box

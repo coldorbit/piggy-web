@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import ProfileCard from '../components/profiles/ProfileCard.jsx';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
+import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_PROFILE } from '../components/profiles/profileConstants.js';
 import {
   useBidProfiles,
@@ -259,13 +260,10 @@ export default function ProfilesPage({ currentUser }) {
       ) : null}
 
       {!isLoading && profiles.length === 0 ? (
-        <Card variant="outlined" sx={{ boxShadow: 1 }}>
-          <CardContent>
-            <Typography color="text.secondary">
-              {canManageProfiles ? 'Create your first profile to use it for tailored applications.' : 'No profiles are available.'}
-            </Typography>
-          </CardContent>
-        </Card>
+        <EmptyState
+          title={canManageProfiles ? 'No profiles yet' : 'No profiles available'}
+          detail={canManageProfiles ? 'Create your first profile to use it for tailored applications.' : 'Profiles shared with you will appear here.'}
+        />
       ) : null}
 
       <Box

@@ -1,4 +1,5 @@
 import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import EmptyState from '../common/EmptyState.jsx';
 import { decimal, labelize, number, percent } from './dashboardFormatters.js';
 
 export default function CallerPerformanceTable({ callers }) {
@@ -55,7 +56,12 @@ export default function CallerPerformanceTable({ callers }) {
             {!callers.length ? (
               <TableRow>
                 <TableCell colSpan={14}>
-                  <Typography color="text.secondary" sx={{ py: 2 }}>No caller activity for this period.</Typography>
+                  <EmptyState
+                    title="No caller activity"
+                    detail="Caller metrics will appear once interviews are assigned or completed."
+                    variant="plain"
+                    sx={{ py: 3 }}
+                  />
                 </TableCell>
               </TableRow>
             ) : null}

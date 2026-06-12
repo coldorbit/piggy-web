@@ -1,5 +1,6 @@
 import DeleteIcon from '@mui/icons-material/Delete';
 import { Box, IconButton, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import EmptyState from '../common/EmptyState.jsx';
 import { formatAmount, formatDate, shortHash, typeLabel } from './consumptionFormatters.js';
 
 const actionCellSx = {
@@ -64,12 +65,12 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
             {!isLoading && !transactions.length ? (
               <TableRow>
                 <TableCell colSpan={8}>
-                  <Box sx={{ py: 4, textAlign: 'center' }}>
-                    <Typography fontWeight={900}>No transactions yet</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      Add a consumption record to start tracking balances and spend.
-                    </Typography>
-                  </Box>
+                  <EmptyState
+                    title="No transactions yet"
+                    detail="Add a consumption record to start tracking balances and spend."
+                    variant="plain"
+                    sx={{ py: 4 }}
+                  />
                 </TableCell>
               </TableRow>
             ) : null}

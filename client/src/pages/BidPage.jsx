@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import BidJobsPanel from '../components/bids/BidJobsPanel.jsx';
 import BidProfileSummary from '../components/bids/BidProfileSummary.jsx';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BidWorkspaceProvider } from '../components/bids/BidWorkspaceContext.jsx';
+import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { BID_TABS, DEFAULT_BID_FILTERS, DONE_STATUSES, EMPTY_BID, INTERVIEW_STATUSES, REVIEW_STATUSES } from '../components/bids/bidConstants.js';
 import { hasTailoredResumeActivity } from '../components/bids/bidJobState.js';
@@ -328,9 +329,10 @@ export default function BidPage({ currentUser }) {
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
       {!activeProfiles.length && !profilesLoading ? (
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography color="text.secondary">No active profiles are available for bidding.</Typography>
-        </Paper>
+        <EmptyState
+          title="No active profiles available"
+          detail="Activate or create a profile before starting bid work."
+        />
       ) : null}
 
       {profilesLoading || activeProfiles.length ? (

@@ -3,6 +3,7 @@ import { Avatar, Box, ButtonBase, Chip, CircularProgress, IconButton, List, List
 import Pagination from './Pagination.jsx';
 import SpamBadge from './SpamBadge.jsx';
 import JobRegionBadge from './JobRegionBadge.jsx';
+import EmptyState from '../common/EmptyState.jsx';
 import { formatDate } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
 import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
@@ -39,7 +40,14 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
     >
       {loading && jobs.length ? <LoadingOverlay label="Loading jobs..." /> : null}
       {loading && !jobs.length ? <LoadingState label="Loading jobs..." /> : null}
-      {!loading && jobs.length === 0 ? <EmptyState>No jobs match the current filters.</EmptyState> : null}
+      {!loading && jobs.length === 0 ? (
+        <EmptyState
+          title="No jobs found"
+          detail="Adjust the filters or import new jobs to refresh the list."
+          variant="plain"
+          sx={{ alignSelf: 'stretch' }}
+        />
+      ) : null}
       <List disablePadding sx={{ overflowY: 'auto', overflowX: 'hidden', flex: '1 1 auto', minHeight: 0, minWidth: 0 }}>
         {jobs.map((job) => {
           const selected = String(selectedJob?.id) === String(job.id);
@@ -257,14 +265,6 @@ function CompanyLogo({ job }) {
     >
       {(job.company || job.title || '?').trim().charAt(0).toUpperCase()}
     </Avatar>
-  );
-}
-
-function EmptyState({ children }) {
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography color="text.secondary">{children}</Typography>
-    </Box>
   );
 }
 

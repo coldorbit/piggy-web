@@ -1,4 +1,5 @@
 import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import EmptyState from '../common/EmptyState.jsx';
 import { decimal, labelize, number, percent } from './dashboardFormatters.js';
 
 export default function UserPerformanceTable({ users }) {
@@ -69,7 +70,12 @@ export default function UserPerformanceTable({ users }) {
             {!users.length ? (
               <TableRow>
                 <TableCell colSpan={19}>
-                  <Typography color="text.secondary" sx={{ py: 2 }}>No user performance data for this period.</Typography>
+                  <EmptyState
+                    title="No user performance data"
+                    detail="User metrics will appear once jobs, applications, or interviews are recorded."
+                    variant="plain"
+                    sx={{ py: 3 }}
+                  />
                 </TableCell>
               </TableRow>
             ) : null}

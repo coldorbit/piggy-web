@@ -1,4 +1,5 @@
 import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import EmptyState from '../common/EmptyState.jsx';
 import { labelize, number, percent } from './dashboardFormatters.js';
 
 export default function FunnelPerformanceTable({ rows, title }) {
@@ -44,7 +45,12 @@ export default function FunnelPerformanceTable({ rows, title }) {
             {!rows.length ? (
               <TableRow>
                 <TableCell colSpan={9}>
-                  <Typography color="text.secondary" sx={{ py: 2 }}>No funnel data for this period.</Typography>
+                  <EmptyState
+                    title="No funnel data"
+                    detail="Application, interview, and offer ratios will appear as the funnel fills."
+                    variant="plain"
+                    sx={{ py: 3 }}
+                  />
                 </TableCell>
               </TableRow>
             ) : null}

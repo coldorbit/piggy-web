@@ -1,9 +1,13 @@
 import { Box, Paper, Typography } from '@mui/material';
 
-export default function EmptyState({ action = null, detail, title, sx }) {
+export default function EmptyState({ action = null, children, detail, title, variant = 'framed', sx }) {
+  const Wrapper = variant === 'plain' ? Box : Paper;
+  const wrapperProps = variant === 'plain' ? {} : { variant: 'outlined' };
+  const heading = title || children;
+
   return (
-    <Paper
-      variant="outlined"
+    <Wrapper
+      {...wrapperProps}
       sx={{
         p: 3,
         borderRadius: 1,
@@ -16,7 +20,7 @@ export default function EmptyState({ action = null, detail, title, sx }) {
       }}
     >
       <Box>
-        <Typography fontWeight={900}>{title}</Typography>
+        {heading ? <Typography fontWeight={900}>{heading}</Typography> : null}
         {detail ? (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
             {detail}
@@ -24,6 +28,6 @@ export default function EmptyState({ action = null, detail, title, sx }) {
         ) : null}
       </Box>
       {action}
-    </Paper>
+    </Wrapper>
   );
 }

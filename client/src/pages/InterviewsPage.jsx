@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BID_TABS, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
+import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.jsx';
 import InterviewLoadingState from '../components/interviews/InterviewLoadingState.jsx';
@@ -274,9 +275,10 @@ export default function InterviewsPage({ currentUser }) {
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
       {!activeProfiles.length && !profilesLoading ? (
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography color="text.secondary">No active profiles are available for interviews.</Typography>
-        </Paper>
+        <EmptyState
+          title="No active profiles available"
+          detail="Interview work appears after an active profile has applications in the interview pipeline."
+        />
       ) : null}
 
       {profilesLoading || activeProfiles.length ? (

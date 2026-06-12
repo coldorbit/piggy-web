@@ -20,6 +20,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import EmptyState from '../common/EmptyState.jsx';
 import { formatDateTime } from '../../lib/formatters.js';
 import { isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
 
@@ -52,8 +53,10 @@ export default function UsersTable({
           </TableRow>
         </TableHead>
         <TableBody>
-          {isLoading ? <EmptyRow>Loading users...</EmptyRow> : null}
-          {!isLoading && users.length === 0 ? <EmptyRow>No users yet.</EmptyRow> : null}
+          {isLoading ? <EmptyRow title="Loading users..." /> : null}
+          {!isLoading && users.length === 0 ? (
+            <EmptyRow title="No users yet" detail="Created users will appear here for role and access management." />
+          ) : null}
           {users.map((user) => (
             <UserRow
               key={user.id}
@@ -75,11 +78,11 @@ export default function UsersTable({
   );
 }
 
-function EmptyRow({ children }) {
+function EmptyRow({ detail, title }) {
   return (
     <TableRow>
       <TableCell colSpan={8}>
-        <Typography color="text.secondary">{children}</Typography>
+        <EmptyState title={title} detail={detail} variant="plain" sx={{ py: 3 }} />
       </TableCell>
     </TableRow>
   );

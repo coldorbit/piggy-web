@@ -21,6 +21,7 @@ import {
 import ArchiveIcon from '@mui/icons-material/Archive';
 import { PAGE_SIZE_OPTIONS } from '../../lib/constants.js';
 import { authUrl, useMarkTailoredResumesDownloaded } from '../../lib/api.js';
+import EmptyState from '../common/EmptyState.jsx';
 import { BID_TABS, REVIEW_STATUSES } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
 import BidJobCard from './BidJobCard.jsx';
@@ -257,7 +258,11 @@ export default function BidJobsPanel() {
         <Stack ref={jobsScrollRef} spacing={0.75} aria-busy={loading} sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
           {loading && !jobs.length ? <LoadingState label="Loading bid workspace..." /> : null}
           {!loading && jobs.length === 0 ? (
-            <EmptyState>No {tabLabel(activeTab)} jobs match this search.</EmptyState>
+            <EmptyState
+              title={`No ${tabLabel(activeTab)} jobs found`}
+              detail="Adjust the search, filters, or selected profile to see more jobs."
+              sx={{ flexShrink: 0 }}
+            />
           ) : null}
           {jobs.map((job) => (
             <BidJobCard
@@ -400,14 +405,6 @@ function downloadCsv(csv, filename) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-}
-
-function EmptyState({ children }) {
-  return (
-    <Paper variant="outlined" sx={{ p: 3 }}>
-      <Typography color="text.secondary">{children}</Typography>
-    </Paper>
-  );
 }
 
 function LoadingState({ label }) {
