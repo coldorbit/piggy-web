@@ -27,6 +27,23 @@ export function getTailoredResumeModel() {
         allowNull: false,
         field: 'job_url',
       },
+      requestType: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+        field: 'request_type',
+      },
+      manualCompany: {
+        type: DataTypes.TEXT,
+        field: 'manual_company',
+      },
+      manualRole: {
+        type: DataTypes.TEXT,
+        field: 'manual_role',
+      },
+      manualJobDescription: {
+        type: DataTypes.TEXT,
+        field: 'manual_job_description',
+      },
       status: {
         type: DataTypes.TEXT,
         allowNull: false,

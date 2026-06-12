@@ -43,7 +43,7 @@ import {
 import { enqueueTailoredResumeRequest } from '../application/tailoringQueueService.js';
 import { userAttributesFromBody } from '../../admin/application/usersService.js';
 import { clean } from '../../../utils/index.js';
-import { handleInputError, handleUserWriteError, NotFoundError } from '../../../utils/errors.js';
+import { handleInputError, handleUserWriteError, InputError, NotFoundError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, INTERNAL_DATA_ROLES, INTERVIEW_ACCESS_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../../../utils/roles.js';
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
@@ -1082,6 +1082,10 @@ export async function createTailoredResume(req, res, next) {
       userId: user.id,
       profileId: profile.id,
       jobUrl: job.url,
+      requestType: 'job',
+      manualCompany: null,
+      manualRole: null,
+      manualJobDescription: null,
       status: 'requested',
       filePath: null,
       readyAt: null,
@@ -1102,15 +1106,64 @@ export async function createTailoredResume(req, res, next) {
   }
 }
 
+export async function createManualTailoredResume(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const profile = await accessibleProfile(req, req.body?.profileId);
+    const attrs = manualTailoringAttributesFromBody(req.body);
+    const TailoredResume = getTailoredResumeModel();
+    const tailoredResume = await TailoredResume.create({
+      userId: user.id,
+      profileId: profile.id,
+      jobUrl: manualTailoringJobUrl(),
+      requestType: 'manual',
+      manualCompany: attrs.company,
+      manualRole: attrs.role,
+      manualJobDescription: attrs.jobDescription,
+      status: 'requested',
+      filePath: null,
+      readyAt: null,
+      attempts: 0,
+      maxAttempts: 3,
+      lastError: null,
+      deadLetterAt: null,
+      downloadedAt: null,
+    });
+    await enqueueTailoredResumeRequest({ tailoredResumeId: tailoredResume.id });
+
+    res.status(202).json({
+      tailoredResume: formatTailoredResume(tailoredResume),
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+function manualTailoringAttributesFromBody(body = {}) {
+  const company = clean(body.company || body.companyName);
+  const role = clean(body.role || body.title || body.positionTitle);
+  const jobDescription = clean(body.jobDescription || body.jdContent || body.listingText);
+
+  if (!company) throw new InputError('Company name is required');
+  if (!role) throw new InputError('Role or position title is required');
+  if (!jobDescription) throw new InputError('Job description content is required');
+
+  return { company, role, jobDescription };
+}
+
+function manualTailoringJobUrl() {
+  return `manual://${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export async function listTailoringRequests(req, res, next) {
   try {
     await ensureWebModels();
-    if (!isSuperadmin(req.user)) {
-      res.status(403).json({ error: 'Superadmin access is required' });
-      return;
-    }
-
     const sequelize = getSequelize();
+    const user = await currentDbUser(req);
+    const canViewAllTailoring = isSuperadmin(user);
+    const visibleProfiles = canViewAllTailoring ? [] : await profilesVisibleToUser(user);
+    const visibleProfileIds = visibleProfiles.map((profile) => String(profile.id)).filter(Boolean);
     const requestedStatus = clean(req.query?.status || 'all').toLowerCase();
     const status = TAILORED_REQUEST_STATUSES.includes(requestedStatus) ? requestedStatus : 'all';
     const profileId = clean(req.query?.profileId || 'all');
@@ -1121,16 +1174,22 @@ export async function listTailoringRequests(req, res, next) {
       status,
       profileId,
       searchPattern: `%${search}%`,
+      canViewAllTailoring,
+      visibleProfileIds: visibleProfileIds.length ? visibleProfileIds : ['-1'],
       limit,
       offset: (page - 1) * limit,
     };
     const whereSql = `
-      WHERE (:status = 'all' OR tailored_resumes.status = :status)
+      WHERE (:canViewAllTailoring = true OR tailored_resumes.profile_id::text IN (:visibleProfileIds))
+        AND (:status = 'all' OR tailored_resumes.status = :status)
         AND (:profileId = 'all' OR tailored_resumes.profile_id::text = :profileId)
         AND (
           :searchPattern = '%%'
           OR LOWER(COALESCE(scraped_jobs.title, '')) LIKE :searchPattern
           OR LOWER(COALESCE(scraped_jobs.company, '')) LIKE :searchPattern
+          OR LOWER(COALESCE(tailored_resumes.manual_role, '')) LIKE :searchPattern
+          OR LOWER(COALESCE(tailored_resumes.manual_company, '')) LIKE :searchPattern
+          OR LOWER(COALESCE(tailored_resumes.manual_job_description, '')) LIKE :searchPattern
           OR LOWER(COALESCE(scraped_jobs.location, '')) LIKE :searchPattern
           OR LOWER(COALESCE(bid_profiles.name, '')) LIKE :searchPattern
           OR LOWER(COALESCE(request_user.username, '')) LIKE :searchPattern
@@ -1146,6 +1205,10 @@ export async function listTailoringRequests(req, res, next) {
         tailored_resumes.user_id,
         tailored_resumes.profile_id,
         tailored_resumes.job_url,
+        tailored_resumes.request_type,
+        tailored_resumes.manual_company,
+        tailored_resumes.manual_role,
+        tailored_resumes.manual_job_description,
         tailored_resumes.status,
         tailored_resumes.file_path,
         tailored_resumes.ready_at,
@@ -1197,10 +1260,11 @@ export async function listTailoringRequests(req, res, next) {
         `
         SELECT status, COUNT(*)::int AS count
         FROM tailored_resumes
+        WHERE (:canViewAllTailoring = true OR tailored_resumes.profile_id::text IN (:visibleProfileIds))
         GROUP BY status
         ORDER BY status ASC
         `,
-        { type: QueryTypes.SELECT },
+        { replacements, type: QueryTypes.SELECT },
       ),
       sequelize.query(
         `
@@ -1212,10 +1276,11 @@ export async function listTailoringRequests(req, res, next) {
         FROM tailored_resumes
         LEFT JOIN bid_profiles ON bid_profiles.id = tailored_resumes.profile_id
         LEFT JOIN web_users owner_user ON owner_user.id = bid_profiles.user_id
+        WHERE (:canViewAllTailoring = true OR tailored_resumes.profile_id::text IN (:visibleProfileIds))
         GROUP BY tailored_resumes.profile_id, bid_profiles.name, owner_user.username
         ORDER BY COALESCE(bid_profiles.name, 'Unknown profile') ASC, tailored_resumes.profile_id ASC
         `,
-        { type: QueryTypes.SELECT },
+        { replacements, type: QueryTypes.SELECT },
       ),
     ]);
 
@@ -1662,6 +1727,10 @@ function formatTailoringRequest(row) {
     userId: row.user_id,
     profileId: row.profile_id,
     jobUrl: row.job_url,
+    requestType: row.request_type || 'job',
+    manualCompany: row.manual_company,
+    manualRole: row.manual_role,
+    manualJobDescription: row.manual_job_description,
     status: row.status,
     filePath: row.file_path,
     readyAt: row.ready_at,
@@ -1688,13 +1757,13 @@ function formatTailoringRequest(row) {
       : null,
     job: {
       id: row.job_id,
-      title: row.title || 'Untitled role',
-      company: row.company || 'Unknown company',
+      title: row.title || row.manual_role || 'Untitled role',
+      company: row.company || row.manual_company || 'Unknown company',
       location: row.location,
-      source: row.source,
+      source: row.request_type === 'manual' ? 'Manual' : row.source,
       postedAt: row.posted_at,
       scrapedAt: row.scraped_at,
-      url: row.job_url,
+      url: row.request_type === 'manual' ? '' : row.job_url,
     },
   };
 }

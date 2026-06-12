@@ -7,7 +7,6 @@ import {
   RequireCallerManagement,
   RequireInterviewAccess,
   RequireMarketplaceAccess,
-  RequireSuperadmin,
 } from './routeGuards.jsx';
 
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
@@ -133,9 +132,9 @@ export function AuthenticatedRoutes({ user }) {
         <Route
           path="/tailoring-requests"
           element={
-            <RequireSuperadmin user={user}>
+            <BlockCallers user={user}>
               <TailoringRequestsPage currentUser={user} />
-            </RequireSuperadmin>
+            </BlockCallers>
           }
         />
         <Route path="*" element={<Navigate to="/jobs" replace />} />

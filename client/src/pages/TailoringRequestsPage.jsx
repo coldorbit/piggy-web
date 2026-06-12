@@ -1,3 +1,4 @@
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DownloadIcon from '@mui/icons-material/Download';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -25,7 +26,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useMemo, useState } from 'react';
-import { authUrl, useTailoringRequests } from '../lib/api.js';
+import { authUrl, useBidProfiles, useCreateManualTailoredResume, useTailoringRequests } from '../lib/api.js';
 import { formatDateTime } from '../lib/formatters.js';
 
 const statusOptions = [
@@ -37,22 +38,45 @@ const statusOptions = [
   { value: 'invalid', label: 'Invalid' },
 ];
 
+const emptyManualForm = {
+  profileId: '',
+  company: '',
+  role: '',
+  jobDescription: '',
+};
+
 export default function TailoringRequestsPage() {
   const [status, setStatus] = useState('all');
   const [profileId, setProfileId] = useState('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [manualForm, setManualForm] = useState(emptyManualForm);
   const filters = useMemo(
     () => ({ status, profileId, search, page: page + 1, limit: rowsPerPage }),
     [page, profileId, rowsPerPage, search, status],
   );
-  const { data, isFetching, isLoading, error, refetch } = useTailoringRequests(filters);
+  const { data, isFetching, isLoading, error, refetch } = useTailoringRequests(filters, {
+    refetchInterval: (query) => {
+      const activeRequests = query.state.data?.requests || [];
+      return activeRequests.some((request) => ['requested', 'processing'].includes(request.status)) ? 5000 : false;
+    },
+  });
+  const { data: profiles = [] } = useBidProfiles({ scope: 'manage' });
+  const createManualTailoring = useCreateManualTailoredResume();
   const requests = data?.requests || [];
   const statusCounts = data?.statusCounts || {};
   const profileOptions = data?.profiles || [];
   const totalCount = Object.values(statusCounts).reduce((sum, count) => sum + Number(count || 0), 0);
   const filteredCount = Number(data?.total || 0);
+  const manualProfileOptions = profiles.filter((profile) => (profile.profileStatus || 'active') === 'active');
+  const manualError = createManualTailoring.error;
+  const canSubmitManual =
+    manualForm.profileId &&
+    manualForm.company.trim() &&
+    manualForm.role.trim() &&
+    manualForm.jobDescription.trim() &&
+    !createManualTailoring.isPending;
 
   function handleStatusChange(nextStatus) {
     setStatus(nextStatus);
@@ -69,9 +93,86 @@ export default function TailoringRequestsPage() {
     setPage(0);
   }
 
+  function updateManualForm(field, value) {
+    setManualForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function submitManualTailoring(event) {
+    event.preventDefault();
+    if (!canSubmitManual) return;
+    createManualTailoring.mutate(
+      {
+        profileId: manualForm.profileId,
+        company: manualForm.company,
+        role: manualForm.role,
+        jobDescription: manualForm.jobDescription,
+      },
+      {
+        onSuccess: () => {
+          setManualForm(emptyManualForm);
+          setStatus('all');
+          setProfileId('all');
+          setSearch('');
+          setPage(0);
+          refetch();
+        },
+      },
+    );
+  }
+
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {error ? <Alert severity="error">{error.message}</Alert> : null}
+      {manualError ? <Alert severity="error">{manualError.message}</Alert> : null}
+
+      <Paper
+        component="form"
+        variant="outlined"
+        onSubmit={submitManualTailoring}
+        sx={{ p: 1.5, borderRadius: 1, display: 'grid', gap: 1.25 }}
+      >
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '260px minmax(0, 1fr) minmax(0, 1fr) auto' }, gap: 1, alignItems: 'start' }}>
+          <TextField
+            select
+            label="Profile"
+            value={manualForm.profileId}
+            onChange={(event) => updateManualForm('profileId', event.target.value)}
+            required
+          >
+            {manualProfileOptions.map((profile) => (
+              <MenuItem key={profile.id} value={String(profile.id)}>
+                {profile.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Company"
+            value={manualForm.company}
+            onChange={(event) => updateManualForm('company', event.target.value)}
+            required
+          />
+          <TextField
+            label="Role / position title"
+            value={manualForm.role}
+            onChange={(event) => updateManualForm('role', event.target.value)}
+            required
+          />
+          <Button type="submit" variant="contained" startIcon={createManualTailoring.isPending ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />} disabled={!canSubmitManual} sx={{ minHeight: 37 }}>
+            Tailor
+          </Button>
+        </Box>
+        <TextField
+          label="Job description"
+          value={manualForm.jobDescription}
+          onChange={(event) => updateManualForm('jobDescription', event.target.value)}
+          placeholder="Paste the full JD content"
+          multiline
+          minRows={6}
+          maxRows={12}
+          required
+          fullWidth
+        />
+      </Paper>
 
       <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.25} justifyContent="space-between">
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ minWidth: 0 }}>
@@ -208,6 +309,7 @@ function TailoringRequestRow({ request }) {
           <Stack direction="row" spacing={0.75} alignItems="center">
             <Typography fontWeight={900}>#{request.id}</Typography>
             <Chip label={statusLabel(request.status)} size="small" sx={statusSx(request.status)} />
+            {request.requestType === 'manual' ? <Chip label="Manual" size="small" variant="outlined" sx={{ fontWeight: 800 }} /> : null}
           </Stack>
           <Typography variant="caption" color="text.secondary">
             Created {formatDateTime(request.createdAt)}
@@ -251,7 +353,7 @@ function TailoringRequestRow({ request }) {
       </TableCell>
       <TableCell align="right">
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-          {request.job?.url ? (
+          {request.requestType !== 'manual' && request.job?.url ? (
             <Tooltip title="Open job">
               <IconButton component="a" href={request.job.url} target="_blank" rel="noreferrer" size="small">
                 <OpenInNewIcon fontSize="small" />

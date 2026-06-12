@@ -40,7 +40,7 @@ import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useUpdateMe } from '../lib/authApi.js';
-import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, isAdminRole, isSuperadmin, roleLabel } from '../lib/roles.js';
+import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, isAdminRole, roleLabel } from '../lib/roles.js';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
@@ -188,7 +188,7 @@ export default function AppLayout({ user }) {
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {!isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} /> : null}
-          {isSuperadmin(user) ? (
+          {!isCaller ? (
             <NavItem to="/tailoring-requests" icon={<StyleIcon />} label="Tailoring" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" onNavigate={() => setMobileOpen(false)} />

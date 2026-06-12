@@ -133,12 +133,28 @@ export function useBidders() {
   });
 }
 
-export function useTailoringRequests(filters = {}) {
+export function useTailoringRequests(filters = {}, queryOptions = {}) {
   const queryParams = new URLSearchParams(filters).toString();
   return useQuery({
     queryKey: ['bid', 'tailoring-requests', filters],
     queryFn: () => api(`/api/bid/tailoring-requests${queryParams ? `?${queryParams}` : ''}`),
     staleTime: 15_000,
+    ...queryOptions,
+  });
+}
+
+export function useCreateManualTailoredResume() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (tailoringData) =>
+      api('/api/bid/tailored-resumes/manual', {
+        method: 'POST',
+        body: JSON.stringify(tailoringData),
+      }).then((data) => data.tailoredResume),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'tailoring-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+    },
   });
 }
 

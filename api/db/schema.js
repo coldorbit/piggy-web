@@ -47,6 +47,7 @@ export async function ensureWebModels({ runBackfills = true } = {}) {
       await ensureJobBidInterviewColumns();
       await ensureInterviewJourneyColumns();
       await ensureTailoredResumeStatusColumns();
+      await ensureTailoredResumeManualColumns();
       await ensureWebUserEmailColumn();
       if (runBackfills) await runTailoredResumeFilePathBackfill();
       await removeDeprecatedBidProfileColumns();
@@ -339,6 +340,25 @@ async function ensureTailoredResumeStatusColumns() {
   );
 
   await queryInterface.sequelize.query('DROP INDEX IF EXISTS tailored_resumes_queue_idx');
+}
+
+async function ensureTailoredResumeManualColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'tailored_resumes';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    request_type: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'job' },
+    manual_company: { type: DataTypes.TEXT, allowNull: true },
+    manual_role: { type: DataTypes.TEXT, allowNull: true },
+    manual_job_description: { type: DataTypes.TEXT, allowNull: true },
+  });
+
+  await queryInterface.sequelize.query(`
+    UPDATE tailored_resumes
+    SET request_type = 'job'
+    WHERE request_type IS NULL OR request_type = ''
+  `);
 }
 
 async function ensureBidPageIndexes() {

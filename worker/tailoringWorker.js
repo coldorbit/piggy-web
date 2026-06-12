@@ -107,7 +107,7 @@ async function claimTailoringJob(tailoredResumeId) {
   const TailoredResume = getTailoredResumeModel();
   const tailoredResume = await TailoredResume.findByPk(tailoredResumeId);
   if (!tailoredResume) return null;
-  if (tailoredResume.status === 'ready' || tailoredResume.status === 'dead_letter') return null;
+  if (['ready', 'dead_letter', 'invalid'].includes(tailoredResume.status)) return null;
 
   const attempts = Number(tailoredResume.attempts || 0);
   const staleProcessingBefore = new Date(Date.now() - VISIBILITY_TIMEOUT_SECONDS * 1000);
@@ -140,10 +140,11 @@ async function claimTailoringJob(tailoredResumeId) {
 
 async function processTailoredResume(tailoredResume) {
   try {
-    const [job, profile] = await Promise.all([
-      getScrapedJobModel().findOne({ where: { url: tailoredResume.jobUrl } }),
+    const [storedJob, profile] = await Promise.all([
+      tailoredResume.requestType === 'manual' ? Promise.resolve(null) : getScrapedJobModel().findOne({ where: { url: tailoredResume.jobUrl } }),
       getBidProfileModel().findByPk(tailoredResume.profileId),
     ]);
+    const job = tailoredResume.requestType === 'manual' ? manualJobFromTailoredResume(tailoredResume) : storedJob;
 
     if (!job) throw new Error('Job not found for tailoring request');
     if (!profile) throw new Error('Profile not found for tailoring request');
@@ -159,6 +160,19 @@ async function processTailoredResume(tailoredResume) {
   } catch (error) {
     await failTailoredResume(tailoredResume, error);
   }
+}
+
+function manualJobFromTailoredResume(tailoredResume) {
+  return {
+    title: tailoredResume.manualRole,
+    company: tailoredResume.manualCompany,
+    location: '',
+    listingText: tailoredResume.manualJobDescription,
+    rawJob: {
+      importType: 'manual_tailoring',
+      jobUrl: tailoredResume.jobUrl,
+    },
+  };
 }
 
 async function failTailoredResume(tailoredResume, error) {

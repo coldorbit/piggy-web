@@ -3,6 +3,7 @@ import {
   createJobBid,
   createCaller,
   createManualInterview,
+  createManualTailoredResume,
   createProfile,
   createTailoredResume,
   deleteProfile,
@@ -43,6 +44,7 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/tailoring-requests', requireAuth, listTailoringRequests);
   app.get('/api/bid/tailored-resumes/download', requireAuth, downloadTailoredResumesZip);
   app.get('/api/bid/tailored-resumes/:id/download', requireAuth, downloadTailoredResume);
+  app.post('/api/bid/tailored-resumes/manual', requireAuth, createManualTailoredResume);
   app.post('/api/bid/interviews/manual', requireAuth, createManualInterview);
   app.patch('/api/bid/interviews/:id', requireAuth, updateInterview);
   app.delete('/api/bid/interviews/:id', requireAuth, deleteInterview);
