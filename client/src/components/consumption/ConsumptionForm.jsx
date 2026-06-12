@@ -2,14 +2,20 @@ import AddIcon from '@mui/icons-material/Add';
 import { Button, FormControl, Grid, InputLabel, MenuItem, Paper, Select, TextField } from '@mui/material';
 import { CRYPTO_CURRENCIES, TYPE_OPTIONS } from './consumptionConstants.js';
 
+const DENSE_TRANSACTION_TYPES = new Set(['card_deposit', 'swap']);
+const DEFAULT_FIELD_SIZE = 2;
+const DENSE_FIELD_SIZE = 1.6;
+
 export default function ConsumptionForm({ accountOptions, form, isSaving, onChange, onSubmit }) {
+  const fieldSize = DENSE_TRANSACTION_TYPES.has(form.type) ? DENSE_FIELD_SIZE : DEFAULT_FIELD_SIZE;
+
   return (
     <Paper component="form" variant="outlined" onSubmit={onSubmit} sx={{ p: 1.5, boxShadow: 1 }}>
       <Grid container spacing={1.25} alignItems="flex-start">
         <Grid size={{ xs: 12, md: 2 }}>
           <SelectField label="Type" value={form.type} options={TYPE_OPTIONS} onChange={(type) => onChange({ type })} />
         </Grid>
-        <TransactionFields accountOptions={accountOptions} form={form} onChange={onChange} />
+        <TransactionFields accountOptions={accountOptions} fieldSize={fieldSize} form={form} onChange={onChange} />
         <Grid size={{ xs: 12, md: 2 }}>
           <TextField fullWidth size="small" label="Date" type="date" value={form.occurredAt} onChange={(event) => onChange({ occurredAt: event.target.value })} InputLabelProps={{ shrink: true }} />
         </Grid>
@@ -42,27 +48,27 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
   );
 }
 
-function TransactionFields({ accountOptions, form, onChange }) {
+function TransactionFields({ accountOptions, fieldSize, form, onChange }) {
   if (form.type === 'card_pay') return <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />;
   if (form.type === 'card_deposit') {
     return (
       <>
-        <CryptoSelect label="From" value={form.currency} onChange={(currency) => onChange({ currency })} />
-        <AmountField label="Crypto amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
-        <AmountField label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
-        <AmountField label="Received USD" value={form.receivedUsd} onChange={(receivedUsd) => onChange({ receivedUsd })} />
-        <AmountField label="Card fee" optional value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
+        <CryptoSelect fieldSize={fieldSize} label="From" value={form.currency} onChange={(currency) => onChange({ currency })} />
+        <AmountField fieldSize={fieldSize} label="Crypto amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+        <AmountField fieldSize={fieldSize} label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
+        <AmountField fieldSize={fieldSize} label="Received USD" value={form.receivedUsd} onChange={(receivedUsd) => onChange({ receivedUsd })} />
+        <AmountField fieldSize={fieldSize} label="Card fee" optional value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
       </>
     );
   }
   if (form.type === 'swap') {
     return (
       <>
-        <CryptoSelect label="From" value={form.fromCurrency} onChange={(fromCurrency) => onChange({ fromCurrency })} exclude={['ETH']} />
-        <AmountField label="From amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
-        <AmountField label="ETH received" value={form.toEthAmount} onChange={(toEthAmount) => onChange({ toEthAmount })} />
-        <AmountField label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
-        <AmountField label="Swap fee" optional value={form.swapFee} onChange={(swapFee) => onChange({ swapFee })} />
+        <CryptoSelect fieldSize={fieldSize} label="From" value={form.fromCurrency} onChange={(fromCurrency) => onChange({ fromCurrency })} exclude={['ETH']} />
+        <AmountField fieldSize={fieldSize} label="From amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+        <AmountField fieldSize={fieldSize} label="ETH received" value={form.toEthAmount} onChange={(toEthAmount) => onChange({ toEthAmount })} />
+        <AmountField fieldSize={fieldSize} label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
+        <AmountField fieldSize={fieldSize} label="Swap fee" optional value={form.swapFee} onChange={(swapFee) => onChange({ swapFee })} />
       </>
     );
   }
@@ -89,17 +95,17 @@ function TransactionFields({ accountOptions, form, onChange }) {
   );
 }
 
-function AmountField({ label, optional = false, value, onChange }) {
+function AmountField({ fieldSize = DEFAULT_FIELD_SIZE, label, optional = false, value, onChange }) {
   return (
-    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+    <Grid size={{ xs: 12, sm: 6, md: fieldSize }}>
       <TextField fullWidth size="small" label={optional ? optionalLabel(label) : label} type="number" inputProps={{ min: 0, step: 'any' }} value={value || ''} onChange={(event) => onChange(event.target.value)} />
     </Grid>
   );
 }
 
-function CryptoSelect({ exclude = [], label, value, onChange }) {
+function CryptoSelect({ exclude = [], fieldSize = DEFAULT_FIELD_SIZE, label, value, onChange }) {
   return (
-    <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+    <Grid size={{ xs: 12, sm: 6, md: fieldSize }}>
       <SelectField
         label={label}
         value={value}

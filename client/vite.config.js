@@ -52,7 +52,10 @@ const markdownVendorPackages = [
   'zwitch',
 ];
 
-const coreVendorPackages = ['@tanstack', 'axios', 'hoist-non-react-statics', 'react', 'react-dom', 'react-router', 'scheduler'];
+const reactVendorPackages = ['hoist-non-react-statics', 'react', 'react-dom', 'scheduler'];
+const routerVendorPackages = ['react-router'];
+const queryVendorPackages = ['@tanstack'];
+const httpVendorPackages = ['axios'];
 const chartVendorPackages = [
   '@reduxjs/toolkit',
   'd3',
@@ -78,8 +81,17 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
-          if (coreVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
-            return 'vendor-core';
+          if (reactVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
+            return 'vendor-react';
+          }
+          if (routerVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
+            return 'vendor-router';
+          }
+          if (queryVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
+            return 'vendor-query';
+          }
+          if (httpVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
+            return 'vendor-http';
           }
           if (muiVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
             return 'vendor-mui';
