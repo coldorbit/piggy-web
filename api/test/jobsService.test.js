@@ -144,6 +144,30 @@ describe('manual CSV job imports', () => {
     assert.equal(plan.duplicateExistingRows.length, 1);
     assert.deepEqual(plan.categoryUpdates, []);
   });
+
+  it('does not downgrade existing non-software categories to software from CSV import', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,category',
+        'https://example.com/jobs/existing-3,ML Engineer,Acme,software',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    const plan = planCsvJobImport([job], [
+      {
+        url: 'https://example.com/jobs/existing-3',
+        title: 'ML Engineer',
+        company: 'Acme',
+        category: 'ai_ml',
+      },
+    ]);
+
+    assert.equal(job.category, 'software');
+    assert.equal(plan.insertRows.length, 0);
+    assert.equal(plan.duplicateExistingRows.length, 1);
+    assert.deepEqual(plan.categoryUpdates, []);
+  });
 });
 
 function jobRow(overrides) {

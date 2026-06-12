@@ -484,7 +484,11 @@ export function planCsvJobImport(rows, existingRows = []) {
         existingTitle: existingJob?.title || null,
         existingCompany: existingJob?.company || null,
       });
-      if (!categoryUpdateUrls.has(row.url) && row.rawJob?.importCategoryProvided && row.category && row.category !== existingJob?.category) {
+      if (
+        !categoryUpdateUrls.has(row.url) &&
+        row.rawJob?.importCategoryProvided &&
+        shouldUpdateExistingJobCategory({ currentCategory: existingJob?.category, importedCategory: row.category })
+      ) {
         categoryUpdates.push({ url: row.url, category: row.category });
         categoryUpdateUrls.add(row.url);
       }
@@ -511,6 +515,12 @@ export function planCsvJobImport(rows, existingRows = []) {
     duplicateExistingRows,
     categoryUpdates,
   };
+}
+
+function shouldUpdateExistingJobCategory({ currentCategory, importedCategory }) {
+  if (!importedCategory || importedCategory === currentCategory) return false;
+  if (importedCategory === 'software' && currentCategory && currentCategory !== 'software') return false;
+  return true;
 }
 
 function manualRawJob(raw) {
