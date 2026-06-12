@@ -33,6 +33,7 @@ import { formatDate } from '../../lib/formatters.js';
 import { authUrl } from '../../lib/api.js';
 import { jobSourceImageUrl, sourceLabel } from '../../lib/jobSourceImage.js';
 import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../lib/roles.js';
+import JobRegionBadge from '../jobs/JobRegionBadge.jsx';
 import { BID_TABS } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
@@ -297,6 +298,7 @@ export default function BidJobCard({
                     sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
                   />
                 ) : null}
+                <JobRegionBadge job={job} sx={{ height: 24 }} />
                 {job.locationOptions?.length > 1 ? (
                   <Chip
                     label={`${job.locationOptions.length} locations`}

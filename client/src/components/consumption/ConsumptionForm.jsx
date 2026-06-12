@@ -17,10 +17,10 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
         <Grid size={{ xs: 12 }}>
           <Grid container spacing={1.25} alignItems="flex-start">
             <Grid size={{ xs: 12, md: 4 }}>
-          <TextField fullWidth size="small" label="ETH tx link / hash" value={form.etherscanUrl} onChange={(event) => onChange({ etherscanUrl: event.target.value })} />
+              <TextField fullWidth size="small" label={optionalLabel('ETH tx link / hash')} value={form.etherscanUrl} onChange={(event) => onChange({ etherscanUrl: event.target.value })} />
             </Grid>
             <Grid size={{ xs: 12, md: 5 }}>
-              <TextField fullWidth size="small" label="Notes" value={form.notes} onChange={(event) => onChange({ notes: event.target.value })} />
+              <TextField fullWidth size="small" label={optionalLabel('Notes')} value={form.notes} onChange={(event) => onChange({ notes: event.target.value })} />
             </Grid>
             <Grid size={{ xs: 12, md: 3 }}>
               <Button
@@ -49,9 +49,9 @@ function TransactionFields({ accountOptions, form, onChange }) {
       <>
         <CryptoSelect label="From" value={form.currency} onChange={(currency) => onChange({ currency })} />
         <AmountField label="Crypto amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
-        <AmountField label="ETH fee" value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
+        <AmountField label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
         <AmountField label="Received USD" value={form.receivedUsd} onChange={(receivedUsd) => onChange({ receivedUsd })} />
-        <AmountField label="Card fee" value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
+        <AmountField label="Card fee" optional value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
       </>
     );
   }
@@ -61,8 +61,8 @@ function TransactionFields({ accountOptions, form, onChange }) {
         <CryptoSelect label="From" value={form.fromCurrency} onChange={(fromCurrency) => onChange({ fromCurrency })} exclude={['ETH']} />
         <AmountField label="From amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
         <AmountField label="ETH received" value={form.toEthAmount} onChange={(toEthAmount) => onChange({ toEthAmount })} />
-        <AmountField label="ETH fee" value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
-        <AmountField label="Swap fee" value={form.swapFee} onChange={(swapFee) => onChange({ swapFee })} />
+        <AmountField label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
+        <AmountField label="Swap fee" optional value={form.swapFee} onChange={(swapFee) => onChange({ swapFee })} />
       </>
     );
   }
@@ -84,15 +84,15 @@ function TransactionFields({ accountOptions, form, onChange }) {
     <>
       <CryptoSelect label="Currency" value={form.currency} onChange={(currency) => onChange({ currency })} />
       <AmountField label="Amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
-      <AmountField label="ETH fee" value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
+      <AmountField label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
     </>
   );
 }
 
-function AmountField({ label, value, onChange }) {
+function AmountField({ label, optional = false, value, onChange }) {
   return (
     <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-      <TextField fullWidth size="small" label={label} type="number" inputProps={{ min: 0, step: 'any' }} value={value || ''} onChange={(event) => onChange(event.target.value)} />
+      <TextField fullWidth size="small" label={optional ? optionalLabel(label) : label} type="number" inputProps={{ min: 0, step: 'any' }} value={value || ''} onChange={(event) => onChange(event.target.value)} />
     </Grid>
   );
 }
@@ -119,4 +119,8 @@ function SelectField({ label, value, options, onChange }) {
       </Select>
     </FormControl>
   );
+}
+
+function optionalLabel(label) {
+  return `${label} (optional)`;
 }

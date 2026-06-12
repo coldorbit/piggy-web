@@ -2,6 +2,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { Avatar, Box, ButtonBase, Chip, CircularProgress, IconButton, List, ListItem, Paper, Tooltip, Typography } from '@mui/material';
 import Pagination from './Pagination.jsx';
 import SpamBadge from './SpamBadge.jsx';
+import JobRegionBadge from './JobRegionBadge.jsx';
 import { formatDate } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
 import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
@@ -119,6 +120,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                         </span>
                       </Tooltip>
                       {job.isManual ? <ManualJobBadge /> : null}
+                      <JobRegionBadge job={job} />
                       {job.locationOptions?.length > 1 ? <LocationCountBadge count={job.locationOptions.length} /> : null}
                       <SpamBadge job={job} />
                     </Box>
