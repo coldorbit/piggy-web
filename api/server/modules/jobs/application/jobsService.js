@@ -459,6 +459,56 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
   return jobs;
 }
 
+export function planCsvJobImport(rows, existingRows = []) {
+  const existingJobsByUrl = new Map(existingRows.map((row) => [row.url, row]));
+  const existingUrls = new Set(existingJobsByUrl.keys());
+  const seenUrls = new Set();
+  const firstCsvRowByUrl = new Map();
+  const duplicateCsvRows = [];
+  const duplicateExistingRows = [];
+  const categoryUpdates = [];
+  const categoryUpdateUrls = new Set();
+  const insertRows = rows.filter((row) => {
+    const rowNumber = row.rawJob?.importRowNumber || null;
+    if (existingUrls.has(row.url)) {
+      const existingJob = existingJobsByUrl.get(row.url);
+      duplicateExistingRows.push({
+        url: row.url,
+        rowNumber,
+        title: row.title,
+        company: row.company,
+        existingTitle: existingJob?.title || null,
+        existingCompany: existingJob?.company || null,
+      });
+      if (!categoryUpdateUrls.has(row.url) && row.category && row.category !== existingJob?.category) {
+        categoryUpdates.push({ url: row.url, category: row.category });
+        categoryUpdateUrls.add(row.url);
+      }
+      return false;
+    }
+    if (seenUrls.has(row.url)) {
+      duplicateCsvRows.push({
+        url: row.url,
+        rowNumber,
+        firstRowNumber: firstCsvRowByUrl.get(row.url) || null,
+        title: row.title,
+        company: row.company,
+      });
+      return false;
+    }
+    seenUrls.add(row.url);
+    firstCsvRowByUrl.set(row.url, rowNumber);
+    return true;
+  });
+
+  return {
+    insertRows,
+    duplicateCsvRows,
+    duplicateExistingRows,
+    categoryUpdates,
+  };
+}
+
 function manualRawJob(raw) {
   const rawJob = { ...raw };
   for (const field of ['source', 'sourceUrl']) {

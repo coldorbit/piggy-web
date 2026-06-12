@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { groupedJobsFromRows, jobsFromCsv, paginateGroupedJobs } from '../server/modules/jobs/application/jobsService.js';
+import { groupedJobsFromRows, jobsFromCsv, paginateGroupedJobs, planCsvJobImport } from '../server/modules/jobs/application/jobsService.js';
 
 describe('grouped scraped jobs', () => {
   it('groups matching title and company rows while preserving selectable locations', () => {
@@ -80,6 +80,29 @@ describe('manual CSV job imports', () => {
     assert.equal(job.source, 'Manual');
     assert.equal(job.sourceUrl, null);
     assert.equal(job.rawJob.importType, 'manual');
+  });
+
+  it('plans category updates for existing imported job URLs', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,category',
+        'https://example.com/jobs/existing-1,Data Engineer,Acme,data',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    const plan = planCsvJobImport([job], [
+      {
+        url: 'https://example.com/jobs/existing-1',
+        title: 'Data Engineer',
+        company: 'Acme',
+        category: 'software',
+      },
+    ]);
+
+    assert.equal(plan.insertRows.length, 0);
+    assert.equal(plan.duplicateExistingRows.length, 1);
+    assert.deepEqual(plan.categoryUpdates, [{ url: 'https://example.com/jobs/existing-1', category: 'data' }]);
   });
 });
 

@@ -7,6 +7,7 @@ import {
   groupedJobsFromRows,
   jobsFromCsv,
   paginateGroupedJobs,
+  planCsvJobImport,
   parseHiddenState,
   parseSpamReview,
   validJobUrl,
@@ -192,51 +193,28 @@ export async function importJobsCsv(req, res, next) {
     const rows = jobsFromCsv(req.body?.csv || req.body?.csvText || '', { importedBy: req.user?.username });
     const ScrapedJob = getScrapedJobModel();
     const existingRows = await ScrapedJob.findAll({
-      attributes: ['url', 'title', 'company'],
+      attributes: ['url', 'title', 'company', 'category'],
       where: { url: { [Op.in]: rows.map((row) => row.url) } },
     });
-    const existingJobsByUrl = new Map(existingRows.map((row) => [row.url, row]));
-    const existingUrls = new Set(existingJobsByUrl.keys());
-    const seenUrls = new Set();
-    const firstCsvRowByUrl = new Map();
-    const duplicateCsvRows = [];
-    const duplicateExistingRows = [];
-    const insertRows = rows.filter((row) => {
-      const rowNumber = row.rawJob?.importRowNumber || null;
-      if (existingUrls.has(row.url)) {
-        const existingJob = existingJobsByUrl.get(row.url);
-        duplicateExistingRows.push({
-          url: row.url,
-          rowNumber,
-          title: row.title,
-          company: row.company,
-          existingTitle: existingJob?.title || null,
-          existingCompany: existingJob?.company || null,
-        });
-        return false;
-      }
-      if (seenUrls.has(row.url)) {
-        duplicateCsvRows.push({
-          url: row.url,
-          rowNumber,
-          firstRowNumber: firstCsvRowByUrl.get(row.url) || null,
-          title: row.title,
-          company: row.company,
-        });
-        return false;
-      }
-      seenUrls.add(row.url);
-      firstCsvRowByUrl.set(row.url, rowNumber);
-      return true;
-    });
+    const { insertRows, duplicateCsvRows, duplicateExistingRows, categoryUpdates } = planCsvJobImport(rows, existingRows);
 
     if (insertRows.length) await ScrapedJob.bulkCreate(insertRows, { ignoreDuplicates: true });
+    await Promise.all(
+      categoryUpdates.map((update) =>
+        ScrapedJob.update(
+          { category: update.category },
+          { where: { url: update.url } },
+        ),
+      ),
+    );
 
     const duplicateCount = duplicateCsvRows.length + duplicateExistingRows.length;
     res.status(201).json({
       totalRows: rows.length,
       imported: insertRows.length,
       successfulImports: insertRows.length,
+      updated: categoryUpdates.length,
+      updatedCategories: categoryUpdates.length,
       skipped: rows.length - insertRows.length,
       duplicateCount,
       duplicates: {
