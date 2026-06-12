@@ -1,6 +1,6 @@
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import { Grid, IconButton, Paper, Stack, Typography } from '@mui/material';
+import { Box, Grid, IconButton, Paper, Typography } from '@mui/material';
 import { useState } from 'react';
 import { CURRENCY_STYLES } from './consumptionConstants.js';
 import { formatAmount } from './consumptionFormatters.js';
@@ -27,20 +27,22 @@ export default function BalanceCards({ accounts }) {
                 borderLeft: `4px solid ${colors.border}`,
               }}
             >
-              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-                <Typography variant="caption" sx={{ color: colors.fg, fontWeight: 900 }}>{account.name}</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', columnGap: 1, alignItems: 'start' }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" sx={{ color: colors.fg, fontWeight: 900 }} noWrap>{account.name}</Typography>
+                  <Typography variant="h5" fontWeight={900} sx={{ color: colors.fg }}>
+                    {isRevealed ? formatAmount(account.balance, account.currency) : '••••••'}
+                  </Typography>
+                </Box>
                 <IconButton
                   size="small"
                   onClick={() => setRevealedById((current) => ({ ...current, [key]: !isRevealed }))}
                   title={isRevealed ? 'Hide balance' : 'Reveal balance'}
-                  sx={{ mt: -0.5, mr: -0.5, color: colors.fg }}
+                  sx={{ mt: -0.5, mr: -0.5, color: colors.fg, justifySelf: 'end' }}
                 >
                   {isRevealed ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
                 </IconButton>
-              </Stack>
-              <Typography variant="h5" fontWeight={900} sx={{ color: colors.fg }}>
-                {isRevealed ? formatAmount(account.balance, account.currency) : '••••••'}
-              </Typography>
+              </Box>
             </Paper>
           </Grid>
         );
