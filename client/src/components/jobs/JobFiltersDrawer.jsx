@@ -3,6 +3,8 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import { Box, Button, Drawer, IconButton, Stack, Typography } from '@mui/material';
 import JobFiltersToolbar from './JobFiltersToolbar.jsx';
 
+const FILTER_DRAWER_WIDTH = { xs: '100%', sm: 480, md: 570, lg: 645 };
+
 export default function JobFiltersDrawer({ ariaLabel = 'Job filters', filters, isOpen, meta, onClose, onFilterChange, onOpen, onRefresh }) {
   return (
     <>
@@ -35,17 +37,20 @@ export default function JobFiltersDrawer({ ariaLabel = 'Job filters', filters, i
         anchor="right"
         open={isOpen}
         onClose={onClose}
-        PaperProps={{
-          sx: {
-            width: { xs: '100%', sm: 640, md: 760, lg: 860 },
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: FILTER_DRAWER_WIDTH,
+            minWidth: FILTER_DRAWER_WIDTH,
             maxWidth: '100vw',
+            boxSizing: 'border-box',
+            flexShrink: 0,
             bgcolor: '#f7f9fb',
             borderLeft: 1,
             borderColor: 'divider',
           },
         }}
       >
-        <Stack spacing={2} sx={{ height: '100%', position: 'relative' }}>
+        <Stack spacing={2} sx={{ width: '100%', height: '100%', position: 'relative' }}>
           <IconButton
             onClick={onClose}
             aria-label="Close filters"
@@ -79,7 +84,7 @@ export default function JobFiltersDrawer({ ariaLabel = 'Job filters', filters, i
               Filters
             </Typography>
           </Stack>
-          <Box sx={{ px: { xs: 2, sm: 2.5 } }}>
+          <Box sx={{ width: '100%', px: { xs: 2, sm: 2.5 } }}>
             <JobFiltersToolbar
               ariaLabel={ariaLabel}
               filters={filters}
