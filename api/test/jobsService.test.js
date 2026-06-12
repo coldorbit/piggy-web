@@ -38,9 +38,10 @@ describe('job query filters', () => {
 
   it('adds a Canada location region condition', () => {
     const query = buildJobQuery({ locationRegion: 'canada', since: 'all', visibility: 'all' });
-    const locationCondition = query.where[Op.and].find((condition) => condition.location);
+    const locationCondition = query.where[Op.and].find((condition) => String(condition.val || '').includes('location'));
 
-    assert.match(locationCondition.location[Op.iRegexp], /canada/);
+    assert.match(locationCondition.val, /canada/);
+    assert.match(locationCondition.val, /raw_job->>'location'/);
   });
 
   it('adds US and worldwide location conditions while excluding Canada', () => {
@@ -48,8 +49,9 @@ describe('job query filters', () => {
     const locationCondition = query.where[Op.and].find((condition) => condition[Op.and]);
     const [includeCondition, excludeCondition] = locationCondition[Op.and];
 
-    assert.ok(includeCondition[Op.or].length >= 3);
-    assert.ok(excludeCondition[Op.or].some((condition) => condition.location?.[Op.notIRegexp]));
+    assert.ok(includeCondition[Op.or].some((condition) => String(condition.val || '').includes('worldwide')));
+    assert.ok(includeCondition[Op.or].some((condition) => String(condition.val || '').includes("raw_job->>'location'")));
+    assert.ok(excludeCondition[Op.or].some((condition) => String(condition.val || '').includes('!~*')));
   });
 });
 
@@ -158,6 +160,30 @@ describe('manual CSV job imports', () => {
     assert.equal(plan.insertRows.length, 0);
     assert.equal(plan.duplicateExistingRows.length, 1);
     assert.deepEqual(plan.categoryUpdates, [{ url: 'https://example.com/jobs/existing-1', category: 'data' }]);
+  });
+
+  it('plans location updates for existing imported job URLs', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,location,category',
+        'https://example.com/jobs/existing-location,Data Engineer,Acme,Canada,data',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    const plan = planCsvJobImport([job], [
+      {
+        url: 'https://example.com/jobs/existing-location',
+        title: 'Data Engineer',
+        company: 'Acme',
+        category: 'data',
+        location: null,
+      },
+    ]);
+
+    assert.equal(plan.insertRows.length, 0);
+    assert.equal(plan.duplicateExistingRows.length, 1);
+    assert.deepEqual(plan.locationUpdates, [{ url: 'https://example.com/jobs/existing-location', location: 'Canada' }]);
   });
 
   it('does not update existing categories when the CSV category is blank', () => {

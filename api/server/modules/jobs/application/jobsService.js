@@ -166,7 +166,7 @@ function applyLocationRegionFilter(where, locationRegion) {
   if (!locationRegion || locationRegion === 'all') return;
 
   if (locationRegion === 'canada') {
-    appendAndCondition(where, { location: { [Op.iRegexp]: CANADA_LOCATION_PATTERN } });
+    appendAndCondition(where, effectiveLocationRegexpCondition(CANADA_LOCATION_PATTERN));
     return;
   }
 
@@ -175,20 +175,39 @@ function applyLocationRegionFilter(where, locationRegion) {
       [Op.and]: [
         {
           [Op.or]: [
-            { location: { [Op.is]: null } },
-            literal("btrim(COALESCE(location, '')) = ''"),
-            { location: { [Op.iRegexp]: US_WORLDWIDE_LOCATION_PATTERN } },
+            effectiveLocationIsBlankCondition(),
+            effectiveLocationRegexpCondition(US_WORLDWIDE_LOCATION_PATTERN),
           ],
         },
         {
           [Op.or]: [
-            { location: { [Op.is]: null } },
-            { location: { [Op.notIRegexp]: CANADA_LOCATION_PATTERN } },
+            effectiveLocationIsBlankCondition(),
+            effectiveLocationNotRegexpCondition(CANADA_LOCATION_PATTERN),
           ],
         },
       ],
     });
   }
+}
+
+function effectiveLocationExpression() {
+  return "COALESCE(location, raw_job->>'location', raw_job->>'job_location', raw_job->>'jobLocation', raw_job->>'location_label', raw_job->>'locationLabel')";
+}
+
+function escapedRegexLiteral(pattern) {
+  return String(pattern).replace(/'/g, "''");
+}
+
+function effectiveLocationRegexpCondition(pattern) {
+  return literal(`${effectiveLocationExpression()} ~* '${escapedRegexLiteral(pattern)}'`);
+}
+
+function effectiveLocationNotRegexpCondition(pattern) {
+  return literal(`${effectiveLocationExpression()} !~* '${escapedRegexLiteral(pattern)}'`);
+}
+
+function effectiveLocationIsBlankCondition() {
+  return literal(`btrim(COALESCE(${effectiveLocationExpression()}, '')) = ''`);
 }
 
 function appendAndCondition(where, condition) {
@@ -636,7 +655,9 @@ export function planCsvJobImport(rows, existingRows = []) {
   const duplicateCsvRows = [];
   const duplicateExistingRows = [];
   const categoryUpdates = [];
+  const locationUpdates = [];
   const categoryUpdateUrls = new Set();
+  const locationUpdateUrls = new Set();
   const insertRows = rows.filter((row) => {
     const rowNumber = row.rawJob?.importRowNumber || null;
     if (existingUrls.has(row.url)) {
@@ -656,6 +677,10 @@ export function planCsvJobImport(rows, existingRows = []) {
       ) {
         categoryUpdates.push({ url: row.url, category: row.category });
         categoryUpdateUrls.add(row.url);
+      }
+      if (!locationUpdateUrls.has(row.url) && clean(row.location) && clean(row.location) !== clean(existingJob?.location)) {
+        locationUpdates.push({ url: row.url, location: row.location });
+        locationUpdateUrls.add(row.url);
       }
       return false;
     }
@@ -679,6 +704,7 @@ export function planCsvJobImport(rows, existingRows = []) {
     duplicateCsvRows,
     duplicateExistingRows,
     categoryUpdates,
+    locationUpdates,
   };
 }
 

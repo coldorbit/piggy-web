@@ -193,16 +193,19 @@ export async function importJobsCsv(req, res, next) {
     const rows = jobsFromCsv(req.body?.csv || req.body?.csvText || '', { importedBy: req.user?.username });
     const ScrapedJob = getScrapedJobModel();
     const existingRows = await ScrapedJob.findAll({
-      attributes: ['url', 'title', 'company', 'category'],
+      attributes: ['url', 'title', 'company', 'category', 'location'],
       where: { url: { [Op.in]: rows.map((row) => row.url) } },
     });
-    const { insertRows, duplicateCsvRows, duplicateExistingRows, categoryUpdates } = planCsvJobImport(rows, existingRows);
+    const { insertRows, duplicateCsvRows, duplicateExistingRows, categoryUpdates, locationUpdates } = planCsvJobImport(rows, existingRows);
 
     if (insertRows.length) await ScrapedJob.bulkCreate(insertRows, { ignoreDuplicates: true });
     await Promise.all(
-      categoryUpdates.map((update) =>
+      [
+        ...categoryUpdates.map((update) => ({ url: update.url, values: { category: update.category } })),
+        ...locationUpdates.map((update) => ({ url: update.url, values: { location: update.location } })),
+      ].map((update) =>
         ScrapedJob.update(
-          { category: update.category },
+          update.values,
           { where: { url: update.url } },
         ),
       ),
@@ -213,8 +216,9 @@ export async function importJobsCsv(req, res, next) {
       totalRows: rows.length,
       imported: insertRows.length,
       successfulImports: insertRows.length,
-      updated: categoryUpdates.length,
+      updated: categoryUpdates.length + locationUpdates.length,
       updatedCategories: categoryUpdates.length,
+      updatedLocations: locationUpdates.length,
       skipped: rows.length - insertRows.length,
       duplicateCount,
       duplicates: {
