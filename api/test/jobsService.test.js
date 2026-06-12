@@ -35,6 +35,22 @@ describe('job query filters', () => {
 
     assert.equal(query.where.scrapedAt, undefined);
   });
+
+  it('adds a Canada location region condition', () => {
+    const query = buildJobQuery({ locationRegion: 'canada', since: 'all', visibility: 'all' });
+    const locationCondition = query.where[Op.and].find((condition) => condition.location);
+
+    assert.match(locationCondition.location[Op.iRegexp], /canada/);
+  });
+
+  it('adds US and worldwide location conditions while excluding Canada', () => {
+    const query = buildJobQuery({ locationRegion: 'us_worldwide', since: 'all', visibility: 'all' });
+    const locationCondition = query.where[Op.and].find((condition) => condition[Op.and]);
+    const [includeCondition, excludeCondition] = locationCondition[Op.and];
+
+    assert.ok(includeCondition[Op.or].length >= 3);
+    assert.ok(excludeCondition[Op.or].some((condition) => condition.location?.[Op.notIRegexp]));
+  });
 });
 
 function dateParts(value) {

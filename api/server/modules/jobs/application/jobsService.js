@@ -23,12 +23,74 @@ const JUNIOR_LEVEL_TITLE_PATTERN = [
   '\\mintern(ship)?\\M',
   '\\mapprentice\\M',
 ].join('|');
+const CANADA_LOCATION_PATTERN = [
+  '\\mcanada\\M',
+  '\\mcanadian\\M',
+  '\\mtoronto\\M',
+  '\\mvancouver\\M',
+  '\\mmontreal\\M',
+  '\\mottawa\\M',
+  '\\mcalgary\\M',
+  '\\medmonton\\M',
+  '\\mwinnipeg\\M',
+  '\\mquebec\\M',
+  '\\montario\\M',
+  '\\mbritish columbia\\M',
+  '\\malberta\\M',
+  '\\mmanitoba\\M',
+  '\\msaskatchewan\\M',
+  '\\mnova scotia\\M',
+  '\\mnew brunswick\\M',
+  '\\mnewfoundland\\M',
+  '\\mlabrador\\M',
+  '\\mprince edward island\\M',
+  '\\myukon\\M',
+  '\\mnunavut\\M',
+  '\\mnorthwest territories\\M',
+  ',\\s*(can|on|bc|ab|mb|sk|qc|ns|nb|nl|pe|yt|nt|nu)(\\s|,|\\)|/|-|$)',
+].join('|');
+const US_WORLDWIDE_LOCATION_PATTERN = [
+  '\\munited states\\M',
+  '\\musa\\M',
+  'u\\.s\\.a\\.',
+  'u\\.s\\.',
+  '\\mus only\\M',
+  '\\mremote us\\M',
+  '\\mworldwide\\M',
+  '\\mglobal\\M',
+  '\\manywhere\\M',
+  '\\mamericas\\M',
+  '\\mnorth america\\M',
+  '\\mnew york\\M',
+  '\\msan francisco\\M',
+  '\\mlos angeles\\M',
+  '\\mseattle\\M',
+  '\\maustin\\M',
+  '\\mboston\\M',
+  '\\mchicago\\M',
+  '\\mdenver\\M',
+  '\\matlanta\\M',
+  '\\mdallas\\M',
+  '\\mmiami\\M',
+  '\\mwashington dc\\M',
+  '\\mwashington, dc\\M',
+  '\\mcalifornia\\M',
+  '\\mtexas\\M',
+  '\\mflorida\\M',
+  '\\millinois\\M',
+  '\\mmassachusetts\\M',
+  '\\mgeorgia\\M',
+  '\\mcolorado\\M',
+  '\\mwashington state\\M',
+  '(^|[\\s,(/-])(us|ny|sf|ca|tx|fl|wa|ma|il|ga|co|az|pa|nj|nc|va|mi|oh|or|ut|tn)($|[\\s,)/-])',
+].join('|');
 
 export function buildJobQuery(query) {
   const where = {};
   const search = clean(query.search);
   const roleFamily = clean(query.roleFamily || 'all');
   const source = clean(query.source);
+  const locationRegion = clean(query.locationRegion || 'all');
   const since = normalizeDatePreset(clean(query.since || 'today'));
   const spam = clean(query.spam || 'all');
   const visibility = clean(query.visibility || 'visible');
@@ -46,6 +108,7 @@ export function buildJobQuery(query) {
   if (spam === 'unreviewed') where.isSpam = { [Op.is]: null };
   applyVisibilityFilter(where, visibility);
   applyOriginFilter(where, origin);
+  applyLocationRegionFilter(where, locationRegion);
   applyDateFilter(where, { since, dateFrom: query.dateFrom, dateTo: query.dateTo });
   if (search) {
     const pattern = `%${search}%`;
@@ -96,6 +159,35 @@ function applyOriginFilter(where, origin) {
 
   if (origin === 'scraped') {
     appendAndCondition(where, literal("COALESCE(raw_job->>'importType', '') <> 'manual'"));
+  }
+}
+
+function applyLocationRegionFilter(where, locationRegion) {
+  if (!locationRegion || locationRegion === 'all') return;
+
+  if (locationRegion === 'canada') {
+    appendAndCondition(where, { location: { [Op.iRegexp]: CANADA_LOCATION_PATTERN } });
+    return;
+  }
+
+  if (locationRegion === 'us_worldwide') {
+    appendAndCondition(where, {
+      [Op.and]: [
+        {
+          [Op.or]: [
+            { location: { [Op.is]: null } },
+            literal("btrim(COALESCE(location, '')) = ''"),
+            { location: { [Op.iRegexp]: US_WORLDWIDE_LOCATION_PATTERN } },
+          ],
+        },
+        {
+          [Op.or]: [
+            { location: { [Op.is]: null } },
+            { location: { [Op.notIRegexp]: CANADA_LOCATION_PATTERN } },
+          ],
+        },
+      ],
+    });
   }
 }
 

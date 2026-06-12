@@ -61,6 +61,14 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
           ))}
         </Select>
       </FormControl>
+      <FormControl size="small">
+        <InputLabel>Location</InputLabel>
+        <Select label="Location" value={filters.locationRegion || 'all'} onChange={(event) => onFilterChange('locationRegion', event.target.value)}>
+          <MenuItem value="all">All locations</MenuItem>
+          <MenuItem value="canada">Canada</MenuItem>
+          <MenuItem value="us_worldwide">US/Worldwide</MenuItem>
+        </Select>
+      </FormControl>
       {showAppliedProfileFilter && appliedProfiles.length ? (
         <FormControl
           size="small"
@@ -196,8 +204,8 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         : {
             xs: '1fr',
             lg: showAppliedProfileFilter && appliedProfiles.length
-              ? `150px 150px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`
-              : `170px 160px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 150px auto`,
+              ? `145px 145px 145px 130px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`
+              : `155px 150px 145px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`,
           },
     gap: variant === 'panel' ? 1.25 : 1,
     alignItems: variant === 'panel' ? 'stretch' : 'center',

@@ -5,6 +5,7 @@ export function jobRegion(job) {
   const locations = jobLocationTexts(job);
   if (locations.some((location) => CANADA_PATTERN.test(location))) {
     return {
+      value: 'canada',
       label: 'Canada',
       color: '#9F1239',
       bgcolor: '#FFE4E6',
@@ -13,6 +14,7 @@ export function jobRegion(job) {
 
   if (!locations.length || locations.some((location) => US_WORLDWIDE_PATTERN.test(location))) {
     return {
+      value: 'us_worldwide',
       label: 'US/Worldwide',
       color: '#1D4ED8',
       bgcolor: '#DBEAFE',

@@ -10,6 +10,7 @@ export {
   useUpdateConsumptionRecord,
 } from './api/adminApi.js';
 import { api, authUrl } from './authApi.js';
+import { jobRegion } from './jobRegion.js';
 
 export function useJobs(filters) {
   const queryParams = new URLSearchParams(filters).toString();
@@ -603,6 +604,7 @@ function matchesBidJobFilters(job, filters = {}) {
   if (!matchesSpam(job, filters.spam)) return false;
   if (!matchesRoleFamily(job, filters.roleFamily)) return false;
   if (!matchesSource(job, filters.source)) return false;
+  if (!matchesLocationRegion(job, filters.locationRegion)) return false;
   if (!matchesOrigin(job, filters.origin)) return false;
   if (!matchesAppliedProfile(job, filters.appliedProfileId)) return false;
   return matchesSearch(job, filters.search);
@@ -621,6 +623,10 @@ function matchesRoleFamily(job, roleFamily = 'all') {
 
 function matchesSource(job, source = 'all') {
   return !source || source === 'all' || job.source === source;
+}
+
+function matchesLocationRegion(job, locationRegion = 'all') {
+  return !locationRegion || locationRegion === 'all' || jobRegion(job)?.value === locationRegion;
 }
 
 function matchesOrigin(job, origin = 'all') {

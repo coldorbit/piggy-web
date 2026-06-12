@@ -6,6 +6,7 @@ export const DEFAULT_BID_FILTERS = {
   search: '',
   roleFamily: 'all',
   source: 'all',
+  locationRegion: 'all',
   appliedProfileId: 'all',
   since: 'today',
   dateFrom: '',

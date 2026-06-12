@@ -4,6 +4,9 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
+import { forwardRef } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import {
   Accordion,
   AccordionDetails,
@@ -41,6 +44,7 @@ const statusOptions = [
   { value: 'dead_letter', label: 'Dead letter' },
   { value: 'invalid', label: 'Invalid' },
 ];
+const DATE_PRESETS = new Set(['today', 'yesterday', 'this_week', 'last_week', 'all', 'custom']);
 
 const emptyManualForm = {
   profileId: '',
@@ -53,13 +57,16 @@ const emptyManualForm = {
 export default function TailoringRequestsPage() {
   const [status, setStatus] = useState('all');
   const [profileId, setProfileId] = useState('all');
+  const [since, setSince] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [manualForm, setManualForm] = useState(emptyManualForm);
   const filters = useMemo(
-    () => ({ status, profileId, search, page: page + 1, limit: rowsPerPage }),
-    [page, profileId, rowsPerPage, search, status],
+    () => ({ status, profileId, since, dateFrom, dateTo, search, page: page + 1, limit: rowsPerPage }),
+    [dateFrom, dateTo, page, profileId, rowsPerPage, search, since, status],
   );
   const { data, isFetching, isLoading, error, refetch } = useTailoringRequests(filters, {
     refetchInterval: (query) => {
@@ -94,6 +101,21 @@ export default function TailoringRequestsPage() {
     setPage(0);
   }
 
+  function handleSinceChange(nextSince) {
+    setSince(nextSince);
+    if (nextSince !== 'custom') {
+      setDateFrom('');
+      setDateTo('');
+    }
+    setPage(0);
+  }
+
+  function handleCustomRangeChange([start, end]) {
+    setDateFrom(formatDateOnly(start));
+    setDateTo(formatDateOnly(end));
+    setPage(0);
+  }
+
   function handleSearchChange(nextSearch) {
     setSearch(nextSearch);
     setPage(0);
@@ -119,6 +141,9 @@ export default function TailoringRequestsPage() {
           setManualForm(emptyManualForm);
           setStatus('all');
           setProfileId('all');
+          setSince('all');
+          setDateFrom('');
+          setDateTo('');
           setSearch('');
           setPage(0);
           refetch();
@@ -191,64 +216,26 @@ export default function TailoringRequestsPage() {
         </AccordionDetails>
       </Accordion>
 
-      <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.25} justifyContent="space-between">
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ minWidth: 0 }}>
-          <TextField
-            select
-            label="Status"
-            size="small"
-            value={status}
-            onChange={(event) => handleStatusChange(event.target.value)}
-            sx={{ width: { xs: '100%', sm: 190 } }}
-          >
-            {statusOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            select
-            label="Profile"
-            size="small"
-            value={profileId}
-            onChange={(event) => handleProfileChange(event.target.value)}
-            sx={{ width: { xs: '100%', sm: 260 } }}
-          >
-            <MenuItem value="all">All profiles</MenuItem>
-            {profileOptions.map((profile) => (
-              <MenuItem key={profile.id || 'unknown'} value={String(profile.id || '')}>
-                {profile.name} ({Number(profile.count || 0).toLocaleString()})
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Search"
-            placeholder="Role, company, profile, user, URL"
-            size="small"
-            value={search}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            sx={{ width: { xs: '100%', sm: 360 } }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
-        </Stack>
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent={{ xs: 'space-between', lg: 'flex-end' }}>
-          <Typography color="text.secondary">
-            {filteredCount.toLocaleString()} matching{totalCount ? ` · ${totalCount.toLocaleString()} total` : ''}
-          </Typography>
-          <IconButton type="button" onClick={() => refetch()} title="Refresh tailoring requests">
-            {isFetching ? <CircularProgress size={20} /> : <RefreshIcon />}
-          </IconButton>
-        </Stack>
-      </Stack>
+      <TailoringFilters
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        isFetching={isFetching}
+        onCustomRangeChange={handleCustomRangeChange}
+        onProfileChange={handleProfileChange}
+        onRefresh={refetch}
+        onSearchChange={handleSearchChange}
+        onSinceChange={handleSinceChange}
+        onStatusChange={handleStatusChange}
+        profileId={profileId}
+        profileOptions={profileOptions}
+        search={search}
+        since={since}
+        status={status}
+      />
+
+      <Typography color="text.secondary" sx={{ textAlign: { xs: 'left', lg: 'right' } }}>
+        {filteredCount.toLocaleString()} matching{totalCount ? ` · ${totalCount.toLocaleString()} total` : ''}
+      </Typography>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
         {statusOptions.slice(1).map((option) => (
@@ -314,6 +301,119 @@ export default function TailoringRequestsPage() {
       </TableContainer>
     </Box>
   );
+}
+
+function TailoringFilters({
+  dateFrom,
+  dateTo,
+  isFetching,
+  onCustomRangeChange,
+  onProfileChange,
+  onRefresh,
+  onSearchChange,
+  onSinceChange,
+  onStatusChange,
+  profileId,
+  profileOptions,
+  search,
+  since,
+  status,
+}) {
+  const sinceValue = DATE_PRESETS.has(since) ? since : 'all';
+
+  return (
+    <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1} sx={{ minWidth: 0 }}>
+      <TextField select label="Status" size="small" value={status} onChange={(event) => onStatusChange(event.target.value)} sx={{ width: { xs: '100%', lg: 180 } }}>
+        {statusOptions.map((option) => (
+          <MenuItem key={option.value} value={option.value}>
+            {option.label}
+          </MenuItem>
+        ))}
+      </TextField>
+      <TextField select label="Profile" size="small" value={profileId} onChange={(event) => onProfileChange(event.target.value)} sx={{ width: { xs: '100%', lg: 260 } }}>
+        <MenuItem value="all">All profiles</MenuItem>
+        {profileOptions.map((profile) => (
+          <MenuItem key={profile.id || 'unknown'} value={String(profile.id || '')}>
+            {profile.name} ({Number(profile.count || 0).toLocaleString()})
+          </MenuItem>
+        ))}
+      </TextField>
+      <TextField select label="Date" size="small" value={sinceValue} onChange={(event) => onSinceChange(event.target.value)} sx={{ width: { xs: '100%', lg: 160 } }}>
+        <MenuItem value="today">Today</MenuItem>
+        <MenuItem value="yesterday">Yesterday</MenuItem>
+        <MenuItem value="this_week">This week</MenuItem>
+        <MenuItem value="last_week">Last week</MenuItem>
+        <MenuItem value="all">All time</MenuItem>
+        <MenuItem value="custom">Custom range</MenuItem>
+      </TextField>
+      {sinceValue === 'custom' ? (
+        <Box sx={{ width: { xs: '100%', lg: 220 } }}>
+          <DatePicker
+            selected={parseDateOnly(dateFrom)}
+            startDate={parseDateOnly(dateFrom)}
+            endDate={parseDateOnly(dateTo)}
+            onChange={onCustomRangeChange}
+            selectsRange
+            isClearable
+            dateFormat="MMM d, yyyy"
+            maxDate={new Date()}
+            popperClassName="job-date-range-picker"
+            customInput={<DateRangeInput />}
+          />
+        </Box>
+      ) : null}
+      <TextField
+        label="Search"
+        placeholder="Role, company, profile, user, URL"
+        size="small"
+        value={search}
+        onChange={(event) => onSearchChange(event.target.value)}
+        sx={{ flex: 1, minWidth: { xs: 0, lg: 280 } }}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          },
+        }}
+      />
+      <IconButton type="button" onClick={() => onRefresh()} title="Refresh tailoring requests" sx={{ alignSelf: { xs: 'flex-end', lg: 'center' } }}>
+        {isFetching ? <CircularProgress size={20} /> : <RefreshIcon />}
+      </IconButton>
+    </Stack>
+  );
+}
+
+const DateRangeInput = forwardRef(function DateRangeInput({ value, onClick, onChange }, ref) {
+  return (
+    <TextField
+      inputRef={ref}
+      label="Range"
+      value={value || ''}
+      onClick={onClick}
+      onChange={onChange}
+      size="small"
+      fullWidth
+    />
+  );
+});
+
+function parseDateOnly(value) {
+  if (!value) return null;
+  const [year, month, day] = String(value).split('-').map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateOnly(value) {
+  if (!value) return '';
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function TailoringRequestRow({ request }) {

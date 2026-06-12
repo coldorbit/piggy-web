@@ -1,4 +1,5 @@
-import { Box, Card, CardContent, Paper, Stack, Typography } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { Accordion, AccordionDetails, AccordionSummary, Box, Card, CardContent, Paper, Stack, Typography } from '@mui/material';
 import BidderMetricChip from './BidderMetricChip.jsx';
 import BidderSummaryStat from './BidderSummaryStat.jsx';
 import DailyApplicationsChart from './DailyApplicationsChart.jsx';
@@ -40,23 +41,32 @@ export default function BidderCard({ bidder }) {
           <BidderSummaryStat label="Pass-through" value={bidder.interviewPassThrough} />
         </Box>
 
-        <Box sx={{ display: 'grid', gap: 0.75 }}>
-          <Typography variant="body2" fontWeight={900}>
-            Interview pass-through
-          </Typography>
-          {!bidder.interviews?.length ? (
-            <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#F8FAFC' }}>
-              <Typography variant="body2" color="text.secondary">
-                No interviews have passed through from this bidder's applications.
+        <Accordion variant="outlined" disableGutters sx={{ borderRadius: 1, overflow: 'hidden', '&:before': { display: 'none' } }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 42, '& .MuiAccordionSummary-content': { my: 0.75 } }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={900}>
+                Interview pass-through
               </Typography>
-            </Paper>
-          ) : null}
-          <Stack spacing={0.75}>
-            {(bidder.interviews || []).slice(0, 8).map((interview) => (
-              <InterviewPassThroughRow key={interview.id} interview={interview} />
-            ))}
-          </Stack>
-        </Box>
+              <Typography variant="caption" color="text.secondary">
+                {(bidder.interviews || []).length.toLocaleString()}
+              </Typography>
+            </Stack>
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0, display: 'grid', gap: 0.75 }}>
+            {!bidder.interviews?.length ? (
+              <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#F8FAFC' }}>
+                <Typography variant="body2" color="text.secondary">
+                  No interviews have passed through from this bidder's applications.
+                </Typography>
+              </Paper>
+            ) : null}
+            <Stack spacing={0.75}>
+              {(bidder.interviews || []).slice(0, 8).map((interview) => (
+                <InterviewPassThroughRow key={interview.id} interview={interview} />
+              ))}
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
       </CardContent>
     </Card>
   );

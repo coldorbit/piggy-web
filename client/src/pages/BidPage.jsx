@@ -30,6 +30,7 @@ const BID_FILTER_KEYS = [
   'search',
   'roleFamily',
   'source',
+  'locationRegion',
   'appliedProfileId',
   'since',
   'dateFrom',

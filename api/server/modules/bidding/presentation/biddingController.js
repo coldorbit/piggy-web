@@ -1197,6 +1197,11 @@ export async function listTailoringRequests(req, res, next) {
     const status = TAILORED_REQUEST_STATUSES.includes(requestedStatus) ? requestedStatus : 'all';
     const profileId = clean(req.query?.profileId || 'all');
     const search = clean(req.query?.search).toLowerCase();
+    const dateRange = tailoringDateRange({
+      since: clean(req.query?.since || 'all'),
+      dateFrom: req.query?.dateFrom,
+      dateTo: req.query?.dateTo,
+    });
     const page = Math.max(1, Number(req.query?.page) || 1);
     const limit = Math.max(1, Math.min(Number(req.query?.limit) || 50, 100));
     const replacements = {
@@ -1205,6 +1210,10 @@ export async function listTailoringRequests(req, res, next) {
       searchPattern: `%${search}%`,
       canViewAllTailoring,
       visibleProfileIds: visibleProfileIds.length ? visibleProfileIds : ['-1'],
+      hasDateFrom: Boolean(dateRange?.from),
+      hasDateTo: Boolean(dateRange?.to),
+      dateFromValue: dateRange?.from || null,
+      dateToValue: dateRange?.to || null,
       limit,
       offset: (page - 1) * limit,
     };
@@ -1212,6 +1221,8 @@ export async function listTailoringRequests(req, res, next) {
       WHERE (:canViewAllTailoring = true OR tailored_resumes.profile_id::text IN (:visibleProfileIds))
         AND (:status = 'all' OR tailored_resumes.status = :status)
         AND (:profileId = 'all' OR tailored_resumes.profile_id::text = :profileId)
+        AND (:hasDateFrom = false OR tailored_resumes.created_at >= CAST(:dateFromValue AS timestamptz))
+        AND (:hasDateTo = false OR tailored_resumes.created_at < CAST(:dateToValue AS timestamptz))
         AND (
           :searchPattern = '%%'
           OR LOWER(COALESCE(scraped_jobs.title, '')) LIKE :searchPattern
@@ -1329,6 +1340,63 @@ export async function listTailoringRequests(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+function tailoringDateRange({ since, dateFrom, dateTo }) {
+  if (since === 'all') return null;
+  if (since === 'custom') {
+    const from = parseDateOnly(dateFrom);
+    const to = parseDateOnly(dateTo);
+    return { from, to: to ? addDays(to, 1) : null };
+  }
+  return presetTailoringDateRange(since);
+}
+
+function presetTailoringDateRange(since) {
+  const today = startOfLocalDay(new Date());
+  if (since === 'today') return { from: today, to: addDays(today, 1) };
+  if (since === 'yesterday') return { from: addDays(today, -1), to: today };
+  if (since === 'this_week') {
+    const weekStart = startOfLocalWeek(today);
+    return { from: weekStart, to: addDays(weekStart, 7) };
+  }
+  if (since === 'last_week') {
+    const thisWeekStart = startOfLocalWeek(today);
+    return { from: addDays(thisWeekStart, -7), to: thisWeekStart };
+  }
+  return null;
+}
+
+function parseDateOnly(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (
+    Number.isNaN(date.getTime())
+    || date.getFullYear() !== Number(match[1])
+    || date.getMonth() !== Number(match[2]) - 1
+    || date.getDate() !== Number(match[3])
+  ) {
+    return null;
+  }
+  return date;
+}
+
+function startOfLocalDay(value) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function startOfLocalWeek(value) {
+  const day = value.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  return addDays(startOfLocalDay(value), mondayOffset);
+}
+
+function addDays(value, days) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
 }
 
 export async function downloadTailoredResume(req, res, next) {
