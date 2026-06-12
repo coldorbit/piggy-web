@@ -29,7 +29,7 @@ export function buildJobQuery(query) {
   const search = clean(query.search);
   const roleFamily = clean(query.roleFamily || 'all');
   const source = clean(query.source);
-  const since = clean(query.since || '24h');
+  const since = normalizeDatePreset(clean(query.since || 'today'));
   const spam = clean(query.spam || 'all');
   const visibility = clean(query.visibility || 'visible');
   const origin = clean(query.origin || 'all');
@@ -46,10 +46,7 @@ export function buildJobQuery(query) {
   if (spam === 'unreviewed') where.isSpam = { [Op.is]: null };
   applyVisibilityFilter(where, visibility);
   applyOriginFilter(where, origin);
-  if (since !== 'all') {
-    const sinceDate = sinceToDate(since);
-    if (sinceDate) where.scrapedAt = { [Op.gte]: sinceDate };
-  }
+  applyDateFilter(where, { since, dateFrom: query.dateFrom, dateTo: query.dateTo });
   if (search) {
     const pattern = `%${search}%`;
     where[Op.or] = [
@@ -113,15 +110,91 @@ function orderForSort(sort) {
   return [[sort === 'posted_desc' ? 'postedAt' : 'scrapedAt', 'DESC NULLS LAST']];
 }
 
-function sinceToDate(value) {
-  const now = Date.now();
-  const durations = {
-    '24h': 24 * 60 * 60 * 1000,
-    '3d': 3 * 24 * 60 * 60 * 1000,
-    '7d': 7 * 24 * 60 * 60 * 1000,
-    '30d': 30 * 24 * 60 * 60 * 1000,
+function applyDateFilter(where, { since, dateFrom, dateTo }) {
+  if (since === 'all') return;
+
+  const range = since === 'custom'
+    ? customDateRange(dateFrom, dateTo)
+    : presetDateRange(since);
+  if (!range) return;
+
+  const scrapedAt = {};
+  if (range.from) scrapedAt[Op.gte] = range.from;
+  if (range.to) scrapedAt[Op.lt] = range.to;
+  if (Object.getOwnPropertySymbols(scrapedAt).length) where.scrapedAt = scrapedAt;
+}
+
+function normalizeDatePreset(value) {
+  const legacyDateFilters = {
+    '24h': 'today',
+    '3d': 'this_week',
+    '7d': 'this_week',
+    '30d': 'all',
   };
-  return durations[value] ? new Date(now - durations[value]) : null;
+  return legacyDateFilters[value] || value;
+}
+
+function presetDateRange(value) {
+  const today = startOfLocalDay(new Date());
+
+  if (value === 'today') {
+    return { from: today, to: addDays(today, 1) };
+  }
+  if (value === 'yesterday') {
+    return { from: addDays(today, -1), to: today };
+  }
+  if (value === 'this_week') {
+    const weekStart = startOfLocalWeek(today);
+    return { from: weekStart, to: addDays(weekStart, 7) };
+  }
+  if (value === 'last_week') {
+    const thisWeekStart = startOfLocalWeek(today);
+    return { from: addDays(thisWeekStart, -7), to: thisWeekStart };
+  }
+
+  return null;
+}
+
+function customDateRange(dateFrom, dateTo) {
+  const from = parseDateOnly(dateFrom);
+  const to = parseDateOnly(dateTo);
+
+  return {
+    from,
+    to: to ? addDays(to, 1) : null,
+  };
+}
+
+function parseDateOnly(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (
+    Number.isNaN(date.getTime())
+    || date.getFullYear() !== Number(match[1])
+    || date.getMonth() !== Number(match[2]) - 1
+    || date.getDate() !== Number(match[3])
+  ) {
+    return null;
+  }
+  return date;
+}
+
+function startOfLocalDay(value) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function startOfLocalWeek(value) {
+  const day = value.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  return addDays(startOfLocalDay(value), mondayOffset);
+}
+
+function addDays(value, days) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
 }
 
 export function parseSpamReview(value) {

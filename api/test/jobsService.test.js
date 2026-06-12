@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { Op } from 'sequelize';
 import { buildJobQuery, groupedJobsFromRows, jobsFromCsv, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport } from '../server/modules/jobs/application/jobsService.js';
 
 describe('job query filters', () => {
@@ -16,7 +17,29 @@ describe('job query filters', () => {
     const query = buildJobQuery({ roleFamily: 'AI/ML', since: 'all', visibility: 'all' });
     assert.equal(query.where.category, 'ai_ml');
   });
+
+  it('applies inclusive custom date ranges by local calendar day', () => {
+    const query = buildJobQuery({
+      since: 'custom',
+      dateFrom: '2026-06-01',
+      dateTo: '2026-06-03',
+      visibility: 'all',
+    });
+
+    assert.deepEqual(dateParts(query.where.scrapedAt[Op.gte]), [2026, 5, 1]);
+    assert.deepEqual(dateParts(query.where.scrapedAt[Op.lt]), [2026, 5, 4]);
+  });
+
+  it('does not add a date filter for all time', () => {
+    const query = buildJobQuery({ since: 'all', visibility: 'all' });
+
+    assert.equal(query.where.scrapedAt, undefined);
+  });
 });
+
+function dateParts(value) {
+  return [value.getFullYear(), value.getMonth(), value.getDate()];
+}
 
 describe('grouped scraped jobs', () => {
   it('groups matching title and company rows while preserving selectable locations', () => {

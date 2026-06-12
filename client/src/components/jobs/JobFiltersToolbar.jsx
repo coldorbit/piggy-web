@@ -1,4 +1,7 @@
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { forwardRef } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import {
   Box,
   FormControl,
@@ -7,8 +10,11 @@ import {
   MenuItem,
   Paper,
   Select,
+  TextField,
   Tooltip,
 } from '@mui/material';
+
+const DATE_PRESETS = new Set(['today', 'yesterday', 'this_week', 'last_week', 'all', 'custom']);
 
 export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
   const appliedProfiles = meta?.appliedProfiles || [];
@@ -16,6 +22,23 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
   const appliedProfileValue = appliedProfiles.some((profile) => String(profile.id) === String(filters.appliedProfileId))
     ? String(filters.appliedProfileId)
     : 'all';
+  const sinceValue = DATE_PRESETS.has(filters.since) ? filters.since : 'today';
+  const customRangeStart = parseDateOnly(filters.dateFrom);
+  const customRangeEnd = parseDateOnly(filters.dateTo);
+
+  function updateSince(value) {
+    onFilterChange('since', value);
+    if (value !== 'custom') {
+      onFilterChange('dateFrom', '');
+      onFilterChange('dateTo', '');
+    }
+  }
+
+  function updateCustomRange([start, end]) {
+    onFilterChange('dateFrom', formatDateOnly(start));
+    onFilterChange('dateTo', formatDateOnly(end));
+  }
+
   const content = (
     <>
       <FormControl size="small">
@@ -83,15 +106,30 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         </FormControl>
       ) : null}
       <FormControl size="small">
-        <InputLabel>Age</InputLabel>
-        <Select label="Age" value={filters.since} onChange={(event) => onFilterChange('since', event.target.value)}>
-          <MenuItem value="24h">Last 24 hours</MenuItem>
-          <MenuItem value="3d">Last 3 days</MenuItem>
-          <MenuItem value="7d">Last 7 days</MenuItem>
-          <MenuItem value="30d">Last 30 days</MenuItem>
+        <InputLabel>Date</InputLabel>
+        <Select label="Date" value={sinceValue} onChange={(event) => updateSince(event.target.value)}>
+          <MenuItem value="today">Today</MenuItem>
+          <MenuItem value="yesterday">Yesterday</MenuItem>
+          <MenuItem value="this_week">This week</MenuItem>
+          <MenuItem value="last_week">Last week</MenuItem>
           <MenuItem value="all">All time</MenuItem>
+          <MenuItem value="custom">Custom range</MenuItem>
         </Select>
       </FormControl>
+      {sinceValue === 'custom' ? (
+        <DatePicker
+          selected={customRangeStart}
+          startDate={customRangeStart}
+          endDate={customRangeEnd}
+          onChange={updateCustomRange}
+          selectsRange
+          isClearable
+          dateFormat="MMM d, yyyy"
+          maxDate={new Date()}
+          popperClassName="job-date-range-picker"
+          customInput={<DateRangeInput />}
+        />
+      ) : null}
       <FormControl size="small">
         <InputLabel>Review</InputLabel>
         <Select label="Review" value={filters.spam} onChange={(event) => onFilterChange('spam', event.target.value)}>
@@ -158,8 +196,8 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         : {
             xs: '1fr',
             lg: showAppliedProfileFilter && appliedProfiles.length
-              ? '150px 150px 130px 130px 130px 130px 140px auto'
-              : '170px 160px 130px 130px 130px 150px auto',
+              ? `150px 150px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`
+              : `170px 160px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 150px auto`,
           },
     gap: variant === 'panel' ? 1.25 : 1,
     alignItems: variant === 'panel' ? 'stretch' : 'center',
@@ -171,6 +209,9 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
     },
     '& .MuiOutlinedInput-root': {
       minHeight: 40,
+    },
+    '& .react-datepicker-wrapper, & .react-datepicker__input-container': {
+      display: 'block',
     },
   };
 
@@ -192,4 +233,34 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
       {content}
     </Paper>
   );
+}
+
+const DateRangeInput = forwardRef(function DateRangeInput({ value, onClick, onChange }, ref) {
+  return (
+    <TextField
+      inputRef={ref}
+      label="Range"
+      value={value || ''}
+      onClick={onClick}
+      onChange={onChange}
+      size="small"
+      fullWidth
+    />
+  );
+});
+
+function parseDateOnly(value) {
+  if (!value) return null;
+  const [year, month, day] = String(value).split('-').map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateOnly(value) {
+  if (!value) return '';
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }

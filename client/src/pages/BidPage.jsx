@@ -31,6 +31,8 @@ const BID_FILTER_KEYS = [
   'source',
   'appliedProfileId',
   'since',
+  'dateFrom',
+  'dateTo',
   'spam',
   'visibility',
   'origin',

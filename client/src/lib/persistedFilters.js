@@ -24,7 +24,7 @@ export function mergeKnownFilters(defaults, overrides, keys) {
   keys.forEach((key) => {
     const value = overrides?.[key];
     if (value !== undefined && value !== null && String(value) !== '') {
-      next[key] = key === 'page' || key === 'limit' ? positiveNumber(value, defaults[key]) : value;
+      next[key] = key === 'page' || key === 'limit' ? positiveNumber(value, defaults[key]) : normalizeFilterValue(key, value);
     }
   });
   return next;
@@ -33,4 +33,16 @@ export function mergeKnownFilters(defaults, overrides, keys) {
 function positiveNumber(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeFilterValue(key, value) {
+  if (key !== 'since') return value;
+
+  const legacyDateFilters = {
+    '24h': 'today',
+    '3d': 'this_week',
+    '7d': 'this_week',
+    '30d': 'all',
+  };
+  return legacyDateFilters[value] || value;
 }

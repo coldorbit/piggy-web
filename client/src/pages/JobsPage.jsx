@@ -17,7 +17,7 @@ import { matchesSpamFilter, matchesVisibilityFilter } from '../lib/jobFilters.js
 import { readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 import { ROLES, isAdminRole } from '../lib/roles.js';
 
-const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
+const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'since', 'dateFrom', 'dateTo', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const JOB_FILTERS_STORAGE_KEY = 'applypilot.jobs.filters';
 const PASTED_JOB_HEADERS = ['title', 'company', 'url', 'location', 'category', 'postedAt', 'source', 'sourceUrl', 'listingText'];
 
@@ -25,7 +25,9 @@ const DEFAULT_FILTERS = {
   search: '',
   roleFamily: 'all',
   source: 'all',
-  since: '24h',
+  since: 'today',
+  dateFrom: '',
+  dateTo: '',
   spam: 'all',
   visibility: 'visible',
   origin: 'all',
