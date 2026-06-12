@@ -1,6 +1,20 @@
 import DeleteIcon from '@mui/icons-material/Delete';
-import { Box, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import { Box, IconButton, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
 import { formatAmount, formatDate, shortHash, typeLabel } from './consumptionFormatters.js';
+
+const actionCellSx = {
+  position: 'sticky',
+  right: 0,
+  bgcolor: 'background.paper',
+  boxShadow: '-10px 0 14px rgba(15, 23, 42, 0.08)',
+  zIndex: 1,
+};
+
+const actionHeadCellSx = {
+  ...actionCellSx,
+  bgcolor: '#F8FAFC',
+  zIndex: 3,
+};
 
 export default function TransactionLedger({ isLoading, isSaving, onDelete, transactions }) {
   return (
@@ -20,10 +34,11 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
               <TableCell>Notes</TableCell>
               <TableCell>Tx</TableCell>
               <TableCell>Created by</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell align="right" sx={actionHeadCellSx}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
+            {isLoading && !transactions.length ? <LedgerSkeletonRows /> : null}
             {transactions.map((transaction) => (
               <TableRow key={transaction.id} hover>
                 <TableCell>{formatDate(transaction.occurredAt)}</TableCell>
@@ -41,15 +56,20 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
                 </TableCell>
                 <TableCell>{transaction.txHash ? <Typography variant="caption">{shortHash(transaction.txHash)}</Typography> : '-'}</TableCell>
                 <TableCell>{transaction.createdBy?.username || '-'}</TableCell>
-                <TableCell align="right">
+                <TableCell align="right" sx={actionCellSx}>
                   <IconButton disabled={isSaving} onClick={() => onDelete(transaction.id)} title="Delete"><DeleteIcon /></IconButton>
                 </TableCell>
               </TableRow>
             ))}
-            {!transactions.length ? (
+            {!isLoading && !transactions.length ? (
               <TableRow>
                 <TableCell colSpan={8}>
-                  <Typography color="text.secondary" sx={{ py: 2 }}>{isLoading ? 'Loading transactions...' : 'No transactions yet.'}</Typography>
+                  <Box sx={{ py: 4, textAlign: 'center' }}>
+                    <Typography fontWeight={900}>No transactions yet</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      Add a consumption record to start tracking balances and spend.
+                    </Typography>
+                  </Box>
                 </TableCell>
               </TableRow>
             ) : null}
@@ -58,4 +78,24 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
       </TableContainer>
     </Paper>
   );
+}
+
+function LedgerSkeletonRows() {
+  return Array.from({ length: 5 }).map((_, index) => (
+    <TableRow key={`ledger-loading-${index}`}>
+      <TableCell><Skeleton width={92} /></TableCell>
+      <TableCell><Skeleton width={130} /></TableCell>
+      <TableCell><Skeleton width={100} /></TableCell>
+      <TableCell>
+        <Stack spacing={0.5}>
+          <Skeleton width="80%" />
+          <Skeleton width="60%" />
+        </Stack>
+      </TableCell>
+      <TableCell><Skeleton width={220} /></TableCell>
+      <TableCell><Skeleton width={86} /></TableCell>
+      <TableCell><Skeleton width={92} /></TableCell>
+      <TableCell align="right" sx={actionCellSx}><Skeleton width={34} sx={{ ml: 'auto' }} /></TableCell>
+    </TableRow>
+  ));
 }

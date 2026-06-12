@@ -1,5 +1,6 @@
-import { Alert, Box, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Paper, Skeleton, Stack, Typography } from '@mui/material';
 import BidderCard from '../components/bidders/BidderCard.jsx';
+import EmptyState from '../components/common/EmptyState.jsx';
 import { useBidders } from '../lib/api.js';
 
 export default function BiddersPage() {
@@ -15,16 +16,12 @@ export default function BiddersPage() {
         {isLoading ? <CircularProgress size={22} /> : null}
       </Stack>
 
-      {isLoading && !bidders.length ? (
-        <Paper variant="outlined" sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-          <CircularProgress size={22} />
-          <Typography color="text.secondary">Loading bidder performance...</Typography>
-        </Paper>
-      ) : null}
+      {isLoading && !bidders.length ? <BidderLoadingGrid /> : null}
       {!isLoading && !bidders.length ? (
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography color="text.secondary">No bidder activity is available yet.</Typography>
-        </Paper>
+        <EmptyState
+          title="No bidder activity yet"
+          detail="Bidder performance will appear here once applications and interview outcomes are recorded."
+        />
       ) : null}
 
       <Box
@@ -38,6 +35,38 @@ export default function BiddersPage() {
           <BidderCard key={bidder.id} bidder={bidder} />
         ))}
       </Box>
+    </Box>
+  );
+}
+
+function BidderLoadingGrid() {
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' },
+        gap: 1.5,
+      }}
+    >
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Paper key={`bidder-loading-${index}`} variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
+          <Stack spacing={1.5}>
+            <Stack direction="row" justifyContent="space-between" spacing={1}>
+              <Box sx={{ flex: 1 }}>
+                <Skeleton width="45%" />
+                <Skeleton width="32%" />
+              </Box>
+              <Skeleton variant="rounded" width={84} height={28} />
+            </Stack>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1 }}>
+              <Skeleton variant="rounded" height={58} />
+              <Skeleton variant="rounded" height={58} />
+              <Skeleton variant="rounded" height={58} />
+            </Box>
+            <Skeleton variant="rounded" height={180} />
+          </Stack>
+        </Paper>
+      ))}
     </Box>
   );
 }

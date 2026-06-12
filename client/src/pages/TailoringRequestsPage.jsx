@@ -2,9 +2,8 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DownloadIcon from '@mui/icons-material/Download';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
-import { forwardRef } from 'react';
+import { forwardRef, useEffect, useMemo, useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
@@ -32,7 +31,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useMemo, useState } from 'react';
+import RefreshButton from '../components/common/RefreshButton.jsx';
 import { authUrl, useBidProfiles, useCreateManualTailoredResume, useTailoringRequests } from '../lib/api.js';
 import { formatDateTime } from '../lib/formatters.js';
 
@@ -42,6 +41,7 @@ const statusOptions = [
   { value: 'processing', label: 'Processing' },
   { value: 'ready', label: 'Ready' },
   { value: 'dead_letter', label: 'Dead letter' },
+  { value: 'cancelled', label: 'Cancelled' },
   { value: 'invalid', label: 'Invalid' },
 ];
 const DATE_PRESETS = new Set(['today', 'yesterday', 'this_week', 'last_week', 'all', 'custom']);
@@ -64,6 +64,7 @@ export default function TailoringRequestsPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [manualForm, setManualForm] = useState(emptyManualForm);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const filters = useMemo(
     () => ({ status, profileId, since, dateFrom, dateTo, search, page: page + 1, limit: rowsPerPage }),
     [dateFrom, dateTo, page, profileId, rowsPerPage, search, since, status],
@@ -90,6 +91,10 @@ export default function TailoringRequestsPage() {
     manualForm.jobUrl.trim() &&
     manualForm.jobDescription.trim() &&
     !createManualTailoring.isPending;
+
+  useEffect(() => {
+    if (data) setLastUpdatedAt(new Date());
+  }, [data]);
 
   function handleStatusChange(nextStatus) {
     setStatus(nextStatus);
@@ -229,6 +234,7 @@ export default function TailoringRequestsPage() {
         dateFrom={dateFrom}
         dateTo={dateTo}
         isFetching={isFetching}
+        lastUpdatedAt={lastUpdatedAt}
         onCustomRangeChange={handleCustomRangeChange}
         onProfileChange={handleProfileChange}
         onRefresh={refetch}
@@ -242,7 +248,7 @@ export default function TailoringRequestsPage() {
         status={status}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(6, minmax(0, 1fr))' }, gap: 1 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))', xl: 'repeat(7, minmax(0, 1fr))' }, gap: 1 }}>
         <TailoringCountCard label="Total requests" value={totalCount || filteredCount} active={status === 'all'} />
         {statusOptions.slice(1).map((option) => (
           <TailoringCountCard
@@ -282,9 +288,12 @@ export default function TailoringRequestsPage() {
               {!isLoading && !requests.length ? (
                 <TableRow>
                   <TableCell colSpan={7}>
-                    <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
-                      No tailoring requests match these filters.
-                    </Typography>
+                    <Box sx={{ py: 4, textAlign: 'center' }}>
+                      <Typography fontWeight={900}>No tailoring requests found</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Adjust the filters or create a manual tailoring request above.
+                      </Typography>
+                    </Box>
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -315,6 +324,7 @@ function TailoringFilters({
   dateFrom,
   dateTo,
   isFetching,
+  lastUpdatedAt,
   onCustomRangeChange,
   onProfileChange,
   onRefresh,
@@ -387,15 +397,12 @@ function TailoringFilters({
           },
         }}
       />
-      <Button
-        type="button"
-        onClick={() => onRefresh()}
-        startIcon={isFetching ? <CircularProgress color="inherit" size={16} /> : <RefreshIcon />}
-        variant="outlined"
-        sx={{ minHeight: 40, alignSelf: { xs: 'stretch', lg: 'center' }, whiteSpace: 'nowrap' }}
-      >
-        Refresh
-      </Button>
+      <RefreshButton
+        isRefreshing={isFetching}
+        lastUpdatedAt={lastUpdatedAt}
+        onRefresh={onRefresh}
+        sx={{ alignSelf: { xs: 'stretch', lg: 'center' } }}
+      />
     </Stack>
   );
 }
@@ -532,6 +539,7 @@ function statusSx(status) {
   if (status === 'processing') return { bgcolor: '#DBEAFE', color: '#1D4ED8', fontWeight: 800 };
   if (status === 'requested') return { bgcolor: '#FEF3C7', color: '#92400E', fontWeight: 800 };
   if (status === 'dead_letter') return { bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: 800 };
+  if (status === 'cancelled') return { bgcolor: '#F3E8FF', color: '#6B21A8', fontWeight: 800 };
   if (status === 'invalid') return { bgcolor: '#E5E7EB', color: '#374151', fontWeight: 800 };
   return { bgcolor: '#F8FAFC', color: '#475569', fontWeight: 800 };
 }

@@ -1,6 +1,6 @@
-import RefreshIcon from '@mui/icons-material/Refresh';
-import { Alert, Box, IconButton, Stack, Typography } from '@mui/material';
-import { useMemo, useState } from 'react';
+import { Alert, Box, Stack, Typography } from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
+import RefreshButton from '../components/common/RefreshButton.jsx';
 import BalanceCards from '../components/consumption/BalanceCards.jsx';
 import ConsumptionForm from '../components/consumption/ConsumptionForm.jsx';
 import ConsumptionHelp from '../components/consumption/ConsumptionHelp.jsx';
@@ -12,7 +12,8 @@ import { useAdminConsumption, useCreateConsumptionRecord, useDeleteConsumptionRe
 export default function AdminConsumptionPage() {
   const [form, setForm] = useState(EMPTY_CONSUMPTION_FORM);
   const [error, setError] = useState('');
-  const { data, isLoading, error: queryError, refetch } = useAdminConsumption();
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+  const { data, isFetching, isLoading, error: queryError, refetch } = useAdminConsumption();
   const { mutate: createRecord, isPending: isCreating } = useCreateConsumptionRecord();
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteConsumptionRecord();
   const accounts = data?.accounts || data?.balances || [];
@@ -20,6 +21,10 @@ export default function AdminConsumptionPage() {
   const spenderOptions = data?.spenderOptions || [{ value: 'team', label: 'Team' }];
   const accountOptions = useMemo(() => accounts.map((account) => account.name), [accounts]);
   const isSaving = isCreating || isDeleting;
+
+  useEffect(() => {
+    if (data) setLastUpdatedAt(new Date());
+  }, [data]);
 
   function submitRecord(event) {
     event.preventDefault();
@@ -47,9 +52,7 @@ export default function AdminConsumptionPage() {
         <Typography color="text.secondary">
           Track wallet balances, card balance, crypto spend, card funding, swaps, gas fees, and reconciliation adjustments.
         </Typography>
-        <IconButton type="button" onClick={() => refetch()} title="Refresh consumption">
-          <RefreshIcon />
-        </IconButton>
+        <RefreshButton isRefreshing={isFetching} lastUpdatedAt={lastUpdatedAt} onRefresh={refetch} />
       </Stack>
 
       {error || queryError ? <Alert severity="error">{error || queryError?.message}</Alert> : null}

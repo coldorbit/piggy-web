@@ -47,7 +47,7 @@ import { handleInputError, handleUserWriteError, InputError, NotFoundError } fro
 import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, INTERNAL_DATA_ROLES, INTERVIEW_ACCESS_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../../../utils/roles.js';
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
-const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'invalid'];
+const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
