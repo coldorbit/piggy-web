@@ -67,7 +67,7 @@ export default function JobsPage({ currentUser }) {
   const jobs = jobsData?.jobs || [];
   const total = jobsData?.total || 0;
   const meta = metaData || { total: 0, sources: [], latestScrapedAt: null };
-  const canImportJobs = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.editableBidder].includes(currentUser?.role);
+  const canImportJobs = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.editableBidder].includes(currentUser?.role);
 
   const selectedJob = useMemo(
     () => jobs.find((job) => String(job.id) === String(selectedId)) || jobs[0] || null,

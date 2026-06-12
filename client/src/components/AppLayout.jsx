@@ -42,7 +42,7 @@ import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useUpdateMe } from '../lib/authApi.js';
-import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, isAdminRole, isSuperadmin, roleLabel } from '../lib/roles.js';
+import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, canAccessConsumption, isAdminRole, roleLabel } from '../lib/roles.js';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
@@ -181,12 +181,12 @@ export default function AppLayout({ user }) {
           {isAdminRole(user) ? (
             <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {isSuperadmin(user) ? (
+          {canAccessConsumption(user) ? (
             <NavItem to="/admin/consumption" icon={<PaidIcon />} label="Consumption" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {!isCaller ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller ? <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} /> : null}
-          {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
+          {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
             <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canAccessInterviews ? (

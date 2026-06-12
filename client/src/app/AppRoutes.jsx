@@ -5,9 +5,9 @@ import {
   BlockCallers,
   RequireAdmin,
   RequireCallerManagement,
+  RequireConsumptionAccess,
   RequireInterviewAccess,
   RequireMarketplaceAccess,
-  RequireSuperadmin,
 } from './routeGuards.jsx';
 
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
@@ -135,9 +135,9 @@ export function AuthenticatedRoutes({ user }) {
         <Route
           path="/admin/consumption"
           element={
-            <RequireSuperadmin user={user}>
+            <RequireConsumptionAccess user={user}>
               <AdminConsumptionPage currentUser={user} />
-            </RequireSuperadmin>
+            </RequireConsumptionAccess>
           }
         />
         <Route

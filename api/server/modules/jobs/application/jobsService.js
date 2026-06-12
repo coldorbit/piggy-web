@@ -467,7 +467,7 @@ function validImageUrl(value) {
 }
 
 export function canImportJobs(user) {
-  return [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.editableBidder].includes(user?.role);
+  return [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.editableBidder].includes(user?.role);
 }
 
 export function jobsFromCsv(csvText, { importedBy } = {}) {

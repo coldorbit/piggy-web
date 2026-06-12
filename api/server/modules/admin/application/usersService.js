@@ -13,7 +13,7 @@ export function userAttributesFromBody(body, { requirePassword }) {
   if (!email.includes('@')) throw new InputError('Use a valid email address');
   if (username.includes('@')) throw new InputError('Username must not be an email address');
   if (!VALID_USER_ROLES.includes(role)) {
-    throw new InputError('Role must be superadmin, admin, user, internal, caller, readonly_bidder, or editable_bidder');
+    throw new InputError('Role must be superadmin, admin, user, finance_manager, internal, caller, readonly_bidder, or editable_bidder');
   }
   if (requirePassword && password.length < 8) throw new InputError('Password must be at least 8 characters');
   if (!requirePassword && password && password.length < 8) {

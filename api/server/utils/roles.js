@@ -2,6 +2,7 @@ export const ROLES = {
   superadmin: 'superadmin',
   admin: 'admin',
   user: 'user',
+  financeManager: 'finance_manager',
   internal: 'internal',
   caller: 'caller',
   bidder: 'bidder',
@@ -13,6 +14,7 @@ export const VALID_USER_ROLES = [
   ROLES.superadmin,
   ROLES.admin,
   ROLES.user,
+  ROLES.financeManager,
   ROLES.internal,
   ROLES.caller,
   ROLES.bidder,
@@ -21,13 +23,13 @@ export const VALID_USER_ROLES = [
 ];
 
 export const ADMIN_ROLES = [ROLES.superadmin, ROLES.admin];
-export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user];
+export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
 export const MARKETPLACE_ACCESS_ROLES = ADMIN_ROLES;
-export const INTERVIEW_ACCESS_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal, ROLES.user, ROLES.caller];
+export const INTERVIEW_ACCESS_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal, ROLES.user, ROLES.financeManager, ROLES.caller];
 export const INTERNAL_DATA_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal];
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
 export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller];
-export const ADMIN_MANAGED_PROFILE_OWNER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user];
+export const ADMIN_MANAGED_PROFILE_OWNER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
 
 export function isSuperadmin(userOrRole) {
   return roleOf(userOrRole) === ROLES.superadmin;
@@ -35,6 +37,10 @@ export function isSuperadmin(userOrRole) {
 
 export function isAdminRole(userOrRole) {
   return ADMIN_ROLES.includes(roleOf(userOrRole));
+}
+
+export function canAccessConsumption(userOrRole) {
+  return [ROLES.superadmin, ROLES.financeManager].includes(roleOf(userOrRole));
 }
 
 export function canAssignAdminRole(userOrRole) {
