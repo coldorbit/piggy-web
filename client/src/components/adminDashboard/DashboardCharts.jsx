@@ -31,16 +31,17 @@ export function ActivityTrendChart({ title, trend }) {
   return (
     <ChartPanel title={title}>
       <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={trend} margin={{ top: 10, right: 18, bottom: 0, left: -18 }}>
+        <LineChart data={trend} margin={{ top: 10, right: 24, bottom: 0, left: -18 }}>
           <CartesianGrid stroke="#E2E8F0" vertical={false} />
           <XAxis dataKey="label" tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
-          <YAxis allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
-          <Tooltip formatter={(value) => number(value)} />
+          <YAxis yAxisId="volume" allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis yAxisId="outcomes" orientation="right" allowDecimals={false} tick={{ fill: '#0F766E', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <Tooltip formatter={(value, name) => [number(value), name]} />
           <Legend />
-          <Line type="monotone" dataKey="jobs" name="Jobs" stroke="#64748B" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="applications" name="Applications" stroke="#2563EB" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="interviews" name="Interviews" stroke="#0F766E" strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="offers" name="Offers" stroke="#7C3AED" strokeWidth={2} dot={false} />
+          <Line yAxisId="volume" type="monotone" dataKey="jobs" name="Jobs" stroke="#64748B" strokeWidth={2} dot={false} />
+          <Line yAxisId="volume" type="monotone" dataKey="applications" name="Applications" stroke="#2563EB" strokeWidth={2} dot={false} />
+          <Line yAxisId="outcomes" type="monotone" dataKey="interviews" name="Interviews" stroke="#0F766E" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          <Line yAxisId="outcomes" type="monotone" dataKey="offers" name="Offers" stroke="#7C3AED" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
         </LineChart>
       </ResponsiveContainer>
     </ChartPanel>
@@ -113,9 +114,9 @@ export function FunnelConversionChart({ data = [], title }) {
             <YAxis tickFormatter={(value) => percent(value)} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
             <Tooltip formatter={(value) => percent(value)} />
             <Legend />
-            <Bar dataKey="applicationToInterviewRate" name="App to interview" fill="#2563EB" maxBarSize={26} />
-            <Bar dataKey="interviewToOfferRate" name="Interview to offer" fill="#0F766E" maxBarSize={26} />
-            <Bar dataKey="applicationToOfferRate" name="App to offer" fill="#7C3AED" maxBarSize={26} />
+            <Bar dataKey="applicationToInterviewRate" name="App to interview" fill="#2563EB" maxBarSize={26} minPointSize={3} />
+            <Bar dataKey="interviewToOfferRate" name="Interview to offer" fill="#0F766E" maxBarSize={26} minPointSize={3} />
+            <Bar dataKey="applicationToOfferRate" name="App to offer" fill="#7C3AED" maxBarSize={26} minPointSize={3} />
           </BarChart>
         </ResponsiveContainer>
       ) : (
