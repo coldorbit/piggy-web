@@ -168,7 +168,12 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) return;
     entries.push({ accountId: account.id, direction, amount: numericAmount, currency, entryKind });
   };
-  const transfer = ({ fromAccountName, toAccountName, amount, entryKind }) => {
+  const addAccountEntry = (account, direction, amount, entryKind) => {
+    const numericAmount = Number(amount || 0);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) return;
+    entries.push({ accountId: account.id, direction, amount: numericAmount, currency: account.currency, entryKind });
+  };
+  const transfer = ({ fromAccountName, toAccountName, amount, fee, entryKind }) => {
     const fromAccount = accountForTransfer(accounts, fromAccountName, 'From account');
     const toAccount = accountForTransfer(accounts, toAccountName, 'To account');
     const numericAmount = transferAmount(amount);
@@ -183,8 +188,9 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
       throw new InputError('Transfer accounts must use the same currency');
     }
 
-    entries.push({ accountId: fromAccount.id, direction: 'outflow', amount: numericAmount, currency: fromAccount.currency, entryKind });
-    entries.push({ accountId: toAccount.id, direction: 'inflow', amount: numericAmount, currency: toAccount.currency, entryKind });
+    addAccountEntry(fromAccount, 'outflow', numericAmount, entryKind);
+    addAccountEntry(toAccount, 'inflow', numericAmount, entryKind);
+    addAccountEntry(fromAccount, 'outflow', fee, 'card_fee');
   };
 
   if (attrs.type === 'crypto_spend') {
@@ -204,6 +210,7 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
       fromAccountName: CARD_MAIN_ACCOUNT_NAME,
       toAccountName: clean(body.toAccountName) || CARD_ACCOUNT_NAME,
       amount: body.amount,
+      fee: body.cardFee,
       entryKind: 'card_transfer',
     });
   } else if (attrs.type === 'card_internal_transfer') {
@@ -211,6 +218,7 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
       fromAccountName: clean(body.fromAccountName),
       toAccountName: clean(body.toAccountName),
       amount: body.amount,
+      fee: body.cardFee,
       entryKind: 'internal_card_transfer',
     });
   } else if (attrs.type === 'swap') {

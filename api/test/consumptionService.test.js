@@ -23,6 +23,20 @@ describe('consumption card transfers', () => {
     ]);
   });
 
+  it('records main account transfer fees against the main account', () => {
+    const entries = buildConsumptionLedgerEntries(
+      { type: 'card_main_transfer' },
+      { toAccountName: 'Card USD', amount: '125.50', cardFee: '2.25' },
+      accounts,
+    );
+
+    assert.deepEqual(entries, [
+      { accountId: 1, direction: 'outflow', amount: 125.5, currency: 'USD', entryKind: 'card_transfer' },
+      { accountId: 2, direction: 'inflow', amount: 125.5, currency: 'USD', entryKind: 'card_transfer' },
+      { accountId: 1, direction: 'outflow', amount: 2.25, currency: 'USD', entryKind: 'card_fee' },
+    ]);
+  });
+
   it('moves USD between card accounts for internal card transfers', () => {
     const entries = buildConsumptionLedgerEntries(
       { type: 'card_internal_transfer' },
@@ -33,6 +47,20 @@ describe('consumption card transfers', () => {
     assert.deepEqual(entries, [
       { accountId: 2, direction: 'outflow', amount: 40, currency: 'USD', entryKind: 'internal_card_transfer' },
       { accountId: 3, direction: 'inflow', amount: 40, currency: 'USD', entryKind: 'internal_card_transfer' },
+    ]);
+  });
+
+  it('records internal card transfer fees against the source card account', () => {
+    const entries = buildConsumptionLedgerEntries(
+      { type: 'card_internal_transfer' },
+      { fromAccountName: 'Card USD', toAccountName: 'Backup Card USD', amount: 40, cardFee: 1.5 },
+      accounts,
+    );
+
+    assert.deepEqual(entries, [
+      { accountId: 2, direction: 'outflow', amount: 40, currency: 'USD', entryKind: 'internal_card_transfer' },
+      { accountId: 3, direction: 'inflow', amount: 40, currency: 'USD', entryKind: 'internal_card_transfer' },
+      { accountId: 2, direction: 'outflow', amount: 1.5, currency: 'USD', entryKind: 'card_fee' },
     ]);
   });
 

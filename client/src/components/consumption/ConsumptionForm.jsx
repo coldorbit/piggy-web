@@ -85,6 +85,7 @@ function TransactionFields({ accountOptions, cardAccountOptions, fieldSize, form
           />
         </Grid>
         <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+        <AmountField label="Card fee" optional value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
       </>
     );
   }
@@ -98,6 +99,7 @@ function TransactionFields({ accountOptions, cardAccountOptions, fieldSize, form
           <SelectField label="To account" value={form.toAccountName} options={cardAccountOptions} onChange={(toAccountName) => onChange({ toAccountName })} />
         </Grid>
         <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+        <AmountField label="Card fee" optional value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
       </>
     );
   }
