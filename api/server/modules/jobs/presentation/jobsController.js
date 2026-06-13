@@ -6,6 +6,7 @@ import {
   formatJob,
   groupedJobsFromRows,
   jobsFromCsv,
+  mergedJobSourceOptions,
   paginateGroupedJobs,
   planCsvJobImport,
   parseHiddenState,
@@ -299,7 +300,7 @@ export async function getMeta(_req, res, next) {
     await ensureWebModels();
     const ScrapedJob = getScrapedJobModel();
     const sequelize = getSequelize();
-    const [sources, allRows, latest] = await Promise.all([
+    const [sourceRows, allRows, latest] = await Promise.all([
       ScrapedJob.findAll({
         attributes: ['source', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
         group: ['source'],
@@ -313,10 +314,10 @@ export async function getMeta(_req, res, next) {
     res.json({
       total,
       latestScrapedAt: latest || null,
-      sources: sources.map((row) => ({
+      sources: mergedJobSourceOptions(sourceRows.map((row) => ({
         source: row.get('source'),
         count: Number(row.get('count')),
-      })),
+      }))),
     });
   } catch (error) {
     next(error);

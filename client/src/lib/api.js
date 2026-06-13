@@ -622,7 +622,11 @@ function matchesRoleFamily(job, roleFamily = 'all') {
 }
 
 function matchesSource(job, source = 'all') {
-  return !source || source === 'all' || job.source === source;
+  return !source || source === 'all' || normalizedSource(job.source) === normalizedSource(source);
+}
+
+function normalizedSource(value) {
+  return String(value || '').trim().toLowerCase();
 }
 
 function matchesLocationRegion(job, locationRegion = 'all') {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
-import { buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobsFromCsv, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
+import { buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobsFromCsv, mergedJobSourceOptions, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
 
 describe('job query filters', () => {
   it('filters roleFamily against the scraped_jobs category field', () => {
@@ -40,6 +40,13 @@ describe('job query filters', () => {
     const query = buildJobQuery({ search: 'J000001A', since: 'all', visibility: 'all' });
 
     assert.ok(query.where[Op.or].some((condition) => condition.publicJobId?.[Op.iLike] === '%J000001A%'));
+  });
+
+  it('normalizes source filters before comparing scraped job sources', () => {
+    const query = buildJobQuery({ source: 'LinkedIn ', since: 'all', visibility: 'all' });
+    const sourceCondition = query.where[Op.and].find((condition) => String(condition.val || '').includes('lower(btrim'));
+
+    assert.match(sourceCondition.val, /lower\(btrim\(coalesce\(source, ''\)\)\) = 'linkedin'/);
   });
 
   it('adds a Canada location region condition', () => {
@@ -103,6 +110,21 @@ describe('grouped scraped jobs', () => {
 
     assert.equal(page.count, 2);
     assert.equal(page.rows.length, 1);
+  });
+});
+
+describe('job source options', () => {
+  it('merges source counts by trimmed lowercase source', () => {
+    const sources = mergedJobSourceOptions([
+      { source: 'linkedin', count: 2 },
+      { source: ' LinkedIn ', count: 3 },
+      { source: 'Manual', count: 1 },
+    ]);
+
+    assert.deepEqual(sources, [
+      { source: 'LinkedIn', count: 5 },
+      { source: 'Manual', count: 1 },
+    ]);
   });
 });
 

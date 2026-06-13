@@ -94,7 +94,7 @@ export function buildJobQuery(query) {
   const where = {};
   const search = clean(query.search);
   const roleFamily = clean(query.roleFamily || 'all');
-  const source = clean(query.source);
+  const source = normalizeJobSource(query.source);
   const locationRegion = clean(query.locationRegion || 'all');
   const since = normalizeDatePreset(clean(query.since || 'today'));
   const spam = clean(query.spam || 'all');
@@ -105,7 +105,7 @@ export function buildJobQuery(query) {
   const limit = Math.min(Math.max(Number(query.limit || 50), 1), 100);
   const offset = (page - 1) * limit;
 
-  if (source && source !== 'all') where.source = { [Op.iLike]: source };
+  if (source && source !== 'all') appendAndCondition(where, sourceCondition(source));
   applyRoleFamilyFilter(where, roleFamily);
   applyExperienceLevelFilter(where);
   if (spam === 'spam') where.isSpam = true;
@@ -202,6 +202,10 @@ function effectiveLocationExpression() {
 
 function escapedRegexLiteral(pattern) {
   return String(pattern).replace(/'/g, "''");
+}
+
+function escapedSqlLiteral(value) {
+  return String(value).replace(/'/g, "''");
 }
 
 function effectiveLocationRegexpCondition(pattern) {
@@ -364,6 +368,37 @@ export function publicJobIdFromId(value) {
   } catch {
     return '';
   }
+}
+
+export function normalizeJobSource(value) {
+  return clean(value).toLowerCase();
+}
+
+export function jobSourceLabel(value) {
+  const label = clean(value);
+  const source = normalizeJobSource(label);
+  if (source === 'linkedin') return 'LinkedIn';
+  if (source === 'manual') return 'Manual';
+  return label || 'Unknown';
+}
+
+export function mergedJobSourceOptions(sourceRows = []) {
+  const sourcesByKey = new Map();
+
+  for (const row of sourceRows) {
+    const rawSource = row.source;
+    const source = normalizeJobSource(rawSource);
+    if (!source) continue;
+    const current = sourcesByKey.get(source) || { source: jobSourceLabel(rawSource), count: 0 };
+    current.count += Number(row.count || 0);
+    sourcesByKey.set(source, current);
+  }
+
+  return [...sourcesByKey.values()].sort((left, right) => left.source.localeCompare(right.source));
+}
+
+function sourceCondition(source) {
+  return literal(`lower(btrim(coalesce(source, ''))) = '${escapedSqlLiteral(normalizeJobSource(source))}'`);
 }
 
 export function groupedJobsFromRows(rows) {
