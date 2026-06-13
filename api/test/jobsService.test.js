@@ -93,6 +93,18 @@ describe('grouped scraped jobs', () => {
 });
 
 describe('manual CSV job imports', () => {
+  it('capitalizes every word in imported job titles', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company',
+        'https://example.com/jobs/manual-title-1,senior ai/ml software engineer,Acme',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(job.title, 'Senior AI/ML Software Engineer');
+  });
+
   it('treats imported LinkedIn jobs as both LinkedIn-sourced and manual', () => {
     const [job] = jobsFromCsv(
       [

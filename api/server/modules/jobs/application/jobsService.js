@@ -15,6 +15,7 @@ const JOB_CSV_COLUMNS = {
   listingText: ['listingtext', 'listing_text', 'listing text', 'description', 'job_description', 'job description'],
 };
 const VALID_JOB_CATEGORIES = new Set(['software', 'data', 'ai_ml']);
+const JOB_TITLE_ACRONYMS = new Set(['AI', 'API', 'BI', 'CIO', 'CISO', 'CRM', 'CTO', 'DBA', 'ERP', 'ETL', 'IT', 'ML', 'QA', 'SRE', 'UI', 'UX']);
 const JUNIOR_LEVEL_TITLE_PATTERN = [
   '\\mjunior\\M',
   '\\mjr\\M\\.?',
@@ -619,7 +620,7 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
       duplicateKey: url,
       source: manualSource.source,
       sourceUrl: manualSource.sourceUrl,
-      title: title || 'Untitled role',
+      title: capitalizeJobTitle(title) || 'Untitled Role',
       company: csvValue(raw, 'company') || null,
       location: csvValue(raw, 'location') || null,
       category,
@@ -725,6 +726,14 @@ function manualRawJob(raw) {
     }
   }
   return rawJob;
+}
+
+function capitalizeJobTitle(value) {
+  return clean(value).replace(/[A-Za-z]+/g, (word) => {
+    const upperWord = word.toUpperCase();
+    if (JOB_TITLE_ACRONYMS.has(upperWord)) return upperWord;
+    return `${upperWord.charAt(0)}${word.slice(1).toLowerCase()}`;
+  });
 }
 
 function manualImportSource(raw, url) {
