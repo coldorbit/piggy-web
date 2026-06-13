@@ -11,7 +11,18 @@ import { BIDDER_ROLES, ROLES } from '../../../utils/roles.js';
 
 const FIAT_CURRENCY = 'USD';
 const CRYPTO_CURRENCIES = ['USDT', 'USDC', 'ETH', 'SOL', 'BTC', 'BNB', 'MATIC', 'AVAX', 'TRX', 'XRP', 'ADA', 'DOGE', 'DOT', 'LINK'];
-const TRANSACTION_TYPES = ['crypto_spend', 'card_pay', 'card_deposit', 'swap', 'eth_fee', 'adjustment'];
+const TRANSACTION_TYPES = [
+  'crypto_spend',
+  'card_pay',
+  'card_deposit',
+  'card_main_transfer',
+  'card_internal_transfer',
+  'swap',
+  'eth_fee',
+  'adjustment',
+];
+const CARD_MAIN_ACCOUNT_NAME = 'Main Account USD';
+const CARD_ACCOUNT_NAME = 'Card USD';
 const SPENDER_TEAM = 'team';
 const SPENDER_USER = 'user';
 const EXCLUDED_SPENDER_ROLES = new Set([ROLES.caller, ...BIDDER_ROLES]);
@@ -19,7 +30,8 @@ const DEFAULT_ACCOUNTS = [
   { name: 'USDC Wallet', currency: 'USDC', type: 'crypto_wallet', sortOrder: 10 },
   { name: 'USDT Wallet', currency: 'USDT', type: 'crypto_wallet', sortOrder: 20 },
   { name: 'ETH Wallet', currency: 'ETH', type: 'crypto_wallet', sortOrder: 30 },
-  { name: 'Card USD', currency: 'USD', type: 'card', sortOrder: 40 },
+  { name: CARD_MAIN_ACCOUNT_NAME, currency: FIAT_CURRENCY, type: 'card_main', sortOrder: 35 },
+  { name: CARD_ACCOUNT_NAME, currency: FIAT_CURRENCY, type: 'card', sortOrder: 40 },
 ];
 
 export async function listConsumptionRecords() {
@@ -143,6 +155,11 @@ async function spenderAttrsFromBody(body = {}) {
 
 async function ledgerEntriesFromBody(attrs, body = {}) {
   const accounts = await accountsByName();
+  return buildConsumptionLedgerEntries(attrs, body, accounts);
+}
+
+export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []) {
+  const accounts = accountRows instanceof Map ? accountRows : new Map(accountRows.map((account) => [account.name, account]));
   const entries = [];
   const add = (accountName, direction, amount, currency, entryKind) => {
     const account = accounts.get(accountName);
@@ -150,6 +167,24 @@ async function ledgerEntriesFromBody(attrs, body = {}) {
     if (!account) throw new InputError(`${accountName} account is not configured`);
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) return;
     entries.push({ accountId: account.id, direction, amount: numericAmount, currency, entryKind });
+  };
+  const transfer = ({ fromAccountName, toAccountName, amount, entryKind }) => {
+    const fromAccount = accountForTransfer(accounts, fromAccountName, 'From account');
+    const toAccount = accountForTransfer(accounts, toAccountName, 'To account');
+    const numericAmount = transferAmount(amount);
+
+    if (String(fromAccount.id) === String(toAccount.id) || fromAccount.name === toAccount.name) {
+      throw new InputError('Transfer accounts must be different');
+    }
+    if (!isCardAccount(fromAccount) || !isCardAccount(toAccount)) {
+      throw new InputError('Card transfer accounts must both be card accounts');
+    }
+    if (fromAccount.currency !== toAccount.currency) {
+      throw new InputError('Transfer accounts must use the same currency');
+    }
+
+    entries.push({ accountId: fromAccount.id, direction: 'outflow', amount: numericAmount, currency: fromAccount.currency, entryKind });
+    entries.push({ accountId: toAccount.id, direction: 'inflow', amount: numericAmount, currency: toAccount.currency, entryKind });
   };
 
   if (attrs.type === 'crypto_spend') {
@@ -164,6 +199,20 @@ async function ledgerEntriesFromBody(attrs, body = {}) {
     add('ETH Wallet', 'outflow', body.ethFee, 'ETH', 'eth_network_fee');
     add('Card USD', 'inflow', body.receivedUsd, FIAT_CURRENCY, 'principal');
     add('Card USD', 'outflow', body.cardFee, FIAT_CURRENCY, 'card_fee');
+  } else if (attrs.type === 'card_main_transfer') {
+    transfer({
+      fromAccountName: CARD_MAIN_ACCOUNT_NAME,
+      toAccountName: clean(body.toAccountName) || CARD_ACCOUNT_NAME,
+      amount: body.amount,
+      entryKind: 'card_transfer',
+    });
+  } else if (attrs.type === 'card_internal_transfer') {
+    transfer({
+      fromAccountName: clean(body.fromAccountName),
+      toAccountName: clean(body.toAccountName),
+      amount: body.amount,
+      entryKind: 'internal_card_transfer',
+    });
   } else if (attrs.type === 'swap') {
     const fromCurrency = cryptoCurrency(body.fromCurrency || body.currency);
     add(`${fromCurrency} Wallet`, 'outflow', body.fromAmount || body.amount, fromCurrency, 'principal');
@@ -183,6 +232,23 @@ async function ledgerEntriesFromBody(attrs, body = {}) {
 
   if (!entries.length) throw new InputError('Transaction must include at least one ledger entry');
   return entries;
+}
+
+function accountForTransfer(accounts, accountName, label) {
+  const name = clean(accountName);
+  const account = accounts.get(name);
+  if (!account) throw new InputError(`${label} is required`);
+  return account;
+}
+
+function transferAmount(value) {
+  const amount = Number(value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) throw new InputError('Transfer amount must be greater than zero');
+  return amount;
+}
+
+function isCardAccount(account) {
+  return String(account?.type || '').startsWith('card');
 }
 
 async function accountsByName() {

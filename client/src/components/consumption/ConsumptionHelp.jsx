@@ -6,6 +6,8 @@ const HELP_ITEMS = [
   ['Crypto spend', 'Use this for USDC/USDT vendor payments. It subtracts the token amount and the ETH gas fee.'],
   ['Card pay', 'Use this for card purchases. It only subtracts Card USD and has no ETH fee.'],
   ['Deposit to card', 'Use this when funding card from USDC/USDT. It subtracts crypto, subtracts ETH gas, adds received USD, and can record card fees.'],
+  ['Main account to card', 'Use this when moving USD from the card main account onto a card. It subtracts Main Account USD and adds the selected card balance.'],
+  ['Internal card transfer', 'Use this when moving USD between card accounts. It subtracts the source account and adds the destination account.'],
   ['Swap to ETH', 'Use this when swapping USDC/USDT into ETH for future gas. It subtracts the input token, adds ETH received, and subtracts ETH gas.'],
   ['ETH fee only', 'Use this for failed transactions or wallet actions where only gas was spent.'],
   ['Adjustment', 'Use this only when reconciling balances against the real wallet/card balance.'],

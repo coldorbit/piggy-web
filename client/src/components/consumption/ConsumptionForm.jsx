@@ -8,6 +8,9 @@ const DENSE_FIELD_SIZE = 1.2;
 
 export default function ConsumptionForm({ accountOptions, form, isSaving, onChange, onSubmit, spenderOptions }) {
   const fieldSize = DENSE_TRANSACTION_TYPES.has(form.type) ? DENSE_FIELD_SIZE : DEFAULT_FIELD_SIZE;
+  const cardAccountOptions = accountOptions.filter((account) => String(account.type || '').startsWith('card'));
+  const accountNameOptions = accountOptions.map((account) => ({ value: account.name, label: account.name }));
+  const cardNameOptions = cardAccountOptions.map((account) => ({ value: account.name, label: account.name }));
 
   return (
     <Paper component="form" variant="outlined" onSubmit={onSubmit} sx={{ p: 1.5, boxShadow: 1 }}>
@@ -18,7 +21,13 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
         <Grid size={{ xs: 12, md: 2 }}>
           <SelectField label="Spent by" value={form.spentBy || 'team'} options={spenderOptions} onChange={(spentBy) => onChange({ spentBy })} />
         </Grid>
-        <TransactionFields accountOptions={accountOptions} fieldSize={fieldSize} form={form} onChange={onChange} />
+        <TransactionFields
+          accountOptions={accountNameOptions}
+          cardAccountOptions={cardNameOptions}
+          fieldSize={fieldSize}
+          form={form}
+          onChange={onChange}
+        />
         <Grid size={{ xs: 12, md: 2 }}>
           <TextField fullWidth size="small" label="Date" type="date" value={form.occurredAt} onChange={(event) => onChange({ occurredAt: event.target.value })} InputLabelProps={{ shrink: true }} />
         </Grid>
@@ -51,7 +60,7 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
   );
 }
 
-function TransactionFields({ accountOptions, fieldSize, form, onChange }) {
+function TransactionFields({ accountOptions, cardAccountOptions, fieldSize, form, onChange }) {
   if (form.type === 'card_pay') return <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />;
   if (form.type === 'card_deposit') {
     return (
@@ -61,6 +70,34 @@ function TransactionFields({ accountOptions, fieldSize, form, onChange }) {
         <AmountField fieldSize={fieldSize} label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
         <AmountField fieldSize={fieldSize} label="Received USD" value={form.receivedUsd} onChange={(receivedUsd) => onChange({ receivedUsd })} />
         <AmountField fieldSize={fieldSize} label="Card fee" optional value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
+      </>
+    );
+  }
+  if (form.type === 'card_main_transfer') {
+    return (
+      <>
+        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+          <SelectField
+            label="To card"
+            value={form.toAccountName}
+            options={cardAccountOptions.filter((account) => account.value !== 'Main Account USD')}
+            onChange={(toAccountName) => onChange({ toAccountName })}
+          />
+        </Grid>
+        <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+      </>
+    );
+  }
+  if (form.type === 'card_internal_transfer') {
+    return (
+      <>
+        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+          <SelectField label="From account" value={form.fromAccountName} options={cardAccountOptions} onChange={(fromAccountName) => onChange({ fromAccountName })} />
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+          <SelectField label="To account" value={form.toAccountName} options={cardAccountOptions} onChange={(toAccountName) => onChange({ toAccountName })} />
+        </Grid>
+        <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
       </>
     );
   }
@@ -80,7 +117,7 @@ function TransactionFields({ accountOptions, fieldSize, form, onChange }) {
     return (
       <>
         <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-          <SelectField label="Account" value={form.accountName} options={accountOptions.map((name) => ({ value: name, label: name }))} onChange={(accountName) => onChange({ accountName })} />
+          <SelectField label="Account" value={form.accountName} options={accountOptions} onChange={(accountName) => onChange({ accountName })} />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 2 }}>
           <SelectField label="Direction" value={form.direction} options={[{ value: 'inflow', label: 'Increase' }, { value: 'outflow', label: 'Decrease' }]} onChange={(direction) => onChange({ direction })} />

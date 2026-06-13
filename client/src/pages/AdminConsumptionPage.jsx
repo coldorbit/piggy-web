@@ -19,7 +19,7 @@ export default function AdminConsumptionPage() {
   const accounts = data?.accounts || data?.balances || [];
   const transactions = data?.transactions || data?.records || [];
   const spenderOptions = data?.spenderOptions || [{ value: 'team', label: 'Team' }];
-  const accountOptions = useMemo(() => accounts.map((account) => account.name), [accounts]);
+  const accountOptions = useMemo(() => accounts.map((account) => ({ name: account.name, type: account.type })), [accounts]);
   const isSaving = isCreating || isDeleting;
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function AdminConsumptionPage() {
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}>
         <Typography color="text.secondary">
-          Track wallet balances, card balance, crypto spend, card funding, swaps, gas fees, and reconciliation adjustments.
+          Track wallet balances, card balances, crypto spend, card funding, transfers, swaps, gas fees, and reconciliation adjustments.
         </Typography>
         <RefreshButton isRefreshing={isFetching} lastUpdatedAt={lastUpdatedAt} onRefresh={refetch} />
       </Stack>

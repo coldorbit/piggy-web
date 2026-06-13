@@ -19,6 +19,8 @@ export function shortHash(value) {
 
 export function normalizeForm(form) {
   if (form.type === 'card_pay') return { ...form, currency: 'USD' };
+  if (form.type === 'card_main_transfer') return { ...form, currency: 'USD', fromAccountName: 'Main Account USD' };
+  if (form.type === 'card_internal_transfer') return { ...form, currency: 'USD' };
   if (form.type === 'swap' && form.fromCurrency === 'ETH') return { ...form, fromCurrency: 'USDC' };
   return form;
 }
