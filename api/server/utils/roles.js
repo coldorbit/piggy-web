@@ -30,6 +30,7 @@ export const INTERNAL_DATA_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.interna
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
 export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller];
 export const ADMIN_MANAGED_PROFILE_OWNER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
+export const APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user];
 
 export function isSuperadmin(userOrRole) {
   return roleOf(userOrRole) === ROLES.superadmin;

@@ -10,7 +10,13 @@ import {
 } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
-import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../../utils/roles.js';
+import {
+  ADMIN_MANAGED_PROFILE_OWNER_ROLES,
+  APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES,
+  BIDDER_ROLES,
+  PRIVILEGED_USER_ROLES,
+  isAdminRole,
+} from '../../../utils/roles.js';
 
 export async function currentDbUser(req) {
   const user = await repositories.findUserByUsername(req.user.username);
@@ -61,7 +67,7 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
   if (!PRIVILEGED_USER_ROLES.includes(user.role)) return accessibleProfile(req, profileId);
   if ((appliedProfile.profileStatus || 'active') !== 'active') throw new NotFoundError('Profile not found');
   if ((appliedProfile.profileBadge || 'SWE') !== (profile.profileBadge || 'SWE')) throw new NotFoundError('Profile not found');
-  if (!PRIVILEGED_USER_ROLES.includes(appliedProfile.user?.role)) throw new NotFoundError('Profile not found');
+  if (!appliedFilterOwnerRoles(user).includes(appliedProfile.user?.role)) throw new NotFoundError('Profile not found');
 
   return appliedProfile;
 }
@@ -264,7 +270,7 @@ export async function profilesForAppliedFilter(user) {
         model: WebUser,
         as: 'user',
         required: true,
-        where: { role: isAdminRole(user) ? ADMIN_MANAGED_PROFILE_OWNER_ROLES : 'user' },
+        where: { role: appliedFilterOwnerRoles(user) },
       },
     ],
     order: [
@@ -272,6 +278,12 @@ export async function profilesForAppliedFilter(user) {
       ['name', 'ASC'],
     ],
   });
+}
+
+export function appliedFilterOwnerRoles(user) {
+  const managedRoles = isAdminRole(user) ? ADMIN_MANAGED_PROFILE_OWNER_ROLES : ['user'];
+  if (!APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES.includes(user?.role)) return managedRoles;
+  return [...new Set([...managedRoles, ...BIDDER_ROLES])];
 }
 
 export async function profilesVisibleToUser(user) {
