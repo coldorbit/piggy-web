@@ -21,7 +21,6 @@ import {
   setupWebAssociations,
 } from './models/index.js';
 import { addMissingColumns, removeExistingColumns } from './utils.js';
-import { capitalizeJobTitle } from '../server/modules/jobs/application/jobsService.js';
 
 let initializationPromise;
 
@@ -59,15 +58,11 @@ export async function ensureWebModels() {
       await ensureSpamReviewColumns();
       await ensureHiddenJobColumns();
       await ensureScrapedJobPublicIdColumn();
-      await backfillManualJobSources();
-      await backfillManualJobTitles();
       await ensureBidPageIndexes();
       await ensureProfileShareIndexes();
       await ensureJobBidProfileScopedUniqueness();
       await ensureInterviewIndexes();
       await ensureMarketplaceIndexes();
-      await backfillInterviewsFromJobBids();
-      await backfillInterviewStageNotes();
     })().catch((error) => {
       initializationPromise = undefined;
       throw error;
@@ -96,52 +91,6 @@ async function ensureMarketplaceIndexes() {
     CREATE INDEX IF NOT EXISTS marketplace_matches_status_scheduled_idx
     ON marketplace_matches (status, scheduled_at ASC NULLS LAST)
   `);
-}
-
-async function backfillManualJobSources() {
-  const sequelize = getSequelize();
-
-  await sequelize.query(`
-    UPDATE scraped_jobs
-    SET source = CASE
-          WHEN LOWER(COALESCE(NULLIF(source, ''), raw_job->>'source', '')) = 'linkedin'
-            OR LOWER(COALESCE(source_url, raw_job->>'sourceUrl', raw_job->>'sourceurl', raw_job->>'source_url', raw_job->>'source url', url, '')) LIKE '%linkedin.com%'
-          THEN 'linkedin'
-          ELSE 'Manual'
-        END,
-        source_url = CASE
-          WHEN LOWER(COALESCE(NULLIF(source, ''), raw_job->>'source', '')) = 'linkedin'
-            OR LOWER(COALESCE(source_url, raw_job->>'sourceUrl', raw_job->>'sourceurl', raw_job->>'source_url', raw_job->>'source url', url, '')) LIKE '%linkedin.com%'
-          THEN NULLIF(COALESCE(source_url, raw_job->>'sourceUrl', raw_job->>'sourceurl', raw_job->>'source_url', raw_job->>'source url'), '')
-          ELSE NULL
-        END
-    WHERE raw_job->>'importType' = 'manual'
-       OR raw_job->>'isManualImport' = 'true'
-  `);
-}
-
-async function backfillManualJobTitles() {
-  const sequelize = getSequelize();
-  const [rows] = await sequelize.query(`
-    SELECT id, title
-    FROM scraped_jobs
-    WHERE (raw_job->>'importType' = 'manual' OR raw_job->>'isManualImport' = 'true')
-      AND NULLIF(title, '') IS NOT NULL
-  `);
-  const updates = rows
-    .map((row) => ({ id: row.id, originalTitle: row.title, title: capitalizeJobTitle(row.title) }))
-    .filter((row) => row.title && row.title !== row.originalTitle);
-
-  if (!updates.length) return;
-
-  await sequelize.transaction(async (transaction) => {
-    for (const update of updates) {
-      await sequelize.query(
-        'UPDATE scraped_jobs SET title = :title WHERE id = :id',
-        { replacements: update, transaction },
-      );
-    }
-  });
 }
 
 async function ensureInterviewJourneyColumns() {
@@ -176,99 +125,6 @@ async function ensureInterviewIndexes() {
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS interview_logs_interview_created_at_idx
     ON interview_logs (interview_id, created_at)
-  `);
-}
-
-async function backfillInterviewsFromJobBids() {
-  const sequelize = getSequelize();
-
-  await sequelize.query(`
-    INSERT INTO interviews (
-      user_id,
-      caller_user_id,
-      profile_id,
-      job_id,
-      job_bid_id,
-      title,
-      company,
-      location,
-      job_url,
-      status,
-      interview_stage,
-      interview_next_at,
-      interview_duration_minutes,
-      interview_notes,
-      stage_meeting_links,
-      created_at,
-      updated_at
-    )
-    SELECT
-      job_bids.user_id,
-      job_bids.caller_user_id,
-      job_bids.profile_id,
-      job_bids.job_id,
-      job_bids.id,
-      COALESCE(NULLIF(scraped_jobs.title, ''), 'Untitled role'),
-      COALESCE(NULLIF(scraped_jobs.company, ''), 'Unknown company'),
-      scraped_jobs.location,
-      scraped_jobs.url,
-      job_bids.status,
-      COALESCE(NULLIF(job_bids.interview_stage, ''), 'todo'),
-      job_bids.interview_next_at,
-      COALESCE(job_bids.interview_duration_minutes, 60),
-      job_bids.interview_notes,
-      COALESCE(job_bids.stage_meeting_links, '{}'::jsonb),
-      job_bids.created_at,
-      job_bids.updated_at
-    FROM job_bids
-    JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
-    WHERE job_bids.status IN ('interviewing', 'won', 'lost')
-    ON CONFLICT (job_bid_id) WHERE job_bid_id IS NOT NULL DO NOTHING
-  `);
-}
-
-async function backfillInterviewStageNotes() {
-  const sequelize = getSequelize();
-
-  await sequelize.query(`
-    UPDATE interviews
-    SET stage_notes = jsonb_build_object(COALESCE(NULLIF(interview_stage, ''), 'todo'), interview_notes)
-    WHERE COALESCE(stage_notes, '{}'::jsonb) = '{}'::jsonb
-      AND NULLIF(interview_notes, '') IS NOT NULL
-  `);
-  await sequelize.query(`
-    UPDATE interviews
-    SET first_interview_scheduled_at = interview_next_at
-    WHERE first_interview_scheduled_at IS NULL
-      AND interview_next_at IS NOT NULL
-  `);
-  await sequelize.query(`
-    INSERT INTO interview_logs (
-      interview_id,
-      user_id,
-      event_type,
-      from_value,
-      to_value,
-      metadata,
-      created_at,
-      updated_at
-    )
-    SELECT
-      interviews.id,
-      interviews.user_id,
-      'created',
-      NULL,
-      interviews.interview_stage,
-      jsonb_build_object('backfilled', true),
-      interviews.created_at,
-      interviews.created_at
-    FROM interviews
-    WHERE NOT EXISTS (
-      SELECT 1
-      FROM interview_logs
-      WHERE interview_logs.interview_id = interviews.id
-        AND interview_logs.event_type = 'created'
-    )
   `);
 }
 
