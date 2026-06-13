@@ -3,7 +3,7 @@ export const CRYPTO_CURRENCIES = ['USDT', 'USDC', 'ETH', 'SOL', 'BTC', 'BNB', 'M
 export const TYPE_OPTIONS = [
   { value: 'crypto_spend', label: 'Crypto spend' },
   { value: 'card_pay', label: 'Card pay' },
-  { value: 'card_deposit', label: 'Deposit to card' },
+  { value: 'card_deposit', label: 'Top up main account' },
   { value: 'card_main_transfer', label: 'Main account to card' },
   { value: 'card_internal_transfer', label: 'Internal card transfer' },
   { value: 'swap', label: 'Swap to ETH' },
@@ -20,6 +20,7 @@ export const EMPTY_CONSUMPTION_FORM = {
   ethFee: '',
   receivedUsd: '',
   cardFee: '',
+  cardAccountName: 'Card USD',
   swapFee: '',
   accountName: 'USDC Wallet',
   fromAccountName: 'Main Account USD',

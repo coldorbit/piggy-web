@@ -173,7 +173,7 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) return;
     entries.push({ accountId: account.id, direction, amount: numericAmount, currency: account.currency, entryKind });
   };
-  const transfer = ({ fromAccountName, toAccountName, amount, fee, entryKind }) => {
+  const transfer = ({ fromAccountName, toAccountName, amount, fee, entryKind, validateAccounts = validateCardTransferAccounts }) => {
     const fromAccount = accountForTransfer(accounts, fromAccountName, 'From account');
     const toAccount = accountForTransfer(accounts, toAccountName, 'To account');
     const numericAmount = transferAmount(amount);
@@ -181,9 +181,7 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
     if (String(fromAccount.id) === String(toAccount.id) || fromAccount.name === toAccount.name) {
       throw new InputError('Transfer accounts must be different');
     }
-    if (!isCardAccount(fromAccount) || !isCardAccount(toAccount)) {
-      throw new InputError('Card transfer accounts must both be card accounts');
-    }
+    validateAccounts(fromAccount, toAccount);
     if (fromAccount.currency !== toAccount.currency) {
       throw new InputError('Transfer accounts must use the same currency');
     }
@@ -198,13 +196,16 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
     add(`${currency} Wallet`, 'outflow', body.amount, currency, 'principal');
     add('ETH Wallet', 'outflow', body.ethFee, 'ETH', 'eth_network_fee');
   } else if (attrs.type === 'card_pay') {
-    add('Card USD', 'outflow', body.amount, FIAT_CURRENCY, 'principal');
+    const accountName = clean(body.cardAccountName || body.accountName) || CARD_ACCOUNT_NAME;
+    const account = accounts.get(accountName);
+    if (!account || !isIssuedCardAccount(account)) throw new InputError('Card pay account must be an issued card account');
+    add(account.name, 'outflow', body.amount, FIAT_CURRENCY, 'principal');
   } else if (attrs.type === 'card_deposit') {
     const currency = cryptoCurrency(body.currency || body.fromCurrency);
     add(`${currency} Wallet`, 'outflow', body.amount, currency, 'principal');
     add('ETH Wallet', 'outflow', body.ethFee, 'ETH', 'eth_network_fee');
-    add('Card USD', 'inflow', body.receivedUsd, FIAT_CURRENCY, 'principal');
-    add('Card USD', 'outflow', body.cardFee, FIAT_CURRENCY, 'card_fee');
+    add(CARD_MAIN_ACCOUNT_NAME, 'inflow', body.receivedUsd, FIAT_CURRENCY, 'principal');
+    add(CARD_MAIN_ACCOUNT_NAME, 'outflow', body.cardFee, FIAT_CURRENCY, 'card_fee');
   } else if (attrs.type === 'card_main_transfer') {
     transfer({
       fromAccountName: CARD_MAIN_ACCOUNT_NAME,
@@ -212,6 +213,7 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
       amount: body.amount,
       fee: body.cardFee,
       entryKind: 'card_transfer',
+      validateAccounts: validateMainToIssuedCardTransferAccounts,
     });
   } else if (attrs.type === 'card_internal_transfer') {
     transfer({
@@ -220,6 +222,7 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
       amount: body.amount,
       fee: body.cardFee,
       entryKind: 'internal_card_transfer',
+      validateAccounts: validateIssuedCardTransferAccounts,
     });
   } else if (attrs.type === 'swap') {
     const fromCurrency = cryptoCurrency(body.fromCurrency || body.currency);
@@ -255,8 +258,30 @@ function transferAmount(value) {
   return amount;
 }
 
-function isCardAccount(account) {
-  return String(account?.type || '').startsWith('card');
+function validateCardTransferAccounts(fromAccount, toAccount) {
+  if (!String(fromAccount?.type || '').startsWith('card') || !String(toAccount?.type || '').startsWith('card')) {
+    throw new InputError('Card transfer accounts must both be card accounts');
+  }
+}
+
+function validateMainToIssuedCardTransferAccounts(fromAccount, toAccount) {
+  if (!isMainCardAccount(fromAccount) || !isIssuedCardAccount(toAccount)) {
+    throw new InputError('Main account transfers must move from the main account to an issued card account');
+  }
+}
+
+function validateIssuedCardTransferAccounts(fromAccount, toAccount) {
+  if (!isIssuedCardAccount(fromAccount) || !isIssuedCardAccount(toAccount)) {
+    throw new InputError('Internal card transfers must use issued card accounts');
+  }
+}
+
+function isMainCardAccount(account) {
+  return account?.type === 'card_main';
+}
+
+function isIssuedCardAccount(account) {
+  return account?.type === 'card';
 }
 
 async function accountsByName() {

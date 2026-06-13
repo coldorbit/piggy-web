@@ -8,9 +8,9 @@ const DENSE_FIELD_SIZE = 1.2;
 
 export default function ConsumptionForm({ accountOptions, form, isSaving, onChange, onSubmit, spenderOptions }) {
   const fieldSize = DENSE_TRANSACTION_TYPES.has(form.type) ? DENSE_FIELD_SIZE : DEFAULT_FIELD_SIZE;
-  const cardAccountOptions = accountOptions.filter((account) => String(account.type || '').startsWith('card'));
+  const issuedCardAccountOptions = accountOptions.filter((account) => account.type === 'card');
   const accountNameOptions = accountOptions.map((account) => ({ value: account.name, label: account.name }));
-  const cardNameOptions = cardAccountOptions.map((account) => ({ value: account.name, label: account.name }));
+  const issuedCardNameOptions = issuedCardAccountOptions.map((account) => ({ value: account.name, label: account.name }));
 
   return (
     <Paper component="form" variant="outlined" onSubmit={onSubmit} sx={{ p: 1.5, boxShadow: 1 }}>
@@ -23,7 +23,7 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
         </Grid>
         <TransactionFields
           accountOptions={accountNameOptions}
-          cardAccountOptions={cardNameOptions}
+          cardAccountOptions={issuedCardNameOptions}
           fieldSize={fieldSize}
           form={form}
           onChange={onChange}
@@ -61,15 +61,24 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
 }
 
 function TransactionFields({ accountOptions, cardAccountOptions, fieldSize, form, onChange }) {
-  if (form.type === 'card_pay') return <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />;
+  if (form.type === 'card_pay') {
+    return (
+      <>
+        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+          <SelectField label="Card" value={form.cardAccountName} options={cardAccountOptions} onChange={(cardAccountName) => onChange({ cardAccountName })} />
+        </Grid>
+        <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+      </>
+    );
+  }
   if (form.type === 'card_deposit') {
     return (
       <>
         <CryptoSelect fieldSize={fieldSize} label="From" value={form.currency} onChange={(currency) => onChange({ currency })} />
         <AmountField fieldSize={fieldSize} label="Crypto amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
         <AmountField fieldSize={fieldSize} label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
-        <AmountField fieldSize={fieldSize} label="Received USD" value={form.receivedUsd} onChange={(receivedUsd) => onChange({ receivedUsd })} />
-        <AmountField fieldSize={fieldSize} label="Card fee" optional value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
+        <AmountField fieldSize={fieldSize} label="Received main USD" value={form.receivedUsd} onChange={(receivedUsd) => onChange({ receivedUsd })} />
+        <AmountField fieldSize={fieldSize} label="Top-up fee" optional value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
       </>
     );
   }
