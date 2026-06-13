@@ -3,6 +3,7 @@ import { forwardRef } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
+  Avatar,
   Box,
   FormControl,
   IconButton,
@@ -13,11 +14,13 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
+import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
 
 const DATE_PRESETS = new Set(['today', 'yesterday', 'this_week', 'last_week', 'all', 'custom']);
 
 export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
   const appliedProfiles = meta?.appliedProfiles || [];
+  const sourceOptions = meta?.sources || [];
   const showAppliedProfileFilter = Boolean(meta?.showAppliedProfileFilter);
   const appliedProfileValue = appliedProfiles.some((profile) => String(profile.id) === String(filters.appliedProfileId))
     ? String(filters.appliedProfileId)
@@ -52,11 +55,19 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
       </FormControl>
       <FormControl size="small">
         <InputLabel>Source</InputLabel>
-        <Select label="Source" value={filters.source} onChange={(event) => onFilterChange('source', event.target.value)}>
+        <Select
+          label="Source"
+          value={filters.source}
+          onChange={(event) => onFilterChange('source', event.target.value)}
+          renderValue={(value) => {
+            if (value === 'all') return 'All sources';
+            return <SourceOption source={value} compact />;
+          }}
+        >
           <MenuItem value="all">All sources</MenuItem>
-          {(meta?.sources || []).map((source) => (
+          {sourceOptions.map((source) => (
             <MenuItem key={source.source} value={source.source}>
-              {source.source} ({source.count})
+              <SourceOption source={source.source} count={source.count} />
             </MenuItem>
           ))}
         </Select>
@@ -256,6 +267,44 @@ const DateRangeInput = forwardRef(function DateRangeInput({ value, onClick, onCh
     />
   );
 });
+
+function SourceOption({ source, count, compact = false }) {
+  const logoUrl = jobSourceImageUrl({
+    isManual: String(source || '').trim().toLowerCase() === 'manual',
+    source,
+    size: 32,
+  });
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+      <Avatar
+        alt={`${source} logo`}
+        src={logoUrl}
+        sx={{
+          width: compact ? 18 : 20,
+          height: compact ? 18 : 20,
+          bgcolor: 'background.paper',
+          color: 'text.secondary',
+          fontSize: 10,
+          fontWeight: 900,
+          border: 1,
+          borderColor: 'divider',
+          flex: '0 0 auto',
+        }}
+      >
+        {sourceInitial(source)}
+      </Avatar>
+      <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {source}
+        {count === undefined ? null : ` (${count})`}
+      </Box>
+    </Box>
+  );
+}
+
+function sourceInitial(source) {
+  return String(source || '?').trim().charAt(0).toUpperCase();
+}
 
 function parseDateOnly(value) {
   if (!value) return null;

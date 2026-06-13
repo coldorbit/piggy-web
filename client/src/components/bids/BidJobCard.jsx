@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -15,17 +14,12 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   FormControl,
   IconButton,
   InputLabel,
   MenuItem,
   Select,
   Stack,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -52,18 +46,13 @@ export default function BidJobCard({
     draftsForJob,
     isSaving,
     isStoppingTailoring,
-    isUpdatingLinkedInJob,
     tailoringByJobId = {},
     onDraftChange,
     onHiddenChange,
-    onLinkedInExternalUrlChange,
     onStatusChange,
     onStopTailoring,
     onTailorResume,
   } = useBidWorkspace();
-  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-  const [externalUrl, setExternalUrl] = useState('');
-  const [externalUrlError, setExternalUrlError] = useState('');
   const draft = draftsForJob(job);
   const isTailoring = Boolean(tailoringByJobId[job.id]);
   const statusDefault = activeTab === BID_TABS.interviews ? 'interviewing' : activeTab === BID_TABS.done ? 'submitted' : undefined;
@@ -101,8 +90,6 @@ export default function BidJobCard({
   const isLinkedInJob = sourceKey(job.source) === 'linkedin';
   const isEasyApply = isEasyApplyMode(job.applyMode);
   const hasUpdatedJobLink = isLinkedInJob && isExternalLinkMode(job.applyMode);
-  const showLinkedInTodoActions = activeTab === BID_TABS.todo && isLinkedInJob;
-  const showUpdateExternalLinkAction = showLinkedInTodoActions;
   const hasDownloadableResume = tailoredStatus === 'ready' && job.tailoredResume?.filePath;
   const downloadUrl =
     hasDownloadableResume && !isInvalidReviewJob
@@ -142,43 +129,15 @@ export default function BidJobCard({
     onSelectedChange(job.id);
   }
 
-  function openLinkDialog(event) {
-    event.stopPropagation();
-    setExternalUrl(isLinkedInUrl(job.url) ? '' : job.url || '');
-    setExternalUrlError('');
-    setIsLinkDialogOpen(true);
-  }
-
-  function closeLinkDialog() {
-    if (isUpdatingLinkedInJob) return;
-    setIsLinkDialogOpen(false);
-  }
-
-  function submitExternalUrl(event) {
-    event.preventDefault();
-    const nextUrl = externalUrl.trim();
-    const validationError = externalUrlValidationError(nextUrl);
-    if (validationError) {
-      setExternalUrlError(validationError);
-      return;
-    }
-    setExternalUrlError('');
-    onLinkedInExternalUrlChange(job, nextUrl, {
-      onSuccess: () => setIsLinkDialogOpen(false),
-      onError: (error) => setExternalUrlError(error.message),
-    });
-  }
-
   return (
-    <>
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: '34px minmax(0, 1fr)',
-          gap: 0.75,
-          alignItems: 'center',
-        }}
-      >
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: '34px minmax(0, 1fr)',
+        gap: 0.75,
+        alignItems: 'center',
+      }}
+    >
         <Checkbox
           checked={isSelected}
           disabled={isSelectionDisabled}
@@ -468,29 +427,6 @@ export default function BidJobCard({
                     </Box>
                   </Tooltip>
                 ) : null}
-                {showUpdateExternalLinkAction ? (
-                  <Button
-                    disabled={isUpdatingLinkedInJob}
-                    onClick={openLinkDialog}
-                    size="small"
-                    startIcon={<LinkIcon />}
-                    variant="outlined"
-                    sx={{
-                      minHeight: 32,
-                      whiteSpace: 'nowrap',
-                      borderColor: '#38bdf8',
-                      color: '#075985',
-                      bgcolor: '#f0f9ff',
-                      fontWeight: 800,
-                      '&:hover': {
-                        borderColor: '#0284c7',
-                        bgcolor: '#e0f2fe',
-                      },
-                    }}
-                  >
-                    Update job link
-                  </Button>
-                ) : null}
                 {showStopTailoringAction ? (
                   <Button
                     disabled={isStoppingTailoring}
@@ -562,33 +498,7 @@ export default function BidJobCard({
             </CardActions>
           ) : null}
         </Card>
-      </Box>
-      <Dialog open={isLinkDialogOpen} onClose={closeLinkDialog} fullWidth maxWidth="xs">
-        <Box component="form" onSubmit={submitExternalUrl}>
-          <DialogTitle>Update job link</DialogTitle>
-          <DialogContent sx={{ display: 'grid', gap: 1.25, pt: 1 }}>
-            <TextField
-              autoFocus
-              disabled={isUpdatingLinkedInJob}
-              error={Boolean(externalUrlError)}
-              fullWidth
-              helperText={externalUrlError || 'Paste the external application URL.'}
-              label="External URL"
-              onChange={(event) => {
-                setExternalUrl(event.target.value);
-                if (externalUrlError) setExternalUrlError('');
-              }}
-              placeholder="https://company.com/careers/job"
-              value={externalUrl}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button disabled={isUpdatingLinkedInJob} onClick={closeLinkDialog}>Cancel</Button>
-            <Button disabled={isUpdatingLinkedInJob} type="submit" variant="contained">Update</Button>
-          </DialogActions>
-        </Box>
-      </Dialog>
-    </>
+    </Box>
   );
 }
 
@@ -687,26 +597,6 @@ function isEasyApplyMode(applyMode) {
 
 function isExternalLinkMode(applyMode) {
   return /external\s*link/i.test(String(applyMode || ''));
-}
-
-function externalUrlValidationError(value) {
-  if (!value) return 'Enter an external application URL.';
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return 'URL must start with http or https.';
-    if (isLinkedInUrl(value)) return 'External link must not be a LinkedIn URL.';
-    return '';
-  } catch {
-    return 'Enter a valid URL.';
-  }
-}
-
-function isLinkedInUrl(value) {
-  try {
-    return new URL(value).hostname.toLowerCase().endsWith('linkedin.com');
-  } catch {
-    return false;
-  }
 }
 
 function isInteractiveTarget(target, cardElement) {
