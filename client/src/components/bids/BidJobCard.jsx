@@ -27,6 +27,7 @@ import { formatDate } from '../../lib/formatters.js';
 import { authUrl } from '../../lib/api.js';
 import { jobSourceImageUrl, sourceLabel } from '../../lib/jobSourceImage.js';
 import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../lib/roles.js';
+import JobIdBadge from '../jobs/JobIdBadge.jsx';
 import JobRegionBadge from '../jobs/JobRegionBadge.jsx';
 import { BID_TABS } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
@@ -250,6 +251,7 @@ export default function BidJobCard({
                   minWidth: 0,
                 }}
               >
+                <JobIdBadge job={job} sx={{ height: 24 }} />
                 {job.isManual ? (
                   <Chip
                     label="Manual"

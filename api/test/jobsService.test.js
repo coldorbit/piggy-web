@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
-import { buildJobQuery, groupedJobsFromRows, jobsFromCsv, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport } from '../server/modules/jobs/application/jobsService.js';
+import { buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobsFromCsv, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
 
 describe('job query filters', () => {
   it('filters roleFamily against the scraped_jobs category field', () => {
@@ -36,6 +36,12 @@ describe('job query filters', () => {
     assert.equal(query.where.scrapedAt, undefined);
   });
 
+  it('searches by public job id', () => {
+    const query = buildJobQuery({ search: 'J000001A', since: 'all', visibility: 'all' });
+
+    assert.ok(query.where[Op.or].some((condition) => condition.publicJobId?.[Op.iLike] === '%J000001A%'));
+  });
+
   it('adds a Canada location region condition', () => {
     const query = buildJobQuery({ locationRegion: 'canada', since: 'all', visibility: 'all' });
     const locationCondition = query.where[Op.and].find((condition) => String(condition.val || '').includes('location'));
@@ -60,6 +66,13 @@ function dateParts(value) {
 }
 
 describe('grouped scraped jobs', () => {
+  it('builds an 8-character public job id from the database id', () => {
+    assert.equal(publicJobIdFromId(1), 'J0000001');
+    assert.equal(publicJobIdFromId(35), 'J000000Z');
+    assert.equal(publicJobIdFromId(36), 'J0000010');
+    assert.equal(publicJobIdFromId('ab12cd34'), 'AB12CD34');
+  });
+
   it('groups matching title and company rows while preserving selectable locations', () => {
     const rows = [
       jobRow({ id: 1, title: 'Software Engineer', company: 'Acme', location: 'New York, NY' }),
@@ -71,10 +84,11 @@ describe('grouped scraped jobs', () => {
 
     assert.equal(groups.length, 2);
     assert.equal(groups[0].title, 'Software Engineer');
+    assert.equal(groups[0].publicJobId, 'J0000001');
     assert.equal(groups[0].locationOptions.length, 2);
     assert.deepEqual(
-      groups[0].locationOptions.map((option) => option.locationLabel),
-      ['Austin, TX', 'New York, NY'],
+      groups[0].locationOptions.map((option) => [option.publicJobId, option.locationLabel]),
+      [['J0000002', 'Austin, TX'], ['J0000001', 'New York, NY']],
     );
   });
 
@@ -93,6 +107,11 @@ describe('grouped scraped jobs', () => {
 });
 
 describe('manual CSV job imports', () => {
+  it('capitalizes imported job titles while preserving acronyms', () => {
+    assert.equal(capitalizeJobTitle('senior ai/ml software engineer'), 'Senior AI/ML Software Engineer');
+    assert.equal(capitalizeJobTitle('SENIOR API QA ENGINEER'), 'Senior API QA Engineer');
+  });
+
   it('capitalizes every word in imported job titles', () => {
     const [job] = jobsFromCsv(
       [

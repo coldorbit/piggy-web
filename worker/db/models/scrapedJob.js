@@ -14,6 +14,10 @@ export function getScrapedJobModel() {
         autoIncrement: true,
         primaryKey: true,
       },
+      publicJobId: {
+        type: DataTypes.TEXT,
+        field: 'public_job_id',
+      },
       url: {
         type: DataTypes.TEXT,
         allowNull: false,

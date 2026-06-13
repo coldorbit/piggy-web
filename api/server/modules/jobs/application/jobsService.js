@@ -16,6 +16,10 @@ const JOB_CSV_COLUMNS = {
 };
 const VALID_JOB_CATEGORIES = new Set(['software', 'data', 'ai_ml']);
 const JOB_TITLE_ACRONYMS = new Set(['AI', 'API', 'BI', 'CIO', 'CISO', 'CRM', 'CTO', 'DBA', 'ERP', 'ETL', 'IT', 'ML', 'QA', 'SRE', 'UI', 'UX']);
+const PUBLIC_JOB_ID_PREFIX = 'J';
+const PUBLIC_JOB_ID_LENGTH = 8;
+const PUBLIC_JOB_ID_BODY_LENGTH = PUBLIC_JOB_ID_LENGTH - PUBLIC_JOB_ID_PREFIX.length;
+const PUBLIC_JOB_ID_CAPACITY = 36n ** BigInt(PUBLIC_JOB_ID_BODY_LENGTH);
 const JUNIOR_LEVEL_TITLE_PATTERN = [
   '\\mjunior\\M',
   '\\mjr\\M\\.?',
@@ -114,6 +118,7 @@ export function buildJobQuery(query) {
   if (search) {
     const pattern = `%${search}%`;
     where[Op.or] = [
+      { publicJobId: { [Op.iLike]: pattern } },
       { title: { [Op.iLike]: pattern } },
       { company: { [Op.iLike]: pattern } },
       { location: { [Op.iLike]: pattern } },
@@ -326,6 +331,7 @@ export function formatJob(row) {
   const rawJob = row.rawJob || {};
   return {
     id: row.id,
+    publicJobId: publicJobIdFromId(row.publicJobId || row.id),
     title: row.title,
     company: row.company,
     location: row.location,
@@ -345,6 +351,19 @@ export function formatJob(row) {
     isHidden: row.isHidden,
     hiddenAt: row.hiddenAt,
   };
+}
+
+export function publicJobIdFromId(value) {
+  const existingValue = clean(value).toUpperCase();
+  if (/^[A-Z0-9]{8}$/.test(existingValue)) return existingValue;
+
+  try {
+    const id = BigInt(value);
+    if (id < 0n || id >= PUBLIC_JOB_ID_CAPACITY) return '';
+    return `${PUBLIC_JOB_ID_PREFIX}${id.toString(36).toUpperCase().padStart(PUBLIC_JOB_ID_BODY_LENGTH, '0')}`;
+  } catch {
+    return '';
+  }
 }
 
 export function groupedJobsFromRows(rows) {
@@ -728,7 +747,7 @@ function manualRawJob(raw) {
   return rawJob;
 }
 
-function capitalizeJobTitle(value) {
+export function capitalizeJobTitle(value) {
   return clean(value).replace(/[A-Za-z]+/g, (word) => {
     const upperWord = word.toUpperCase();
     if (JOB_TITLE_ACRONYMS.has(upperWord)) return upperWord;

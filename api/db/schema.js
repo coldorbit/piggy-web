@@ -21,6 +21,7 @@ import {
   setupWebAssociations,
 } from './models/index.js';
 import { addMissingColumns, removeExistingColumns } from './utils.js';
+import { capitalizeJobTitle } from '../server/modules/jobs/application/jobsService.js';
 
 let initializationPromise;
 
@@ -57,7 +58,9 @@ export async function ensureWebModels() {
       await ensureDuplicateKeyColumn();
       await ensureSpamReviewColumns();
       await ensureHiddenJobColumns();
+      await ensureScrapedJobPublicIdColumn();
       await backfillManualJobSources();
+      await backfillManualJobTitles();
       await ensureBidPageIndexes();
       await ensureProfileShareIndexes();
       await ensureJobBidProfileScopedUniqueness();
@@ -115,6 +118,30 @@ async function backfillManualJobSources() {
     WHERE raw_job->>'importType' = 'manual'
        OR raw_job->>'isManualImport' = 'true'
   `);
+}
+
+async function backfillManualJobTitles() {
+  const sequelize = getSequelize();
+  const [rows] = await sequelize.query(`
+    SELECT id, title
+    FROM scraped_jobs
+    WHERE (raw_job->>'importType' = 'manual' OR raw_job->>'isManualImport' = 'true')
+      AND NULLIF(title, '') IS NOT NULL
+  `);
+  const updates = rows
+    .map((row) => ({ id: row.id, originalTitle: row.title, title: capitalizeJobTitle(row.title) }))
+    .filter((row) => row.title && row.title !== row.originalTitle);
+
+  if (!updates.length) return;
+
+  await sequelize.transaction(async (transaction) => {
+    for (const update of updates) {
+      await sequelize.query(
+        'UPDATE scraped_jobs SET title = :title WHERE id = :id',
+        { replacements: update, transaction },
+      );
+    }
+  });
 }
 
 async function ensureInterviewJourneyColumns() {
@@ -558,4 +585,101 @@ async function ensureHiddenJobColumns() {
       allowNull: true,
     },
   });
+}
+
+async function ensureScrapedJobPublicIdColumn() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'scraped_jobs';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    public_job_id: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+  });
+
+  await queryInterface.sequelize.query(`
+    CREATE OR REPLACE FUNCTION scraped_job_public_id_from_id(row_id bigint)
+    RETURNS text AS $$
+    DECLARE
+      alphabet text := '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      value numeric := row_id;
+      result text := '';
+      remainder integer;
+    BEGIN
+      IF row_id IS NULL OR row_id < 0 THEN
+        RETURN NULL;
+      END IF;
+
+      IF row_id >= 78364164096 THEN
+        RAISE EXCEPTION 'scraped_jobs.id % is too large for an 8-character public job id', row_id;
+      END IF;
+
+      IF value = 0 THEN
+        result := '0';
+      END IF;
+
+      WHILE value > 0 LOOP
+        remainder := mod(value, 36)::integer;
+        result := substr(alphabet, remainder + 1, 1) || result;
+        value := floor(value / 36);
+      END LOOP;
+
+      RETURN 'J' || lpad(result, 7, '0');
+    END;
+    $$ LANGUAGE plpgsql IMMUTABLE;
+  `);
+
+  await queryInterface.sequelize.query(`
+    CREATE OR REPLACE FUNCTION set_scraped_job_public_id()
+    RETURNS trigger AS $$
+    BEGIN
+      IF NEW.public_job_id IS NULL OR btrim(NEW.public_job_id) = '' THEN
+        NEW.public_job_id := scraped_job_public_id_from_id(NEW.id);
+      ELSE
+        NEW.public_job_id := upper(btrim(NEW.public_job_id));
+      END IF;
+
+      IF NEW.public_job_id !~ '^[A-Z0-9]{8}$' THEN
+        RAISE EXCEPTION 'scraped_jobs.public_job_id must be exactly 8 alphanumeric characters';
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
+
+  await queryInterface.sequelize.query('DROP TRIGGER IF EXISTS scraped_jobs_public_job_id_set ON scraped_jobs');
+  await queryInterface.sequelize.query(`
+    CREATE TRIGGER scraped_jobs_public_job_id_set
+    BEFORE INSERT OR UPDATE OF public_job_id ON scraped_jobs
+    FOR EACH ROW
+    EXECUTE FUNCTION set_scraped_job_public_id()
+  `);
+  await queryInterface.sequelize.query(`
+    UPDATE scraped_jobs
+    SET public_job_id = scraped_job_public_id_from_id(id)
+    WHERE public_job_id IS NULL OR public_job_id = ''
+  `);
+  await queryInterface.sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS scraped_jobs_public_job_id_unique
+    ON scraped_jobs (public_job_id)
+  `);
+  await queryInterface.sequelize.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'scraped_jobs_public_job_id_format'
+      ) THEN
+        ALTER TABLE scraped_jobs
+        ADD CONSTRAINT scraped_jobs_public_job_id_format
+        CHECK (public_job_id ~ '^[A-Z0-9]{8}$');
+      END IF;
+    END;
+    $$;
+  `);
+  await queryInterface.sequelize.query('ALTER TABLE scraped_jobs ALTER COLUMN public_job_id SET NOT NULL');
 }

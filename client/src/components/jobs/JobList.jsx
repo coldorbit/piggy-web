@@ -7,6 +7,7 @@ import EmptyState from '../common/EmptyState.jsx';
 import { formatDate } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
 import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
+import JobIdBadge from './JobIdBadge.jsx';
 
 const SOURCE_CHIP_STYLES = {
   builtin: { bgcolor: '#e8f2ff', color: '#174379' },
@@ -111,6 +112,7 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0, overflow: 'hidden' }}>
+                      <JobIdBadge job={job} />
                       <Tooltip title="Copy description">
                         <span>
                           <IconButton

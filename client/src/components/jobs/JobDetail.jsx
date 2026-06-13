@@ -25,6 +25,7 @@ import {
 } from '@mui/material';
 import { formatDateTime, spamStatusLabel } from '../../lib/formatters.js';
 import { copyJobDescription, jobDescriptionText } from '../../lib/jobDescription.js';
+import JobIdBadge from './JobIdBadge.jsx';
 
 export default function JobDetail({
   canDelete = false,
@@ -126,6 +127,7 @@ export default function JobDetail({
       >
         <Box minWidth={0}>
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
+            <JobIdBadge job={job} />
             <Chip
               label={job.source}
               size="small"
