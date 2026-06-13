@@ -93,11 +93,27 @@ describe('grouped scraped jobs', () => {
 });
 
 describe('manual CSV job imports', () => {
-  it('treats imported jobs as Manual even when source columns are present', () => {
+  it('treats imported LinkedIn jobs as both LinkedIn-sourced and manual', () => {
     const [job] = jobsFromCsv(
       [
         'url,title,company,source,source_url',
         'https://example.com/jobs/manual-1,Software Engineer,Acme,LinkedIn,https://linkedin.com/jobs/view/1',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(job.source, 'linkedin');
+    assert.equal(job.sourceUrl, 'https://linkedin.com/jobs/view/1');
+    assert.equal(job.rawJob.importType, 'manual');
+    assert.equal(job.rawJob.source, 'LinkedIn');
+    assert.equal(job.rawJob.source_url, 'https://linkedin.com/jobs/view/1');
+  });
+
+  it('keeps non-LinkedIn imported source columns as Manual', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,source,source_url',
+        'https://example.com/jobs/manual-1,Software Engineer,Acme,Indeed,https://indeed.com/viewjob?jk=1',
       ].join('\n'),
       { importedBy: 'test-user' },
     );
@@ -134,8 +150,8 @@ describe('manual CSV job imports', () => {
     assert.equal(job.location, 'Remote');
     assert.equal(job.category, 'software');
     assert.equal(job.listingText, 'Build reliable services');
-    assert.equal(job.source, 'Manual');
-    assert.equal(job.sourceUrl, null);
+    assert.equal(job.source, 'linkedin');
+    assert.equal(job.sourceUrl, 'https://linkedin.com/jobs/view/1');
     assert.equal(job.rawJob.importType, 'manual');
   });
 

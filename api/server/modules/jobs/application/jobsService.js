@@ -612,12 +612,13 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
     const hasImportCategory = Boolean(clean(rawCategory));
     const postedAt = dateFromCsvValue(csvValue(raw, 'postedAt'), rowNumber, errors) || importedAt;
     const listingText = csvValue(raw, 'listingText');
+    const manualSource = manualImportSource(raw, url);
 
     jobs.push({
       url,
       duplicateKey: url,
-      source: 'Manual',
-      sourceUrl: null,
+      source: manualSource.source,
+      sourceUrl: manualSource.sourceUrl,
       title: title || 'Untitled role',
       company: csvValue(raw, 'company') || null,
       location: csvValue(raw, 'location') || null,
@@ -716,12 +717,38 @@ function shouldUpdateExistingJobCategory({ currentCategory, importedCategory }) 
 
 function manualRawJob(raw) {
   const rawJob = { ...raw };
-  for (const field of ['source', 'sourceUrl']) {
-    for (const column of JOB_CSV_COLUMNS[field]) {
-      delete rawJob[normalizeHeader(column)];
+  if (!isLinkedInManualSource(raw)) {
+    for (const field of ['source', 'sourceUrl']) {
+      for (const column of JOB_CSV_COLUMNS[field]) {
+        delete rawJob[normalizeHeader(column)];
+      }
     }
   }
   return rawJob;
+}
+
+function manualImportSource(raw, url) {
+  if (!isLinkedInManualSource(raw, url)) {
+    return { source: 'Manual', sourceUrl: null };
+  }
+
+  return {
+    source: 'linkedin',
+    sourceUrl: csvValue(raw, 'sourceUrl') || (isLinkedInUrl(url) ? url : null),
+  };
+}
+
+function isLinkedInManualSource(raw, url = '') {
+  const source = clean(csvValue(raw, 'source')).toLowerCase();
+  return source === 'linkedin' || isLinkedInUrl(csvValue(raw, 'sourceUrl')) || isLinkedInUrl(url);
+}
+
+function isLinkedInUrl(value) {
+  try {
+    return new URL(clean(value)).hostname.toLowerCase().endsWith('linkedin.com');
+  } catch {
+    return false;
+  }
 }
 
 function validateCsvHeaders(headers) {

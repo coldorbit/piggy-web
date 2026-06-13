@@ -13,9 +13,8 @@ export const SOURCE_DOMAINS = {
 };
 
 export function jobSourceImageUrl({ isManual, source, sourceUrl, size = 32 }) {
-  if (isManual) return MANUAL_JOB_SOURCE_IMAGE_URL;
-
   const domain = domainFromUrl(sourceUrl) || SOURCE_DOMAINS[String(source || '').toLowerCase()];
+  if (isManual && !domain) return MANUAL_JOB_SOURCE_IMAGE_URL;
   if (!domain) return '';
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
 }

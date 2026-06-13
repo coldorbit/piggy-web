@@ -100,13 +100,18 @@ async function backfillManualJobSources() {
 
   await sequelize.query(`
     UPDATE scraped_jobs
-    SET source = 'Manual',
-        source_url = NULL,
-        raw_job = COALESCE(raw_job, '{}'::jsonb)
-          - 'source'
-          - 'sourceurl'
-          - 'source_url'
-          - 'source url'
+    SET source = CASE
+          WHEN LOWER(COALESCE(NULLIF(source, ''), raw_job->>'source', '')) = 'linkedin'
+            OR LOWER(COALESCE(source_url, raw_job->>'sourceUrl', raw_job->>'sourceurl', raw_job->>'source_url', raw_job->>'source url', url, '')) LIKE '%linkedin.com%'
+          THEN 'linkedin'
+          ELSE 'Manual'
+        END,
+        source_url = CASE
+          WHEN LOWER(COALESCE(NULLIF(source, ''), raw_job->>'source', '')) = 'linkedin'
+            OR LOWER(COALESCE(source_url, raw_job->>'sourceUrl', raw_job->>'sourceurl', raw_job->>'source_url', raw_job->>'source url', url, '')) LIKE '%linkedin.com%'
+          THEN NULLIF(COALESCE(source_url, raw_job->>'sourceUrl', raw_job->>'sourceurl', raw_job->>'source_url', raw_job->>'source url'), '')
+          ELSE NULL
+        END
     WHERE raw_job->>'importType' = 'manual'
        OR raw_job->>'isManualImport' = 'true'
   `);
