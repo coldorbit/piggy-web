@@ -393,7 +393,10 @@ function centeredText(value, template, { after = 80, bold = false, size } = {}) 
 function rightAlignedMetaParagraph(left, right, template, { after = 80, before = 0, bold = false, size } = {}) {
   const children = [new TextRun({ text: String(left || ''), bold, size: size ?? template.bodySize })];
   if (right) {
-    children.push(new Tab(), new TextRun({ text: String(right), bold, size: size ?? template.bodySize }));
+    children.push(
+      new TextRun({ children: [new Tab()] }),
+      new TextRun({ text: String(right), bold, size: size ?? template.bodySize }),
+    );
   }
 
   return new Paragraph({
