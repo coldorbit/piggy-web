@@ -6,6 +6,9 @@ import {
   HeadingLevel,
   Packer,
   Paragraph,
+  Tab,
+  TabStopPosition,
+  TabStopType,
   TextRun,
 } from 'docx';
 import OpenAI from 'openai';
@@ -25,10 +28,11 @@ const RESUME_TEMPLATES = {
     sectionSize: 22,
     margin: 720,
     sectionBefore: 180,
-    sectionAfter: 80,
+    sectionAfter: 120,
     paragraphAfter: 100,
     bulletAfter: 50,
-    experienceBefore: 120,
+    experienceBefore: 220,
+    experienceAfter: 180,
   },
   compact: {
     headingColor: '111827',
@@ -40,10 +44,11 @@ const RESUME_TEMPLATES = {
     sectionSize: 20,
     margin: 540,
     sectionBefore: 120,
-    sectionAfter: 50,
+    sectionAfter: 90,
     paragraphAfter: 70,
     bulletAfter: 30,
-    experienceBefore: 80,
+    experienceBefore: 150,
+    experienceAfter: 120,
   },
   modern: {
     headingColor: '1E3A8A',
@@ -55,10 +60,11 @@ const RESUME_TEMPLATES = {
     sectionSize: 21,
     margin: 720,
     sectionBefore: 160,
-    sectionAfter: 90,
+    sectionAfter: 130,
     paragraphAfter: 100,
     bulletAfter: 50,
-    experienceBefore: 120,
+    experienceBefore: 220,
+    experienceAfter: 180,
   },
 };
 
@@ -146,6 +152,7 @@ Hard truthfulness rules:
 - Preserve every provided company and work experience position/title exactly as written. Do not change "Developer" into "Senior Developer", "Lead", "Architect", "Manager", or any other title unless that exact title is present in the profile.
 - Every work_experience entry must show a visible "position". If a role/title is provided in the profile, copy it exactly. If no role/title is provided, use "Role not provided" and do not invent a title.
 - You may tailor wording, achievements, metrics, and technology emphasis only when they remain plausible for the provided role/company and do not imply a different title or responsibility level.
+- You may slightly adjust technology emphasis or include adjacent technical stacks from the JD when they plausibly fit the candidate's role, dates, domain, and existing profile evidence. Do not invent business workflows, product ownership, teams, launches, customers, or responsibilities.
 - The top-level "role" field is the target resume headline. It may match the exact job-posting title for ATS visibility, but it must not be used as a previous experience title unless the profile already has that title.
 - Do not backdate technologies. Before adding any technology, tool, framework, model, API, platform, or vendor to a work_experience bullet or "tech" field, verify it plausibly existed and was publicly usable during that role's start/end dates and fits that role's domain. If unsure, omit it from that work_experience entry.
 - Newer target-job keywords may appear in Summary or Skills when they reflect current candidate positioning, but do not place them inside older work_experience entries unless the profile explicitly supports that usage.
@@ -170,9 +177,13 @@ Instructions:
 - Produce work_experience entries for each company in the profile.
 - Never modify existing role titles/positions for companies in the profile; preserve provided titles exactly when available.
 - Use achievement bullets of 20-30 words each.
-- Use 9-10 bullets for the latest work_experience entry. Use 4-6 bullets for every other work_experience entry.
-- The latest work_experience bullets should build a bridge between the JD and the latest role's actual scope. Prefer wording that highlights common engineering concerns, product-adjacent impact, customer/user workflows, platform quality, reliability, performance, data, integrations, collaboration, and delivery discipline when those are plausible from the profile and JD.
+- Use 9-11 bullets for the latest work_experience entry. Use 6-8 bullets for every other work_experience entry.
+- Each work_experience entry must include 1-2 key technical stacks or platforms that are aligned with the JD and historically valid for that role. Put them naturally in bullets and in the "tech" field; avoid dumping every tool into every role.
+- The latest work_experience bullets should build the strongest bridge between the JD's technical expertise/stacks and the latest role's actual scope. Prefer wording that highlights common engineering concerns, product-adjacent impact, customer/user workflows, platform quality, reliability, performance, data, integrations, collaboration, and delivery discipline when those are plausible from the profile and JD.
 - Previous work_experience entries should be lightly tailored only where the profile clearly supports the skill or responsibility. Do not move new JD-specific work into older roles.
+- For each work_experience entry, set "headquarters_location" to the company's headquarters location only when it is provided in the profile or available from verified public/company context. If unavailable, use the provided work location in "location" and leave "headquarters_location" blank.
+- For each work_experience entry, set "work_mode" to exactly one of "Remote", "Onsite", or "Hybrid" based on explicit profile/resume evidence. If the profile does not say, infer cautiously from the work location and job context; default to "Remote" only when remote work is clearly implied, otherwise use "Onsite".
+- For each work_experience entry, provide exactly 2 "projects" only when they are explicitly named in the profile or can be supported by verified public/company context such as a product, platform, or program area. If exact project names cannot be verified, use concise project-area names grounded in the profile and company context, not invented confidential initiatives.
 - Use metrics sparingly and only when plausible. Prefer concrete counts, scale, scope, latency, throughput, team size, systems, users, data volume, or time saved over percentage claims.
 - Do not overload work_experience bullets with percentages. Use at most one percentage-style metric per role unless the profile explicitly provides more, because unverifiable percentage claims can look fabricated.
 - Include a single-string "tech" field per work experience. Each work_experience "tech" field must contain only technologies valid for that role's dates and context.
@@ -195,9 +206,12 @@ Instructions:
     {
       "company": "",
       "location": "",
+      "headquarters_location": "",
       "position": "",
+      "work_mode": "",
       "start_date": "",
       "end_date": "",
+      "projects": ["", ""],
       "bullets": ["", ""],
       "tech": ""
     }
@@ -276,19 +290,16 @@ async function renderResumeDocx(data, profile) {
   addSection(children, 'Work Experience', template);
   for (const exp of workExperienceEntries(data)) {
     const position = String(exp.position || '').trim() || 'Role not provided';
-    children.push(
-      new Paragraph({
-        spacing: { before: template.experienceBefore, after: 40 },
-        children: [
-          new TextRun({ text: position, bold: true, size: template.bodySize }),
-          ...(exp.company ? [new TextRun({ text: ` | ${exp.company}`, bold: true, size: template.bodySize })] : []),
-        ],
-      }),
-    );
-    addText(children, [exp.location, [exp.start_date, exp.end_date].filter(Boolean).join(' - ')].filter(Boolean).join(' | '), {
-      size: template.metaSize,
-      after: 60,
-    }, template);
+    const company = String(exp.company || '').trim();
+    const location = String(exp.headquarters_location || exp.location || '').trim();
+    const period = [exp.start_date, exp.end_date].filter(Boolean).join(' - ');
+    const workMode = normalizedWorkMode(exp.work_mode);
+    const roleLine = [position, workMode].filter(Boolean).join(' - ');
+
+    children.push(rightAlignedMetaParagraph(company || position, location, template, { bold: true, before: template.experienceBefore, after: 40 }));
+    if (company) children.push(rightAlignedMetaParagraph(roleLine, period, template, { size: template.metaSize, after: 50 }));
+    const projects = projectNames(exp);
+    if (projects.length) addText(children, `Projects: ${projects.join(', ')}`, { size: template.metaSize, after: 60 }, template);
     for (const bullet of exp.bullets || []) {
       children.push(
         new Paragraph({
@@ -298,7 +309,11 @@ async function renderResumeDocx(data, profile) {
         }),
       );
     }
-    if (exp.tech) addText(children, `Tech stack: ${exp.tech}`, { italics: true, size: template.techSize, after: template.paragraphAfter }, template);
+    if (exp.tech) {
+      addText(children, `Tech stack: ${exp.tech}`, { italics: true, size: template.techSize, after: template.experienceAfter }, template);
+    } else {
+      addSpacer(children, template.experienceAfter);
+    }
   }
 
   addSection(children, 'Education', template);
@@ -358,12 +373,50 @@ function addText(children, value, { after, bold = false, italics = false, size }
   );
 }
 
+function addSpacer(children, after) {
+  children.push(
+    new Paragraph({
+      spacing: { after },
+      children: [],
+    }),
+  );
+}
+
 function centeredText(value, template, { after = 80, bold = false, size } = {}) {
   return new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { after },
     children: [new TextRun({ text: String(value), bold, size: size ?? template.bodySize })],
   });
+}
+
+function rightAlignedMetaParagraph(left, right, template, { after = 80, before = 0, bold = false, size } = {}) {
+  const children = [new TextRun({ text: String(left || ''), bold, size: size ?? template.bodySize })];
+  if (right) {
+    children.push(new Tab(), new TextRun({ text: String(right), bold, size: size ?? template.bodySize }));
+  }
+
+  return new Paragraph({
+    spacing: { before, after },
+    tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+    children,
+  });
+}
+
+function normalizedWorkMode(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (raw === 'remote') return 'Remote';
+  if (raw === 'onsite' || raw === 'on-site' || raw === 'on site') return 'Onsite';
+  if (raw === 'hybrid') return 'Hybrid';
+  return '';
+}
+
+function projectNames(exp) {
+  const values = Array.isArray(exp.projects) ? exp.projects : Array.isArray(exp.project_names) ? exp.project_names : [];
+  return values
+    .map((project) => String(project || '').trim())
+    .filter(Boolean)
+    .slice(0, 2);
 }
 
 function contactParagraph(profile, data, template) {
@@ -426,8 +479,11 @@ function renderedResumeTextParts(data, profile) {
       exp.position,
       exp.company,
       exp.location,
+      exp.headquarters_location,
       exp.start_date,
       exp.end_date,
+      exp.work_mode,
+      ...projectNames(exp),
       ...(exp.bullets || []),
       exp.tech ? `Tech stack: ${exp.tech}` : '',
     );
