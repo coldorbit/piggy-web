@@ -6,9 +6,10 @@ import {
   HeadingLevel,
   Packer,
   Paragraph,
-  Tab,
-  TabStopPosition,
-  TabStopType,
+  PositionalTab,
+  PositionalTabAlignment,
+  PositionalTabLeader,
+  PositionalTabRelativeTo,
   TextRun,
 } from 'docx';
 import OpenAI from 'openai';
@@ -16,7 +17,6 @@ import { ENV } from './env.js';
 import { InputError } from './errors.js';
 
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const LONG_RESUME_TEXT_CHAR_THRESHOLD = 6500;
 const RESUME_TEMPLATES = {
   classic: {
     headingColor: '111827',
@@ -33,22 +33,6 @@ const RESUME_TEMPLATES = {
     bulletAfter: 50,
     experienceBefore: 220,
     experienceAfter: 180,
-  },
-  compact: {
-    headingColor: '111827',
-    nameSize: 28,
-    roleSize: 20,
-    bodySize: 18,
-    metaSize: 17,
-    techSize: 16,
-    sectionSize: 20,
-    margin: 540,
-    sectionBefore: 120,
-    sectionAfter: 90,
-    paragraphAfter: 70,
-    bulletAfter: 30,
-    experienceBefore: 150,
-    experienceAfter: 120,
   },
   modern: {
     headingColor: '1E3A8A',
@@ -394,14 +378,21 @@ function rightAlignedMetaParagraph(left, right, template, { after = 80, before =
   const children = [new TextRun({ text: String(left || ''), bold, size: size ?? template.bodySize })];
   if (right) {
     children.push(
-      new TextRun({ children: [new Tab()] }),
+      new TextRun({
+        children: [
+          new PositionalTab({
+            alignment: PositionalTabAlignment.RIGHT,
+            relativeTo: PositionalTabRelativeTo.MARGIN,
+            leader: PositionalTabLeader.NONE,
+          }),
+        ],
+      }),
       new TextRun({ text: String(right), bold, size: size ?? template.bodySize }),
     );
   }
 
   return new Paragraph({
     spacing: { before, after },
-    tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
     children,
   });
 }
@@ -454,9 +445,6 @@ function addContactSeparator(runs, template = RESUME_TEMPLATES.classic) {
 }
 
 function resumeTemplateForContent(data, profile) {
-  if (renderedResumeTextLength(data, profile) > LONG_RESUME_TEXT_CHAR_THRESHOLD) {
-    return RESUME_TEMPLATES.compact;
-  }
   return randomTemplate(['classic', 'modern']);
 }
 
