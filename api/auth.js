@@ -141,6 +141,7 @@ export function publicUser(row) {
     username: row.username,
     email: row.email || null,
     role: row.role,
+    dailyBidGoal: row.dailyBidGoal ?? null,
     lastLoginAt: row.lastLoginAt || null,
     lastSeenAt,
     isActive: Boolean(row.activeSessionId && lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= ACTIVE_WINDOW_MS),

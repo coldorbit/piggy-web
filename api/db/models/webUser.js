@@ -34,6 +34,11 @@ export function getWebUserModel() {
         allowNull: false,
         defaultValue: 'user',
       },
+      dailyBidGoal: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'daily_bid_goal',
+      },
       activeSessionId: {
         type: DataTypes.TEXT,
         field: 'active_session_id',

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Paper, Typography } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
 import BidJobsPanel from '../components/bids/BidJobsPanel.jsx';
 import BidProfileSummary from '../components/bids/BidProfileSummary.jsx';
@@ -276,6 +276,10 @@ export default function BidPage({ currentUser }) {
   const jobs = bidJobsData?.jobs || [];
   const visibleJobs = jobs.filter((job) => isJobVisibleForTab(job, activeBidTab, draftFor(job)));
   const total = bidJobsData?.total || 0;
+  const currentBidUser = useMemo(
+    () => ({ ...(currentUser || {}), ...(bidJobsData?.currentUser || {}) }),
+    [bidJobsData?.currentUser, currentUser],
+  );
   const pageError = error || profilesError?.message || jobsError?.message || metaError?.message || '';
   const loading = profilesLoading || jobsLoading || metaLoading;
   const bidWorkspace = useMemo(
@@ -283,7 +287,7 @@ export default function BidPage({ currentUser }) {
       activeColor,
       activeProfileId: activeProfile?.id || '',
       activeTab: activeBidTab,
-      currentUser: { ...(currentUser || {}), ...(bidJobsData?.currentUser || {}) },
+      currentUser: currentBidUser,
       draftsForJob: draftFor,
       isSaving: creatingBid || updatingBid,
       isStoppingTailoring: stoppingTailoredResume,
@@ -314,6 +318,7 @@ export default function BidPage({ currentUser }) {
       bidJobsData?.tabCounts,
       creatingBid,
       currentUser,
+      currentBidUser,
       drafts,
       filters.limit,
       filters.page,
@@ -383,6 +388,7 @@ export default function BidPage({ currentUser }) {
                   refetchJobs();
                 }}
               />
+              <BidDailyGoalBar activeColor={activeColor} currentUser={currentBidUser} />
               <BidWorkspaceProvider value={bidWorkspace}>
                 <BidJobsPanel key={activeProfile.id} />
               </BidWorkspaceProvider>
@@ -441,6 +447,70 @@ function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs) {
     tailoringByJobId[job.id] = isTailoring;
     return tailoringByJobId;
   }, {});
+}
+
+function BidDailyGoalBar({ activeColor, currentUser }) {
+  const goal = Number(currentUser?.dailyBidGoal || 0);
+  if (!goal || currentUser?.dailyFinishedBids === undefined || currentUser?.dailyFinishedBids === null) return null;
+
+  const finished = Number(currentUser?.dailyFinishedBids || 0);
+  const percent = Math.min((finished / goal) * 100, 100);
+  const dayPercent = dayProgressPercent();
+  const isComplete = finished >= goal;
+  const isOnTrack = isComplete || percent + 2 >= dayPercent;
+  const statusLabel = isComplete ? 'Complete' : isOnTrack ? 'On track' : 'Behind pace';
+  const statusColor = isComplete ? '#15803d' : isOnTrack ? activeColor.dark : '#b45309';
+  const remaining = Math.max(goal - finished, 0);
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        mb: 1,
+        px: 1.25,
+        py: 1,
+        display: 'grid',
+        gap: 0.75,
+        bgcolor: '#f8fafc',
+        borderColor: isComplete ? '#bbf7d0' : isOnTrack ? activeColor.soft : '#fed7aa',
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <Typography variant="body2" fontWeight={900}>
+          Daily goal
+        </Typography>
+        <Typography variant="body2" fontWeight={900} sx={{ color: statusColor }}>
+          {finished.toLocaleString()} / {goal.toLocaleString()} finished today
+        </Typography>
+      </Box>
+      <LinearProgress
+        variant="determinate"
+        value={percent}
+        sx={{
+          height: 8,
+          borderRadius: 1,
+          bgcolor: '#e5e7eb',
+          '& .MuiLinearProgress-bar': {
+            borderRadius: 1,
+            bgcolor: statusColor,
+          },
+        }}
+      />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={800}>
+          {statusLabel}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" fontWeight={800}>
+          {remaining ? `${remaining.toLocaleString()} remaining` : 'Goal reached'}
+        </Typography>
+      </Box>
+    </Paper>
+  );
+}
+
+function dayProgressPercent(value = new Date()) {
+  const minutes = value.getHours() * 60 + value.getMinutes();
+  return (minutes / (24 * 60)) * 100;
 }
 
 function bidTabFromParam(value) {

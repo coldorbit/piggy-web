@@ -27,6 +27,7 @@ export async function createUser(req, res, next) {
       email: attrs.email,
       passwordHash: hashPassword(attrs.password),
       role: attrs.role,
+      dailyBidGoal: attrs.dailyBidGoal,
     });
     res.status(201).json({ user: publicUser(user) });
   } catch (error) {
@@ -72,6 +73,7 @@ export async function updateUser(req, res, next) {
       username: attrs.username,
       email: attrs.email,
       role: attrs.role,
+      dailyBidGoal: attrs.dailyBidGoal,
     };
     if (attrs.password) updates.passwordHash = hashPassword(attrs.password);
     await user.update(updates);

@@ -17,6 +17,13 @@ export const INTERVIEW_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal, R
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
 export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller];
 
+export const DAILY_BID_GOAL_DEFAULTS = {
+  [ROLES.user]: 100,
+  [ROLES.bidder]: 50,
+  [ROLES.readonlyBidder]: 50,
+  [ROLES.editableBidder]: 50,
+};
+
 export const BASE_ROLE_OPTIONS = [
   { value: ROLES.user, label: 'User' },
   { value: ROLES.financeManager, label: 'Finance manager' },
@@ -56,6 +63,14 @@ export function roleLabel(role) {
   if (role === ROLES.internal) return 'internal';
   if (role === ROLES.caller) return 'caller';
   return role;
+}
+
+export function canHaveDailyBidGoal(role) {
+  return role === ROLES.user || BIDDER_ROLES.includes(role);
+}
+
+export function defaultDailyBidGoalForRole(role) {
+  return DAILY_BID_GOAL_DEFAULTS[role] ?? '';
 }
 
 function roleOf(userOrRole) {

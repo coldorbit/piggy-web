@@ -53,6 +53,7 @@ export async function ensureWebModels() {
       await ensureTailoredResumeManualColumns();
       await ensureConsumptionTransactionSpenderColumns();
       await ensureWebUserEmailColumn();
+      await ensureWebUserDailyBidGoalColumn();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
       await ensureSpamReviewColumns();
@@ -104,6 +105,33 @@ async function ensureInterviewJourneyColumns() {
     stage_notes: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
     stage_meeting_links: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
   });
+}
+
+async function ensureWebUserDailyBidGoalColumn() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'web_users';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    daily_bid_goal: { type: DataTypes.INTEGER, allowNull: true },
+  });
+
+  await queryInterface.sequelize.query(`
+    UPDATE web_users
+    SET daily_bid_goal = CASE
+      WHEN role IN ('bidder', 'readonly_bidder', 'editable_bidder') THEN 50
+      WHEN role = 'user' THEN 100
+      ELSE NULL
+    END
+    WHERE daily_bid_goal IS NULL
+      AND role IN ('bidder', 'readonly_bidder', 'editable_bidder', 'user')
+  `);
+  await queryInterface.sequelize.query(`
+    UPDATE web_users
+    SET daily_bid_goal = NULL
+    WHERE role IN ('superadmin', 'admin')
+      AND daily_bid_goal IS NOT NULL
+  `);
 }
 
 async function ensureInterviewIndexes() {

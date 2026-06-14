@@ -48,6 +48,7 @@ import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, INTERNAL_DATA_ROLES, INTERVIEW_ACCE
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
+const DAILY_BID_FINISHED_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -611,7 +612,7 @@ export async function listBidJobs(req, res, next) {
       });
     };
 
-    const [rows, todoCount, tailoredCount, doneCount, interviewsCount] = await Promise.all([
+    const [rows, todoCount, tailoredCount, doneCount, interviewsCount, dailyBidProgress] = await Promise.all([
       ScrapedJob.findAll({
         where: activeTabQuery.where,
         order: activeTabQuery.order || jobOrder,
@@ -622,6 +623,7 @@ export async function listBidJobs(req, res, next) {
       countBidTab('tailored'),
       countBidTab('done'),
       canViewInternalData ? countInterviewsForProfile(profile.id) : Promise.resolve(0),
+      dailyBidProgressForUser(user),
     ]);
 
     const tailoredResumesByUrl = await tailoredResumesForJobs({
@@ -657,7 +659,13 @@ export async function listBidJobs(req, res, next) {
       jobs: pagedJobs,
       bidUsers,
       callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
-      currentUser: { id: user.id, username: user.username, role: user.role },
+      currentUser: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        dailyBidGoal: dailyBidProgress.goal,
+        dailyFinishedBids: dailyBidProgress.finished,
+      },
       total: groupedJobs.length,
       tabCounts: {
         todo: todoCount,
@@ -932,6 +940,23 @@ function formatBidWithUser(row, bidUsersById, callerUsersById) {
     user: bidUser || null,
     caller: caller || null,
   };
+}
+
+async function dailyBidProgressForUser(user) {
+  const goal = Number(user.dailyBidGoal || 0);
+  if (!goal) return { goal: null, finished: 0 };
+
+  const today = startOfLocalDay(new Date());
+  const tomorrow = addDays(today, 1);
+  const finished = await getJobBidModel().count({
+    where: {
+      userId: user.id,
+      status: { [Op.in]: DAILY_BID_FINISHED_STATUSES },
+      bidAt: { [Op.gte]: today, [Op.lt]: tomorrow },
+    },
+  });
+
+  return { goal, finished };
 }
 
 async function sameCompanyTailoringByJobUrl({ sequelize, profileId, jobs }) {
@@ -1962,7 +1987,12 @@ export async function updateJobBid(req, res, next) {
       }
       delete attrs.callerUserId;
     }
-    await bid.update({ ...bidUpdateValuesFromAttrs(attrs), updatedAt: new Date() });
+    const now = new Date();
+    const updates = { ...bidUpdateValuesFromAttrs(attrs), updatedAt: now };
+    if (attrs.status === 'submitted' && !DAILY_BID_FINISHED_STATUSES.includes(bid.status)) {
+      updates.bidAt = now;
+    }
+    await bid.update(updates);
     if (['interviewing', 'won', 'lost'].includes(attrs.status)) {
       const job = await getScrapedJobModel().findByPk(bid.jobId);
       await upsertInterviewForBid({ bid, job, attrs, userId: bid.userId });

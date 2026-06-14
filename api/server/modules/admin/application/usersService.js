@@ -1,12 +1,20 @@
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
-import { VALID_USER_ROLES } from '../../../utils/roles.js';
+import { BIDDER_ROLES, ROLES, VALID_USER_ROLES } from '../../../utils/roles.js';
+
+const DAILY_BID_GOAL_DEFAULTS = {
+  [ROLES.user]: 100,
+  [ROLES.bidder]: 50,
+  [ROLES.readonlyBidder]: 50,
+  [ROLES.editableBidder]: 50,
+};
 
 export function userAttributesFromBody(body, { requirePassword }) {
   const email = clean(body?.email).toLowerCase();
   const username = clean(body?.username).toLowerCase();
   const password = String(body?.password || '');
   const role = clean(body?.role || 'user');
+  const dailyBidGoal = dailyBidGoalFromBody(body, role);
 
   if (!username) throw new InputError('Username is required');
   if (!email) throw new InputError('Email is required');
@@ -20,5 +28,27 @@ export function userAttributesFromBody(body, { requirePassword }) {
     throw new InputError('Password must be at least 8 characters');
   }
 
-  return { email, username, password, role };
+  return { email, username, password, role, dailyBidGoal };
+}
+
+export function defaultDailyBidGoalForRole(role) {
+  return DAILY_BID_GOAL_DEFAULTS[role] ?? null;
+}
+
+export function canHaveDailyBidGoal(role) {
+  return role === ROLES.user || BIDDER_ROLES.includes(role);
+}
+
+function dailyBidGoalFromBody(body, role) {
+  if (!canHaveDailyBidGoal(role)) return null;
+  const value = body?.dailyBidGoal ?? body?.daily_bid_goal;
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return defaultDailyBidGoalForRole(role);
+  }
+
+  const goal = Number(value);
+  if (!Number.isInteger(goal) || goal < 1 || goal > 1000) {
+    throw new InputError('Daily bid goal must be a whole number from 1 to 1000');
+  }
+  return goal;
 }

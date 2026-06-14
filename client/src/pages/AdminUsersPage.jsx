@@ -5,7 +5,7 @@ import UserForm from '../components/admin/UserForm.jsx';
 import UsersTable from '../components/admin/UsersTable.jsx';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '../lib/api.js';
 
-const EMPTY_FORM = { email: '', username: '', password: '', role: 'user' };
+const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', dailyBidGoal: '' };
 
 function normalizeRole(role) {
   return role === 'bidder' ? 'readonly_bidder' : role;
@@ -55,7 +55,13 @@ export default function AdminUsersPage({ currentUser }) {
 
   function startEditing(user) {
     setEditingId(user.id);
-    setEditing({ email: user.email || '', username: user.username, password: '', role: normalizeRole(user.role) });
+    setEditing({
+      email: user.email || '',
+      username: user.username,
+      password: '',
+      role: normalizeRole(user.role),
+      dailyBidGoal: user.dailyBidGoal ?? '',
+    });
   }
 
   return (

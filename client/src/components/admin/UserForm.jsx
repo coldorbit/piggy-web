@@ -1,9 +1,19 @@
 import AddIcon from '@mui/icons-material/Add';
 import { Button, FormControl, InputLabel, MenuItem, Paper, Select, TextField } from '@mui/material';
-import { roleOptionsFor } from '../../lib/roles.js';
+import { canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UserForm({ currentUser, form, isSaving, onChange, onSubmit }) {
   const roleOptions = roleOptionsFor(currentUser);
+  const canSetDailyGoal = canHaveDailyBidGoal(form.role);
+
+  function handleRoleChange(role) {
+    onChange((current) => ({
+      ...current,
+      role,
+      dailyBidGoal: canHaveDailyBidGoal(role) ? current.dailyBidGoal || defaultDailyBidGoalForRole(role) : '',
+    }));
+  }
+
   return (
     <Paper
       component="form"
@@ -12,7 +22,7 @@ export default function UserForm({ currentUser, form, isSaving, onChange, onSubm
       sx={{
         p: 1.5,
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1fr) minmax(180px, .75fr) minmax(180px, .75fr) 140px auto' },
+        gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1fr) minmax(160px, .7fr) minmax(160px, .7fr) 140px 120px auto' },
         gap: 1.25,
         alignItems: 'center',
         boxShadow: 1,
@@ -42,7 +52,7 @@ export default function UserForm({ currentUser, form, isSaving, onChange, onSubm
       />
       <FormControl size="small">
         <InputLabel>Role</InputLabel>
-        <Select label="Role" value={form.role} onChange={(event) => onChange((current) => ({ ...current, role: event.target.value }))}>
+        <Select label="Role" value={form.role} onChange={(event) => handleRoleChange(event.target.value)}>
           {roleOptions.map((option) => (
             <MenuItem key={option.value} value={option.value}>
               {option.label}
@@ -50,6 +60,16 @@ export default function UserForm({ currentUser, form, isSaving, onChange, onSubm
           ))}
         </Select>
       </FormControl>
+      <TextField
+        disabled={!canSetDailyGoal}
+        inputProps={{ min: 1, max: 1000 }}
+        label="Daily goal"
+        placeholder={String(defaultDailyBidGoalForRole(form.role) || '')}
+        size="small"
+        type="number"
+        value={canSetDailyGoal ? form.dailyBidGoal : ''}
+        onChange={(event) => onChange((current) => ({ ...current, dailyBidGoal: event.target.value }))}
+      />
       <Button type="submit" disabled={isSaving} startIcon={<AddIcon />} variant="contained">
         Add user
       </Button>

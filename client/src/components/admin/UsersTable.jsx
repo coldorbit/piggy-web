@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import EmptyState from '../common/EmptyState.jsx';
 import { formatDateTime } from '../../lib/formatters.js';
-import { isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
+import { canHaveDailyBidGoal, defaultDailyBidGoalForRole, isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UsersTable({
   currentUser,
@@ -46,6 +46,7 @@ export default function UsersTable({
             <TableCell>User</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Role</TableCell>
+            <TableCell>Daily goal</TableCell>
             <TableCell>Status</TableCell>
             <TableCell>Last seen</TableCell>
             <TableCell>Last login</TableCell>
@@ -82,7 +83,7 @@ export default function UsersTable({
 function EmptyRow({ detail, title }) {
   return (
     <TableRow>
-      <TableCell colSpan={8}>
+      <TableCell colSpan={9}>
         <EmptyState title={title} detail={detail} variant="plain" sx={{ py: 3 }} />
       </TableCell>
     </TableRow>
@@ -98,6 +99,7 @@ function UserSkeletonRows() {
       </TableCell>
       <TableCell><Skeleton width={180} /></TableCell>
       <TableCell><Skeleton variant="rounded" width={96} height={24} /></TableCell>
+      <TableCell><Skeleton width={64} /></TableCell>
       <TableCell><Skeleton variant="rounded" width={74} height={24} /></TableCell>
       <TableCell><Skeleton width={112} /></TableCell>
       <TableCell><Skeleton width={112} /></TableCell>
@@ -112,6 +114,15 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
   const isSelf = String(user.id) === String(currentUser.id);
   const roleOptions = roleOptionsWithCurrent(roleOptionsFor(currentUser), editing.role);
   const canEditRole = isSuperadmin(currentUser) || !isAdminRole(user);
+  const canSetDailyGoal = canHaveDailyBidGoal(editing.role);
+
+  function handleRoleChange(role) {
+    onEditingChange((current) => ({
+      ...current,
+      role,
+      dailyBidGoal: canHaveDailyBidGoal(role) ? current.dailyBidGoal || defaultDailyBidGoalForRole(role) : '',
+    }));
+  }
 
   if (isEditing) {
     return (
@@ -141,7 +152,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
               label="Role"
               value={editing.role}
               disabled={!canEditRole}
-              onChange={(event) => onEditingChange((current) => ({ ...current, role: event.target.value }))}
+              onChange={(event) => handleRoleChange(event.target.value)}
             >
               {roleOptions.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
@@ -150,6 +161,19 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
               ))}
             </Select>
           </FormControl>
+        </TableCell>
+        <TableCell>
+          <TextField
+            disabled={!canSetDailyGoal}
+            inputProps={{ min: 1, max: 1000 }}
+            label="Daily goal"
+            placeholder={String(defaultDailyBidGoalForRole(editing.role) || '')}
+            size="small"
+            type="number"
+            value={canSetDailyGoal ? editing.dailyBidGoal : ''}
+            onChange={(event) => onEditingChange((current) => ({ ...current, dailyBidGoal: event.target.value }))}
+            sx={{ width: 110 }}
+          />
         </TableCell>
         <TableCell />
         <TableCell />
@@ -199,6 +223,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
       <TableCell>
         <Chip color={isAdminRole(user) ? 'warning' : 'default'} label={roleLabel(user.role)} size="small" variant="outlined" />
       </TableCell>
+      <TableCell>{user.dailyBidGoal ? Number(user.dailyBidGoal).toLocaleString() : '-'}</TableCell>
       <TableCell>
         <Chip
           color={user.isActive ? 'success' : 'default'}
