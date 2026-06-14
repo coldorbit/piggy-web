@@ -298,6 +298,7 @@ export default function InterviewsPage({ currentUser }) {
             activeProfile={activeProfile}
             isLoading={profilesLoading}
             profiles={interviewProfiles}
+            showDailyGoal={false}
             showInterviewCounts
             onProfileChange={setActiveProfileId}
           />

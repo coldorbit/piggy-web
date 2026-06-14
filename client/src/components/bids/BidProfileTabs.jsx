@@ -5,7 +5,15 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import EmptyState from '../common/EmptyState.jsx';
 import { PROFILE_BADGE_COLORS, PROFILE_COLORS } from '../profiles/profileConstants.js';
 
-export default function BidProfileTabs({ activeColor, activeProfile, isLoading, profiles, onProfileChange, showInterviewCounts = false }) {
+export default function BidProfileTabs({
+  activeColor,
+  activeProfile,
+  isLoading,
+  profiles,
+  onProfileChange,
+  showDailyGoal = true,
+  showInterviewCounts = false,
+}) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
 
@@ -64,7 +72,14 @@ export default function BidProfileTabs({ activeColor, activeProfile, isLoading, 
               <Tab
                 key={profile.id}
                 value={String(profile.id)}
-                label={<ProfileTabLabel profile={profile} showInterviewCounts={showInterviewCounts} onOpenProfilePage={openProfilePage} />}
+                label={
+                  <ProfileTabLabel
+                    profile={profile}
+                    showDailyGoal={showDailyGoal}
+                    showInterviewCounts={showInterviewCounts}
+                    onOpenProfilePage={openProfilePage}
+                  />
+                }
                 sx={{
                   color: color.dark,
                   fontWeight: 800,
@@ -111,8 +126,8 @@ function openProfilePage(profile) {
   window.open(url.toString(), '_blank', 'noopener,noreferrer');
 }
 
-function ProfileTabLabel({ profile, onOpenProfilePage, showInterviewCounts }) {
-  const dailyGoal = profileDailyGoal(profile);
+function ProfileTabLabel({ profile, onOpenProfilePage, showDailyGoal, showInterviewCounts }) {
+  const dailyGoal = showDailyGoal ? profileDailyGoal(profile) : null;
 
   function handleOpen(event) {
     event.preventDefault();
