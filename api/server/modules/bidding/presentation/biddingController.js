@@ -673,7 +673,7 @@ export async function listBidJobs(req, res, next) {
   }
 }
 
-function groupedBidJobs(jobs) {
+export function groupedBidJobs(jobs) {
   const groups = new Map();
 
   for (const job of jobs) {
@@ -683,6 +683,7 @@ function groupedBidJobs(jobs) {
     if (!group) {
       groups.set(groupKey, {
         ...job,
+        groupId: `bid-job-group:${groupKey}`,
         representativeJobId: job.id,
         locationOptions: [option],
       });
@@ -690,9 +691,20 @@ function groupedBidJobs(jobs) {
     }
 
     group.locationOptions.push(option);
+    const latestPostedAt = latestDateValue(group.postedAt, job.postedAt);
+    const latestScrapedAt = latestDateValue(group.scrapedAt, job.scrapedAt);
+    if (shouldPromoteBidJobRepresentative(group, job)) {
+      const { groupId, locationOptions } = group;
+      Object.assign(group, {
+        ...job,
+        groupId,
+        representativeJobId: job.id,
+        locationOptions,
+      });
+    }
     group.location = groupedBidLocationLabel(group.locationOptions);
-    group.postedAt = latestDateValue(group.postedAt, job.postedAt);
-    group.scrapedAt = latestDateValue(group.scrapedAt, job.scrapedAt);
+    group.postedAt = latestPostedAt;
+    group.scrapedAt = latestScrapedAt;
   }
 
   return [...groups.values()].map((group) => ({
@@ -717,6 +729,28 @@ function bidJobLocationOption(job) {
   };
 }
 
+function shouldPromoteBidJobRepresentative(current, candidate) {
+  const currentPriority = bidJobRepresentativePriority(current);
+  const candidatePriority = bidJobRepresentativePriority(candidate);
+  if (candidatePriority !== currentPriority) return candidatePriority > currentPriority;
+
+  const currentTime = Date.parse(current.postedAt || current.scrapedAt || 0) || 0;
+  const candidateTime = Date.parse(candidate.postedAt || candidate.scrapedAt || 0) || 0;
+  if (candidateTime !== currentTime) return candidateTime > currentTime;
+
+  return Number(candidate.id || 0) > Number(current.id || 0);
+}
+
+function bidJobRepresentativePriority(job) {
+  const tailoredStatusPriority = {
+    ready: 5,
+    processing: 4,
+    requested: 3,
+    dead_letter: 2,
+  };
+  return tailoredStatusPriority[job.tailoredResume?.status] || 1;
+}
+
 function groupedBidLocationLabel(options) {
   const locations = [...new Set(options.map((option) => option.locationLabel).filter(Boolean))];
   if (locations.length <= 1) return locations[0] || '';
@@ -724,7 +758,7 @@ function groupedBidLocationLabel(options) {
 }
 
 function compareBidLocationOptions(left, right) {
-  return String(left.locationLabel || '').localeCompare(String(right.locationLabel || ''));
+  return String(left.locationLabel || '').localeCompare(String(right.locationLabel || '')) || Number(left.id || 0) - Number(right.id || 0);
 }
 
 function latestDateValue(left, right) {

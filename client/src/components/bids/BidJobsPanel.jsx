@@ -55,10 +55,10 @@ export default function BidJobsPanel() {
     .map((resume) => resume.id);
   const downloadAllUrl = authUrl(`/api/bid/tailored-resumes/download?ids=${readyResumeIds.map(encodeURIComponent).join(',')}`);
   const selectableJobs = jobs.filter((job) => !isJobSelectionDisabled(job, activeTab));
-  const visibleJobIds = selectableJobs.map((job) => job.id);
-  const visibleJobIdsKey = visibleJobIds.join('|');
-  const selectedVisibleJobs = selectableJobs.filter((job) => selectedJobIds.has(job.id));
-  const allVisibleJobsSelected = visibleJobIds.length > 0 && visibleJobIds.every((jobId) => selectedJobIds.has(jobId));
+  const visibleJobKeys = selectableJobs.map((job) => bidJobCardKey(job));
+  const visibleJobIdsKey = visibleJobKeys.join('|');
+  const selectedVisibleJobs = selectableJobs.filter((job) => selectedJobIds.has(bidJobCardKey(job)));
+  const allVisibleJobsSelected = visibleJobKeys.length > 0 && visibleJobKeys.every((jobKey) => selectedJobIds.has(jobKey));
 
   useEffect(() => {
     setSelectedJobIds(new Set());
@@ -66,8 +66,8 @@ export default function BidJobsPanel() {
 
   useEffect(() => {
     setSelectedJobIds((current) => {
-      const visibleJobIdSet = new Set(visibleJobIds);
-      const next = new Set([...current].filter((jobId) => visibleJobIdSet.has(jobId)));
+      const visibleJobKeySet = new Set(visibleJobKeys);
+      const next = new Set([...current].filter((jobKey) => visibleJobKeySet.has(jobKey)));
       return next.size === current.size ? current : next;
     });
   }, [visibleJobIdsKey]);
@@ -92,9 +92,9 @@ export default function BidJobsPanel() {
     setSelectedJobIds((current) => {
       const next = new Set(current);
       if (allVisibleJobsSelected) {
-        visibleJobIds.forEach((jobId) => next.delete(jobId));
+        visibleJobKeys.forEach((jobKey) => next.delete(jobKey));
       } else {
-        visibleJobIds.forEach((jobId) => next.add(jobId));
+        visibleJobKeys.forEach((jobKey) => next.add(jobKey));
       }
       return next;
     });
@@ -108,7 +108,7 @@ export default function BidJobsPanel() {
     selectedVisibleJobs.forEach((job) => onHiddenChange(job, true));
     setSelectedJobIds((current) => {
       const next = new Set(current);
-      selectedVisibleJobs.forEach((job) => next.delete(job.id));
+      selectedVisibleJobs.forEach((job) => next.delete(bidJobCardKey(job)));
       return next;
     });
   }
@@ -267,9 +267,10 @@ export default function BidJobsPanel() {
           ) : null}
           {jobs.map((job) => (
             <BidJobCard
-              key={job.id}
+              key={bidJobCardKey(job)}
+              selectionId={bidJobCardKey(job)}
               job={job}
-              isSelected={selectedJobIds.has(job.id)}
+              isSelected={selectedJobIds.has(bidJobCardKey(job))}
               isSelectionDisabled={isJobSelectionDisabled(job, activeTab)}
               onSelectedChange={toggleJobSelected}
               onResumeDownload={markTailoredResumesDownloaded}
@@ -335,6 +336,10 @@ export default function BidJobsPanel() {
 
 function isJobSelectionDisabled(job, activeTab) {
   return isReviewBidStatus(job.bid?.status) || (activeTab === BID_TABS.todo && isTodoTailoringLocked(job));
+}
+
+function bidJobCardKey(job) {
+  return String(job.groupId || job.id);
 }
 
 function isReviewBidStatus(status) {

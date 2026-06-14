@@ -39,6 +39,7 @@ export default function BidJobCard({
   job,
   onResumeDownload = () => {},
   onSelectedChange,
+  selectionId,
 }) {
   const {
     activeColor: accent,
@@ -55,7 +56,9 @@ export default function BidJobCard({
     onTailorResume,
   } = useBidWorkspace();
   const draft = draftsForJob(job);
-  const isTailoring = Boolean(tailoringByJobId[job.id]);
+  const cardKey = String(job.groupId || job.id);
+  const selectionKey = selectionId || cardKey;
+  const isTailoring = Boolean(tailoringByJobId[cardKey] || tailoringByJobId[job.id]);
   const statusDefault = activeTab === BID_TABS.interviews ? 'interviewing' : activeTab === BID_TABS.done ? 'submitted' : undefined;
   const isAdmin = isAdminRole(currentUser);
   const isBidder = BIDDER_ROLES.includes(currentUser?.role);
@@ -119,7 +122,7 @@ export default function BidJobCard({
   function handleCardClick(event) {
     if (isSelectionDisabled) return;
     if (isInteractiveTarget(event.target, event.currentTarget)) return;
-    onSelectedChange(job.id);
+    onSelectedChange(selectionKey);
   }
 
   function handleCardKeyDown(event) {
@@ -127,7 +130,7 @@ export default function BidJobCard({
     if (event.key !== 'Enter' && event.key !== ' ') return;
     if (isInteractiveTarget(event.target, event.currentTarget)) return;
     event.preventDefault();
-    onSelectedChange(job.id);
+    onSelectedChange(selectionKey);
   }
 
   return (
@@ -142,7 +145,7 @@ export default function BidJobCard({
         <Checkbox
           checked={isSelected}
           disabled={isSelectionDisabled}
-          onChange={() => onSelectedChange(job.id)}
+          onChange={() => onSelectedChange(selectionKey)}
           inputProps={{ 'aria-label': `Select ${job.title || 'job'}` }}
           sx={{
             p: 0.5,

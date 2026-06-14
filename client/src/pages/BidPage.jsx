@@ -185,7 +185,8 @@ export default function BidPage({ currentUser }) {
     if (!activeProfile) return;
     const bidData = { ...draftFor(job), ...(bidDataOverride || {}), profileId: activeProfile.id };
     const mutation = job.bid ? updateBid : createBid;
-    const payload = job.bid ? { bidId: job.bid.id, jobId: job.id, bidData } : { jobId: job.id, bidData };
+    const jobId = bidJobActionId(job);
+    const payload = job.bid ? { bidId: job.bid.id, jobId, bidData } : { jobId, bidData };
 
     setError('');
     mutation(payload, {
@@ -195,13 +196,14 @@ export default function BidPage({ currentUser }) {
 
   function tailorResume(job, options = {}) {
     if (!activeProfile) return;
-    const scopedJobId = profileJobKey(activeProfile.id, job.id);
+    const jobId = bidJobActionId(job);
+    const scopedJobId = profileJobKey(activeProfile.id, bidJobCardKey(job));
     if (tailoringByProfileJobId[scopedJobId]) return;
 
     setTailoringByProfileJobId((current) => ({ ...current, [scopedJobId]: true }));
     setError('');
     requestTailoredResume(
-      { jobId: job.id, profileId: activeProfile.id, confirmSameCompany: options.confirmSameCompany === true },
+      { jobId, profileId: activeProfile.id, confirmSameCompany: options.confirmSameCompany === true },
       {
         onError: (tailoredResumeError) => {
           if (tailoredResumeError.data?.code === 'same_company_tailoring_conflict') {
@@ -238,7 +240,7 @@ export default function BidPage({ currentUser }) {
   function updateHiddenState(job, isHidden) {
     setError('');
     markHidden(
-      { jobId: job.id, isHidden },
+      { jobId: bidJobActionId(job), isHidden },
       {
         onError: (hiddenError) => setError(hiddenError.message),
       },
@@ -248,7 +250,7 @@ export default function BidPage({ currentUser }) {
   function updateExternalJobLink(job, url, options = {}) {
     setError('');
     updateLinkedInExternalUrl(
-      { jobId: job.id, url },
+      { jobId: bidJobActionId(job), url },
       {
         onSuccess: options.onSuccess,
         onError: (jobError) => {
@@ -263,7 +265,7 @@ export default function BidPage({ currentUser }) {
     if (!job.tailoredResume?.id) return;
     setError('');
     stopTailoredResume(
-      { jobId: job.id, tailoredResumeId: job.tailoredResume.id },
+      { jobId: bidJobActionId(job), tailoredResumeId: job.tailoredResume.id },
       {
         onError: (tailoredResumeError) => setError(tailoredResumeError.message),
       },
@@ -418,14 +420,25 @@ export default function BidPage({ currentUser }) {
   );
 }
 
-function profileJobKey(profileId, jobId) {
-  return `${profileId || 'no-profile'}:${jobId}`;
+function profileJobKey(profileId, jobKey) {
+  return `${profileId || 'no-profile'}:${jobKey}`;
+}
+
+function bidJobCardKey(job) {
+  return String(job?.groupId || job?.id || '');
+}
+
+function bidJobActionId(job) {
+  return job?.representativeJobId || job?.id;
 }
 
 function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs) {
   if (!profileId) return {};
   return jobs.reduce((tailoringByJobId, job) => {
-    tailoringByJobId[job.id] = Boolean(tailoringByProfileJobId[profileJobKey(profileId, job.id)]);
+    const cardKey = bidJobCardKey(job);
+    const isTailoring = Boolean(tailoringByProfileJobId[profileJobKey(profileId, cardKey)]);
+    tailoringByJobId[cardKey] = isTailoring;
+    tailoringByJobId[job.id] = isTailoring;
     return tailoringByJobId;
   }, {});
 }
