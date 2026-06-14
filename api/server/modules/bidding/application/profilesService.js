@@ -166,7 +166,6 @@ export async function profilesWithProgress(profiles, { user } = {}) {
     getJobBidModel().findAll({
       attributes: [
         'profileId',
-        'userId',
         [getSequelize().fn('COUNT', getSequelize().col('id')), 'dailyFinished'],
       ],
       where: {
@@ -175,7 +174,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
         bidAt: { [Op.gte]: today, [Op.lt]: tomorrow },
         ...(isCaller ? { callerUserId: user.id } : {}),
       },
-      group: ['profileId', 'userId'],
+      group: ['profileId'],
       raw: true,
     }),
     getTailoredResumeModel().findAll({
@@ -213,7 +212,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
     }),
   ]);
   const goalUserById = new Map(goalUserRows.map((row) => [String(row.id), row]));
-  const dailyFinishedByProfileUser = new Map();
+  const dailyFinishedByProfileId = new Map();
 
   const progressByProfileId = new Map(
     profileIds.map((profileId) => [
@@ -243,7 +242,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
   for (const row of dailyBidRows) {
     const progress = progressByProfileId.get(String(row.profileId));
     if (!progress) continue;
-    dailyFinishedByProfileUser.set(`${row.profileId}:${row.userId}`, Number(row.dailyFinished || 0));
+    dailyFinishedByProfileId.set(String(row.profileId), Number(row.dailyFinished || 0));
   }
 
   for (const row of tailoredRows) {
@@ -262,6 +261,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
   for (const profile of profiles) {
     const progress = progressByProfileId.get(String(profile.id));
     if (progress) {
+      const dailyFinished = dailyFinishedByProfileId.get(String(profile.id)) || 0;
       progress.dailyGoals = [...(profileUserIdsByProfileId.get(String(profile.id)) || [])]
         .map((userId) => {
           const goalUser = goalUserById.get(String(userId));
@@ -272,14 +272,14 @@ export async function profilesWithProgress(profiles, { user } = {}) {
             username: goalUser.username,
             role: goalUser.role,
             goal,
-            finished: dailyFinishedByProfileUser.get(`${profile.id}:${userId}`) || 0,
+            finished: dailyFinished,
           };
         })
         .filter(Boolean)
         .sort(compareDailyGoalProgress);
       const ownerGoal = progress.dailyGoals.find((goal) => String(goal.userId) === String(profile.userId));
       progress.dailyGoal = ownerGoal?.goal ?? null;
-      progress.dailyFinished = ownerGoal?.finished ?? 0;
+      progress.dailyFinished = dailyFinished;
     }
     profile.setDataValue('progress', progress);
   }
