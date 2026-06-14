@@ -17,6 +17,59 @@ import { ENV } from './env.js';
 import { InputError } from './errors.js';
 
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const US_STATE_ABBREVIATIONS = new Map([
+  ['alabama', 'AL'],
+  ['alaska', 'AK'],
+  ['arizona', 'AZ'],
+  ['arkansas', 'AR'],
+  ['california', 'CA'],
+  ['colorado', 'CO'],
+  ['connecticut', 'CT'],
+  ['delaware', 'DE'],
+  ['florida', 'FL'],
+  ['georgia', 'GA'],
+  ['hawaii', 'HI'],
+  ['idaho', 'ID'],
+  ['illinois', 'IL'],
+  ['indiana', 'IN'],
+  ['iowa', 'IA'],
+  ['kansas', 'KS'],
+  ['kentucky', 'KY'],
+  ['louisiana', 'LA'],
+  ['maine', 'ME'],
+  ['maryland', 'MD'],
+  ['massachusetts', 'MA'],
+  ['michigan', 'MI'],
+  ['minnesota', 'MN'],
+  ['mississippi', 'MS'],
+  ['missouri', 'MO'],
+  ['montana', 'MT'],
+  ['nebraska', 'NE'],
+  ['nevada', 'NV'],
+  ['new hampshire', 'NH'],
+  ['new jersey', 'NJ'],
+  ['new mexico', 'NM'],
+  ['new york', 'NY'],
+  ['north carolina', 'NC'],
+  ['north dakota', 'ND'],
+  ['ohio', 'OH'],
+  ['oklahoma', 'OK'],
+  ['oregon', 'OR'],
+  ['pennsylvania', 'PA'],
+  ['rhode island', 'RI'],
+  ['south carolina', 'SC'],
+  ['south dakota', 'SD'],
+  ['tennessee', 'TN'],
+  ['texas', 'TX'],
+  ['utah', 'UT'],
+  ['vermont', 'VT'],
+  ['virginia', 'VA'],
+  ['washington', 'WA'],
+  ['west virginia', 'WV'],
+  ['wisconsin', 'WI'],
+  ['wyoming', 'WY'],
+  ['district of columbia', 'DC'],
+]);
 const RESUME_TEMPLATES = {
   classic: {
     headingColor: '111827',
@@ -165,7 +218,7 @@ Instructions:
 - Each work_experience entry must include 1-2 key technical stacks or platforms that are aligned with the JD and historically valid for that role. Put them naturally in bullets and in the "tech" field; avoid dumping every tool into every role.
 - The latest work_experience bullets should build the strongest bridge between the JD's technical expertise/stacks and the latest role's actual scope. Prefer wording that highlights common engineering concerns, product-adjacent impact, customer/user workflows, platform quality, reliability, performance, data, integrations, collaboration, and delivery discipline when those are plausible from the profile and JD.
 - Previous work_experience entries should be lightly tailored only where the profile clearly supports the skill or responsibility. Do not move new JD-specific work into older roles.
-- For each work_experience entry, set "headquarters_location" to the company's headquarters location only when it is provided in the profile or available from verified public/company context. If unavailable, use the provided work location in "location" and leave "headquarters_location" blank.
+- For each work_experience entry, set "headquarters_location" to the company's headquarters location only when it is provided in the profile or available from verified public/company context. Format US headquarters as "City, ST" using the two-letter state abbreviation, such as "San Francisco, CA" or "New York, NY". Do not include the country. If unavailable, use the provided work location in "location" and leave "headquarters_location" blank.
 - For each work_experience entry, set "work_mode" to exactly one of "Remote", "Onsite", or "Hybrid" based on explicit profile/resume evidence. If the profile does not say, infer cautiously from the work location and job context; default to "Remote" only when remote work is clearly implied, otherwise use "Onsite".
 - For each work_experience entry, provide exactly 2 "projects" only when they are explicitly named in the profile or can be supported by verified public/company context such as a product, platform, or program area. If exact project names cannot be verified, use concise project-area names grounded in the profile and company context, not invented confidential initiatives.
 - Use metrics sparingly and only when plausible. Prefer concrete counts, scale, scope, latency, throughput, team size, systems, users, data volume, or time saved over percentage claims.
@@ -275,7 +328,7 @@ async function renderResumeDocx(data, profile) {
   for (const exp of workExperienceEntries(data)) {
     const position = String(exp.position || '').trim() || 'Role not provided';
     const company = String(exp.company || '').trim();
-    const location = String(exp.headquarters_location || exp.location || '').trim();
+    const location = formatHeadquartersLocation(exp.headquarters_location || exp.location || '');
     const period = [exp.start_date, exp.end_date].filter(Boolean).join(' - ');
     const workMode = normalizedWorkMode(exp.work_mode);
     const roleLine = [position, workMode].filter(Boolean).join(' - ');
@@ -395,6 +448,34 @@ function rightAlignedMetaParagraph(left, right, template, { after = 80, before =
     spacing: { before, after },
     children,
   });
+}
+
+function formatHeadquartersLocation(value) {
+  const parts = String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => !isCountryLocationPart(part));
+  if (!parts.length) return '';
+
+  if (parts.length >= 2) {
+    const city = parts[0];
+    const state = normalizeStateLocationPart(parts[1]);
+    return [city, state].filter(Boolean).join(', ');
+  }
+
+  return normalizeStateLocationPart(parts[0]);
+}
+
+function isCountryLocationPart(value) {
+  const normalized = String(value || '').toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
+  return ['united states', 'united states of america', 'usa', 'us', 'u s', 'canada'].includes(normalized);
+}
+
+function normalizeStateLocationPart(value) {
+  const trimmed = String(value || '').trim();
+  const normalized = trimmed.toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ');
+  return US_STATE_ABBREVIATIONS.get(normalized) || trimmed;
 }
 
 function normalizedWorkMode(value) {

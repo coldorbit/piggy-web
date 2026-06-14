@@ -62,7 +62,7 @@ export default function InterviewKanbanBoard({
       onDragCancel={handleDragCancel}
     >
       <Box
-        onWheel={handleBoardWheel}
+        onWheelCapture={handleBoardWheel}
         sx={{
           alignItems: 'stretch',
           display: 'grid',
