@@ -49,6 +49,7 @@ const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.don
 export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const canIncludeTodayScrapedJobs = isAdminRole(currentUser);
+  const canViewBidGoals = ['superadmin', 'admin', 'user'].includes(currentUser?.role);
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -360,6 +361,7 @@ export default function BidPage({ currentUser }) {
             activeProfile={activeProfile}
             isLoading={profilesLoading}
             profiles={activeProfiles}
+            showDailyGoal={canViewBidGoals}
             onProfileChange={setActiveProfileId}
           />
 
@@ -391,7 +393,7 @@ export default function BidPage({ currentUser }) {
                   refetchJobs();
                 }}
               />
-              <BidDailyGoalBar activeColor={activeColor} profile={activeProfile} />
+              {canViewBidGoals ? <BidDailyGoalBar activeColor={activeColor} profile={activeProfile} /> : null}
               <BidWorkspaceProvider value={bidWorkspace}>
                 <BidJobsPanel key={activeProfile.id} />
               </BidWorkspaceProvider>
@@ -453,17 +455,11 @@ function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs) {
 }
 
 function BidDailyGoalBar({ activeColor, profile }) {
-  const goal = Number(profile?.progress?.dailyGoal || 0);
-  if (!goal) return null;
+  const goals = dailyGoalRows(profile);
+  if (!goals.length) return null;
 
-  const finished = Number(profile?.progress?.dailyFinished || 0);
-  const percent = Math.min((finished / goal) * 100, 100);
-  const dayPercent = dayProgressPercent();
-  const isComplete = finished >= goal;
-  const isOnTrack = isComplete || percent + 2 >= dayPercent;
-  const statusLabel = isComplete ? 'Complete' : isOnTrack ? 'On track' : 'Behind pace';
-  const statusColor = isComplete ? '#15803d' : isOnTrack ? activeColor.dark : '#b45309';
-  const remaining = Math.max(goal - finished, 0);
+  const totalGoal = goals.reduce((sum, goal) => sum + goal.goal, 0);
+  const totalFinished = goals.reduce((sum, goal) => sum + goal.finished, 0);
 
   return (
     <Paper
@@ -475,22 +471,48 @@ function BidDailyGoalBar({ activeColor, profile }) {
         display: 'grid',
         gap: 0.75,
         bgcolor: '#f8fafc',
-        borderColor: isComplete ? '#bbf7d0' : isOnTrack ? activeColor.soft : '#fed7aa',
+        borderColor: totalFinished >= totalGoal ? '#bbf7d0' : activeColor.soft,
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
         <Typography variant="body2" fontWeight={900}>
-          {profile?.name ? `${profile.name} daily goal` : 'Profile daily goal'}
+          {profile?.name ? `${profile.name} daily bid goals` : 'Profile daily bid goals'}
         </Typography>
-        <Typography variant="body2" fontWeight={900} sx={{ color: statusColor }}>
-          {finished.toLocaleString()} / {goal.toLocaleString()} finished today
+        <Typography variant="body2" fontWeight={900} color="text.secondary">
+          {totalFinished.toLocaleString()} / {totalGoal.toLocaleString()} finished today
+        </Typography>
+      </Box>
+      {goals.map((goal) => (
+        <DailyGoalRow key={goal.userId || goal.username} activeColor={activeColor} goal={goal} />
+      ))}
+    </Paper>
+  );
+}
+
+function DailyGoalRow({ activeColor, goal }) {
+  const percent = Math.min((goal.finished / goal.goal) * 100, 100);
+  const dayPercent = dayProgressPercent();
+  const isComplete = goal.finished >= goal.goal;
+  const isOnTrack = isComplete || percent + 2 >= dayPercent;
+  const statusLabel = isComplete ? 'Complete' : isOnTrack ? 'On track' : 'Behind pace';
+  const statusColor = isComplete ? '#15803d' : isOnTrack ? activeColor.dark : '#b45309';
+  const remaining = Math.max(goal.goal - goal.finished, 0);
+
+  return (
+    <Box sx={{ display: 'grid', gap: 0.45 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <Typography variant="caption" fontWeight={900}>
+          {[goal.username || 'User', roleLabel(goal.role)].filter(Boolean).join(' - ')}
+        </Typography>
+        <Typography variant="caption" fontWeight={900} sx={{ color: statusColor }}>
+          {goal.finished.toLocaleString()} / {goal.goal.toLocaleString()}
         </Typography>
       </Box>
       <LinearProgress
         variant="determinate"
         value={percent}
         sx={{
-          height: 8,
+          height: 7,
           borderRadius: 1,
           bgcolor: '#e5e7eb',
           '& .MuiLinearProgress-bar': {
@@ -507,8 +529,39 @@ function BidDailyGoalBar({ activeColor, profile }) {
           {remaining ? `${remaining.toLocaleString()} remaining` : 'Goal reached'}
         </Typography>
       </Box>
-    </Paper>
+    </Box>
   );
+}
+
+function dailyGoalRows(profile) {
+  const goals = Array.isArray(profile?.progress?.dailyGoals)
+    ? profile.progress.dailyGoals
+        .map((goal) => ({
+          userId: goal.userId,
+          username: goal.username,
+          role: goal.role,
+          goal: Number(goal.goal || 0),
+          finished: Number(goal.finished || 0),
+        }))
+        .filter((goal) => goal.goal > 0)
+    : [];
+  if (goals.length) return goals;
+
+  const goal = Number(profile?.progress?.dailyGoal || 0);
+  if (!goal) return [];
+  return [{
+    userId: profile?.userId,
+    username: profile?.ownerUsername || profile?.name || 'Owner',
+    role: '',
+    goal,
+    finished: Number(profile?.progress?.dailyFinished || 0),
+  }];
+}
+
+function roleLabel(role) {
+  if (role === 'readonly_bidder' || role === 'editable_bidder' || role === 'bidder') return 'bidder';
+  if (role === 'user') return 'user';
+  return '';
 }
 
 function dayProgressPercent(value = new Date()) {

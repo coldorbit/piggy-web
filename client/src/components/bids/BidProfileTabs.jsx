@@ -234,10 +234,15 @@ function ProfileTabLabel({ profile, onOpenProfilePage, showDailyGoal, showInterv
 }
 
 function profileDailyGoal(profile) {
-  const goal = Number(profile?.progress?.dailyGoal || 0);
+  const dailyGoals = Array.isArray(profile?.progress?.dailyGoals) ? profile.progress.dailyGoals : [];
+  const goal = dailyGoals.length
+    ? dailyGoals.reduce((sum, row) => sum + Number(row.goal || 0), 0)
+    : Number(profile?.progress?.dailyGoal || 0);
   if (!goal) return null;
 
-  const finished = Number(profile?.progress?.dailyFinished || 0);
+  const finished = dailyGoals.length
+    ? dailyGoals.reduce((sum, row) => sum + Number(row.finished || 0), 0)
+    : Number(profile?.progress?.dailyFinished || 0);
   const percent = Math.min((finished / goal) * 100, 100);
   const isComplete = finished >= goal;
   const isOnTrack = isComplete || percent + 2 >= dayProgressPercent();
