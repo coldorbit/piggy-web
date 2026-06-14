@@ -107,6 +107,12 @@ export default function BidJobCard({
     onStatusChange(job, { ...draft, status });
   }
 
+  function handleReviewChange(event) {
+    const status = event.target.value || 'planned';
+    onDraftChange(job.id, 'status', status);
+    onStatusChange(job, { ...draft, status });
+  }
+
   function handleApplied() {
     const status = 'submitted';
     onDraftChange(job.id, 'status', status);
@@ -366,10 +372,12 @@ export default function BidJobCard({
                     <Select
                       label="Review"
                       value={reviewStatusValue(draft.status)}
-                      onChange={handleStatusChange}
+                      onChange={handleReviewChange}
                       disabled={isSaving}
                     >
-                      <MenuItem value="" disabled>Review status</MenuItem>
+                      <MenuItem value="" disabled={activeTab !== BID_TABS.tailored}>
+                        {activeTab === BID_TABS.tailored ? 'None' : 'Review status'}
+                      </MenuItem>
                       <MenuItem value="mismatching_bid">Mismatching</MenuItem>
                       <MenuItem value="spam_job">Spam work</MenuItem>
                     </Select>

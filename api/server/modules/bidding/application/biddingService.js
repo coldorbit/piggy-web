@@ -20,7 +20,7 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
       ]
     : isDoneTab
     ? [
-        [{ model: JobBid, as: 'bids' }, 'updatedAt', 'DESC'],
+        [{ model: JobBid, as: 'bids' }, 'bidAt', 'DESC'],
         [{ model: JobBid, as: 'bids' }, 'id', 'DESC'],
       ]
     : isTailoredTab

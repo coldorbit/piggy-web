@@ -69,7 +69,7 @@ describe('buildBidTabQuery', () => {
 
     assert.equal(query.include[0].required, true);
     assert.deepEqual(query.include[0].where.status[Op.in], ['submitted', 'won', 'lost', 'mismatching_bid', 'spam_job']);
-    assert.deepEqual(query.order[0], [{ model: JobBid, as: 'bids' }, 'updatedAt', 'DESC']);
+    assert.deepEqual(query.order[0], [{ model: JobBid, as: 'bids' }, 'bidAt', 'DESC']);
     assert.equal(query.where[Op.and], undefined);
   });
 

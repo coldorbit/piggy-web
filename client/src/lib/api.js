@@ -529,16 +529,16 @@ function updateCachedBidJob(oldData, filters, jobId, updates, cachedJob, tabDelt
 
   return {
     ...oldData,
-    jobs: filters.bidTab === 'done' ? sortBidJobsByUpdatedAtDesc(jobs) : jobs,
+    jobs: filters.bidTab === 'done' ? sortBidJobsByAppliedAtDesc(jobs) : jobs,
     total: typeof oldData.total === 'number' ? Math.max(oldData.total + countDelta, 0) : oldData.total,
     tabCounts: updateBidTabCounts(oldData.tabCounts, tabDelta),
   };
 }
 
-function sortBidJobsByUpdatedAtDesc(jobs) {
+function sortBidJobsByAppliedAtDesc(jobs) {
   return [...jobs].sort((left, right) => {
-    const leftTime = Date.parse(left.bid?.updatedAt || left.updatedAt || 0) || 0;
-    const rightTime = Date.parse(right.bid?.updatedAt || right.updatedAt || 0) || 0;
+    const leftTime = Date.parse(left.bid?.bidAt || left.bid?.updatedAt || left.updatedAt || 0) || 0;
+    const rightTime = Date.parse(right.bid?.bidAt || right.bid?.updatedAt || right.updatedAt || 0) || 0;
     if (rightTime !== leftTime) return rightTime - leftTime;
     return Number(right.bid?.id || right.id || 0) - Number(left.bid?.id || left.id || 0);
   });
