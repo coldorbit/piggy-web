@@ -46,6 +46,7 @@ export default function ProfilesPage({ currentUser }) {
   const [editingProfileId, setEditingProfileId] = useState(null);
   const [sharingProfile, setSharingProfile] = useState(null);
   const [closingProfile, setClosingProfile] = useState(null);
+  const [legacyProfile, setLegacyProfile] = useState(null);
   const [viewingProfile, setViewingProfile] = useState(null);
   const [shareUsernames, setShareUsernames] = useState([]);
   const [closeReason, setCloseReason] = useState('');
@@ -122,6 +123,15 @@ export default function ProfilesPage({ currentUser }) {
     setCloseReason('');
   }
 
+  function openLegacyDialog(profile) {
+    setError('');
+    setLegacyProfile(profile);
+  }
+
+  function closeLegacyDialog() {
+    setLegacyProfile(null);
+  }
+
   function submitProfile(event) {
     event.preventDefault();
     setError('');
@@ -163,13 +173,14 @@ export default function ProfilesPage({ currentUser }) {
     );
   }
 
-  function markLegacyProfile(profile) {
-    const label = profile.name || 'this profile';
-    if (!window.confirm(`Mark ${label} as legacy? Users will not be able to bid or tailor with it, but interviews will stay available.`)) return;
+  function submitLegacyStatus(event) {
+    event.preventDefault();
+    if (!legacyProfile) return;
     setError('');
     updateProfileStatus(
-      { profileId: profile.id, status: 'legacy' },
+      { profileId: legacyProfile.id, status: 'legacy' },
       {
+        onSuccess: closeLegacyDialog,
         onError: (statusError) => setError(statusError.message),
       },
     );
@@ -303,7 +314,7 @@ export default function ProfilesPage({ currentUser }) {
             onCloseProfile={openCloseDialog}
             onDelete={removeProfile}
             onEdit={openEditDialog}
-            onMarkLegacy={markLegacyProfile}
+            onMarkLegacy={openLegacyDialog}
             onReopenProfile={reopenProfile}
             onShare={openShareDialog}
             onView={setViewingProfile}
@@ -361,6 +372,26 @@ export default function ProfilesPage({ currentUser }) {
             <Button onClick={closeShareDialog}>Cancel</Button>
             <Button type="submit" variant="contained" disabled={sharing || recipientsLoading || !sharingProfile}>
               Save sharing
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      <Dialog open={Boolean(legacyProfile)} onClose={closeLegacyDialog} fullWidth maxWidth="xs">
+        <form onSubmit={submitLegacyStatus}>
+          <DialogTitle>Mark profile as legacy</DialogTitle>
+          <DialogContent sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Users will not be able to bid or tailor with this profile, but interviews and calendar entries will remain available.
+            </Typography>
+            <Typography variant="body2" fontWeight={900} sx={{ mt: 1 }}>
+              {legacyProfile ? legacyProfile.name : ''}
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeLegacyDialog}>Cancel</Button>
+            <Button type="submit" variant="contained" color="warning" disabled={updatingStatus}>
+              Mark legacy
             </Button>
           </DialogActions>
         </form>
