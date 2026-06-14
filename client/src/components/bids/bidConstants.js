@@ -8,7 +8,7 @@ export const DEFAULT_BID_FILTERS = {
   source: 'all',
   locationRegion: 'all',
   appliedProfileId: 'all',
-  since: 'today',
+  since: 'until_yesterday',
   dateFrom: '',
   dateTo: '',
   spam: 'all',

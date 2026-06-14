@@ -48,11 +48,12 @@ const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.don
 
 export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const canIncludeTodayScrapedJobs = isAdminRole(currentUser);
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [activeBidTab, setActiveBidTab] = useState(() => bidTabFromParam(searchParams.get('tab')));
-  const [filters, setFilters] = useState(() => bidFiltersFromParams(searchParams));
+  const [filters, setFilters] = useState(() => bidFiltersFromParams(searchParams, { canIncludeTodayScrapedJobs }));
   const [drafts, setDrafts] = useState({});
   const [error, setError] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -112,12 +113,12 @@ export default function BidPage({ currentUser }) {
   useEffect(() => {
     const nextProfileId = searchParams.get('profileId') || '';
     const nextTab = bidTabFromParam(searchParams.get('tab'));
-    const nextFilters = bidFiltersFromParams(searchParams);
+    const nextFilters = bidFiltersFromParams(searchParams, { canIncludeTodayScrapedJobs });
 
     if (String(nextProfileId) !== String(activeProfileId)) setActiveProfileId(nextProfileId);
     if (nextTab !== activeBidTab) setActiveBidTab(nextTab);
     if (!areBidFiltersEqual(nextFilters, filters)) setFilters(nextFilters);
-  }, [searchParams]);
+  }, [canIncludeTodayScrapedJobs, searchParams]);
 
   useEffect(() => {
     const nextParams = bidParamsFromState({ activeProfileId, activeBidTab, filters });
@@ -378,6 +379,8 @@ export default function BidPage({ currentUser }) {
                 meta={{
                   ...(metaData || { sources: [] }),
                   appliedProfiles: appliedProfileOptions,
+                  bidDateStrategy: true,
+                  canIncludeTodayScrapedJobs,
                   showAppliedProfileFilter: activeBidTab === BID_TABS.todo && canUseCrossUserAppliedFilter,
                 }}
                 onClose={() => setIsFilterPanelOpen(false)}
@@ -388,7 +391,7 @@ export default function BidPage({ currentUser }) {
                   refetchJobs();
                 }}
               />
-              <BidDailyGoalBar activeColor={activeColor} currentUser={currentBidUser} />
+              <BidDailyGoalBar activeColor={activeColor} profile={activeProfile} />
               <BidWorkspaceProvider value={bidWorkspace}>
                 <BidJobsPanel key={activeProfile.id} />
               </BidWorkspaceProvider>
@@ -449,11 +452,11 @@ function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs) {
   }, {});
 }
 
-function BidDailyGoalBar({ activeColor, currentUser }) {
-  const goal = Number(currentUser?.dailyBidGoal || 0);
-  if (!goal || currentUser?.dailyFinishedBids === undefined || currentUser?.dailyFinishedBids === null) return null;
+function BidDailyGoalBar({ activeColor, profile }) {
+  const goal = Number(profile?.progress?.dailyGoal || 0);
+  if (!goal) return null;
 
-  const finished = Number(currentUser?.dailyFinishedBids || 0);
+  const finished = Number(profile?.progress?.dailyFinished || 0);
   const percent = Math.min((finished / goal) * 100, 100);
   const dayPercent = dayProgressPercent();
   const isComplete = finished >= goal;
@@ -477,7 +480,7 @@ function BidDailyGoalBar({ activeColor, currentUser }) {
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
         <Typography variant="body2" fontWeight={900}>
-          Daily goal
+          {profile?.name ? `${profile.name} daily goal` : 'Profile daily goal'}
         </Typography>
         <Typography variant="body2" fontWeight={900} sx={{ color: statusColor }}>
           {finished.toLocaleString()} / {goal.toLocaleString()} finished today
@@ -517,14 +520,26 @@ function bidTabFromParam(value) {
   return APPLICATION_TABS.has(value) ? value : BID_TABS.todo;
 }
 
-function bidFiltersFromParams(params) {
+function bidFiltersFromParams(params, { canIncludeTodayScrapedJobs = false } = {}) {
   const persistedFilters = readPersistedFilters(BID_FILTERS_STORAGE_KEY, DEFAULT_BID_FILTERS, BID_FILTER_KEYS);
   const paramFilters = {};
   BID_FILTER_KEYS.forEach((key) => {
     const value = params.get(key);
     if (value !== null) paramFilters[key] = value;
   });
-  return mergeKnownFilters(persistedFilters, paramFilters, BID_FILTER_KEYS);
+  return normalizeBidDateFilter(
+    mergeKnownFilters(persistedFilters, paramFilters, BID_FILTER_KEYS),
+    { canIncludeTodayScrapedJobs },
+  );
+}
+
+function normalizeBidDateFilter(filters, { canIncludeTodayScrapedJobs = false } = {}) {
+  if (canIncludeTodayScrapedJobs) {
+    if (!['today', 'this_week', 'all'].includes(filters.since)) return filters;
+    return { ...filters, since: 'through_today', dateFrom: '', dateTo: '' };
+  }
+  if (!['today', 'through_today', 'this_week', 'all'].includes(filters.since)) return filters;
+  return { ...filters, since: 'until_yesterday', dateFrom: '', dateTo: '' };
 }
 
 function bidParamsFromState({ activeProfileId, activeBidTab, filters }) {

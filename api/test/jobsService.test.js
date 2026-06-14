@@ -36,6 +36,14 @@ describe('job query filters', () => {
     assert.equal(query.where.scrapedAt, undefined);
   });
 
+  it('filters bid strategy jobs to anything scraped before today', () => {
+    const query = buildJobQuery({ since: 'until_yesterday', visibility: 'all' });
+    const today = new Date();
+
+    assert.equal(query.where.scrapedAt[Op.gte], undefined);
+    assert.deepEqual(dateParts(query.where.scrapedAt[Op.lt]), [today.getFullYear(), today.getMonth(), today.getDate()]);
+  });
+
   it('searches by public job id', () => {
     const query = buildJobQuery({ search: 'J000001A', since: 'all', visibility: 'all' });
 

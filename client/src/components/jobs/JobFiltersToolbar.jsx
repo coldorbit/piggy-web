@@ -16,18 +16,18 @@ import {
 } from '@mui/material';
 import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
 
-const DATE_PRESETS = new Set(['today', 'yesterday', 'this_week', 'last_week', 'all', 'custom']);
-
 export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
   const appliedProfiles = meta?.appliedProfiles || [];
   const sourceOptions = meta?.sources || [];
   const showAppliedProfileFilter = Boolean(meta?.showAppliedProfileFilter);
+  const dateOptions = dateFilterOptions(meta);
   const appliedProfileValue = appliedProfiles.some((profile) => String(profile.id) === String(filters.appliedProfileId))
     ? String(filters.appliedProfileId)
     : 'all';
-  const sinceValue = DATE_PRESETS.has(filters.since) ? filters.since : 'today';
+  const sinceValue = dateOptions.some((option) => option.value === filters.since) ? filters.since : dateOptions[0].value;
   const customRangeStart = parseDateOnly(filters.dateFrom);
   const customRangeEnd = parseDateOnly(filters.dateTo);
+  const maxCustomDate = meta?.canIncludeTodayScrapedJobs === false ? yesterdayDate() : new Date();
 
   function updateSince(value) {
     onFilterChange('since', value);
@@ -127,12 +127,11 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
       <FormControl size="small">
         <InputLabel>Date</InputLabel>
         <Select label="Date" value={sinceValue} onChange={(event) => updateSince(event.target.value)}>
-          <MenuItem value="today">Today</MenuItem>
-          <MenuItem value="yesterday">Yesterday</MenuItem>
-          <MenuItem value="this_week">This week</MenuItem>
-          <MenuItem value="last_week">Last week</MenuItem>
-          <MenuItem value="all">All time</MenuItem>
-          <MenuItem value="custom">Custom range</MenuItem>
+          {dateOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
         </Select>
       </FormControl>
       {sinceValue === 'custom' ? (
@@ -144,7 +143,7 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
           selectsRange
           isClearable
           dateFormat="MMM d, yyyy"
-          maxDate={new Date()}
+          maxDate={maxCustomDate}
           popperClassName="job-date-range-picker"
           customInput={<DateRangeInput />}
         />
@@ -252,6 +251,33 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
       {content}
     </Paper>
   );
+}
+
+function dateFilterOptions(meta = {}) {
+  if (meta.bidDateStrategy) {
+    return [
+      { value: 'until_yesterday', label: 'Until yesterday' },
+      ...(meta.canIncludeTodayScrapedJobs ? [{ value: 'through_today', label: 'Through today' }] : []),
+      { value: 'yesterday', label: 'Yesterday' },
+      { value: 'last_week', label: 'Last week' },
+      { value: 'custom', label: 'Custom range' },
+    ];
+  }
+
+  return [
+    { value: 'today', label: 'Today' },
+    { value: 'yesterday', label: 'Yesterday' },
+    { value: 'this_week', label: 'This week' },
+    { value: 'last_week', label: 'Last week' },
+    { value: 'all', label: 'All time' },
+    { value: 'custom', label: 'Custom range' },
+  ];
+}
+
+function yesterdayDate() {
+  const value = new Date();
+  value.setDate(value.getDate() - 1);
+  return value;
 }
 
 const DateRangeInput = forwardRef(function DateRangeInput({ value, onClick, onChange }, ref) {

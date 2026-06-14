@@ -264,6 +264,12 @@ function presetDateRange(value) {
   if (value === 'yesterday') {
     return { from: addDays(today, -1), to: today };
   }
+  if (value === 'until_yesterday') {
+    return { from: null, to: today };
+  }
+  if (value === 'through_today') {
+    return { from: null, to: addDays(today, 1) };
+  }
   if (value === 'this_week') {
     const weekStart = startOfLocalWeek(today);
     return { from: weekStart, to: addDays(weekStart, 7) };

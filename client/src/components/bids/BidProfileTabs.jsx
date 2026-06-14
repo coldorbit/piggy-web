@@ -1,5 +1,5 @@
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { Box, Chip, Paper, Skeleton, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Chip, LinearProgress, Paper, Skeleton, Tab, Tabs, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import EmptyState from '../common/EmptyState.jsx';
@@ -112,6 +112,8 @@ function openProfilePage(profile) {
 }
 
 function ProfileTabLabel({ profile, onOpenProfilePage, showInterviewCounts }) {
+  const dailyGoal = profileDailyGoal(profile);
+
   function handleOpen(event) {
     event.preventDefault();
     event.stopPropagation();
@@ -174,9 +176,56 @@ function ProfileTabLabel({ profile, onOpenProfilePage, showInterviewCounts }) {
             />
           </>
         ) : null}
+        {dailyGoal ? (
+          <Chip
+            label={`${dailyGoal.finished.toLocaleString()} / ${dailyGoal.goal.toLocaleString()} today`}
+            size="small"
+            sx={{
+              height: 20,
+              fontSize: 11,
+              fontWeight: 900,
+              bgcolor: dailyGoal.bgcolor,
+              color: dailyGoal.color,
+              '& .MuiChip-label': { px: 0.75 },
+            }}
+          />
+        ) : null}
       </Box>
+      {dailyGoal ? (
+        <LinearProgress
+          variant="determinate"
+          value={dailyGoal.percent}
+          sx={{
+            height: 4,
+            borderRadius: 1,
+            bgcolor: '#e5e7eb',
+            '& .MuiLinearProgress-bar': {
+              borderRadius: 1,
+              bgcolor: dailyGoal.color,
+            },
+          }}
+        />
+      ) : null}
     </Box>
   );
+}
+
+function profileDailyGoal(profile) {
+  const goal = Number(profile?.progress?.dailyGoal || 0);
+  if (!goal) return null;
+
+  const finished = Number(profile?.progress?.dailyFinished || 0);
+  const percent = Math.min((finished / goal) * 100, 100);
+  const isComplete = finished >= goal;
+  const isOnTrack = isComplete || percent + 2 >= dayProgressPercent();
+  if (isComplete) return { goal, finished, percent, color: '#15803d', bgcolor: '#dcfce7' };
+  if (isOnTrack) return { goal, finished, percent, color: '#1d4ed8', bgcolor: '#dbeafe' };
+  return { goal, finished, percent, color: '#b45309', bgcolor: '#ffedd5' };
+}
+
+function dayProgressPercent(value = new Date()) {
+  const minutes = value.getHours() * 60 + value.getMinutes();
+  return (minutes / (24 * 60)) * 100;
 }
 
 const openProfileIconSx = {

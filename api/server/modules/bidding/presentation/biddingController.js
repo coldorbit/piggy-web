@@ -590,6 +590,7 @@ export async function listBidJobs(req, res, next) {
     const WebUser = getWebUserModel();
     const sequelize = getSequelize();
     const { where, order: jobOrder, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
+    if (!isAdminRole(user)) enforceBidStrategyScrapedBeforeToday(where);
     const bidUsers = await bidUsersForProfile(profile);
     const appliedProfileId = bidTab === 'todo' ? await appliedProfileFilter(req, req.query.appliedProfileId) : '';
     const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, appliedProfileId, JobBid, sequelize });
@@ -1085,6 +1086,16 @@ function daysSince(value, now = new Date()) {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return 0;
   return Math.max(Math.floor((now.getTime() - timestamp) / DAY_MS), 0);
+}
+
+function enforceBidStrategyScrapedBeforeToday(where) {
+  const today = startOfLocalDay(new Date());
+  const currentScrapedAt = where.scrapedAt || {};
+  const currentUpperBound = currentScrapedAt[Op.lt];
+  where.scrapedAt = {
+    ...currentScrapedAt,
+    [Op.lt]: currentUpperBound && new Date(currentUpperBound) < today ? currentUpperBound : today,
+  };
 }
 
 export async function createTailoredResume(req, res, next) {
