@@ -138,6 +138,14 @@ async function processTailoredResume(tailoredResume) {
 
     if (!job) throw new Error('Job not found for tailoring request');
     if (!profile) throw new Error('Profile not found for tailoring request');
+    if ((profile.profileStatus || 'active') === 'legacy') {
+      await tailoredResume.update({
+        status: 'invalid',
+        lastError: 'Legacy profiles cannot be used for tailoring',
+        deadLetterAt: new Date(),
+      });
+      return;
+    }
 
     const tailorResult = await generateTailoredResume({ job, profile, tailoredResume });
     await tailoredResume.reload();

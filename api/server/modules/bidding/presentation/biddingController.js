@@ -31,11 +31,13 @@ import {
   accessibleAppliedProfile,
   currentDbUser,
   formatProfile,
+  isLegacyProfile,
   ownedProfile,
   profileAttributesFromBody,
   profilesManagedByUser,
   profilesForAppliedFilter,
   profileStatusAttributesFromBody,
+  sortProfilesForDisplay,
   profilesVisibleToUser,
   profilesWithProgress,
   profilesWithSharing,
@@ -63,7 +65,8 @@ export async function listProfiles(req, res, next) {
         : scope === 'manage' && isAdminRole(user)
         ? await profilesManagedByUser(user)
         : await profilesVisibleToUser(user);
-    res.json({ profiles: (await profilesWithSharing(await profilesWithProgress(profiles, { user }))).map(formatProfile) });
+    const visibleProfiles = sortProfilesForDisplay(await profilesWithSharing(await profilesWithProgress(profiles, { user })));
+    res.json({ profiles: visibleProfiles.map(formatProfile) });
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
       res.status(409).json({ error: 'This profile already has a bid for this job' });
@@ -514,8 +517,8 @@ export async function updateProfileStatus(req, res, next) {
   try {
     await ensureWebModels();
     const attrs = profileStatusAttributesFromBody(req.body);
-    if (!canUpdateProfileStatus(req, res, attrs.profileStatus)) return;
-    const profile = attrs.profileStatus === 'active' ? await adminManagedProfile(req, req.params.id) : await manageableProfile(req, req.params.id);
+    const profile = await manageableProfile(req, req.params.id);
+    if (!canUpdateProfileStatus(req, res, profile, attrs.profileStatus)) return;
     await profile.update(attrs);
     res.json({ profile: formatProfile(profile) });
   } catch (error) {
@@ -543,7 +546,13 @@ function canManageProfiles(req, res) {
   return false;
 }
 
-function canUpdateProfileStatus(req, res, status) {
+function canUpdateProfileStatus(req, res, profile, status) {
+  if (status === 'legacy' || isLegacyProfile(profile)) {
+    if (isSuperadmin(req.user)) return true;
+    res.status(403).json({ error: 'Only superadmins can mark or restore legacy profiles' });
+    return false;
+  }
+
   if (status === 'active') {
     if (isAdminRole(req.user)) return true;
     res.status(403).json({ error: 'Only admins can restore closed profiles' });
@@ -584,6 +593,7 @@ export async function listBidJobs(req, res, next) {
       await listInterviewJobs(req, res, { user, profile });
       return;
     }
+    if (!ensureProfileBidEligible(profile, res)) return;
     const ScrapedJob = getScrapedJobModel();
     const JobBid = getJobBidModel();
     const TailoredResume = getTailoredResumeModel();
@@ -902,6 +912,16 @@ function canManageCallers(user) {
   return !CALLER_BLOCKED_ROLES.includes(user?.role);
 }
 
+function ensureProfileBidEligible(profile, res) {
+  if (!isLegacyProfile(profile)) return true;
+  res.status(403).json({ error: 'Legacy profiles can register interviews, but cannot be used for bidding or tailoring' });
+  return false;
+}
+
+function isInterviewBidStatus(status) {
+  return ['interviewing', 'won', 'lost'].includes(status);
+}
+
 async function bidUsersForProfile(profile) {
   const WebUser = getWebUserModel();
   const ProfileShareRequest = getProfileShareRequestModel();
@@ -1103,6 +1123,7 @@ export async function createTailoredResume(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const profile = await accessibleProfile(req, req.body?.profileId);
+    if (!ensureProfileBidEligible(profile, res)) return;
     const sequelize = getSequelize();
     const job = await getScrapedJobModel().findByPk(req.params.jobId);
     if (!job) {
@@ -1181,6 +1202,7 @@ export async function createManualTailoredResume(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const profile = await accessibleProfile(req, req.body?.profileId);
+    if (!ensureProfileBidEligible(profile, res)) return;
     const attrs = manualTailoringAttributesFromBody(req.body);
     const TailoredResume = getTailoredResumeModel();
     const tailoredResume = await TailoredResume.create({
@@ -1561,6 +1583,7 @@ export async function createJobBid(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const profile = await accessibleProfile(req, req.body?.profileId);
+    if (!ensureProfileBidEligible(profile, res)) return;
     const job = await getScrapedJobModel().findByPk(req.params.jobId);
     if (!job) {
       res.status(404).json({ error: 'Job not found' });
@@ -1991,12 +2014,22 @@ export async function updateJobBid(req, res, next) {
     if (rejectReviewStatusForNonAdmin(req, res, attrs)) return;
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (!isAdminRole(req.user)) {
-      await accessibleProfile(req, bid.profileId);
+      const profile = await accessibleProfile(req, bid.profileId);
+      if (isLegacyProfile(profile) && !isInterviewBidStatus(attrs.status || bid.status)) {
+        res.status(403).json({ error: 'Legacy profiles can register interviews, but cannot be used for bidding' });
+        return;
+      }
       if (!PRIVILEGED_USER_ROLES.includes(user.role) && String(bid.userId) !== String(user.id)) {
         res.status(404).json({ error: 'Bid not found' });
         return;
       }
       delete attrs.callerUserId;
+    } else {
+      const profile = await getBidProfileModel().findByPk(bid.profileId);
+      if (isLegacyProfile(profile) && !isInterviewBidStatus(attrs.status || bid.status)) {
+        res.status(403).json({ error: 'Legacy profiles can register interviews, but cannot be used for bidding' });
+        return;
+      }
     }
     const now = new Date();
     const updates = { ...bidUpdateValuesFromAttrs(attrs), updatedAt: now };

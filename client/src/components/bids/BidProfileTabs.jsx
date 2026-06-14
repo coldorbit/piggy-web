@@ -151,6 +151,14 @@ function ProfileTabLabel({ profile, onOpenProfilePage, showInterviewCounts }) {
             sx={{ height: 20, fontSize: 11, fontWeight: 800, '& .MuiChip-label': { px: 0.75 } }}
           />
         ) : null}
+        {profile.profileStatus === 'legacy' ? (
+          <Chip
+            label="Legacy"
+            size="small"
+            variant="outlined"
+            sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: '#f3f4f6', color: '#4b5563', '& .MuiChip-label': { px: 0.75 } }}
+          />
+        ) : null}
         <Chip
           label={profile.profileBadge || 'SWE'}
           size="small"

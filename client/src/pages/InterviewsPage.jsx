@@ -71,13 +71,13 @@ export default function InterviewsPage({ currentUser }) {
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
     isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
-  const activeProfiles = useMemo(
-    () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
+  const interviewProfiles = useMemo(
+    () => profiles.filter((profile) => ['active', 'legacy'].includes(profile.profileStatus || 'active')),
     [profiles],
   );
   const activeProfile = useMemo(
-    () => activeProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || activeProfiles[0] || null,
-    [activeProfiles, activeProfileId],
+    () => interviewProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || interviewProfiles[0] || null,
+    [interviewProfiles, activeProfileId],
   );
   const filters = useMemo(
     () => ({
@@ -97,10 +97,10 @@ export default function InterviewsPage({ currentUser }) {
   const { mutate: deleteInterview, isPending: deletingInterview } = useDeleteInterview();
 
   useEffect(() => {
-    if (!activeProfiles[0]) return;
-    const hasActiveProfile = activeProfiles.some((profile) => String(profile.id) === String(activeProfileId));
-    if (!activeProfileId || !hasActiveProfile) setActiveProfileId(activeProfiles[0].id);
-  }, [activeProfileId, activeProfiles]);
+    if (!interviewProfiles[0]) return;
+    const hasActiveProfile = interviewProfiles.some((profile) => String(profile.id) === String(activeProfileId));
+    if (!activeProfileId || !hasActiveProfile) setActiveProfileId(interviewProfiles[0].id);
+  }, [activeProfileId, interviewProfiles]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
@@ -274,14 +274,14 @@ export default function InterviewsPage({ currentUser }) {
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
-      {!activeProfiles.length && !profilesLoading ? (
+      {!interviewProfiles.length && !profilesLoading ? (
         <EmptyState
-          title="No active profiles available"
-          detail="Interview work appears after an active profile has applications in the interview pipeline."
+          title="No interview profiles available"
+          detail="Interview work appears after an active or legacy profile has applications in the interview pipeline."
         />
       ) : null}
 
-      {profilesLoading || activeProfiles.length ? (
+      {profilesLoading || interviewProfiles.length ? (
         <Box
           sx={{
             display: 'grid',
@@ -297,7 +297,7 @@ export default function InterviewsPage({ currentUser }) {
             activeColor={activeColor}
             activeProfile={activeProfile}
             isLoading={profilesLoading}
-            profiles={activeProfiles}
+            profiles={interviewProfiles}
             showInterviewCounts
             onProfileChange={setActiveProfileId}
           />

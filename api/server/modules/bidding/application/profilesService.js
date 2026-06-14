@@ -110,6 +110,14 @@ export function formatProfile(row) {
   };
 }
 
+export function isLegacyProfile(profile) {
+  return (profile?.profileStatus || 'active') === 'legacy';
+}
+
+export function sortProfilesForDisplay(profiles) {
+  return [...profiles].sort(compareProfilesForDisplay);
+}
+
 export async function profilesWithProgress(profiles, { user } = {}) {
   const profileIds = [...new Set(profiles.map((profile) => String(profile.id)).filter(Boolean))];
   if (!profileIds.length) return profiles;
@@ -406,7 +414,7 @@ export function profileStatusAttributesFromBody(body) {
   const status = clean(body?.status || body?.profileStatus).toLowerCase();
   const reason = clean(body?.reason || body?.closedReason);
 
-  if (!['active', 'closed'].includes(status)) throw new InputError('Profile status must be active or closed');
+  if (!['active', 'closed', 'legacy'].includes(status)) throw new InputError('Profile status must be active, closed, or legacy');
   if (status === 'closed' && !reason) throw new InputError('Closed profiles require a reason');
 
   return {
@@ -414,6 +422,18 @@ export function profileStatusAttributesFromBody(body) {
     closedReason: status === 'closed' ? reason : null,
     closedAt: status === 'closed' ? new Date() : null,
   };
+}
+
+function compareProfilesForDisplay(left, right) {
+  const statusDelta = profileStatusWeight(left) - profileStatusWeight(right);
+  if (statusDelta) return statusDelta;
+  const leftCreatedAt = Date.parse(left.createdAt || 0) || 0;
+  const rightCreatedAt = Date.parse(right.createdAt || 0) || 0;
+  return leftCreatedAt - rightCreatedAt || String(left.name || '').localeCompare(String(right.name || ''));
+}
+
+function profileStatusWeight(profile) {
+  return isLegacyProfile(profile) ? 1 : 0;
 }
 
 function profileBadgeFromBody(value) {

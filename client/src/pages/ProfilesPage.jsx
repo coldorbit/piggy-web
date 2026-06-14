@@ -38,7 +38,7 @@ import {
   useUpdateBidProfile,
   useUpdateBidProfileStatus,
 } from '../lib/api.js';
-import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../lib/roles.js';
+import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../lib/roles.js';
 
 export default function ProfilesPage({ currentUser }) {
   const [searchParams] = useSearchParams();
@@ -163,6 +163,18 @@ export default function ProfilesPage({ currentUser }) {
     );
   }
 
+  function markLegacyProfile(profile) {
+    const label = profile.name || 'this profile';
+    if (!window.confirm(`Mark ${label} as legacy? Users will not be able to bid or tailor with it, but interviews will stay available.`)) return;
+    setError('');
+    updateProfileStatus(
+      { profileId: profile.id, status: 'legacy' },
+      {
+        onError: (statusError) => setError(statusError.message),
+      },
+    );
+  }
+
   function submitShare(event) {
     event.preventDefault();
     if (!sharingProfile) return;
@@ -194,6 +206,7 @@ export default function ProfilesPage({ currentUser }) {
   const canManageProfiles = !BIDDER_ROLES.includes(currentUser?.role);
   const canUpdateProfileStatus = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
   const canRestoreProfiles = isAdminRole(currentUser);
+  const canManageLegacyProfiles = isSuperadmin(currentUser);
   const highlightedProfileId = searchParams.get('profileId') || '';
 
   useEffect(() => {
@@ -283,12 +296,14 @@ export default function ProfilesPage({ currentUser }) {
             isHighlighted={String(profile.id) === String(highlightedProfileId)}
             isUpdatingStatus={updatingStatus}
             canManage={canManageProfiles}
+            canManageLegacy={canManageLegacyProfiles}
             canUpdateStatus={canUpdateProfileStatus}
             canRestore={canRestoreProfiles}
             profile={profile}
             onCloseProfile={openCloseDialog}
             onDelete={removeProfile}
             onEdit={openEditDialog}
+            onMarkLegacy={markLegacyProfile}
             onReopenProfile={reopenProfile}
             onShare={openShareDialog}
             onView={setViewingProfile}

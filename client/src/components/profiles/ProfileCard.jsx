@@ -1,5 +1,6 @@
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import HistoryIcon from '@mui/icons-material/History';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import ShareIcon from '@mui/icons-material/Share';
 import StopCircleIcon from '@mui/icons-material/StopCircle';
@@ -8,6 +9,7 @@ import { PROFILE_BADGE_COLORS, PROFILE_COLORS } from './profileConstants.js';
 
 export default function ProfileCard({
   canManage = true,
+  canManageLegacy = false,
   canRestore = false,
   canUpdateStatus = false,
   isDeleting,
@@ -17,12 +19,14 @@ export default function ProfileCard({
   onCloseProfile,
   onDelete,
   onEdit,
+  onMarkLegacy = () => {},
   onView = () => {},
   onReopenProfile,
   onShare,
 }) {
   const color = PROFILE_COLORS[profile.colorScheme] || PROFILE_COLORS.green;
   const isClosed = profile.profileStatus === 'closed';
+  const isLegacy = profile.profileStatus === 'legacy';
   const showActions = canManage && !profile.isShared;
   const sharedWith = (profile.sharedWith || []).filter((share) => share.username);
   return (
@@ -105,10 +109,10 @@ export default function ProfileCard({
         ) : null}
         <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
           <Chip
-            label={isClosed ? 'Closed' : 'Active'}
+            label={isLegacy ? 'Legacy' : isClosed ? 'Closed' : 'Active'}
             size="small"
-            color={isClosed ? 'default' : 'success'}
-            variant={isClosed ? 'outlined' : 'filled'}
+            color={isLegacy || isClosed ? 'default' : 'success'}
+            variant={isLegacy || isClosed ? 'outlined' : 'filled'}
             sx={{ ...profileChipSx, fontWeight: 400 }}
           />
           {isClosed && profile.closedReason ? <Chip label={profile.closedReason} size="small" variant="outlined" sx={profileChipSx} /> : null}
@@ -159,16 +163,29 @@ export default function ProfileCard({
             </Tooltip>
           </>
           {canUpdateStatus ? (
-            isClosed ? (
+            isLegacy ? (
+              canManageLegacy ? (
+                <Button disabled={isUpdatingStatus} startIcon={<LockOpenIcon />} onClick={() => onReopenProfile(profile)} variant="outlined">
+                  Reopen
+                </Button>
+              ) : null
+            ) : isClosed ? (
               canRestore ? (
                 <Button disabled={isUpdatingStatus} startIcon={<LockOpenIcon />} onClick={() => onReopenProfile(profile)} variant="outlined">
                   Reopen
                 </Button>
               ) : null
             ) : (
-              <Button color="warning" disabled={isUpdatingStatus} startIcon={<StopCircleIcon />} onClick={() => onCloseProfile(profile)} variant="outlined">
-                Close
-              </Button>
+              <>
+                {canManageLegacy ? (
+                  <Button disabled={isUpdatingStatus} startIcon={<HistoryIcon />} onClick={() => onMarkLegacy(profile)} variant="outlined">
+                    Legacy
+                  </Button>
+                ) : null}
+                <Button color="warning" disabled={isUpdatingStatus} startIcon={<StopCircleIcon />} onClick={() => onCloseProfile(profile)} variant="outlined">
+                  Close
+                </Button>
+              </>
             )
           ) : null}
         </CardActions>

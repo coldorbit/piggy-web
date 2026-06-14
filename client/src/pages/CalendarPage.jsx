@@ -30,7 +30,7 @@ export default function CalendarPage({ currentUser }) {
     isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
   const activeProfiles = useMemo(
-    () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
+    () => profiles.filter((profile) => ['active', 'legacy'].includes(profile.profileStatus || 'active')),
     [profiles],
   );
   const calendarProfiles = useMemo(
