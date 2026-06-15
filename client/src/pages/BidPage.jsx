@@ -50,7 +50,7 @@ const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.don
 export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const canIncludeTodayScrapedJobs = isAdminRole(currentUser);
-  const canViewBidGoals = ['superadmin', 'admin', 'user'].includes(currentUser?.role);
+  const canViewBidGoals = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
