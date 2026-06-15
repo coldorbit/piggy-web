@@ -11,8 +11,10 @@ import { BIDDER_ROLES, ROLES } from '../../../utils/roles.js';
 
 const FIAT_CURRENCY = 'USD';
 const CRYPTO_CURRENCIES = ['USDT', 'USDC', 'ETH', 'SOL', 'BTC', 'BNB', 'MATIC', 'AVAX', 'TRX', 'XRP', 'ADA', 'DOGE', 'DOT', 'LINK'];
+const TEAM_WALLET_DEPOSIT_CURRENCIES = ['USDC', 'USDT', 'ETH', 'SOL', 'TRX'];
 const TRANSACTION_TYPES = [
   'crypto_spend',
+  'wallet_deposit',
   'card_pay',
   'card_deposit',
   'card_main_transfer',
@@ -30,6 +32,8 @@ const DEFAULT_ACCOUNTS = [
   { name: 'USDC Wallet', currency: 'USDC', type: 'crypto_wallet', sortOrder: 10 },
   { name: 'USDT Wallet', currency: 'USDT', type: 'crypto_wallet', sortOrder: 20 },
   { name: 'ETH Wallet', currency: 'ETH', type: 'crypto_wallet', sortOrder: 30 },
+  { name: 'SOL Wallet', currency: 'SOL', type: 'crypto_wallet', sortOrder: 32 },
+  { name: 'TRX Wallet', currency: 'TRX', type: 'crypto_wallet', sortOrder: 34 },
   { name: CARD_MAIN_ACCOUNT_NAME, currency: FIAT_CURRENCY, type: 'card_main', sortOrder: 35 },
   { name: CARD_ACCOUNT_NAME, currency: FIAT_CURRENCY, type: 'card', sortOrder: 40 },
 ];
@@ -64,6 +68,7 @@ export async function listConsumptionRecords() {
     totals: accounts.map((account) => ({ currency: account.currency, amount: balances.get(String(account.id)) || 0, accountName: account.name })),
     transactionTypes: TRANSACTION_TYPES,
     cryptoCurrencies: CRYPTO_CURRENCIES,
+    teamWalletDepositCurrencies: TEAM_WALLET_DEPOSIT_CURRENCIES,
     spenderOptions,
   };
 }
@@ -132,10 +137,14 @@ async function transactionAttrsFromBody(body = {}) {
   const notes = clean(body.notes);
   const etherscanUrl = clean(body.etherscanUrl);
   const txHash = txHashFromValue(body.txHash || etherscanUrl);
-  const { spentByType, spentByUserId } = await spenderAttrsFromBody(body);
+  let { spentByType, spentByUserId } = await spenderAttrsFromBody(body);
 
   if (!TRANSACTION_TYPES.includes(type)) throw new InputError('Transaction type is invalid');
   if (Number.isNaN(occurredAt.getTime())) throw new InputError('Transaction date is invalid');
+  if (type === 'wallet_deposit') {
+    spentByType = SPENDER_TEAM;
+    spentByUserId = null;
+  }
 
   return { type, occurredAt, notes, etherscanUrl: etherscanUrl || null, txHash: txHash || null, spentByType, spentByUserId };
 }
@@ -195,6 +204,9 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
     const currency = cryptoCurrency(body.currency || body.fromCurrency);
     add(`${currency} Wallet`, 'outflow', body.amount, currency, 'principal');
     add('ETH Wallet', 'outflow', body.ethFee, 'ETH', 'eth_network_fee');
+  } else if (attrs.type === 'wallet_deposit') {
+    const currency = teamWalletDepositCurrency(body.currency || body.toCurrency);
+    add(`${currency} Wallet`, 'inflow', body.amount, currency, 'principal');
   } else if (attrs.type === 'card_pay') {
     const accountName = clean(body.cardAccountName || body.accountName) || CARD_ACCOUNT_NAME;
     const account = accounts.get(accountName);
@@ -383,8 +395,21 @@ function cryptoCurrency(value) {
   return currency;
 }
 
+function teamWalletDepositCurrency(value) {
+  const currency = cryptoCurrency(value);
+  if (!TEAM_WALLET_DEPOSIT_CURRENCIES.includes(currency)) throw new InputError('Team wallet deposit currency is not supported');
+  return currency;
+}
+
 function txHashFromValue(value) {
   const text = clean(value);
   const match = text.match(/0x[a-fA-F0-9]{64}/);
-  return match ? match[0].toLowerCase() : '';
+  if (match) return match[0].toLowerCase();
+
+  const segments = text
+    .split(/[/?#=&\s]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const hashLikeSegment = segments.reverse().find((segment) => /^[A-Za-z0-9]{20,128}$/.test(segment));
+  return hashLikeSegment || '';
 }

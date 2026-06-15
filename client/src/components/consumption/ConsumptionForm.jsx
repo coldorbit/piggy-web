@@ -1,6 +1,6 @@
 import AddIcon from '@mui/icons-material/Add';
 import { Button, FormControl, Grid, InputLabel, MenuItem, Paper, Select, TextField } from '@mui/material';
-import { CRYPTO_CURRENCIES, TYPE_OPTIONS } from './consumptionConstants.js';
+import { CRYPTO_CURRENCIES, TEAM_WALLET_DEPOSIT_CURRENCIES, TYPE_OPTIONS } from './consumptionConstants.js';
 
 const DENSE_TRANSACTION_TYPES = new Set(['card_deposit', 'swap']);
 const DEFAULT_FIELD_SIZE = 2;
@@ -8,6 +8,7 @@ const DENSE_FIELD_SIZE = 1.2;
 
 export default function ConsumptionForm({ accountOptions, form, isSaving, onChange, onSubmit, spenderOptions }) {
   const fieldSize = DENSE_TRANSACTION_TYPES.has(form.type) ? DENSE_FIELD_SIZE : DEFAULT_FIELD_SIZE;
+  const showSpender = form.type !== 'wallet_deposit';
   const issuedCardAccountOptions = accountOptions.filter((account) => account.type === 'card');
   const accountNameOptions = accountOptions.map((account) => ({ value: account.name, label: account.name }));
   const issuedCardNameOptions = issuedCardAccountOptions.map((account) => ({ value: account.name, label: account.name }));
@@ -18,9 +19,11 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
         <Grid size={{ xs: 12, md: 2 }}>
           <SelectField label="Type" value={form.type} options={TYPE_OPTIONS} onChange={(type) => onChange({ type })} />
         </Grid>
-        <Grid size={{ xs: 12, md: 2 }}>
-          <SelectField label="Spent by" value={form.spentBy || 'team'} options={spenderOptions} onChange={(spentBy) => onChange({ spentBy })} />
-        </Grid>
+        {showSpender ? (
+          <Grid size={{ xs: 12, md: 2 }}>
+            <SelectField label="Spent by" value={form.spentBy || 'team'} options={spenderOptions} onChange={(spentBy) => onChange({ spentBy })} />
+          </Grid>
+        ) : null}
         <TransactionFields
           accountOptions={accountNameOptions}
           cardAccountOptions={issuedCardNameOptions}
@@ -35,7 +38,7 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
         <Grid size={{ xs: 12 }}>
           <Grid container spacing={1.25} alignItems="flex-start">
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField fullWidth size="small" label={optionalLabel('ETH tx link / hash')} value={form.etherscanUrl} onChange={(event) => onChange({ etherscanUrl: event.target.value })} />
+              <TextField fullWidth size="small" label={optionalLabel('Tx link / hash')} value={form.etherscanUrl} onChange={(event) => onChange({ etherscanUrl: event.target.value })} />
             </Grid>
             <Grid size={{ xs: 12, md: 5 }}>
               <TextField fullWidth size="small" label={optionalLabel('Notes')} value={form.notes} onChange={(event) => onChange({ notes: event.target.value })} />
@@ -68,6 +71,19 @@ function TransactionFields({ accountOptions, cardAccountOptions, fieldSize, form
           <SelectField label="Card" value={form.cardAccountName} options={cardAccountOptions} onChange={(cardAccountName) => onChange({ cardAccountName })} />
         </Grid>
         <AmountField label="USD amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
+      </>
+    );
+  }
+  if (form.type === 'wallet_deposit') {
+    return (
+      <>
+        <CryptoSelect
+          allowedCurrencies={TEAM_WALLET_DEPOSIT_CURRENCIES}
+          label="To wallet"
+          value={form.currency}
+          onChange={(currency) => onChange({ currency, toCurrency: currency })}
+        />
+        <AmountField label="Deposit amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
       </>
     );
   }
@@ -154,13 +170,13 @@ function AmountField({ fieldSize = DEFAULT_FIELD_SIZE, label, optional = false, 
   );
 }
 
-function CryptoSelect({ exclude = [], fieldSize = DEFAULT_FIELD_SIZE, label, value, onChange }) {
+function CryptoSelect({ allowedCurrencies = CRYPTO_CURRENCIES, exclude = [], fieldSize = DEFAULT_FIELD_SIZE, label, value, onChange }) {
   return (
     <Grid size={{ xs: 12, sm: 6, md: fieldSize }}>
       <SelectField
         label={label}
         value={value}
-        options={CRYPTO_CURRENCIES.filter((currency) => !exclude.includes(currency)).map((currency) => ({ value: currency, label: currency }))}
+        options={allowedCurrencies.filter((currency) => !exclude.includes(currency)).map((currency) => ({ value: currency, label: currency }))}
         onChange={onChange}
       />
     </Grid>

@@ -1,7 +1,9 @@
 export const CRYPTO_CURRENCIES = ['USDT', 'USDC', 'ETH', 'SOL', 'BTC', 'BNB', 'MATIC', 'AVAX', 'TRX', 'XRP', 'ADA', 'DOGE', 'DOT', 'LINK'];
+export const TEAM_WALLET_DEPOSIT_CURRENCIES = ['USDC', 'USDT', 'ETH', 'SOL', 'TRX'];
 
 export const TYPE_OPTIONS = [
   { value: 'crypto_spend', label: 'Crypto spend' },
+  { value: 'wallet_deposit', label: 'Team wallet deposit' },
   { value: 'card_pay', label: 'Card pay' },
   { value: 'card_deposit', label: 'Top up main account' },
   { value: 'card_main_transfer', label: 'Main account to card' },
@@ -15,6 +17,7 @@ export const EMPTY_CONSUMPTION_FORM = {
   type: 'crypto_spend',
   amount: '',
   currency: 'USDC',
+  toCurrency: 'USDC',
   fromCurrency: 'USDC',
   toEthAmount: '',
   ethFee: '',
@@ -38,5 +41,6 @@ export const CURRENCY_STYLES = {
   ETH: { bg: '#F5F3FF', border: '#A78BFA', fg: '#6D28D9' },
   USD: { bg: '#F8FAFC', border: '#94A3B8', fg: '#334155' },
   SOL: { bg: '#FDF4FF', border: '#E879F9', fg: '#A21CAF' },
+  TRX: { bg: '#FEF2F2', border: '#F87171', fg: '#B91C1C' },
   BTC: { bg: '#FFF7ED', border: '#FB923C', fg: '#C2410C' },
 };

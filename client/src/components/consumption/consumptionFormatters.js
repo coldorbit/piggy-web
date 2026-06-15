@@ -1,4 +1,4 @@
-import { TYPE_OPTIONS } from './consumptionConstants.js';
+import { TEAM_WALLET_DEPOSIT_CURRENCIES, TYPE_OPTIONS } from './consumptionConstants.js';
 
 export function formatAmount(amount, currency) {
   const maximumFractionDigits = ['ETH', 'BTC', 'SOL'].includes(currency) ? 8 : 2;
@@ -18,6 +18,10 @@ export function shortHash(value) {
 }
 
 export function normalizeForm(form) {
+  if (form.type === 'wallet_deposit' && !TEAM_WALLET_DEPOSIT_CURRENCIES.includes(form.currency)) {
+    return { ...form, currency: 'USDC', toCurrency: 'USDC', spentBy: 'team' };
+  }
+  if (form.type === 'wallet_deposit') return { ...form, toCurrency: form.currency, spentBy: 'team' };
   if (form.type === 'card_pay') return { ...form, currency: 'USD', cardAccountName: form.cardAccountName || 'Card USD' };
   if (form.type === 'card_main_transfer') return { ...form, currency: 'USD', fromAccountName: 'Main Account USD' };
   if (form.type === 'card_internal_transfer') {

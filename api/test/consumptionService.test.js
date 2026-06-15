@@ -8,9 +8,46 @@ const accounts = [
   { id: 3, name: 'Backup Card USD', currency: 'USD', type: 'card' },
   { id: 4, name: 'USDC Wallet', currency: 'USDC', type: 'crypto_wallet' },
   { id: 5, name: 'ETH Wallet', currency: 'ETH', type: 'crypto_wallet' },
+  { id: 6, name: 'USDT Wallet', currency: 'USDT', type: 'crypto_wallet' },
+  { id: 7, name: 'SOL Wallet', currency: 'SOL', type: 'crypto_wallet' },
+  { id: 8, name: 'TRX Wallet', currency: 'TRX', type: 'crypto_wallet' },
 ];
 
 describe('consumption card transfers', () => {
+  it('deposits supported assets to the team wallet', () => {
+    const cases = [
+      ['USDC', 4],
+      ['USDT', 6],
+      ['ETH', 5],
+      ['SOL', 7],
+      ['TRX', 8],
+    ];
+
+    for (const [currency, accountId] of cases) {
+      const entries = buildConsumptionLedgerEntries(
+        { type: 'wallet_deposit' },
+        { currency, amount: '42.5' },
+        accounts,
+      );
+
+      assert.deepEqual(entries, [
+        { accountId, direction: 'inflow', amount: 42.5, currency, entryKind: 'principal' },
+      ]);
+    }
+  });
+
+  it('rejects unsupported team wallet deposit assets', () => {
+    assert.throws(
+      () =>
+        buildConsumptionLedgerEntries(
+          { type: 'wallet_deposit' },
+          { currency: 'BTC', amount: 40 },
+          accounts,
+        ),
+      /Team wallet deposit currency is not supported/,
+    );
+  });
+
   it('tops up the card service main account from crypto', () => {
     const entries = buildConsumptionLedgerEntries(
       { type: 'card_deposit' },

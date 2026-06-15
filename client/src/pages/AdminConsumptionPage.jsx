@@ -50,7 +50,7 @@ export default function AdminConsumptionPage() {
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}>
         <Typography color="text.secondary">
-          Track wallet balances, card balances, crypto spend, card funding, transfers, swaps, gas fees, and reconciliation adjustments.
+          Track wallet deposits, wallet balances, card balances, crypto spend, card funding, transfers, swaps, gas fees, and reconciliation adjustments.
         </Typography>
         <RefreshButton isRefreshing={isFetching} lastUpdatedAt={lastUpdatedAt} onRefresh={refetch} />
       </Stack>

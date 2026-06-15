@@ -3,7 +3,8 @@ import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import { Accordion, AccordionDetails, AccordionSummary, Grid, Stack, Typography } from '@mui/material';
 
 const HELP_ITEMS = [
-  ['Crypto spend', 'Use this for USDC/USDT vendor payments. It subtracts the token amount and the ETH gas fee.'],
+  ['Crypto spend', 'Use this for vendor payments. It subtracts the token amount and the ETH gas fee.'],
+  ['Team wallet deposit', 'Use this when depositing USDC, USDT, ETH, SOL, or TRX to the team wallet. It adds the selected asset to its wallet balance.'],
   ['Card pay', 'Use this for purchases from an issued card. It subtracts the selected card balance and has no ETH fee.'],
   ['Top up main account', 'Use this when funding the card service main account from USDC/USDT. It subtracts crypto, subtracts ETH gas, adds received USD to Main Account USD, and can record top-up fees.'],
   ['Main account to card', 'Use this when moving USD from the card main account onto a card. It subtracts Main Account USD, adds the selected card balance, and can record transfer fees.'],
