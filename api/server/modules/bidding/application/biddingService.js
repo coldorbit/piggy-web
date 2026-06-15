@@ -3,7 +3,7 @@ import { formatJob } from '../../jobs/application/jobsService.js';
 import { clean } from '../../../utils/index.js';
 
 const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
-const DONE_BID_STATUSES = ['submitted', 'won', 'lost', 'mismatching_bid', 'spam_job'];
+const DONE_BID_STATUSES = ['submitted', 'won', 'lost'];
 const INTERVIEW_BID_STATUSES = ['interviewing', 'won', 'lost'];
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 export const REVIEW_BID_STATUSES = new Set(['mismatching_bid', 'spam_job']);
@@ -11,6 +11,7 @@ export const REVIEW_BID_STATUSES = new Set(['mismatching_bid', 'spam_job']);
 export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', JobBid, sequelize }) {
   const tabWhere = { ...where };
   const isDoneTab = tab === 'done';
+  const isBadWorkTab = tab === 'bad_work';
   const isInterviewsTab = tab === 'interviews';
   const isTailoredTab = tab === 'tailored';
   const order = isInterviewsTab
@@ -18,7 +19,7 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
         [{ model: JobBid, as: 'bids' }, 'interviewNextAt', 'ASC'],
         [{ model: JobBid, as: 'bids' }, 'updatedAt', 'DESC'],
       ]
-    : isDoneTab
+    : isDoneTab || isBadWorkTab
     ? [
         [{ model: JobBid, as: 'bids' }, 'bidAt', 'DESC'],
         [{ model: JobBid, as: 'bids' }, 'id', 'DESC'],
@@ -30,10 +31,11 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
     {
       model: JobBid,
       as: 'bids',
-      required: isDoneTab || isInterviewsTab,
+      required: isDoneTab || isBadWorkTab || isInterviewsTab,
       where: {
         profileId,
         ...(isDoneTab ? { status: { [Op.in]: DONE_BID_STATUSES } } : {}),
+        ...(isBadWorkTab ? { status: { [Op.in]: [...REVIEW_BID_STATUSES] } } : {}),
         ...(isInterviewsTab ? { status: { [Op.in]: INTERVIEW_BID_STATUSES } } : {}),
       },
     },
@@ -54,11 +56,10 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
         [Op.or]: [
           { '$bids.id$': { [Op.is]: null } },
           { '$bids.status$': 'planned' },
-          { '$bids.status$': { [Op.in]: [...REVIEW_BID_STATUSES] } },
         ],
       },
     ];
-  } else if (!isDoneTab && !isInterviewsTab) {
+  } else if (!isDoneTab && !isBadWorkTab && !isInterviewsTab) {
     tabWhere[Op.and] = [
       ...(Array.isArray(tabWhere[Op.and]) ? tabWhere[Op.and] : []),
       {
@@ -78,7 +79,7 @@ function appliedProfileExistsSql({ profileId, sequelize }) {
     FROM job_bids applied_bid
     WHERE applied_bid.job_id = "ScrapedJob"."id"
       AND applied_bid.profile_id = ${escapedProfileId}
-      AND applied_bid.status IN ('submitted', 'interviewing', 'won', 'lost', 'mismatching_bid', 'spam_job')
+      AND applied_bid.status IN ('submitted', 'interviewing', 'won', 'lost')
   )`;
 }
 

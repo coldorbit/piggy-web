@@ -166,6 +166,11 @@ export default function BidJobsPanel() {
             label={`Done (${tabCounts.done.toLocaleString()})`}
             sx={{ fontWeight: 800, '&.Mui-selected': { color: activeColor.dark } }}
           />
+          <Tab
+            value={BID_TABS.badWork}
+            label={`Bad work (${(tabCounts.badWork || 0).toLocaleString()})`}
+            sx={{ fontWeight: 800, '&.Mui-selected': { color: activeColor.dark } }}
+          />
         </Tabs>
         <Stack direction="row" spacing={0.75} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
           <Button
@@ -348,6 +353,7 @@ function isReviewBidStatus(status) {
 
 function tabLabel(tab) {
   if (tab === BID_TABS.tailored) return 'tailored';
+  if (tab === BID_TABS.badWork) return 'bad work';
   return tab === BID_TABS.todo ? 'todo' : 'done';
 }
 

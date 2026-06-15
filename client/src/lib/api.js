@@ -442,9 +442,10 @@ function findCachedJob(queryEntries, jobId) {
 
 function updateTabCount(tabCounts, activeTab, delta) {
   if (!tabCounts || !activeTab || !delta) return tabCounts;
+  const countKey = tabCountKey(activeTab);
   return {
     ...tabCounts,
-    [activeTab]: Math.max(Number(tabCounts[activeTab] || 0) + delta, 0),
+    [countKey]: Math.max(Number(tabCounts[countKey] || 0) + delta, 0),
   };
 }
 
@@ -529,7 +530,7 @@ function updateCachedBidJob(oldData, filters, jobId, updates, cachedJob, tabDelt
 
   return {
     ...oldData,
-    jobs: filters.bidTab === 'done' ? sortBidJobsByAppliedAtDesc(jobs) : jobs,
+    jobs: ['done', 'bad_work'].includes(filters.bidTab) ? sortBidJobsByAppliedAtDesc(jobs) : jobs,
     total: typeof oldData.total === 'number' ? Math.max(oldData.total + countDelta, 0) : oldData.total,
     tabCounts: updateBidTabCounts(oldData.tabCounts, tabDelta),
   };
@@ -545,18 +546,22 @@ function sortBidJobsByAppliedAtDesc(jobs) {
 }
 
 function bidTabDelta(previousJob, nextJob) {
-  const delta = { todo: 0, tailored: 0, done: 0, interviews: 0 };
+  const delta = { todo: 0, tailored: 0, done: 0, badWork: 0, interviews: 0 };
   if (!previousJob || !nextJob) return delta;
 
   const previousTabs = bidTabsForJob(previousJob);
   const nextTabs = bidTabsForJob(nextJob);
   previousTabs.forEach((tab) => {
-    if (!nextTabs.has(tab)) delta[tab] -= 1;
+    if (!nextTabs.has(tab)) delta[tabCountKey(tab)] -= 1;
   });
   nextTabs.forEach((tab) => {
-    if (!previousTabs.has(tab)) delta[tab] += 1;
+    if (!previousTabs.has(tab)) delta[tabCountKey(tab)] += 1;
   });
   return delta;
+}
+
+function tabCountKey(tab) {
+  return tab === 'bad_work' ? 'badWork' : tab;
 }
 
 function optimisticBidJob(job, updates) {
@@ -582,9 +587,12 @@ function bidTabsForJob(job) {
     tabs.add('interviews');
     return tabs;
   }
-  if (['submitted', 'won', 'lost', 'mismatching_bid', 'spam_job'].includes(status)) {
+  if (['mismatching_bid', 'spam_job'].includes(status)) {
+    tabs.add('bad_work');
+    return tabs;
+  }
+  if (['submitted', 'won', 'lost'].includes(status)) {
     tabs.add('done');
-    if (['mismatching_bid', 'spam_job'].includes(status) && hasTailoredResumeActivity) tabs.add('tailored');
     return tabs;
   }
   tabs.add('todo');

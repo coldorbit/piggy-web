@@ -275,6 +275,7 @@ export async function listBidders(req, res, next) {
           COUNT(*) FILTER (WHERE job_bids.bid_at >= now() - interval '30 days')::int AS monthly_applications
         FROM job_bids
         JOIN visible_profile_access ON visible_profile_access.profile_id = job_bids.profile_id
+        WHERE job_bids.status NOT IN ('mismatching_bid', 'spam_job')
         GROUP BY visible_profile_access.user_id
       `),
       sequelize.query(`
@@ -290,6 +291,7 @@ export async function listBidders(req, res, next) {
         JOIN visible_profile_access ON visible_profile_access.profile_id = job_bids.profile_id
         JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
         WHERE ${businessDaySql('job_bids.bid_at')} >= ${businessDaySql('now()')} - interval '13 days'
+          AND job_bids.status NOT IN ('mismatching_bid', 'spam_job')
         GROUP BY visible_profile_access.user_id, ${businessDaySql('job_bids.bid_at')}, COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')
         ORDER BY ${businessDaySql('job_bids.bid_at')} ASC, source ASC
       `),
@@ -634,7 +636,7 @@ export async function listBidJobs(req, res, next) {
       });
     };
 
-    const [rows, todoCount, tailoredCount, doneCount, interviewsCount, dailyBidProgress] = await Promise.all([
+    const [rows, todoCount, tailoredCount, doneCount, badWorkCount, interviewsCount, dailyBidProgress] = await Promise.all([
       ScrapedJob.findAll({
         where: activeTabQuery.where,
         order: activeTabQuery.order || jobOrder,
@@ -644,6 +646,7 @@ export async function listBidJobs(req, res, next) {
       countBidTab('todo'),
       countBidTab('tailored'),
       countBidTab('done'),
+      countBidTab('bad_work'),
       canViewInternalData ? countInterviewsForProfile(profile.id) : Promise.resolve(0),
       dailyBidProgressForUser(user),
     ]);
@@ -693,6 +696,7 @@ export async function listBidJobs(req, res, next) {
         todo: todoCount,
         tailored: tailoredCount,
         done: doneCount,
+        badWork: badWorkCount,
         interviews: interviewsCount,
       },
       limit,
@@ -818,7 +822,7 @@ async function listInterviewJobs(req, res, { user, profile }) {
         }
       : {}),
   };
-  const [interviews, count, todoCount, tailoredCount, doneCount, interviewsCount, bidUsers, callerUsers] = await Promise.all([
+  const [interviews, count, todoCount, tailoredCount, doneCount, badWorkCount, interviewsCount, bidUsers, callerUsers] = await Promise.all([
     Interview.findAll({
       where,
       order: [
@@ -832,6 +836,7 @@ async function listInterviewJobs(req, res, { user, profile }) {
     user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'todo', query: req.query }),
     user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'tailored', query: req.query }),
     user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'done', query: req.query }),
+    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'bad_work', query: req.query }),
     Interview.count({ where: { profileId: profile.id, ...(user.role === 'caller' ? { callerUserId: user.id } : {}) } }),
     bidUsersForProfile(profile),
     isAdminRole(user) ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }) : Promise.resolve([]),
@@ -858,6 +863,7 @@ async function listInterviewJobs(req, res, { user, profile }) {
       todo: todoCount,
       tailored: tailoredCount,
       done: doneCount,
+      badWork: badWorkCount,
       interviews: interviewsCount,
     },
     limit,

@@ -157,7 +157,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
         [
           getSequelize().fn(
             'SUM',
-            getSequelize().literal("CASE WHEN status IN ('submitted', 'interviewing', 'won', 'lost', 'mismatching_bid', 'spam_job') THEN 1 ELSE 0 END"),
+            getSequelize().literal("CASE WHEN status IN ('submitted', 'interviewing', 'won', 'lost') THEN 1 ELSE 0 END"),
           ),
           'done',
         ],

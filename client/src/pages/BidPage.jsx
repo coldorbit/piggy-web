@@ -45,7 +45,7 @@ const BID_FILTER_KEYS = [
   'limit',
 ];
 const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters';
-const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.done]);
+const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.done, BID_TABS.badWork]);
 
 export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -300,7 +300,7 @@ export default function BidPage({ currentUser }) {
       page: filters.page,
       pageSize: filters.limit,
       pages: Math.max(Math.ceil(total / filters.limit), 1),
-      tabCounts: bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0, interviews: 0 },
+      tabCounts: bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0, badWork: 0, interviews: 0 },
       tailoringByJobId: tailoringByProfileJobs(tailoringByProfileJobId, activeProfile?.id, visibleJobs),
       total,
       onDraftChange: updateDraft,
@@ -613,7 +613,8 @@ function isJobVisibleForTab(job, activeTab, draft) {
   const hasTailoredRequest = hasTailoredResumeActivity(job);
 
   if (activeTab === BID_TABS.interviews) return interviewing;
-  if (activeTab === BID_TABS.tailored) return hasTailoredRequest && (!done || reviewBlocked);
+  if (activeTab === BID_TABS.tailored) return hasTailoredRequest && !done && !reviewBlocked;
   if (activeTab === BID_TABS.done) return done;
-  return !done && !interviewing;
+  if (activeTab === BID_TABS.badWork) return reviewBlocked;
+  return !done && !interviewing && !reviewBlocked;
 }

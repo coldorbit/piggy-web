@@ -67,8 +67,9 @@ export default function BidJobCard({
   const isInvalidReviewJob = Boolean(reviewStatus);
   const canMoveDoneJobToInterview = activeTab === BID_TABS.done && PRIVILEGED_USER_ROLES.includes(currentUser?.role) && !isBidder;
   const canReviewDoneJob = activeTab === BID_TABS.done && isAdmin;
+  const canReviewBadWorkJob = activeTab === BID_TABS.badWork && isAdmin;
   const canReviewTailoredJob = activeTab === BID_TABS.tailored && isAdmin && hasActiveTailoredResumeStatus(job.tailoredResume?.status);
-  const showReviewControl = canReviewDoneJob || canReviewTailoredJob;
+  const showReviewControl = canReviewDoneJob || canReviewBadWorkJob || canReviewTailoredJob;
   const showBidStatusChip = activeTab !== BID_TABS.tailored || isInvalidReviewJob;
   const showStatusControl = activeTab === BID_TABS.interviews;
   const showAppliedAction = activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready';
@@ -333,7 +334,7 @@ export default function BidJobCard({
                     }}
                   />
                 ) : null}
-                {(activeTab === BID_TABS.done || activeTab === BID_TABS.interviews) && appliedByLabel ? (
+                {(activeTab === BID_TABS.done || activeTab === BID_TABS.badWork || activeTab === BID_TABS.interviews) && appliedByLabel ? (
                   <Chip
                     label={appliedByLabel}
                     size="small"

@@ -23,11 +23,12 @@ export const BID_TABS = {
   todo: 'todo',
   tailored: 'tailored',
   done: 'done',
+  badWork: 'bad_work',
   interviews: 'interviews',
 };
 
 export const REVIEW_STATUSES = new Set(['mismatching_bid', 'spam_job']);
-export const DONE_STATUSES = new Set(['submitted', 'won', 'lost', ...REVIEW_STATUSES]);
+export const DONE_STATUSES = new Set(['submitted', 'won', 'lost']);
 export const INTERVIEW_STATUSES = new Set(['interviewing']);
 
 export const INTERVIEW_STAGES = [

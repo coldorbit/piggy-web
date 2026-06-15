@@ -29,7 +29,7 @@ describe('buildBidTabQuery', () => {
     assertHasPlannedBidClause(query);
   });
 
-  it('filters the tailored tab to jobs with tailored resume activity that are not applied or review-blocked', () => {
+  it('filters the tailored tab to jobs with tailored resume activity that are not applied or bad work', () => {
     const query = buildBidTabQuery({
       where: {},
       tab: 'tailored',
@@ -51,14 +51,14 @@ describe('buildBidTabQuery', () => {
       true,
     );
     assertHasPlannedBidClause(query);
-    assertHasReviewBidClause(query);
+    assertNoReviewBidClause(query);
     assert.equal(query.order[0][0].val.includes('MAX(tailored_resume.updated_at)'), true);
     assert.equal(query.order[0][1], 'DESC NULLS LAST');
     assert.equal(query.order[1][0].val.includes('MAX(tailored_resume.created_at)'), true);
     assert.equal(query.order[1][1], 'DESC NULLS LAST');
   });
 
-  it('requires submitted-style and review bids on the done tab', () => {
+  it('requires submitted-style bids on the done tab', () => {
     const query = buildBidTabQuery({
       where: {},
       tab: 'done',
@@ -68,7 +68,22 @@ describe('buildBidTabQuery', () => {
     });
 
     assert.equal(query.include[0].required, true);
-    assert.deepEqual(query.include[0].where.status[Op.in], ['submitted', 'won', 'lost', 'mismatching_bid', 'spam_job']);
+    assert.deepEqual(query.include[0].where.status[Op.in], ['submitted', 'won', 'lost']);
+    assert.deepEqual(query.order[0], [{ model: JobBid, as: 'bids' }, 'bidAt', 'DESC']);
+    assert.equal(query.where[Op.and], undefined);
+  });
+
+  it('requires review bids on the bad work tab', () => {
+    const query = buildBidTabQuery({
+      where: {},
+      tab: 'bad_work',
+      profileId: 42,
+      JobBid,
+      sequelize,
+    });
+
+    assert.equal(query.include[0].required, true);
+    assert.deepEqual(query.include[0].where.status[Op.in], ['mismatching_bid', 'spam_job']);
     assert.deepEqual(query.order[0], [{ model: JobBid, as: 'bids' }, 'bidAt', 'DESC']);
     assert.equal(query.where[Op.and], undefined);
   });
@@ -88,7 +103,7 @@ describe('buildBidTabQuery', () => {
         (sql) =>
           sql.includes('FROM job_bids applied_bid') &&
           sql.includes("applied_bid.profile_id = '99'") &&
-          sql.includes("'submitted', 'interviewing', 'won', 'lost', 'mismatching_bid', 'spam_job'"),
+          sql.includes("'submitted', 'interviewing', 'won', 'lost'"),
       ),
       true,
     );
@@ -110,7 +125,7 @@ function assertHasPlannedBidClause(query) {
   );
 }
 
-function assertHasReviewBidClause(query) {
+function assertNoReviewBidClause(query) {
   assert.equal(
     (query.where[Op.and] || []).some(
       (clause) =>
@@ -119,6 +134,6 @@ function assertHasReviewBidClause(query) {
             && condition?.['$bids.status$']?.[Op.in]?.includes('spam_job'),
         ),
     ),
-    true,
+    false,
   );
 }
