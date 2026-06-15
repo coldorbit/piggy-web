@@ -25,6 +25,7 @@ export function dashboardQueries(grainConfig) {
     userSources: userSourceMixSql(grainConfig),
     userCategories: userCategoryMixSql(grainConfig),
     userProfiles: userProfileMixSql(grainConfig),
+    profileActivity: profileActivitySql(grainConfig),
     sources: sourceBreakdownSql(grainConfig),
     bidStatuses: bidStatusBreakdownSql(grainConfig),
     interviewStages: interviewStageBreakdownSql(grainConfig),
@@ -470,6 +471,34 @@ function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false }) {
     FROM ranked
     WHERE rank <= 5
     ORDER BY user_id ASC, count DESC, ${alias} ASC
+  `;
+}
+
+function profileActivitySql(grainConfig) {
+  return `
+    ${rangeCte(grainConfig)}
+    SELECT
+      job_bids.id,
+      job_bids.user_id,
+      web_users.username,
+      web_users.role,
+      job_bids.profile_id,
+      bid_profiles.name AS profile_name,
+      job_bids.job_id,
+      scraped_jobs.public_job_id,
+      scraped_jobs.title AS job_title,
+      scraped_jobs.company,
+      scraped_jobs.source,
+      job_bids.status,
+      job_bids.bid_at
+    FROM job_bids
+    JOIN web_users ON web_users.id = job_bids.user_id
+    JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id
+    JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+    CROSS JOIN range
+    WHERE job_bids.bid_at >= starts_at
+    ORDER BY job_bids.bid_at DESC, job_bids.id DESC
+    LIMIT 200
   `;
 }
 

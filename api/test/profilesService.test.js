@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   appliedFilterOwnerRoles,
+  profileAttributesFromBody,
   profileStatusAttributesFromBody,
   sortProfilesForDisplay,
 } from '../server/modules/bidding/application/profilesService.js';
@@ -26,6 +27,21 @@ describe('appliedFilterOwnerRoles', () => {
 });
 
 describe('profile status helpers', () => {
+  it('accepts a profile daily bid goal', () => {
+    assert.equal(profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '25' }).dailyBidGoal, 25);
+  });
+
+  it('clears an empty profile daily bid goal', () => {
+    assert.equal(profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '' }).dailyBidGoal, null);
+  });
+
+  it('rejects invalid profile daily bid goals', () => {
+    assert.throws(
+      () => profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '2.5' }),
+      /Daily bid goal/,
+    );
+  });
+
   it('accepts legacy profile status without a close reason', () => {
     assert.deepEqual(profileStatusAttributesFromBody({ status: 'legacy' }), {
       profileStatus: 'legacy',

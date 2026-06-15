@@ -342,6 +342,10 @@ async function ensureBidPageIndexes() {
     ON job_bids (user_id, bid_at DESC)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS job_bids_profile_user_bid_at_idx
+    ON job_bids (profile_id, user_id, bid_at DESC)
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS interviews_created_at_idx
     ON interviews (created_at DESC)
   `);
@@ -392,6 +396,7 @@ async function ensureBidProfileColumns() {
     resume_template: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'classic' },
     profile_badge: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'SWE' },
     profile_status: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'active' },
+    daily_bid_goal: { type: DataTypes.INTEGER, allowNull: true },
     closed_reason: { type: DataTypes.TEXT, allowNull: true },
     closed_at: { type: DataTypes.DATE, allowNull: true },
   };

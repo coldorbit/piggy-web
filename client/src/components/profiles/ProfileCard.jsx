@@ -4,7 +4,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import ShareIcon from '@mui/icons-material/Share';
 import StopCircleIcon from '@mui/icons-material/StopCircle';
-import { Box, Button, Card, CardActions, CardContent, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Card, CardActions, CardContent, Chip, IconButton, LinearProgress, Stack, Tooltip, Typography } from '@mui/material';
 import { PROFILE_BADGE_COLORS, PROFILE_COLORS } from './profileConstants.js';
 
 export default function ProfileCard({
@@ -199,14 +199,40 @@ function ProfileProgress({ progress = {} }) {
   const bids = Number(progress.bids || 0);
   const done = Number(progress.done || 0);
   const planned = Number(progress.planned || 0);
+  const dailyGoal = Number(progress.dailyGoal || 0);
+  const dailyFinished = Number(progress.dailyFinished || 0);
+  const dailyPercent = dailyGoal ? Math.min((dailyFinished / dailyGoal) * 100, 100) : 0;
 
   return (
-    <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
-      <Chip label={`${tailored.toLocaleString()} tailored`} size="small" variant="outlined" sx={profileChipSx} />
-      <Chip label={`${bids.toLocaleString()} bids`} size="small" variant="outlined" sx={profileChipSx} />
-      <Chip label={`${done.toLocaleString()} done`} size="small" variant="outlined" sx={profileChipSx} />
-      {planned ? <Chip label={`${planned.toLocaleString()} planned`} size="small" variant="outlined" sx={profileChipSx} /> : null}
-    </Stack>
+    <Box sx={{ display: 'grid', gap: 0.75, minWidth: 0 }}>
+      <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
+        <Chip label={`${tailored.toLocaleString()} tailored`} size="small" variant="outlined" sx={profileChipSx} />
+        <Chip label={`${bids.toLocaleString()} bids`} size="small" variant="outlined" sx={profileChipSx} />
+        <Chip label={`${done.toLocaleString()} done`} size="small" variant="outlined" sx={profileChipSx} />
+        {planned ? <Chip label={`${planned.toLocaleString()} planned`} size="small" variant="outlined" sx={profileChipSx} /> : null}
+        <Chip
+          label={dailyGoal ? `${dailyFinished.toLocaleString()} / ${dailyGoal.toLocaleString()} today` : `${dailyFinished.toLocaleString()} today`}
+          size="small"
+          variant={dailyGoal ? 'filled' : 'outlined'}
+          sx={{ ...profileChipSx, bgcolor: dailyGoal ? '#dbeafe' : undefined, color: dailyGoal ? '#1d4ed8' : undefined, fontWeight: 700 }}
+        />
+      </Stack>
+      {dailyGoal ? (
+        <LinearProgress
+          variant="determinate"
+          value={dailyPercent}
+          sx={{
+            height: 6,
+            borderRadius: 1,
+            bgcolor: '#e5e7eb',
+            '& .MuiLinearProgress-bar': {
+              borderRadius: 1,
+              bgcolor: dailyFinished >= dailyGoal ? '#15803d' : '#1d4ed8',
+            },
+          }}
+        />
+      ) : null}
+    </Box>
   );
 }
 

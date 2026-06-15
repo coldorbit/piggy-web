@@ -104,6 +104,14 @@ export default function ProfileDialog({ form, isOpen, isSaving, mode = 'create',
               <FormHelperText>Choose the primary role family for this profile.</FormHelperText>
             </FormControl>
             <TextField
+              label="Daily bid goal"
+              type="number"
+              value={form.dailyBidGoal ?? ''}
+              onChange={(event) => onChange((current) => ({ ...current, dailyBidGoal: event.target.value }))}
+              inputProps={{ min: 0, step: 1 }}
+              helperText="Submitted or advanced applications expected for this profile each day."
+            />
+            <TextField
               label="Resume text"
               multiline
               minRows={6}

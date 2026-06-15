@@ -85,6 +85,7 @@ export default function ProfilesPage({ currentUser }) {
       resumeTemplate: profile.resumeTemplate || 'classic',
       colorScheme: profile.colorScheme || 'green',
       profileBadge: profile.profileBadge || 'SWE',
+      dailyBidGoal: profile.dailyBidGoal ?? '',
     });
     setEditingProfileId(profile.id);
     setDialogMode('edit');

@@ -59,6 +59,11 @@ export function getBidProfileModel() {
         defaultValue: 'active',
         field: 'profile_status',
       },
+      dailyBidGoal: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'daily_bid_goal',
+      },
       closedReason: {
         type: DataTypes.TEXT,
         field: 'closed_reason',

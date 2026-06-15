@@ -12,6 +12,7 @@ import { ActivityTrendChart, BreakdownChart, FunnelConversionChart, InterviewOut
 import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { GRAIN_OPTIONS, labelForGrain, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
 import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerformanceTable.jsx';
+import ProfileActivityTable from '../components/adminDashboard/ProfileActivityTable.jsx';
 import UserPerformanceTable from '../components/adminDashboard/UserPerformanceTable.jsx';
 import { useAdminDashboard } from '../lib/api.js';
 
@@ -60,6 +61,7 @@ export default function AdminDashboardPage() {
 
           <BidderPerformanceTable bidders={dashboard.bidders || []} />
           <UserPerformanceTable users={dashboard.users || []} />
+          <ProfileActivityTable rows={dashboard.profileActivity || []} />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 1.5 }}>
             <FunnelPerformanceTable title="Profile funnel performance" rows={dashboard.funnels?.profiles || []} />
             <FunnelPerformanceTable title="Role family funnel performance" rows={dashboard.funnels?.roleFamilies || []} />

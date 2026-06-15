@@ -201,7 +201,11 @@ function ProfileTabLabel({ profile, onOpenProfilePage, showDailyGoal, showInterv
         ) : null}
         {dailyGoal ? (
           <Chip
-            label={`${dailyGoal.finished.toLocaleString()} / ${dailyGoal.goal.toLocaleString()} today`}
+            label={
+              dailyGoal.goal
+                ? `${dailyGoal.finished.toLocaleString()} / ${dailyGoal.goal.toLocaleString()} today`
+                : `${dailyGoal.finished.toLocaleString()} today`
+            }
             size="small"
             sx={{
               height: 20,
@@ -234,15 +238,9 @@ function ProfileTabLabel({ profile, onOpenProfilePage, showDailyGoal, showInterv
 }
 
 function profileDailyGoal(profile) {
-  const dailyGoals = Array.isArray(profile?.progress?.dailyGoals) ? profile.progress.dailyGoals : [];
-  const goal = dailyGoals.length
-    ? dailyGoals.reduce((sum, row) => sum + Number(row.goal || 0), 0)
-    : Number(profile?.progress?.dailyGoal || 0);
-  if (!goal) return null;
-
-  const finished = dailyGoals.length
-    ? dailyGoals.reduce((sum, row) => sum + Number(row.finished || 0), 0)
-    : Number(profile?.progress?.dailyFinished || 0);
+  const goal = Number(profile?.progress?.dailyGoal || 0);
+  const finished = Number(profile?.progress?.dailyFinished || 0);
+  if (!goal) return { goal, finished, percent: 0, color: '#475569', bgcolor: '#f8fafc' };
   const percent = Math.min((finished / goal) * 100, 100);
   const isComplete = finished >= goal;
   const isOnTrack = isComplete || percent + 2 >= dayProgressPercent();

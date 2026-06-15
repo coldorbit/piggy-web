@@ -88,6 +88,7 @@ export function formatProfile(row) {
     colorScheme: row.colorScheme,
     profileBadge: row.profileBadge || 'SWE',
     profileStatus: row.profileStatus || 'active',
+    dailyBidGoal: row.dailyBidGoal ?? null,
     closedReason: row.closedReason || null,
     closedAt: row.closedAt || null,
     isShared: Boolean(row.get?.('shareStatus')),
@@ -103,6 +104,7 @@ export function formatProfile(row) {
       dailyGoal: null,
       dailyFinished: 0,
       dailyGoals: [],
+      dailyUsers: [],
       totalInterviews: 0,
       activeInterviews: 0,
     },
@@ -166,6 +168,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
     getJobBidModel().findAll({
       attributes: [
         'profileId',
+        'userId',
         [getSequelize().fn('COUNT', getSequelize().col('id')), 'dailyFinished'],
       ],
       where: {
@@ -174,7 +177,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
         bidAt: { [Op.gte]: today, [Op.lt]: tomorrow },
         ...(isCaller ? { callerUserId: user.id } : {}),
       },
-      group: ['profileId'],
+      group: ['profileId', 'userId'],
       raw: true,
     }),
     getTailoredResumeModel().findAll({
@@ -225,6 +228,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
         dailyGoal: null,
         dailyFinished: 0,
         dailyGoals: [],
+        dailyUsers: [],
         totalInterviews: 0,
         activeInterviews: 0,
       },
@@ -242,7 +246,16 @@ export async function profilesWithProgress(profiles, { user } = {}) {
   for (const row of dailyBidRows) {
     const progress = progressByProfileId.get(String(row.profileId));
     if (!progress) continue;
-    dailyFinishedByProfileId.set(String(row.profileId), Number(row.dailyFinished || 0));
+    const profileId = String(row.profileId);
+    const count = Number(row.dailyFinished || 0);
+    dailyFinishedByProfileId.set(profileId, (dailyFinishedByProfileId.get(profileId) || 0) + count);
+    const goalUser = goalUserById.get(String(row.userId));
+    progress.dailyUsers.push({
+      userId: row.userId,
+      username: goalUser?.username || `User ${row.userId}`,
+      role: goalUser?.role || '',
+      finished: count,
+    });
   }
 
   for (const row of tailoredRows) {
@@ -262,24 +275,25 @@ export async function profilesWithProgress(profiles, { user } = {}) {
     const progress = progressByProfileId.get(String(profile.id));
     if (progress) {
       const dailyFinished = dailyFinishedByProfileId.get(String(profile.id)) || 0;
+      const dailyGoal = Number(profile.dailyBidGoal || 0);
+      progress.dailyGoal = dailyGoal || null;
       progress.dailyGoals = [...(profileUserIdsByProfileId.get(String(profile.id)) || [])]
         .map((userId) => {
           const goalUser = goalUserById.get(String(userId));
-          const goal = Number(goalUser?.dailyBidGoal || 0);
-          if (!goal) return null;
           return {
-            userId: goalUser.id,
-            username: goalUser.username,
-            role: goalUser.role,
-            goal,
-            finished: dailyFinished,
+            userId: goalUser?.id || userId,
+            username: goalUser?.username || `User ${userId}`,
+            role: goalUser?.role || '',
+            goal: dailyGoal || Number(goalUser?.dailyBidGoal || 0),
+            finished: progress.dailyUsers
+              .filter((row) => String(row.userId) === String(userId))
+              .reduce((sum, row) => sum + Number(row.finished || 0), 0),
           };
         })
-        .filter(Boolean)
+        .filter((goal) => goal.goal > 0 || goal.finished > 0)
         .sort(compareDailyGoalProgress);
-      const ownerGoal = progress.dailyGoals.find((goal) => String(goal.userId) === String(profile.userId));
-      progress.dailyGoal = ownerGoal?.goal ?? null;
       progress.dailyFinished = dailyFinished;
+      progress.dailyUsers = progress.dailyUsers.sort(compareDailyGoalProgress);
     }
     profile.setDataValue('progress', progress);
   }
@@ -442,6 +456,7 @@ export function profileAttributesFromBody(body) {
   if (!name) throw new InputError('Profile name is required');
   if (!allowedColors.has(colorScheme)) throw new InputError('Choose a valid profile color');
   if (!allowedResumeTemplates.has(resumeTemplate)) throw new InputError('Choose a valid resume template');
+  const dailyBidGoal = dailyBidGoalFromBody(body?.dailyBidGoal);
 
   return {
     name,
@@ -454,6 +469,7 @@ export function profileAttributesFromBody(body) {
     resumeTemplate,
     colorScheme,
     profileBadge,
+    dailyBidGoal,
   };
 }
 
@@ -489,4 +505,13 @@ function profileBadgeFromBody(value) {
 
   if (!allowedBadges.has(profileBadge)) throw new InputError('Choose a valid profile badge');
   return profileBadge;
+}
+
+function dailyBidGoalFromBody(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const goal = Number(value);
+  if (!Number.isInteger(goal) || goal < 0 || goal > 10000) {
+    throw new InputError('Daily bid goal must be a whole number between 0 and 10000');
+  }
+  return goal || null;
 }

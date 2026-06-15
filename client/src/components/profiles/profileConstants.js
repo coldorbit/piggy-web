@@ -9,6 +9,7 @@ export const EMPTY_PROFILE = {
   resumeTemplate: 'classic',
   colorScheme: 'blue',
   profileBadge: 'SWE',
+  dailyBidGoal: '',
 };
 
 export const COLOR_OPTIONS = ['green', 'blue', 'violet', 'amber', 'rose', 'slate'];

@@ -455,11 +455,10 @@ function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs) {
 }
 
 function BidDailyGoalBar({ activeColor, profile }) {
-  const goals = dailyGoalRows(profile);
-  if (!goals.length) return null;
-
-  const totalGoal = goals.reduce((sum, goal) => sum + goal.goal, 0);
-  const totalFinished = goals.reduce((sum, goal) => sum + goal.finished, 0);
+  const totalGoal = Number(profile?.progress?.dailyGoal || 0);
+  const totalFinished = Number(profile?.progress?.dailyFinished || 0);
+  const users = dailyApplicationRows(profile);
+  if (!totalGoal && !totalFinished) return null;
 
   return (
     <Paper
@@ -476,15 +475,22 @@ function BidDailyGoalBar({ activeColor, profile }) {
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
         <Typography variant="body2" fontWeight={900}>
-          {profile?.name ? `${profile.name} daily bid goals` : 'Profile daily bid goals'}
+          {profile?.name ? `${profile.name} daily bid goal` : 'Profile daily bid goal'}
         </Typography>
         <Typography variant="body2" fontWeight={900} color="text.secondary">
-          {totalFinished.toLocaleString()} / {totalGoal.toLocaleString()} finished today
+          {totalGoal ? `${totalFinished.toLocaleString()} / ${totalGoal.toLocaleString()} applications today` : `${totalFinished.toLocaleString()} applications today`}
         </Typography>
       </Box>
-      {goals.map((goal) => (
-        <DailyGoalRow key={goal.userId || goal.username} activeColor={activeColor} goal={goal} />
-      ))}
+      {totalGoal ? <DailyGoalRow activeColor={activeColor} goal={{ goal: totalGoal, finished: totalFinished, username: 'Profile' }} /> : null}
+      {users.length ? (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+          {users.map((user) => (
+            <Typography key={user.userId || user.username} variant="caption" color="text.secondary" fontWeight={800}>
+              {[user.username || 'User', roleLabel(user.role)].filter(Boolean).join(' - ')}: {user.finished.toLocaleString()}
+            </Typography>
+          ))}
+        </Box>
+      ) : null}
     </Paper>
   );
 }
@@ -533,29 +539,16 @@ function DailyGoalRow({ activeColor, goal }) {
   );
 }
 
-function dailyGoalRows(profile) {
-  const goals = Array.isArray(profile?.progress?.dailyGoals)
-    ? profile.progress.dailyGoals
-        .map((goal) => ({
-          userId: goal.userId,
-          username: goal.username,
-          role: goal.role,
-          goal: Number(goal.goal || 0),
-          finished: Number(goal.finished || 0),
-        }))
-        .filter((goal) => goal.goal > 0)
-    : [];
-  if (goals.length) return goals;
-
-  const goal = Number(profile?.progress?.dailyGoal || 0);
-  if (!goal) return [];
-  return [{
-    userId: profile?.userId,
-    username: profile?.ownerUsername || profile?.name || 'Owner',
-    role: '',
-    goal,
-    finished: Number(profile?.progress?.dailyFinished || 0),
-  }];
+function dailyApplicationRows(profile) {
+  const users = Array.isArray(profile?.progress?.dailyUsers) ? profile.progress.dailyUsers : [];
+  return users
+    .map((user) => ({
+      userId: user.userId,
+      username: user.username,
+      role: user.role,
+      finished: Number(user.finished || 0),
+    }))
+    .filter((user) => user.finished > 0);
 }
 
 function roleLabel(role) {
@@ -588,7 +581,7 @@ function bidFiltersFromParams(params, { canIncludeTodayScrapedJobs = false } = {
 
 function normalizeBidDateFilter(filters, { canIncludeTodayScrapedJobs = false } = {}) {
   if (canIncludeTodayScrapedJobs) {
-    if (!['today', 'this_week', 'all'].includes(filters.since)) return filters;
+    if (!['this_week', 'all'].includes(filters.since)) return filters;
     return { ...filters, since: 'through_today', dateFrom: '', dateTo: '' };
   }
   if (!['today', 'through_today', 'this_week', 'all'].includes(filters.since)) return filters;

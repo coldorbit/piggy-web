@@ -11,6 +11,7 @@ export function formatDashboardResponse({
   userSources,
   userCategories,
   userProfiles,
+  profileActivity,
   sources,
   bidStatuses,
   interviewStages,
@@ -35,6 +36,7 @@ export function formatDashboardResponse({
     })),
     bidders: bidders.map(formatBidderRow),
     callers: callers.map((row) => formatCallerRow(row, { bucketCount })),
+    profileActivity: profileActivity.map(formatProfileActivityRow),
     funnels: {
       profiles: profileFunnels.map(formatFunnelRow('profile_name')),
       roleFamilies: roleFamilyFunnels.map(formatFunnelRow('role_family')),
@@ -45,6 +47,24 @@ export function formatDashboardResponse({
       interviewStages: interviewStages.map(formatCountRow('stage')),
       interviewStatuses: interviewStatuses.map(formatCountRow('status')),
     },
+  };
+}
+
+function formatProfileActivityRow(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    username: row.username,
+    role: row.role,
+    profileId: row.profile_id,
+    profileName: row.profile_name || 'Unknown profile',
+    jobId: row.job_id,
+    publicJobId: row.public_job_id || null,
+    jobTitle: row.job_title || 'Untitled role',
+    company: row.company || 'Unknown company',
+    source: row.source || 'Unknown',
+    status: row.status || 'unknown',
+    bidAt: row.bid_at || null,
   };
 }
 

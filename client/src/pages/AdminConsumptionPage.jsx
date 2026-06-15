@@ -52,7 +52,12 @@ export default function AdminConsumptionPage() {
         <Typography color="text.secondary">
           Track wallet deposits, wallet balances, card balances, crypto spend, card funding, transfers, swaps, gas fees, and reconciliation adjustments.
         </Typography>
-        <RefreshButton isRefreshing={isFetching} lastUpdatedAt={lastUpdatedAt} onRefresh={refetch} />
+        <RefreshButton
+          isRefreshing={isFetching}
+          lastUpdatedAt={lastUpdatedAt}
+          onRefresh={refetch}
+          sx={{ alignSelf: { xs: 'flex-end', sm: 'flex-start' }, flex: '0 0 auto', ml: { sm: 'auto' } }}
+        />
       </Stack>
 
       {error || queryError ? <Alert severity="error">{error || queryError?.message}</Alert> : null}

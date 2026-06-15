@@ -38,7 +38,13 @@ const DEFAULT_FILTERS = {
 };
 
 export default function JobsPage({ currentUser }) {
-  const [filters, setFilters] = useState(() => readPersistedFilters(JOB_FILTERS_STORAGE_KEY, DEFAULT_FILTERS, JOB_FILTER_KEYS));
+  const canIncludeTodayScrapedJobs = isAdminRole(currentUser);
+  const [filters, setFilters] = useState(() =>
+    normalizeJobDateFilter(
+      readPersistedFilters(JOB_FILTERS_STORAGE_KEY, DEFAULT_FILTERS, JOB_FILTER_KEYS),
+      { canIncludeTodayScrapedJobs },
+    ),
+  );
   const [selectedId, setSelectedId] = useState(null);
   const [selectedLocationByJobId, setSelectedLocationByJobId] = useState({});
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -215,7 +221,7 @@ export default function JobsPage({ currentUser }) {
       <JobFiltersDrawer
         isOpen={isFilterPanelOpen}
         filters={filters}
-        meta={meta}
+        meta={{ ...meta, canIncludeTodayScrapedJobs }}
         onClose={() => setIsFilterPanelOpen(false)}
         onFilterChange={updateFilter}
         onOpen={() => setIsFilterPanelOpen(true)}
@@ -312,6 +318,11 @@ export default function JobsPage({ currentUser }) {
       </Dialog>
     </Box>
   );
+}
+
+function normalizeJobDateFilter(filters, { canIncludeTodayScrapedJobs = false } = {}) {
+  if (canIncludeTodayScrapedJobs || filters.since !== 'today') return filters;
+  return { ...filters, since: 'yesterday', dateFrom: '', dateTo: '' };
 }
 
 function csvFromPastedJobRow(value) {
