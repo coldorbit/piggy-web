@@ -267,6 +267,8 @@ function dateFilterOptions(meta = {}) {
   }
 
   return [
+    { value: 'until_yesterday', label: 'Until yesterday' },
+    ...(meta.canIncludeTodayScrapedJobs ? [{ value: 'through_today', label: 'Through today' }] : []),
     ...(meta.canIncludeTodayScrapedJobs ? [{ value: 'today', label: 'Today' }] : []),
     { value: 'yesterday', label: 'Yesterday' },
     { value: 'this_week', label: 'This week' },

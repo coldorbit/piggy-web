@@ -321,7 +321,9 @@ export default function JobsPage({ currentUser }) {
 }
 
 function normalizeJobDateFilter(filters, { canIncludeTodayScrapedJobs = false } = {}) {
-  if (canIncludeTodayScrapedJobs || filters.since !== 'today') return filters;
+  if (canIncludeTodayScrapedJobs) return filters;
+  if (filters.since === 'through_today') return { ...filters, since: 'until_yesterday', dateFrom: '', dateTo: '' };
+  if (filters.since !== 'today') return filters;
   return { ...filters, since: 'yesterday', dateFrom: '', dateTo: '' };
 }
 
