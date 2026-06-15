@@ -325,11 +325,12 @@ function compareDailyGoalProgress(left, right) {
 function dailyGoalRoleWeight(role) {
   if (BIDDER_ROLES.includes(role)) return 0;
   if (role === 'user') return 1;
-  return 2;
+  if (PRIVILEGED_USER_ROLES.includes(role)) return 2;
+  return 3;
 }
 
 function isDailyGoalUserRole(role) {
-  return role === 'user' || BIDDER_ROLES.includes(role);
+  return PRIVILEGED_USER_ROLES.includes(role) || BIDDER_ROLES.includes(role);
 }
 
 export async function profilesWithSharing(profiles) {

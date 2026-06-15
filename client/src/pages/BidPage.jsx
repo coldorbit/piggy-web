@@ -590,8 +590,8 @@ function bidFiltersFromParams(params, { activeBidTab = BID_TABS.todo, canInclude
 
 function normalizeBidDateFilter(filters, { activeBidTab = BID_TABS.todo, canIncludeTodayScrapedJobs = false } = {}) {
   if (canIncludeTodayDateFilter({ activeBidTab, canIncludeTodayScrapedJobs })) {
-    if (!['this_week', 'all'].includes(filters.since)) return filters;
-    return { ...filters, since: 'through_today', dateFrom: '', dateTo: '' };
+    if (!['until_yesterday', 'through_today', 'this_week', 'all'].includes(filters.since)) return filters;
+    return { ...filters, since: 'today', dateFrom: '', dateTo: '' };
   }
   if (!['today', 'through_today', 'this_week', 'all'].includes(filters.since)) return filters;
   return { ...filters, since: 'until_yesterday', dateFrom: '', dateTo: '' };

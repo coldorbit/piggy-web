@@ -734,7 +734,7 @@ function jobQueryForBidTab(query, tab) {
 function bidDateRangeForTab(query, tab) {
   if (!isCompletedBidTab(tab)) return null;
   return bidDateRange({
-    since: clean(query?.since || 'until_yesterday'),
+    since: clean(query?.since || 'today'),
     dateFrom: query?.dateFrom,
     dateTo: query?.dateTo,
   });

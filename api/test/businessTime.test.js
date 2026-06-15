@@ -19,6 +19,13 @@ describe('business time helpers', () => {
     assert.equal(businessDateKey(new Date('2026-06-15T23:00:00.000Z')), '2026-06-15');
   });
 
+  it('uses 11pm UTC as the today boundary during daylight time', () => {
+    const range = businessDayRange(new Date('2026-06-15T22:30:00.000Z'));
+
+    assert.equal(range.from.toISOString(), '2026-06-14T23:00:00.000Z');
+    assert.equal(range.to.toISOString(), '2026-06-15T23:00:00.000Z');
+  });
+
   it('compares UTC stored timestamps against the platform today window', () => {
     const range = businessDayRange(new Date('2026-06-15T22:30:00.000Z'));
 
