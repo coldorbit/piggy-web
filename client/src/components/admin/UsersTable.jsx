@@ -29,8 +29,11 @@ export default function UsersTable({
   currentUser,
   editing,
   editingId,
+  emptyDetail = 'Created users will appear here for role and access management.',
+  emptyTitle = 'No users yet',
   isLoading,
   saving,
+  sx,
   users,
   onCancel,
   onDelete,
@@ -39,7 +42,7 @@ export default function UsersTable({
   onSave,
 }) {
   return (
-    <TableContainer component={Paper} variant="outlined" aria-busy={isLoading} sx={{ boxShadow: 1 }}>
+    <TableContainer component={Paper} variant="outlined" aria-busy={isLoading} sx={{ boxShadow: 1, ...sx }}>
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
@@ -57,7 +60,7 @@ export default function UsersTable({
         <TableBody>
           {isLoading ? <UserSkeletonRows /> : null}
           {!isLoading && users.length === 0 ? (
-            <EmptyRow title="No users yet" detail="Created users will appear here for role and access management." />
+            <EmptyRow title={emptyTitle} detail={emptyDetail} />
           ) : null}
           {users.map((user) => (
             <UserRow
