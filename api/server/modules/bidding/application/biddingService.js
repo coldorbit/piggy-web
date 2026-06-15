@@ -8,7 +8,7 @@ const INTERVIEW_BID_STATUSES = ['interviewing', 'won', 'lost'];
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 export const REVIEW_BID_STATUSES = new Set(['mismatching_bid', 'spam_job']);
 
-export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', JobBid, sequelize }) {
+export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', bidDateRange = null, JobBid, sequelize }) {
   const tabWhere = { ...where };
   const isDoneTab = tab === 'done';
   const isBadWorkTab = tab === 'bad_work';
@@ -37,6 +37,7 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
         ...(isDoneTab ? { status: { [Op.in]: DONE_BID_STATUSES } } : {}),
         ...(isBadWorkTab ? { status: { [Op.in]: [...REVIEW_BID_STATUSES] } } : {}),
         ...(isInterviewsTab ? { status: { [Op.in]: INTERVIEW_BID_STATUSES } } : {}),
+        ...((isDoneTab || isBadWorkTab) && bidDateRange ? bidDateWhere(bidDateRange) : {}),
       },
     },
   ];
@@ -69,6 +70,13 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
   }
 
   return { where: tabWhere, include, order };
+}
+
+function bidDateWhere(range) {
+  const bidAt = {};
+  if (range.from) bidAt[Op.gte] = range.from;
+  if (range.to) bidAt[Op.lt] = range.to;
+  return Object.getOwnPropertySymbols(bidAt).length ? { bidAt } : {};
 }
 
 function appliedProfileExistsSql({ profileId, sequelize }) {

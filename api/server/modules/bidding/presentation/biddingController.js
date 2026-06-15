@@ -59,7 +59,8 @@ import {
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
-const DAILY_BID_FINISHED_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
+const DAILY_BID_GOAL_STATUSES = ['submitted', 'won', 'lost'];
+const BID_AT_FINISHED_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -613,18 +614,27 @@ export async function listBidJobs(req, res, next) {
     const TailoredResume = getTailoredResumeModel();
     const WebUser = getWebUserModel();
     const sequelize = getSequelize();
+    const activeBidDateRange = bidDateRangeForTab(req.query, bidTab);
     const { where, order: jobOrder, limit, offset } = buildJobQuery({
-      ...queryForBidTab(req.query, bidTab),
+      ...jobQueryForBidTab(req.query, bidTab),
       limit: req.query.limit || 10,
     });
     if (!isAdminRole(user) && isBidStrategyTab(bidTab)) enforceBidStrategyScrapedBeforeToday(where);
     const bidUsers = await bidUsersForProfile(profile);
     const appliedProfileId = bidTab === 'todo' ? await appliedProfileFilter(req, req.query.appliedProfileId) : '';
-    const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, appliedProfileId, JobBid, sequelize });
+    const activeTabQuery = buildBidTabQuery({
+      where,
+      tab: bidTab,
+      profileId: profile.id,
+      appliedProfileId,
+      bidDateRange: activeBidDateRange,
+      JobBid,
+      sequelize,
+    });
 
     const countBidTab = (tab) => {
       const { where: countWhere } = buildJobQuery({
-        ...queryForBidTab(req.query, tab),
+        ...jobQueryForBidTab(req.query, tab),
         limit: req.query.limit || 10,
       });
       if (!isAdminRole(user) && isBidStrategyTab(tab)) enforceBidStrategyScrapedBeforeToday(countWhere);
@@ -633,6 +643,7 @@ export async function listBidJobs(req, res, next) {
         tab,
         profileId: profile.id,
         appliedProfileId: tab === 'todo' && tab === bidTab ? appliedProfileId : '',
+        bidDateRange: bidDateRangeForTab(req.query, tab),
         JobBid,
         sequelize,
       });
@@ -715,12 +726,45 @@ export async function listBidJobs(req, res, next) {
   }
 }
 
-function queryForBidTab(query, tab) {
-  const normalizedQuery = { ...query };
-  if (isCompletedBidTab(tab) && (!normalizedQuery.since || normalizedQuery.since === 'until_yesterday')) {
-    normalizedQuery.since = 'through_today';
+function jobQueryForBidTab(query, tab) {
+  if (!isCompletedBidTab(tab)) return query;
+  return { ...query, since: 'all', dateFrom: '', dateTo: '' };
+}
+
+function bidDateRangeForTab(query, tab) {
+  if (!isCompletedBidTab(tab)) return null;
+  return bidDateRange({
+    since: clean(query?.since || 'until_yesterday'),
+    dateFrom: query?.dateFrom,
+    dateTo: query?.dateTo,
+  });
+}
+
+function bidDateRange({ since, dateFrom, dateTo }) {
+  if (since === 'all') return null;
+  if (since === 'custom') {
+    const from = businessDateRange(dateFrom)?.from || null;
+    const to = businessDateRange(dateTo)?.from || null;
+    return { from, to: to ? addBusinessDays(to, 1) : null };
   }
-  return normalizedQuery;
+  return presetBidDateRange(since);
+}
+
+function presetBidDateRange(since) {
+  const today = businessDayStart(new Date());
+  if (since === 'today') return { from: today, to: addBusinessDays(today, 1) };
+  if (since === 'yesterday') return { from: addBusinessDays(today, -1), to: today };
+  if (since === 'until_yesterday') return { from: null, to: today };
+  if (since === 'through_today') return { from: null, to: addBusinessDays(today, 1) };
+  if (since === 'this_week') {
+    const weekStart = businessWeekStart(today);
+    return { from: weekStart, to: addBusinessDays(weekStart, 7) };
+  }
+  if (since === 'last_week') {
+    const thisWeekStart = businessWeekStart(today);
+    return { from: addBusinessDays(thisWeekStart, -7), to: thisWeekStart };
+  }
+  return null;
 }
 
 function isCompletedBidTab(tab) {
@@ -904,12 +948,20 @@ async function countBidTabForProfile({ profile, tab, query, appliedProfileId = '
   const JobBid = getJobBidModel();
   const sequelize = getSequelize();
   const { where } = buildJobQuery({
-    ...queryForBidTab(query, tab),
+    ...jobQueryForBidTab(query, tab),
     bidTab: tab,
     profileId: profile.id,
     limit: query.limit || 10,
   });
-  const countQuery = buildBidTabQuery({ where, tab, profileId: profile.id, appliedProfileId, JobBid, sequelize });
+  const countQuery = buildBidTabQuery({
+    where,
+    tab,
+    profileId: profile.id,
+    appliedProfileId,
+    bidDateRange: bidDateRangeForTab(query, tab),
+    JobBid,
+    sequelize,
+  });
   return ScrapedJob.count({
     where: countQuery.where,
     distinct: true,
@@ -1022,7 +1074,7 @@ async function dailyBidProgressForUser(user) {
   const finished = await getJobBidModel().count({
     where: {
       userId: user.id,
-      status: { [Op.in]: DAILY_BID_FINISHED_STATUSES },
+      status: { [Op.in]: DAILY_BID_GOAL_STATUSES },
       bidAt: { [Op.gte]: today, [Op.lt]: tomorrow },
     },
   });
@@ -2047,7 +2099,7 @@ export async function updateJobBid(req, res, next) {
     }
     const now = new Date();
     const updates = { ...bidUpdateValuesFromAttrs(attrs), updatedAt: now };
-    if (attrs.status === 'submitted' && !DAILY_BID_FINISHED_STATUSES.includes(bid.status)) {
+    if (attrs.status === 'submitted' && !BID_AT_FINISHED_STATUSES.includes(bid.status)) {
       updates.bidAt = now;
     }
     await bid.update(updates);

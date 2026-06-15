@@ -55,7 +55,10 @@ export default function BidPage({ currentUser }) {
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [activeBidTab, setActiveBidTab] = useState(() => bidTabFromParam(searchParams.get('tab')));
-  const [filters, setFilters] = useState(() => bidFiltersFromParams(searchParams, { canIncludeTodayScrapedJobs }));
+  const [filters, setFilters] = useState(() => bidFiltersFromParams(searchParams, {
+    activeBidTab,
+    canIncludeTodayScrapedJobs,
+  }));
   const [drafts, setDrafts] = useState({});
   const [error, setError] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -115,7 +118,10 @@ export default function BidPage({ currentUser }) {
   useEffect(() => {
     const nextProfileId = searchParams.get('profileId') || '';
     const nextTab = bidTabFromParam(searchParams.get('tab'));
-    const nextFilters = bidFiltersFromParams(searchParams, { canIncludeTodayScrapedJobs });
+    const nextFilters = bidFiltersFromParams(searchParams, {
+      activeBidTab: nextTab,
+      canIncludeTodayScrapedJobs,
+    });
 
     if (String(nextProfileId) !== String(activeProfileId)) setActiveProfileId(nextProfileId);
     if (nextTab !== activeBidTab) setActiveBidTab(nextTab);
@@ -181,7 +187,10 @@ export default function BidPage({ currentUser }) {
 
   function updateBidTab(value) {
     setActiveBidTab(value);
-    setFilters((current) => ({ ...current, page: 1 }));
+    setFilters((current) => normalizeBidDateFilter(
+      { ...current, page: 1 },
+      { activeBidTab: value, canIncludeTodayScrapedJobs },
+    ));
   }
 
   function saveBid(job, bidDataOverride) {
@@ -383,7 +392,10 @@ export default function BidPage({ currentUser }) {
                   ...(metaData || { sources: [] }),
                   appliedProfiles: appliedProfileOptions,
                   bidDateStrategy: true,
-                  canIncludeTodayScrapedJobs,
+                  canIncludeTodayScrapedJobs: canIncludeTodayDateFilter({
+                    activeBidTab,
+                    canIncludeTodayScrapedJobs,
+                  }),
                   showAppliedProfileFilter: activeBidTab === BID_TABS.todo && canUseCrossUserAppliedFilter,
                 }}
                 onClose={() => setIsFilterPanelOpen(false)}
@@ -563,7 +575,7 @@ function bidTabFromParam(value) {
   return APPLICATION_TABS.has(value) ? value : BID_TABS.todo;
 }
 
-function bidFiltersFromParams(params, { canIncludeTodayScrapedJobs = false } = {}) {
+function bidFiltersFromParams(params, { activeBidTab = BID_TABS.todo, canIncludeTodayScrapedJobs = false } = {}) {
   const persistedFilters = readPersistedFilters(BID_FILTERS_STORAGE_KEY, DEFAULT_BID_FILTERS, BID_FILTER_KEYS);
   const paramFilters = {};
   BID_FILTER_KEYS.forEach((key) => {
@@ -572,17 +584,21 @@ function bidFiltersFromParams(params, { canIncludeTodayScrapedJobs = false } = {
   });
   return normalizeBidDateFilter(
     mergeKnownFilters(persistedFilters, paramFilters, BID_FILTER_KEYS),
-    { canIncludeTodayScrapedJobs },
+    { activeBidTab, canIncludeTodayScrapedJobs },
   );
 }
 
-function normalizeBidDateFilter(filters, { canIncludeTodayScrapedJobs = false } = {}) {
-  if (canIncludeTodayScrapedJobs) {
+function normalizeBidDateFilter(filters, { activeBidTab = BID_TABS.todo, canIncludeTodayScrapedJobs = false } = {}) {
+  if (canIncludeTodayDateFilter({ activeBidTab, canIncludeTodayScrapedJobs })) {
     if (!['this_week', 'all'].includes(filters.since)) return filters;
     return { ...filters, since: 'through_today', dateFrom: '', dateTo: '' };
   }
   if (!['today', 'through_today', 'this_week', 'all'].includes(filters.since)) return filters;
   return { ...filters, since: 'until_yesterday', dateFrom: '', dateTo: '' };
+}
+
+function canIncludeTodayDateFilter({ activeBidTab, canIncludeTodayScrapedJobs = false }) {
+  return canIncludeTodayScrapedJobs || activeBidTab === BID_TABS.done || activeBidTab === BID_TABS.badWork;
 }
 
 function bidParamsFromState({ activeProfileId, activeBidTab, filters }) {

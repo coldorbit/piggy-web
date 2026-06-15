@@ -157,7 +157,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
         [
           getSequelize().fn(
             'SUM',
-            getSequelize().literal("CASE WHEN status IN ('submitted', 'interviewing', 'won', 'lost') THEN 1 ELSE 0 END"),
+            getSequelize().literal("CASE WHEN status IN ('submitted', 'won', 'lost') THEN 1 ELSE 0 END"),
           ),
           'done',
         ],
@@ -174,7 +174,8 @@ export async function profilesWithProgress(profiles, { user } = {}) {
       ],
       where: {
         profileId: profileIds,
-        status: { [Op.in]: ['submitted', 'interviewing', 'won', 'lost'] },
+        status: { [Op.in]: ['submitted', 'won', 'lost'] },
+        userId: goalUserIds,
         bidAt: { [Op.gte]: today, [Op.lt]: tomorrow },
         ...(isCaller ? { callerUserId: user.id } : {}),
       },
@@ -216,7 +217,6 @@ export async function profilesWithProgress(profiles, { user } = {}) {
     }),
   ]);
   const goalUserById = new Map(goalUserRows.map((row) => [String(row.id), row]));
-  const dailyFinishedByProfileId = new Map();
 
   const progressByProfileId = new Map(
     profileIds.map((profileId) => [
@@ -249,8 +249,8 @@ export async function profilesWithProgress(profiles, { user } = {}) {
     if (!progress) continue;
     const profileId = String(row.profileId);
     const count = Number(row.dailyFinished || 0);
-    dailyFinishedByProfileId.set(profileId, (dailyFinishedByProfileId.get(profileId) || 0) + count);
     const goalUser = goalUserById.get(String(row.userId));
+    if (!isDailyGoalUserRole(goalUser?.role)) continue;
     progress.dailyUsers.push({
       userId: row.userId,
       username: goalUser?.username || `User ${row.userId}`,
@@ -275,12 +275,11 @@ export async function profilesWithProgress(profiles, { user } = {}) {
   for (const profile of profiles) {
     const progress = progressByProfileId.get(String(profile.id));
     if (progress) {
-      const dailyFinished = dailyFinishedByProfileId.get(String(profile.id)) || 0;
       const dailyGoal = Number(profile.dailyBidGoal || 0);
-      progress.dailyGoal = dailyGoal || null;
       progress.dailyGoals = [...(profileUserIdsByProfileId.get(String(profile.id)) || [])]
         .map((userId) => {
           const goalUser = goalUserById.get(String(userId));
+          if (!isDailyGoalUserRole(goalUser?.role)) return null;
           return {
             userId: goalUser?.id || userId,
             username: goalUser?.username || `User ${userId}`,
@@ -291,10 +290,19 @@ export async function profilesWithProgress(profiles, { user } = {}) {
               .reduce((sum, row) => sum + Number(row.finished || 0), 0),
           };
         })
+        .filter(Boolean)
         .filter((goal) => goal.goal > 0 || goal.finished > 0)
         .sort(compareDailyGoalProgress);
-      progress.dailyFinished = dailyFinished;
-      progress.dailyUsers = progress.dailyUsers.sort(compareDailyGoalProgress);
+      progress.dailyGoal = progress.dailyGoals.reduce((sum, goal) => sum + Number(goal.goal || 0), 0) || null;
+      progress.dailyFinished = progress.dailyGoals.reduce((sum, goal) => sum + Number(goal.finished || 0), 0);
+      progress.dailyUsers = progress.dailyGoals
+        .filter((goal) => Number(goal.finished || 0) > 0)
+        .map((goal) => ({
+          userId: goal.userId,
+          username: goal.username,
+          role: goal.role,
+          finished: goal.finished,
+        }));
     }
     profile.setDataValue('progress', progress);
   }
@@ -312,6 +320,10 @@ function dailyGoalRoleWeight(role) {
   if (BIDDER_ROLES.includes(role)) return 0;
   if (role === 'user') return 1;
   return 2;
+}
+
+function isDailyGoalUserRole(role) {
+  return role === 'user' || BIDDER_ROLES.includes(role);
 }
 
 export async function profilesWithSharing(profiles) {

@@ -73,6 +73,23 @@ describe('buildBidTabQuery', () => {
     assert.equal(query.where[Op.and], undefined);
   });
 
+  it('applies completed tab date filters to bid timestamps', () => {
+    const from = new Date('2026-06-14T23:00:00.000Z');
+    const to = new Date('2026-06-15T23:00:00.000Z');
+    const query = buildBidTabQuery({
+      where: {},
+      tab: 'done',
+      profileId: 42,
+      bidDateRange: { from, to },
+      JobBid,
+      sequelize,
+    });
+
+    assert.equal(query.where.scrapedAt, undefined);
+    assert.equal(query.include[0].where.bidAt[Op.gte], from);
+    assert.equal(query.include[0].where.bidAt[Op.lt], to);
+  });
+
   it('requires review bids on the bad work tab', () => {
     const query = buildBidTabQuery({
       where: {},
