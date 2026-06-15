@@ -335,10 +335,13 @@ function userPerformanceSql(grainConfig) {
     LEFT JOIN profile_metrics ON profile_metrics.user_id = web_users.id
     LEFT JOIN shared_profile_metrics ON shared_profile_metrics.user_id = web_users.id
     LEFT JOIN tailoring_metrics ON tailoring_metrics.user_id = web_users.id
-    WHERE web_users.role IN ('bidder', 'readonly_bidder', 'editable_bidder', 'user', 'internal')
-       OR COALESCE(bid_metrics.applications, 0) > 0
-       OR COALESCE(interview_metrics.interviews, 0) > 0
-       OR COALESCE(tailoring_metrics.tailored_resume_requests, 0) > 0
+    WHERE web_users.role NOT IN ('superadmin', 'bidder', 'readonly_bidder', 'editable_bidder')
+      AND (
+        web_users.role IN ('admin', 'user', 'finance_manager', 'internal')
+        OR COALESCE(bid_metrics.applications, 0) > 0
+        OR COALESCE(interview_metrics.interviews, 0) > 0
+        OR COALESCE(tailoring_metrics.tailored_resume_requests, 0) > 0
+      )
     ORDER BY COALESCE(interview_metrics.offers, 0) DESC,
       COALESCE(interview_metrics.interviews, 0) DESC,
       COALESCE(bid_metrics.applications, 0) DESC,
