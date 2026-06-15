@@ -284,7 +284,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
             userId: goalUser?.id || userId,
             username: goalUser?.username || `User ${userId}`,
             role: goalUser?.role || '',
-            goal: dailyGoal || Number(goalUser?.dailyBidGoal || 0),
+            goal: Number(goalUser?.dailyBidGoal || 0),
             finished: progress.dailyUsers
               .filter((row) => String(row.userId) === String(userId))
               .reduce((sum, row) => sum + Number(row.finished || 0), 0),
@@ -293,7 +293,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
         .filter(Boolean)
         .filter((goal) => goal.goal > 0 || goal.finished > 0)
         .sort(compareDailyGoalProgress);
-      progress.dailyGoal = progress.dailyGoals.reduce((sum, goal) => sum + Number(goal.goal || 0), 0) || null;
+      progress.dailyGoal = dailyGoal || null;
       progress.dailyFinished = progress.dailyGoals.reduce((sum, goal) => sum + Number(goal.finished || 0), 0);
       progress.dailyUsers = progress.dailyGoals
         .filter((goal) => Number(goal.finished || 0) > 0)
