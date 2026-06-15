@@ -51,6 +51,7 @@ import {
   addBusinessDays,
   businessDateKeyDaysAgo,
   businessDateRange,
+  businessDayRange,
   businessDaySql,
   businessDayStart,
   businessWeekStart,
@@ -984,8 +985,7 @@ async function dailyBidProgressForUser(user) {
   const goal = Number(user.dailyBidGoal || 0);
   if (!goal) return { goal: null, finished: 0 };
 
-  const today = businessDayStart(new Date());
-  const tomorrow = addBusinessDays(today, 1);
+  const { from: today, to: tomorrow } = businessDayRange(new Date());
   const finished = await getJobBidModel().count({
     where: {
       userId: user.id,
