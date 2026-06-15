@@ -634,7 +634,9 @@ function matchesSource(job, source = 'all') {
 }
 
 function normalizedSource(value) {
-  return String(value || '').trim().toLowerCase();
+  const source = String(value || '').trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+  if (source === 'builtin' || source === 'built in') return 'builtin';
+  return source;
 }
 
 function matchesLocationRegion(job, locationRegion = 'all') {

@@ -226,10 +226,10 @@ function appendAndCondition(where, condition) {
 }
 
 function orderForSort(sort) {
-  if (sort === 'posted_asc') return [['postedAt', 'ASC NULLS LAST']];
-  if (sort === 'scraped_asc') return [['scrapedAt', 'ASC']];
-  if (sort === 'title_asc') return [['title', 'ASC NULLS LAST']];
-  return [[sort === 'posted_desc' ? 'postedAt' : 'scrapedAt', 'DESC NULLS LAST']];
+  if (sort === 'posted_asc') return [['postedAt', 'ASC NULLS LAST'], ['id', 'ASC']];
+  if (sort === 'scraped_asc') return [['scrapedAt', 'ASC'], ['id', 'ASC']];
+  if (sort === 'title_asc') return [['title', 'ASC NULLS LAST'], ['id', 'ASC']];
+  return [[sort === 'posted_desc' ? 'postedAt' : 'scrapedAt', 'DESC NULLS LAST'], ['id', 'DESC']];
 }
 
 function applyDateFilter(where, { since, dateFrom, dateTo }) {
@@ -311,12 +311,12 @@ export function formatJob(row) {
   return {
     id: row.id,
     publicJobId: publicJobIdFromId(row.publicJobId || row.id),
-    title: row.title,
-    company: row.company,
-    location: row.location,
+    title: clean(row.title),
+    company: clean(row.company),
+    location: clean(row.location),
     category: row.category,
     url: row.url,
-    source: row.source,
+    source: clean(row.source),
     sourceUrl: row.sourceUrl,
     postedAt: row.postedAt,
     scrapedAt: row.scrapedAt,
@@ -346,12 +346,15 @@ export function publicJobIdFromId(value) {
 }
 
 export function normalizeJobSource(value) {
-  return clean(value).toLowerCase();
+  const source = clean(value).toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+  if (source === 'builtin' || source === 'built in') return 'builtin';
+  return source;
 }
 
 export function jobSourceLabel(value) {
   const label = clean(value);
   const source = normalizeJobSource(label);
+  if (source === 'builtin') return 'Built In';
   if (source === 'linkedin') return 'LinkedIn';
   if (source === 'manual') return 'Manual';
   return label || 'Unknown';
@@ -373,7 +376,10 @@ export function mergedJobSourceOptions(sourceRows = []) {
 }
 
 function sourceCondition(source) {
-  return literal(`lower(btrim(coalesce(source, ''))) = '${escapedSqlLiteral(normalizeJobSource(source))}'`);
+  const normalizedSource = escapedSqlLiteral(normalizeJobSource(source));
+  const sourceExpression = "lower(regexp_replace(btrim(coalesce(source, '')), '[-_[:space:]]+', ' ', 'g'))";
+  if (normalizedSource === 'builtin') return literal(`${sourceExpression} IN ('builtin', 'built in')`);
+  return literal(`${sourceExpression} = '${normalizedSource}'`);
 }
 
 export function groupedJobsFromRows(rows) {
@@ -394,13 +400,24 @@ export function groupedJobsFromRows(rows) {
     }
 
     group.locationOptions.push(locationOption(job));
-    group.location = groupedLocationLabel(group.locationOptions);
-    group.postedAt = latestDateValue(group.postedAt, job.postedAt);
-    group.scrapedAt = latestDateValue(group.scrapedAt, job.scrapedAt);
+    const latestPostedAt = latestDateValue(group.postedAt, job.postedAt);
+    const latestScrapedAt = latestDateValue(group.scrapedAt, job.scrapedAt);
+    if (shouldPromoteJobRepresentative(group, job)) {
+      const { id, locationOptions } = group;
+      Object.assign(group, {
+        ...job,
+        id,
+        representativeJobId: job.id,
+        locationOptions,
+      });
+    }
+    group.postedAt = latestPostedAt;
+    group.scrapedAt = latestScrapedAt;
   }
 
   return [...groups.values()].map((group) => ({
     ...group,
+    location: groupedLocationLabel(group.locationOptions),
     locationOptions: group.locationOptions.sort(compareLocationOptions),
   }));
 }
@@ -430,9 +447,38 @@ function locationOption(job) {
 }
 
 function groupedLocationLabel(options) {
-  const locations = [...new Set(options.map((option) => option.locationLabel).filter(Boolean))];
+  const locations = [
+    ...new Set(
+      [...options]
+        .sort(compareLocationOptions)
+        .map((option) => option.locationLabel)
+        .filter(Boolean),
+    ),
+  ];
   if (locations.length <= 1) return locations[0] || '';
   return `${locations[0]} + ${locations.length - 1} more`;
+}
+
+function shouldPromoteJobRepresentative(current, candidate) {
+  const currentTime = Date.parse(current.postedAt || current.scrapedAt || 0) || 0;
+  const candidateTime = Date.parse(candidate.postedAt || candidate.scrapedAt || 0) || 0;
+  if (candidateTime !== currentTime) return candidateTime > currentTime;
+
+  const currentDisplayRank = jobDisplayRank(current);
+  const candidateDisplayRank = jobDisplayRank(candidate);
+  if (candidateDisplayRank !== currentDisplayRank) return candidateDisplayRank > currentDisplayRank;
+
+  return Number(candidate.id || 0) > Number(current.representativeJobId || current.id || 0);
+}
+
+function jobDisplayRank(job) {
+  return displayValueRank(job.title) + displayValueRank(job.company);
+}
+
+function displayValueRank(value) {
+  const text = clean(value);
+  if (!text) return 0;
+  return text === text.toLowerCase() || text === text.toUpperCase() ? 1 : 2;
 }
 
 function latestDateValue(left, right) {

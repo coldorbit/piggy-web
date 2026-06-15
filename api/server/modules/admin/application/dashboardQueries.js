@@ -67,7 +67,19 @@ function bucketExpression(column, grainConfig) {
 
 function overallSql() {
   return `
-    WITH job_totals AS (
+    WITH business_day AS (
+      SELECT
+        (
+          date_trunc('day', timezone('America/New_York', now()) - interval '19 hours')
+          + interval '19 hours'
+        ) AT TIME ZONE 'America/New_York' AS starts_at,
+        (
+          date_trunc('day', timezone('America/New_York', now()) - interval '19 hours')
+          + interval '1 day'
+          + interval '19 hours'
+        ) AT TIME ZONE 'America/New_York' AS ends_at
+    ),
+    job_totals AS (
       SELECT
         COUNT(*)::int AS total_jobs,
         COUNT(*) FILTER (WHERE raw_job->>'importType' = 'manual' OR raw_job->>'isManualImport' = 'true')::int AS manual_jobs,
@@ -89,6 +101,20 @@ function overallSql() {
         COUNT(*) FILTER (WHERE status IN ('mismatching_bid', 'spam_job'))::int AS review_blocked_applications
       FROM job_bids
     ),
+    daily_bid_totals AS (
+      SELECT
+        COUNT(*) FILTER (
+          WHERE web_users.role IN ('user', 'admin', 'superadmin', 'finance_manager', 'bidder', 'readonly_bidder', 'editable_bidder')
+        )::int AS daily_total_bids,
+        COUNT(*) FILTER (WHERE web_users.role IN ('user', 'admin', 'superadmin', 'finance_manager'))::int AS daily_user_role_bids,
+        COUNT(*) FILTER (WHERE web_users.role IN ('bidder', 'readonly_bidder', 'editable_bidder'))::int AS daily_bidder_bids
+      FROM job_bids
+      JOIN web_users ON web_users.id = job_bids.user_id
+      CROSS JOIN business_day
+      WHERE job_bids.status IN ('submitted', 'interviewing', 'won', 'lost')
+        AND job_bids.bid_at >= business_day.starts_at
+        AND job_bids.bid_at < business_day.ends_at
+    ),
     interview_totals AS (
       SELECT
         COUNT(*)::int AS total_interviews,
@@ -107,9 +133,10 @@ function overallSql() {
         COUNT(*) FILTER (WHERE status = 'ready')::int AS ready_tailored_resumes
       FROM tailored_resumes
     )
-    SELECT job_totals.*, bid_totals.*, interview_totals.*, tailoring_totals.*
+    SELECT job_totals.*, bid_totals.*, daily_bid_totals.*, interview_totals.*, tailoring_totals.*
     FROM job_totals
     CROSS JOIN bid_totals
+    CROSS JOIN daily_bid_totals
     CROSS JOIN interview_totals
     CROSS JOIN tailoring_totals
   `;

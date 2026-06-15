@@ -53,9 +53,17 @@ describe('job query filters', () => {
 
   it('normalizes source filters before comparing scraped job sources', () => {
     const query = buildJobQuery({ source: 'LinkedIn ', since: 'all', visibility: 'all' });
-    const sourceCondition = query.where[Op.and].find((condition) => String(condition.val || '').includes('lower(btrim'));
+    const sourceCondition = query.where[Op.and].find((condition) => String(condition.val || '').includes('regexp_replace'));
 
-    assert.match(sourceCondition.val, /lower\(btrim\(coalesce\(source, ''\)\)\) = 'linkedin'/);
+    assert.equal(sourceCondition.val.includes("regexp_replace(btrim(coalesce(source, '')), '[-_[:space:]]+', ' ', 'g')"), true);
+    assert.equal(sourceCondition.val.endsWith("= 'linkedin'"), true);
+  });
+
+  it('matches compact and spaced Built In source values together', () => {
+    const query = buildJobQuery({ source: 'Built In', since: 'all', visibility: 'all' });
+    const sourceCondition = query.where[Op.and].find((condition) => String(condition.val || '').includes('regexp_replace'));
+
+    assert.match(sourceCondition.val, /IN \('builtin', 'built in'\)/);
   });
 
   it('adds a Canada location region condition', () => {
@@ -105,6 +113,41 @@ describe('grouped scraped jobs', () => {
     );
   });
 
+  it('keeps grouped Built In representatives stable regardless of row order', () => {
+    const earlierAustin = jobRow({
+      id: 10,
+      source: 'builtin',
+      title: 'Software Engineer',
+      company: 'Acme',
+      location: 'Austin, TX',
+      postedAt: new Date('2026-01-01T00:00:00.000Z'),
+      scrapedAt: new Date('2026-01-02T00:00:00.000Z'),
+    });
+    const laterRemote = jobRow({
+      id: 20,
+      source: 'Built In',
+      title: 'Software Engineer',
+      company: 'ACME',
+      location: 'Remote',
+      postedAt: new Date('2026-01-03T00:00:00.000Z'),
+      scrapedAt: new Date('2026-01-02T00:00:00.000Z'),
+    });
+
+    const firstGroup = groupedJobsFromRows([earlierAustin, laterRemote])[0];
+    const secondGroup = groupedJobsFromRows([laterRemote, earlierAustin])[0];
+
+    assert.equal(firstGroup.representativeJobId, 20);
+    assert.equal(secondGroup.representativeJobId, 20);
+    assert.equal(firstGroup.title, 'Software Engineer');
+    assert.equal(secondGroup.title, 'Software Engineer');
+    assert.equal(firstGroup.location, 'Austin, TX + 1 more');
+    assert.equal(secondGroup.location, 'Austin, TX + 1 more');
+    assert.deepEqual(
+      firstGroup.locationOptions.map((option) => option.id),
+      secondGroup.locationOptions.map((option) => option.id),
+    );
+  });
+
   it('reports pagination totals as grouped jobs', () => {
     const rows = [
       jobRow({ id: 1, title: 'Software Engineer', company: 'Acme', location: 'New York, NY' }),
@@ -125,9 +168,12 @@ describe('job source options', () => {
       { source: 'linkedin', count: 2 },
       { source: ' LinkedIn ', count: 3 },
       { source: 'Manual', count: 1 },
+      { source: 'builtin', count: 4 },
+      { source: 'Built In', count: 5 },
     ]);
 
     assert.deepEqual(sources, [
+      { source: 'Built In', count: 9 },
       { source: 'LinkedIn', count: 5 },
       { source: 'Manual', count: 1 },
     ]);
@@ -318,10 +364,10 @@ function jobRow(overrides) {
     location: overrides.location,
     category: 'software',
     url: `https://example.com/jobs/${overrides.id}`,
-    source: 'linkedin',
-    sourceUrl: 'https://linkedin.com',
-    postedAt: new Date('2026-01-01T00:00:00Z'),
-    scrapedAt: new Date('2026-01-02T00:00:00Z'),
+    source: overrides.source || 'linkedin',
+    sourceUrl: overrides.sourceUrl || 'https://linkedin.com',
+    postedAt: overrides.postedAt || new Date('2026-01-01T00:00:00Z'),
+    scrapedAt: overrides.scrapedAt || new Date('2026-01-02T00:00:00Z'),
     listingText: 'Job description',
     rawJob: {},
     isSpam: null,
