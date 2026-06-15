@@ -140,9 +140,8 @@ export async function profilesWithProgress(profiles, { user } = {}) {
     const userIds = profileUserIdsByProfileId.get(String(share.profileId));
     if (userIds && share.recipientUserId) userIds.add(String(share.recipientUserId));
   }
-  const goalUserIds = [...new Set([...profileUserIdsByProfileId.values()].flatMap((userIds) => [...userIds]))];
 
-  const [bidRows, dailyBidRows, tailoredRows, interviewRows, goalUserRows] = await Promise.all([
+  const [bidRows, dailyBidRows, tailoredRows, interviewRows] = await Promise.all([
     getJobBidModel().findAll({
       attributes: [
         'profileId',
@@ -175,7 +174,6 @@ export async function profilesWithProgress(profiles, { user } = {}) {
       where: {
         profileId: profileIds,
         status: { [Op.in]: ['submitted', 'won', 'lost'] },
-        userId: goalUserIds,
         bidAt: { [Op.gte]: today, [Op.lt]: tomorrow },
         ...(isCaller ? { callerUserId: user.id } : {}),
       },
@@ -210,12 +208,21 @@ export async function profilesWithProgress(profiles, { user } = {}) {
       group: ['profileId'],
       raw: true,
     }),
-    getWebUserModel().findAll({
-      attributes: ['id', 'username', 'role', 'dailyBidGoal'],
-      where: { id: goalUserIds },
-      raw: true,
-    }),
   ]);
+
+  for (const row of dailyBidRows) {
+    const userIds = profileUserIdsByProfileId.get(String(row.profileId));
+    if (userIds && row.userId) userIds.add(String(row.userId));
+  }
+
+  const goalUserIds = [...new Set([...profileUserIdsByProfileId.values()].flatMap((userIds) => [...userIds]))];
+  const goalUserRows = goalUserIds.length
+    ? await getWebUserModel().findAll({
+        attributes: ['id', 'username', 'role', 'dailyBidGoal'],
+        where: { id: goalUserIds },
+        raw: true,
+      })
+    : [];
   const goalUserById = new Map(goalUserRows.map((row) => [String(row.id), row]));
 
   const progressByProfileId = new Map(
@@ -247,7 +254,6 @@ export async function profilesWithProgress(profiles, { user } = {}) {
   for (const row of dailyBidRows) {
     const progress = progressByProfileId.get(String(row.profileId));
     if (!progress) continue;
-    const profileId = String(row.profileId);
     const count = Number(row.dailyFinished || 0);
     const goalUser = goalUserById.get(String(row.userId));
     if (!isDailyGoalUserRole(goalUser?.role)) continue;
