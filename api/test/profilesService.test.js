@@ -28,16 +28,27 @@ describe('appliedFilterOwnerRoles', () => {
 
 describe('profile status helpers', () => {
   it('accepts a profile daily bid goal', () => {
-    assert.equal(profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '25' }).dailyBidGoal, 25);
+    assert.equal(profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '25' }, { canSetDailyBidGoal: true }).dailyBidGoal, 25);
   });
 
-  it('clears an empty profile daily bid goal', () => {
-    assert.equal(profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '' }).dailyBidGoal, null);
+  it('defaults an empty profile daily bid goal to 60', () => {
+    assert.equal(profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '' }, { canSetDailyBidGoal: true }).dailyBidGoal, 60);
+  });
+
+  it('defaults new profile daily bid goals to 60', () => {
+    assert.equal(profileAttributesFromBody({ name: 'SWE' }).dailyBidGoal, 60);
+  });
+
+  it('preserves profile daily bid goals for non-admin updates', () => {
+    assert.equal(
+      profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '100' }, { currentDailyBidGoal: 42 }).dailyBidGoal,
+      42,
+    );
   });
 
   it('rejects invalid profile daily bid goals', () => {
     assert.throws(
-      () => profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '2.5' }),
+      () => profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '2.5' }, { canSetDailyBidGoal: true }),
       /Daily bid goal/,
     );
   });

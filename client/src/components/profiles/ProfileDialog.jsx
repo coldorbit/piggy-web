@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { COLOR_OPTIONS, PROFILE_BADGE_COLORS, PROFILE_BADGE_OPTIONS, RESUME_TEMPLATE_OPTIONS } from './profileConstants.js';
 
-export default function ProfileDialog({ form, isOpen, isSaving, mode = 'create', onChange, onClose, onSubmit }) {
+export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpen, isSaving, mode = 'create', onChange, onClose, onSubmit }) {
   return (
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="md">
       <form onSubmit={onSubmit}>
@@ -103,14 +103,16 @@ export default function ProfileDialog({ form, isOpen, isSaving, mode = 'create',
               </Select>
               <FormHelperText>Choose the primary role family for this profile.</FormHelperText>
             </FormControl>
-            <TextField
-              label="Daily bid goal"
-              type="number"
-              value={form.dailyBidGoal ?? ''}
-              onChange={(event) => onChange((current) => ({ ...current, dailyBidGoal: event.target.value }))}
-              inputProps={{ min: 0, step: 1 }}
-              helperText="Submitted or advanced applications expected for this profile each day."
-            />
+            {canEditDailyBidGoal ? (
+              <TextField
+                label="Daily bid goal"
+                type="number"
+                value={form.dailyBidGoal ?? 60}
+                onChange={(event) => onChange((current) => ({ ...current, dailyBidGoal: event.target.value }))}
+                inputProps={{ min: 0, step: 1 }}
+                helperText="Submitted or advanced applications expected for this profile each day."
+              />
+            ) : null}
             <TextField
               label="Resume text"
               multiline

@@ -489,7 +489,7 @@ export async function createProfile(req, res, next) {
     await ensureWebModels();
     if (!canManageProfiles(req, res)) return;
     const user = await currentDbUser(req);
-    const attrs = profileAttributesFromBody(req.body);
+    const attrs = profileAttributesFromBody(req.body, { canSetDailyBidGoal: isAdminRole(req.user) });
     const profile = await getBidProfileModel().create({
       ...attrs,
       userId: user.id,
@@ -506,7 +506,10 @@ export async function updateProfile(req, res, next) {
     await ensureWebModels();
     if (!canManageProfiles(req, res)) return;
     const profile = await manageableProfile(req, req.params.id);
-    await profile.update(profileAttributesFromBody(req.body));
+    await profile.update(profileAttributesFromBody(req.body, {
+      canSetDailyBidGoal: isAdminRole(req.user),
+      currentDailyBidGoal: profile.dailyBidGoal,
+    }));
     res.json({ profile: formatProfile(profile) });
   } catch (error) {
     handleInputError(error, res, next);

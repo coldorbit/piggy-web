@@ -396,12 +396,25 @@ async function ensureBidProfileColumns() {
     resume_template: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'classic' },
     profile_badge: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'SWE' },
     profile_status: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'active' },
-    daily_bid_goal: { type: DataTypes.INTEGER, allowNull: true },
+    daily_bid_goal: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 60 },
     closed_reason: { type: DataTypes.TEXT, allowNull: true },
     closed_at: { type: DataTypes.DATE, allowNull: true },
   };
 
   await addMissingColumns(queryInterface, tableName, table, columns);
+  await queryInterface.sequelize.query(`
+    UPDATE bid_profiles
+    SET daily_bid_goal = 60
+    WHERE daily_bid_goal IS NULL
+  `);
+  await queryInterface.sequelize.query(`
+    ALTER TABLE bid_profiles
+    ALTER COLUMN daily_bid_goal SET DEFAULT 60
+  `);
+  await queryInterface.sequelize.query(`
+    ALTER TABLE bid_profiles
+    ALTER COLUMN daily_bid_goal SET NOT NULL
+  `);
 
   if (table.profile_badges) {
     await queryInterface.sequelize.query(`

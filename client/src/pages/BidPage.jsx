@@ -403,6 +403,7 @@ export default function BidPage({ currentUser }) {
       ) : null}
 
       <ProfileDialog
+        canEditDailyBidGoal={isAdminRole(currentUser)}
         form={profileForm}
         isOpen={isProfileDialogOpen}
         isSaving={creatingProfile}

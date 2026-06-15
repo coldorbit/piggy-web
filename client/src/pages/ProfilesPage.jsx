@@ -324,6 +324,7 @@ export default function ProfilesPage({ currentUser }) {
       </Box>
 
       <ProfileDialog
+        canEditDailyBidGoal={isAdminRole(currentUser)}
         form={form}
         isOpen={Boolean(dialogMode)}
         isSaving={creating || updating}

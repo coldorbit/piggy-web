@@ -61,7 +61,8 @@ export function getBidProfileModel() {
       },
       dailyBidGoal: {
         type: DataTypes.INTEGER,
-        allowNull: true,
+        allowNull: false,
+        defaultValue: 60,
         field: 'daily_bid_goal',
       },
       closedReason: {

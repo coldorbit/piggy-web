@@ -445,7 +445,9 @@ export async function profilesVisibleToUser(user) {
   return [...ownedProfiles, ...acceptedShares.map((share) => share.profile)];
 }
 
-export function profileAttributesFromBody(body) {
+const DEFAULT_PROFILE_DAILY_BID_GOAL = 60;
+
+export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, currentDailyBidGoal = DEFAULT_PROFILE_DAILY_BID_GOAL } = {}) {
   const name = clean(body?.name);
   const colorScheme = clean(body?.colorScheme || 'green');
   const profileBadge = profileBadgeFromBody(body?.profileBadge);
@@ -456,7 +458,9 @@ export function profileAttributesFromBody(body) {
   if (!name) throw new InputError('Profile name is required');
   if (!allowedColors.has(colorScheme)) throw new InputError('Choose a valid profile color');
   if (!allowedResumeTemplates.has(resumeTemplate)) throw new InputError('Choose a valid resume template');
-  const dailyBidGoal = dailyBidGoalFromBody(body?.dailyBidGoal);
+  const dailyBidGoal = canSetDailyBidGoal
+    ? dailyBidGoalFromBody(body?.dailyBidGoal)
+    : Number(currentDailyBidGoal ?? DEFAULT_PROFILE_DAILY_BID_GOAL);
 
   return {
     name,
@@ -508,10 +512,10 @@ function profileBadgeFromBody(value) {
 }
 
 function dailyBidGoalFromBody(value) {
-  if (value === undefined || value === null || value === '') return null;
+  if (value === undefined || value === null || value === '') return DEFAULT_PROFILE_DAILY_BID_GOAL;
   const goal = Number(value);
   if (!Number.isInteger(goal) || goal < 0 || goal > 10000) {
     throw new InputError('Daily bid goal must be a whole number between 0 and 10000');
   }
-  return goal || null;
+  return goal;
 }
