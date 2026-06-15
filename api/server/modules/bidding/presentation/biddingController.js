@@ -613,15 +613,23 @@ export async function listBidJobs(req, res, next) {
     const TailoredResume = getTailoredResumeModel();
     const WebUser = getWebUserModel();
     const sequelize = getSequelize();
-    const { where, order: jobOrder, limit, offset } = buildJobQuery({ ...req.query, limit: req.query.limit || 10 });
-    if (!isAdminRole(user)) enforceBidStrategyScrapedBeforeToday(where);
+    const { where, order: jobOrder, limit, offset } = buildJobQuery({
+      ...queryForBidTab(req.query, bidTab),
+      limit: req.query.limit || 10,
+    });
+    if (!isAdminRole(user) && isBidStrategyTab(bidTab)) enforceBidStrategyScrapedBeforeToday(where);
     const bidUsers = await bidUsersForProfile(profile);
     const appliedProfileId = bidTab === 'todo' ? await appliedProfileFilter(req, req.query.appliedProfileId) : '';
     const activeTabQuery = buildBidTabQuery({ where, tab: bidTab, profileId: profile.id, appliedProfileId, JobBid, sequelize });
 
     const countBidTab = (tab) => {
+      const { where: countWhere } = buildJobQuery({
+        ...queryForBidTab(req.query, tab),
+        limit: req.query.limit || 10,
+      });
+      if (!isAdminRole(user) && isBidStrategyTab(tab)) enforceBidStrategyScrapedBeforeToday(countWhere);
       const countQuery = buildBidTabQuery({
-        where,
+        where: countWhere,
         tab,
         profileId: profile.id,
         appliedProfileId: tab === 'todo' && tab === bidTab ? appliedProfileId : '',
@@ -671,15 +679,14 @@ export async function listBidJobs(req, res, next) {
       : [];
     const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
-    const groupedJobs = groupedBidJobs(
-      rows.map((job) => ({
-        ...formatJob(job),
-        bid: job.bids?.[0] ? formatBidWithUser(job.bids[0], bidUsersById, callerUsersById) : null,
-        tailoredResume: tailoredResumesByUrl.get(job.url) || null,
-        sameCompanyTailoring: sameCompanyTailoringByUrl.get(job.url) || null,
-      })),
-    );
-    const pagedJobs = groupedJobs.slice(offset, offset + limit);
+    const formattedJobs = rows.map((job) => ({
+      ...formatJob(job),
+      bid: job.bids?.[0] ? formatBidWithUser(job.bids[0], bidUsersById, callerUsersById) : null,
+      tailoredResume: tailoredResumesByUrl.get(job.url) || null,
+      sameCompanyTailoring: sameCompanyTailoringByUrl.get(job.url) || null,
+    }));
+    const tabJobs = shouldGroupBidTab(bidTab) ? groupedBidJobs(formattedJobs) : formattedJobs;
+    const pagedJobs = tabJobs.slice(offset, offset + limit);
 
     res.json({
       jobs: pagedJobs,
@@ -692,7 +699,7 @@ export async function listBidJobs(req, res, next) {
         dailyBidGoal: dailyBidProgress.goal,
         dailyFinishedBids: dailyBidProgress.finished,
       },
-      total: groupedJobs.length,
+      total: tabJobs.length,
       tabCounts: {
         todo: todoCount,
         tailored: tailoredCount,
@@ -706,6 +713,26 @@ export async function listBidJobs(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+function queryForBidTab(query, tab) {
+  const normalizedQuery = { ...query };
+  if (isCompletedBidTab(tab) && (!normalizedQuery.since || normalizedQuery.since === 'until_yesterday')) {
+    normalizedQuery.since = 'through_today';
+  }
+  return normalizedQuery;
+}
+
+function isCompletedBidTab(tab) {
+  return tab === 'done' || tab === 'bad_work';
+}
+
+function isBidStrategyTab(tab) {
+  return tab === 'todo' || tab === 'tailored';
+}
+
+function shouldGroupBidTab(tab) {
+  return isBidStrategyTab(tab);
 }
 
 export function groupedBidJobs(jobs) {
@@ -876,7 +903,12 @@ async function countBidTabForProfile({ profile, tab, query, appliedProfileId = '
   const ScrapedJob = getScrapedJobModel();
   const JobBid = getJobBidModel();
   const sequelize = getSequelize();
-  const { where } = buildJobQuery({ ...query, bidTab: tab, profileId: profile.id, limit: query.limit || 10 });
+  const { where } = buildJobQuery({
+    ...queryForBidTab(query, tab),
+    bidTab: tab,
+    profileId: profile.id,
+    limit: query.limit || 10,
+  });
   const countQuery = buildBidTabQuery({ where, tab, profileId: profile.id, appliedProfileId, JobBid, sequelize });
   return ScrapedJob.count({
     where: countQuery.where,
