@@ -1691,7 +1691,7 @@ export async function createManualInterview(req, res, next) {
   try {
     await ensureWebModels();
     const user = await currentDbUser(req);
-    const profile = await accessibleProfile(req, req.body?.profileId);
+    const profile = await interviewWriteProfileForUser(user, req.body?.profileId);
     const title = clean(req.body?.title);
     const company = clean(req.body?.company);
     const jobUrl = clean(req.body?.url || req.body?.jobUrl);
@@ -2125,11 +2125,7 @@ export async function updateInterview(req, res, next) {
     const attrs = bidAttributesFromBody({ ...req.body, status: req.body?.status || interview.status });
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (!isAdminRole(req.user)) {
-      await accessibleProfile(req, interview.profileId);
-      if (String(interview.userId) !== String(user.id)) {
-        res.status(404).json({ error: 'Interview not found' });
-        return;
-      }
+      await interviewWriteProfileForUser(user, interview.profileId, 'Interview not found');
       delete attrs.callerUserId;
     }
     const previous = interviewSnapshot(interview);
@@ -2155,11 +2151,7 @@ export async function deleteInterview(req, res, next) {
       return;
     }
     if (!isAdminRole(req.user)) {
-      await accessibleProfile(req, interview.profileId);
-      if (String(interview.userId) !== String(user.id)) {
-        res.status(404).json({ error: 'Interview not found' });
-        return;
-      }
+      await interviewWriteProfileForUser(user, interview.profileId, 'Interview not found');
     }
     if (interview.jobBidId) {
       const bid = await getJobBidModel().findByPk(interview.jobBidId);
@@ -2185,6 +2177,16 @@ async function ensureCallerUser(callerUserId) {
   const caller = await getWebUserModel().findOne({ where: { id: callerUserId, role: 'caller' } });
   if (!caller) throw new NotFoundError('Caller not found');
   return caller;
+}
+
+async function interviewWriteProfileForUser(user, profileId, notFoundMessage = 'Profile not found') {
+  const id = clean(profileId);
+  if (!id) throw new InputError('Profile is required');
+
+  const profile = await getBidProfileModel().findByPk(id);
+  if (!profile) throw new NotFoundError(notFoundMessage);
+  if (isAdminRole(user) || String(profile.userId) === String(user.id)) return profile;
+  throw new NotFoundError(notFoundMessage);
 }
 
 function formatCallerAssignment(row) {

@@ -261,13 +261,14 @@ export default function InterviewsPage({ currentUser }) {
   const callerUsers = interviewsData?.callerUsers || [];
   const jobsByStage = groupJobsByStage(jobs, draftFor);
   const effectiveCurrentUser = interviewsData?.currentUser || currentUser;
+  const isActiveProfileOwner = String(activeProfile?.userId || '') === String(effectiveCurrentUser?.id || currentUser?.id || '');
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
   const totalInterviewCount = Number(activeProfile?.progress?.totalInterviews || interviewsData?.total || 0);
-  const canEditInterviews = currentUser?.role !== 'caller';
+  const canEditInterviews = currentUser?.role !== 'caller' && (isAdminRole(currentUser) || isActiveProfileOwner);
   const canDeleteSelectedInterview =
     selectedJob &&
     canEditInterviews &&
-    (isAdminRole(currentUser) || String(selectedJob.bid?.userId || '') === String(effectiveCurrentUser?.id || ''));
+    (isAdminRole(currentUser) || String(selectedJob.bid?.profileId || '') === String(activeProfile?.id || ''));
   const loading = profilesLoading || interviewsLoading;
   const pageError = error || profilesError?.message || interviewsError?.message || '';
 
