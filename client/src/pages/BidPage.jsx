@@ -215,7 +215,7 @@ export default function BidPage({ currentUser }) {
     setTailoringByProfileJobId((current) => ({ ...current, [scopedJobId]: true }));
     setError('');
     requestTailoredResume(
-      { jobId, profileId: activeProfile.id, confirmSameCompany: options.confirmSameCompany === true },
+      { jobId, jobKey: bidJobCardKey(job), profileId: activeProfile.id, confirmSameCompany: options.confirmSameCompany === true },
       {
         onError: (tailoredResumeError) => {
           if (tailoredResumeError.data?.code === 'same_company_tailoring_conflict') {
@@ -293,7 +293,7 @@ export default function BidPage({ currentUser }) {
     [bidJobsData?.currentUser, currentUser],
   );
   const pageError = error || profilesError?.message || jobsError?.message || metaError?.message || '';
-  const loading = profilesLoading || jobsLoading || metaLoading;
+  const loading = profilesLoading || metaLoading || (jobsLoading && !bidJobsData);
   const bidWorkspace = useMemo(
     () => ({
       activeColor,

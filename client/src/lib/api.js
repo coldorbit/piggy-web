@@ -358,9 +358,10 @@ export function useDeleteJob() {
 
 function updateCachedJob(oldData, jobId, updates) {
   if (!oldData?.jobs) return oldData;
+  const jobIds = cachedJobIdSet(jobId);
   return {
     ...oldData,
-    jobs: oldData.jobs.map((job) => (String(job.id) === String(jobId) ? { ...job, ...updates } : job)),
+    jobs: oldData.jobs.map((job) => (cachedJobMatchesId(job, jobIds) ? { ...job, ...updates } : job)),
   };
 }
 
@@ -403,17 +404,18 @@ function updateCachedJobQueries(queryClient, queryKeyPrefix, jobId, updates) {
 function updateCachedJobVisibility(oldData, filters, jobId, updates) {
   if (!oldData?.jobs) return oldData;
 
+  const jobIds = cachedJobIdSet(jobId);
   let removed = 0;
   let added = 0;
   let found = false;
   const jobs = oldData.jobs
     .map((job) => {
-      if (String(job.id) !== String(jobId)) return job;
+      if (!cachedJobMatchesId(job, jobIds)) return job;
       found = true;
       return { ...job, ...updates };
     })
     .filter((job) => {
-      if (String(job.id) !== String(jobId)) return true;
+      if (!cachedJobMatchesId(job, jobIds)) return true;
       const keep = matchesVisibility(job, filters.visibility);
       if (!keep) removed += 1;
       return keep;
@@ -433,8 +435,9 @@ function updateCachedJobVisibility(oldData, filters, jobId, updates) {
 }
 
 function findCachedJob(queryEntries, jobId) {
+  const jobIds = cachedJobIdSet(jobId);
   for (const [, data] of queryEntries) {
-    const job = data?.jobs?.find((row) => String(row.id) === String(jobId));
+    const job = data?.jobs?.find((row) => cachedJobMatchesId(row, jobIds));
     if (job) return job;
   }
   return null;
@@ -467,13 +470,14 @@ function restoreQueries(queryClient, queryEntries = []) {
   });
 }
 
-function updateCachedBidQueries(queryClient, jobId, updates) {
+function updateCachedBidQueries(queryClient, jobId, updates, options = {}) {
   const queryEntries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
-  const cachedJob = findCachedJob(queryEntries, jobId);
+  const jobIds = cachedJobIdSet(jobId, options.jobKey);
+  const cachedJob = findCachedJob(queryEntries, jobIds);
   const tabDelta = bidTabDelta(cachedJob, cachedJob ? optimisticBidJob(cachedJob, updates) : null);
 
   queryEntries.forEach(([queryKey, data]) => {
-    queryClient.setQueryData(queryKey, updateCachedBidJob(data, queryFiltersFromKey(queryKey), jobId, updates, cachedJob, tabDelta));
+    queryClient.setQueryData(queryKey, updateCachedBidJob(data, queryFiltersFromKey(queryKey), jobIds, updates, cachedJob, tabDelta));
   });
 }
 
@@ -504,14 +508,14 @@ function updateCachedTailoredResumeDownloads(oldData, resumeIdSet, downloadedAt)
   };
 }
 
-function updateCachedBidJob(oldData, filters, jobId, updates, cachedJob, tabDelta) {
-  if (!oldData?.jobs || !jobId) return oldData;
+function updateCachedBidJob(oldData, filters, jobIds, updates, cachedJob, tabDelta) {
+  if (!oldData?.jobs || !jobIds?.size) return oldData;
 
   let countDelta = 0;
   let found = false;
   const jobs = oldData.jobs
     .map((job) => {
-      if (String(job.id) !== String(jobId)) return job;
+      if (!cachedJobMatchesId(job, jobIds)) return job;
       found = true;
 
       const nextJob = optimisticBidJob(job, updates);
@@ -573,6 +577,31 @@ function optimisticBidJob(job, updates) {
       ? { ...(job.tailoredResume || {}), ...updates.tailoredResume }
       : job.tailoredResume,
   };
+}
+
+function cachedJobIdSet(...values) {
+  const ids = new Set();
+  values.flatMap((value) => value instanceof Set ? [...value] : [value]).forEach((value) => {
+    if (value !== undefined && value !== null && String(value) !== '') ids.add(String(value));
+  });
+  return ids;
+}
+
+function cachedJobMatchesId(job, jobIds) {
+  if (!job || !jobIds?.size) return false;
+  return cachedJobIdentityValues(job).some((value) => jobIds.has(String(value)));
+}
+
+function cachedJobIdentityValues(job) {
+  return [
+    job.id,
+    job.groupId,
+    job.groupJobId,
+    job.representativeJobId,
+    ...(Array.isArray(job.locationOptions)
+      ? job.locationOptions.flatMap((option) => [option.id, option.groupId, option.groupJobId, option.representativeJobId])
+      : []),
+  ].filter((value) => value !== undefined && value !== null && String(value) !== '');
 }
 
 function bidTabForJob(job) {
@@ -1069,19 +1098,19 @@ export function useRequestTailoredResume() {
         method: 'POST',
         body: JSON.stringify({ profileId, confirmSameCompany }),
       }).then((data) => data.tailoredResume),
-    onMutate: async ({ jobId, profileId }) => {
+    onMutate: async ({ jobId, jobKey, profileId }) => {
       await queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] });
       const previousBidJobsQueries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
       updateCachedBidQueries(queryClient, jobId, {
         tailoredResume: optimisticTailoredResume({ jobId, profileId }),
-      });
+      }, { jobKey });
       return { previousBidJobsQueries };
     },
     onError: (_error, _variables, context) => {
       restoreQueries(queryClient, context?.previousBidJobsQueries);
     },
-    onSuccess: (tailoredResume, { jobId }) => {
-      updateCachedBidQueries(queryClient, jobId, { tailoredResume });
+    onSuccess: (tailoredResume, { jobId, jobKey }) => {
+      updateCachedBidQueries(queryClient, jobId, { tailoredResume }, { jobKey });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
     },
