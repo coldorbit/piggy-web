@@ -19,6 +19,16 @@ describe('business time helpers', () => {
     assert.equal(businessDateKey(new Date('2026-06-15T23:00:00.000Z')), '2026-06-15');
   });
 
+  it('compares UTC stored timestamps against the platform today window', () => {
+    const range = businessDayRange(new Date('2026-06-15T22:30:00.000Z'));
+
+    assert.equal(isWithinRange(new Date('2026-06-14T22:59:59.999Z'), range), false);
+    assert.equal(isWithinRange(new Date('2026-06-14T23:00:00.000Z'), range), true);
+    assert.equal(isWithinRange(new Date('2026-06-15T02:00:00.000Z'), range), true);
+    assert.equal(isWithinRange(new Date('2026-06-15T22:59:59.999Z'), range), true);
+    assert.equal(isWithinRange(new Date('2026-06-15T23:00:00.000Z'), range), false);
+  });
+
   it('honors standard time offsets for explicit business dates', () => {
     const range = businessDateRange('2026-01-10');
 
@@ -26,3 +36,7 @@ describe('business time helpers', () => {
     assert.equal(range.to.toISOString(), '2026-01-12T00:00:00.000Z');
   });
 });
+
+function isWithinRange(value, range) {
+  return value >= range.from && value < range.to;
+}

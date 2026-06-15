@@ -9,7 +9,11 @@ export function getSequelize() {
     sequelize = new Sequelize(databaseUrl, {
       dialect: 'postgres',
       logging: false,
+      timezone: '+00:00',
       dialectOptions: databaseDialectOptions(),
+      hooks: {
+        afterConnect: setUtcSessionTimezone,
+      },
       pool: {
         max: numberEnv('DATABASE_POOL_MAX', 5),
         min: numberEnv('DATABASE_POOL_MIN', 0),
@@ -20,6 +24,10 @@ export function getSequelize() {
   }
 
   return sequelize;
+}
+
+async function setUtcSessionTimezone(connection) {
+  await connection.query("SET TIME ZONE 'UTC'");
 }
 
 function requiredDatabaseUrl(serviceName) {

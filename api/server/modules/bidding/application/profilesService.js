@@ -126,6 +126,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
   const profileIds = [...new Set(profiles.map((profile) => String(profile.id)).filter(Boolean))];
   if (!profileIds.length) return profiles;
   const isCaller = user?.role === 'caller';
+  // bidAt is stored as UTC; this range is the platform day converted from 7pm ET boundaries to UTC instants.
   const { from: today, to: tomorrow } = businessDayRange(new Date());
   const profileUserIdsByProfileId = new Map(
     profiles.map((profile) => [String(profile.id), new Set([String(profile.userId)].filter(Boolean))]),
