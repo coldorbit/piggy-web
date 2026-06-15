@@ -105,8 +105,8 @@ function tailoredResumeExistsSql({ profileId, sequelize }) {
 
 function tailoredTabOrder({ profileId, sequelize }) {
   return [
-    [Sequelize.literal(tailoredResumeTimestampSql({ profileId, sequelize, column: 'updated_at' })), 'DESC NULLS LAST'],
     [Sequelize.literal(tailoredResumeTimestampSql({ profileId, sequelize, column: 'created_at' })), 'DESC NULLS LAST'],
+    [Sequelize.literal(tailoredResumeTimestampSql({ profileId, sequelize, column: 'updated_at' })), 'DESC NULLS LAST'],
     ['id', 'DESC'],
   ];
 }

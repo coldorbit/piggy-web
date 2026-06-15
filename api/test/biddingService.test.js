@@ -52,9 +52,9 @@ describe('buildBidTabQuery', () => {
     );
     assertHasPlannedBidClause(query);
     assertNoReviewBidClause(query);
-    assert.equal(query.order[0][0].val.includes('MAX(tailored_resume.updated_at)'), true);
+    assert.equal(query.order[0][0].val.includes('MAX(tailored_resume.created_at)'), true);
     assert.equal(query.order[0][1], 'DESC NULLS LAST');
-    assert.equal(query.order[1][0].val.includes('MAX(tailored_resume.created_at)'), true);
+    assert.equal(query.order[1][0].val.includes('MAX(tailored_resume.updated_at)'), true);
     assert.equal(query.order[1][1], 'DESC NULLS LAST');
   });
 
