@@ -1,3 +1,5 @@
+import { businessBucketSql, businessNowBucketSql } from '../../../utils/businessTime.js';
+
 const GRAINS = {
   daily: { sql: 'day', step: "1 day", lookback: "29 days", labelFormat: 'YYYY-MM-DD' },
   weekly: { sql: 'week', step: "1 week", lookback: "11 weeks", labelFormat: 'YYYY-MM-DD' },
@@ -52,15 +54,15 @@ function rangeCte({ sql, step, lookback }) {
   return `
     WITH range AS (
       SELECT
-        date_trunc('${sql}', now()) - interval '${lookback}' AS starts_at,
-        date_trunc('${sql}', now()) AS ends_at,
+        ${businessNowBucketSql(sql)} - interval '${lookback}' AS starts_at,
+        ${businessNowBucketSql(sql)} AS ends_at,
         interval '${step}' AS bucket_step
     )
   `;
 }
 
 function bucketExpression(column, grainConfig) {
-  return `date_trunc('${grainConfig.sql}', ${column})`;
+  return businessBucketSql(column, grainConfig.sql);
 }
 
 function overallSql() {
@@ -128,7 +130,7 @@ function trendSql(grainConfig) {
     jobs AS (
       SELECT ${jobBucket} AS bucket_start, COUNT(*)::int AS jobs
       FROM scraped_jobs, range
-      WHERE scraped_at >= starts_at
+      WHERE ${jobBucket} >= starts_at
       GROUP BY 1
     ),
     bids AS (
@@ -140,13 +142,13 @@ function trendSql(grainConfig) {
         COUNT(*) FILTER (WHERE status = 'won')::int AS won_applications,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications
       FROM job_bids, range
-      WHERE bid_at >= starts_at
+      WHERE ${bidBucket} >= starts_at
       GROUP BY 1
     ),
     interviews_created AS (
       SELECT ${interviewCreatedBucket} AS bucket_start, COUNT(*)::int AS interviews
       FROM interviews, range
-      WHERE created_at >= starts_at
+      WHERE ${interviewCreatedBucket} >= starts_at
       GROUP BY 1
     ),
     interview_outcomes AS (
@@ -160,7 +162,7 @@ function trendSql(grainConfig) {
         COUNT(*) FILTER (WHERE status = 'won')::int AS offers,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_interviews
       FROM interviews, range
-      WHERE updated_at >= starts_at
+      WHERE ${interviewUpdatedBucket} >= starts_at
       GROUP BY 1
     )
     SELECT
@@ -190,6 +192,10 @@ function trendSql(grainConfig) {
 }
 
 function userPerformanceSql(grainConfig) {
+  const bidBucket = bucketExpression('bid_at', grainConfig);
+  const interviewActivityBucket = bucketExpression('COALESCE(interviews.updated_at, interviews.created_at)', grainConfig);
+  const tailoringBucket = bucketExpression('created_at', grainConfig);
+
   return `
     ${rangeCte(grainConfig)},
     bid_metrics AS (
@@ -205,7 +211,7 @@ function userPerformanceSql(grainConfig) {
         MIN(bid_at) AS first_application_at,
         MAX(bid_at) AS last_application_at
       FROM job_bids, range
-      WHERE bid_at >= starts_at
+      WHERE ${bidBucket} >= starts_at
       GROUP BY user_id
     ),
     interview_metrics AS (
@@ -231,7 +237,7 @@ function userPerformanceSql(grainConfig) {
       FROM interviews
       LEFT JOIN job_bids linked_bid ON linked_bid.id = interviews.job_bid_id
       CROSS JOIN range
-      WHERE COALESCE(interviews.updated_at, interviews.created_at) >= starts_at
+      WHERE ${interviewActivityBucket} >= starts_at
       GROUP BY interviews.user_id
     ),
     profile_metrics AS (
@@ -257,7 +263,7 @@ function userPerformanceSql(grainConfig) {
         COUNT(*) FILTER (WHERE status = 'dead_letter')::int AS failed_tailored_resumes,
         COUNT(*) FILTER (WHERE downloaded_at IS NOT NULL)::int AS downloaded_tailored_resumes
       FROM tailored_resumes, range
-      WHERE created_at >= starts_at
+      WHERE ${tailoringBucket} >= starts_at
       GROUP BY user_id
     )
     SELECT
@@ -314,6 +320,8 @@ function userPerformanceSql(grainConfig) {
 }
 
 function callerPerformanceSql(grainConfig) {
+  const callerActivityBucket = bucketExpression('COALESCE(updated_at, created_at)', grainConfig);
+
   return `
     ${rangeCte(grainConfig)},
     caller_metrics AS (
@@ -335,7 +343,7 @@ function callerPerformanceSql(grainConfig) {
         MAX(updated_at) AS last_assignment_activity_at
       FROM interviews, range
       WHERE caller_user_id IS NOT NULL
-        AND COALESCE(updated_at, created_at) >= starts_at
+        AND ${callerActivityBucket} >= starts_at
       GROUP BY caller_user_id
     )
     SELECT
@@ -367,6 +375,8 @@ function callerPerformanceSql(grainConfig) {
 }
 
 function bidderPerformanceSql(grainConfig) {
+  const bidBucket = bucketExpression('job_bids.bid_at', grainConfig);
+
   return `
     ${rangeCte(grainConfig)}
     SELECT
@@ -385,7 +395,7 @@ function bidderPerformanceSql(grainConfig) {
     LEFT JOIN interviews ON interviews.job_bid_id = job_bids.id
     LEFT JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
     CROSS JOIN range
-    WHERE job_bids.bid_at >= starts_at
+    WHERE ${bidBucket} >= starts_at
     GROUP BY web_users.id, web_users.username, web_users.role
     ORDER BY offers DESC, interviews DESC, applications DESC, web_users.username ASC
   `;
@@ -414,6 +424,8 @@ function roleFamilyFunnelSql(grainConfig) {
 }
 
 function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, groupBy }) {
+  const bidBucket = bucketExpression('job_bids.bid_at', grainConfig);
+
   return `
     ${rangeCte(grainConfig)}
     SELECT
@@ -424,7 +436,7 @@ function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, 
     ${joins}
     LEFT JOIN interviews ON interviews.job_bid_id = job_bids.id
     CROSS JOIN range
-    WHERE job_bids.bid_at >= starts_at
+    WHERE ${bidBucket} >= starts_at
     GROUP BY ${groupBy}
     ORDER BY offers DESC, interviews DESC, applications DESC, ${alias} ASC
     LIMIT 24
@@ -449,6 +461,8 @@ function userProfileMixSql(grainConfig) {
 }
 
 function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false }) {
+  const bidBucket = bucketExpression('job_bids.bid_at', grainConfig);
+
   return `
     ${rangeCte(grainConfig)},
     ranked AS (
@@ -464,7 +478,7 @@ function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false }) {
       JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
       ${joinProfile ? 'JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id' : ''}
       CROSS JOIN range
-      WHERE job_bids.bid_at >= starts_at
+      WHERE ${bidBucket} >= starts_at
       GROUP BY job_bids.user_id, ${dimension}
     )
     SELECT user_id, ${alias}, count
@@ -475,6 +489,8 @@ function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false }) {
 }
 
 function profileActivitySql(grainConfig) {
+  const bidBucket = bucketExpression('job_bids.bid_at', grainConfig);
+
   return `
     ${rangeCte(grainConfig)}
     SELECT
@@ -496,19 +512,21 @@ function profileActivitySql(grainConfig) {
     JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id
     JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
     CROSS JOIN range
-    WHERE job_bids.bid_at >= starts_at
+    WHERE ${bidBucket} >= starts_at
     ORDER BY job_bids.bid_at DESC, job_bids.id DESC
     LIMIT 200
   `;
 }
 
 function sourceBreakdownSql(grainConfig) {
+  const bidBucket = bucketExpression('job_bids.bid_at', grainConfig);
+
   return `
     ${rangeCte(grainConfig)}
     SELECT COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source, COUNT(*)::int AS count
     FROM job_bids
     JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id, range
-    WHERE job_bids.bid_at >= starts_at
+    WHERE ${bidBucket} >= starts_at
     GROUP BY 1
     ORDER BY count DESC, source ASC
     LIMIT 12
@@ -516,33 +534,39 @@ function sourceBreakdownSql(grainConfig) {
 }
 
 function bidStatusBreakdownSql(grainConfig) {
+  const bidBucket = bucketExpression('bid_at', grainConfig);
+
   return `
     ${rangeCte(grainConfig)}
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
     FROM job_bids, range
-    WHERE bid_at >= starts_at
+    WHERE ${bidBucket} >= starts_at
     GROUP BY 1
     ORDER BY count DESC, status ASC
   `;
 }
 
 function interviewStageBreakdownSql(grainConfig) {
+  const interviewActivityBucket = bucketExpression('COALESCE(updated_at, created_at)', grainConfig);
+
   return `
     ${rangeCte(grainConfig)}
     SELECT COALESCE(NULLIF(interview_stage, ''), 'unknown') AS stage, COUNT(*)::int AS count
     FROM interviews, range
-    WHERE COALESCE(updated_at, created_at) >= starts_at
+    WHERE ${interviewActivityBucket} >= starts_at
     GROUP BY 1
     ORDER BY count DESC, stage ASC
   `;
 }
 
 function interviewStatusBreakdownSql(grainConfig) {
+  const interviewActivityBucket = bucketExpression('COALESCE(updated_at, created_at)', grainConfig);
+
   return `
     ${rangeCte(grainConfig)}
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
     FROM interviews, range
-    WHERE COALESCE(updated_at, created_at) >= starts_at
+    WHERE ${interviewActivityBucket} >= starts_at
     GROUP BY 1
     ORDER BY count DESC, status ASC
   `;

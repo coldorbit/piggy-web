@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import EmptyState from '../common/EmptyState.jsx';
 import { PROFILE_BADGE_COLORS, PROFILE_COLORS } from '../profiles/profileConstants.js';
+import { businessDayProgressPercent } from '../../lib/timezone.js';
 
 export default function BidProfileTabs({
   activeColor,
@@ -243,15 +244,10 @@ function profileDailyGoal(profile) {
   if (!goal) return { goal, finished, percent: 0, color: '#475569', bgcolor: '#f8fafc' };
   const percent = Math.min((finished / goal) * 100, 100);
   const isComplete = finished >= goal;
-  const isOnTrack = isComplete || percent + 2 >= dayProgressPercent();
+  const isOnTrack = isComplete || percent + 2 >= businessDayProgressPercent();
   if (isComplete) return { goal, finished, percent, color: '#15803d', bgcolor: '#dcfce7' };
   if (isOnTrack) return { goal, finished, percent, color: '#1d4ed8', bgcolor: '#dbeafe' };
   return { goal, finished, percent, color: '#b45309', bgcolor: '#ffedd5' };
-}
-
-function dayProgressPercent(value = new Date()) {
-  const minutes = value.getHours() * 60 + value.getMinutes();
-  return (minutes / (24 * 60)) * 100;
 }
 
 const openProfileIconSx = {

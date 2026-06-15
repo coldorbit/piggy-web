@@ -1,5 +1,6 @@
 export const DEFAULT_TIME_ZONE = 'America/New_York';
 export const DEFAULT_TIME_ZONE_LABEL = 'ET';
+export const BUSINESS_DAY_START_HOUR = 19;
 
 const DATETIME_LOCAL_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -62,6 +63,26 @@ export function defaultTimezoneMonthKey(value) {
 
 export function defaultTimezoneTodayKey() {
   return defaultTimezoneDateKey(new Date());
+}
+
+export function businessTimezoneTodayKey(value = new Date()) {
+  const parts = zonedDateParts(value);
+  const dateKey = `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+  return parts.hour >= BUSINESS_DAY_START_HOUR ? dateKey : addDaysToDateKey(dateKey, -1);
+}
+
+export function businessTimezoneDateKeyDaysAgo(days, value = new Date()) {
+  return addDaysToDateKey(businessTimezoneTodayKey(value), -days);
+}
+
+export function businessDayProgressPercent(value = new Date()) {
+  const parts = zonedDateParts(value);
+  const minutes = parts.hour * 60 + parts.minute;
+  const startMinutes = BUSINESS_DAY_START_HOUR * 60;
+  const elapsed = minutes >= startMinutes
+    ? minutes - startMinutes
+    : minutes + (24 * 60 - startMinutes);
+  return (elapsed / (24 * 60)) * 100;
 }
 
 export function addDaysToDateKey(dateKey, days) {

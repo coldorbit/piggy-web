@@ -47,6 +47,14 @@ import { userAttributesFromBody } from '../../admin/application/usersService.js'
 import { clean } from '../../../utils/index.js';
 import { handleInputError, handleUserWriteError, InputError, NotFoundError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, INTERNAL_DATA_ROLES, INTERVIEW_ACCESS_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../../../utils/roles.js';
+import {
+  addBusinessDays,
+  businessDateKeyDaysAgo,
+  businessDateRange,
+  businessDaySql,
+  businessDayStart,
+  businessWeekStart,
+} from '../../../utils/businessTime.js';
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
@@ -275,15 +283,15 @@ export async function listBidders(req, res, next) {
         )
         SELECT
           visible_profile_access.user_id,
-          to_char(job_bids.bid_at::date, 'YYYY-MM-DD') AS day,
+          to_char(${businessDaySql('job_bids.bid_at')}, 'YYYY-MM-DD') AS day,
           COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source,
           COUNT(*)::int AS applications
         FROM job_bids
         JOIN visible_profile_access ON visible_profile_access.profile_id = job_bids.profile_id
         JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
-        WHERE job_bids.bid_at >= current_date - interval '13 days'
-        GROUP BY visible_profile_access.user_id, job_bids.bid_at::date, COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')
-        ORDER BY job_bids.bid_at::date ASC, source ASC
+        WHERE ${businessDaySql('job_bids.bid_at')} >= ${businessDaySql('now()')} - interval '13 days'
+        GROUP BY visible_profile_access.user_id, ${businessDaySql('job_bids.bid_at')}, COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')
+        ORDER BY ${businessDaySql('job_bids.bid_at')} ASC, source ASC
       `),
       sequelize.query(`
         WITH visible_profile_access AS (
@@ -970,8 +978,8 @@ async function dailyBidProgressForUser(user) {
   const goal = Number(user.dailyBidGoal || 0);
   if (!goal) return { goal: null, finished: 0 };
 
-  const today = startOfLocalDay(new Date());
-  const tomorrow = addDays(today, 1);
+  const today = businessDayStart(new Date());
+  const tomorrow = addBusinessDays(today, 1);
   const finished = await getJobBidModel().count({
     where: {
       userId: user.id,
@@ -1112,7 +1120,7 @@ function daysSince(value, now = new Date()) {
 }
 
 function enforceBidStrategyScrapedBeforeToday(where) {
-  const today = startOfLocalDay(new Date());
+  const today = businessDayStart(new Date());
   const currentScrapedAt = where.scrapedAt || {};
   const currentUpperBound = currentScrapedAt[Op.lt];
   where.scrapedAt = {
@@ -1447,58 +1455,26 @@ export async function listTailoringRequests(req, res, next) {
 function tailoringDateRange({ since, dateFrom, dateTo }) {
   if (since === 'all') return null;
   if (since === 'custom') {
-    const from = parseDateOnly(dateFrom);
-    const to = parseDateOnly(dateTo);
-    return { from, to: to ? addDays(to, 1) : null };
+    const from = businessDateRange(dateFrom)?.from || null;
+    const to = businessDateRange(dateTo)?.from || null;
+    return { from, to: to ? addBusinessDays(to, 1) : null };
   }
   return presetTailoringDateRange(since);
 }
 
 function presetTailoringDateRange(since) {
-  const today = startOfLocalDay(new Date());
-  if (since === 'today') return { from: today, to: addDays(today, 1) };
-  if (since === 'yesterday') return { from: addDays(today, -1), to: today };
+  const today = businessDayStart(new Date());
+  if (since === 'today') return { from: today, to: addBusinessDays(today, 1) };
+  if (since === 'yesterday') return { from: addBusinessDays(today, -1), to: today };
   if (since === 'this_week') {
-    const weekStart = startOfLocalWeek(today);
-    return { from: weekStart, to: addDays(weekStart, 7) };
+    const weekStart = businessWeekStart(today);
+    return { from: weekStart, to: addBusinessDays(weekStart, 7) };
   }
   if (since === 'last_week') {
-    const thisWeekStart = startOfLocalWeek(today);
-    return { from: addDays(thisWeekStart, -7), to: thisWeekStart };
+    const thisWeekStart = businessWeekStart(today);
+    return { from: addBusinessDays(thisWeekStart, -7), to: thisWeekStart };
   }
   return null;
-}
-
-function parseDateOnly(value) {
-  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  if (
-    Number.isNaN(date.getTime())
-    || date.getFullYear() !== Number(match[1])
-    || date.getMonth() !== Number(match[2]) - 1
-    || date.getDate() !== Number(match[3])
-  ) {
-    return null;
-  }
-  return date;
-}
-
-function startOfLocalDay(value) {
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-}
-
-function startOfLocalWeek(value) {
-  const day = value.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  return addDays(startOfLocalDay(value), mondayOffset);
-}
-
-function addDays(value, days) {
-  const next = new Date(value);
-  next.setDate(next.getDate() + days);
-  return next;
 }
 
 export async function downloadTailoredResume(req, res, next) {
@@ -1991,13 +1967,9 @@ function buildDailyApplications(rows) {
 }
 
 function buildEmptyDailyApplications() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   return Array.from({ length: 14 }, (_item, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (13 - index));
     return {
-      date: date.toISOString().slice(0, 10),
+      date: businessDateKeyDaysAgo(13 - index),
       applications: 0,
       sources: [],
     };

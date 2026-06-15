@@ -2,6 +2,7 @@ import { literal, Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
 import { ROLES } from '../../../utils/roles.js';
+import { addBusinessDays, businessDateRange, businessDayStart, businessWeekStart } from '../../../utils/businessTime.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],
@@ -256,72 +257,40 @@ function normalizeDatePreset(value) {
 }
 
 function presetDateRange(value) {
-  const today = startOfLocalDay(new Date());
+  const today = businessDayStart(new Date());
 
   if (value === 'today') {
-    return { from: today, to: addDays(today, 1) };
+    return { from: today, to: addBusinessDays(today, 1) };
   }
   if (value === 'yesterday') {
-    return { from: addDays(today, -1), to: today };
+    return { from: addBusinessDays(today, -1), to: today };
   }
   if (value === 'until_yesterday') {
     return { from: null, to: today };
   }
   if (value === 'through_today') {
-    return { from: null, to: addDays(today, 1) };
+    return { from: null, to: addBusinessDays(today, 1) };
   }
   if (value === 'this_week') {
-    const weekStart = startOfLocalWeek(today);
-    return { from: weekStart, to: addDays(weekStart, 7) };
+    const weekStart = businessWeekStart(today);
+    return { from: weekStart, to: addBusinessDays(weekStart, 7) };
   }
   if (value === 'last_week') {
-    const thisWeekStart = startOfLocalWeek(today);
-    return { from: addDays(thisWeekStart, -7), to: thisWeekStart };
+    const thisWeekStart = businessWeekStart(today);
+    return { from: addBusinessDays(thisWeekStart, -7), to: thisWeekStart };
   }
 
   return null;
 }
 
 function customDateRange(dateFrom, dateTo) {
-  const from = parseDateOnly(dateFrom);
-  const to = parseDateOnly(dateTo);
+  const from = businessDateRange(dateFrom)?.from || null;
+  const to = businessDateRange(dateTo)?.from || null;
 
   return {
     from,
-    to: to ? addDays(to, 1) : null,
+    to: to ? addBusinessDays(to, 1) : null,
   };
-}
-
-function parseDateOnly(value) {
-  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  if (
-    Number.isNaN(date.getTime())
-    || date.getFullYear() !== Number(match[1])
-    || date.getMonth() !== Number(match[2]) - 1
-    || date.getDate() !== Number(match[3])
-  ) {
-    return null;
-  }
-  return date;
-}
-
-function startOfLocalDay(value) {
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-}
-
-function startOfLocalWeek(value) {
-  const day = value.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  return addDays(startOfLocalDay(value), mondayOffset);
-}
-
-function addDays(value, days) {
-  const next = new Date(value);
-  next.setDate(next.getDate() + days);
-  return next;
 }
 
 export function parseSpamReview(value) {

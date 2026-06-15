@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
 import { buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobsFromCsv, mergedJobSourceOptions, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
+import { businessDayStart } from '../server/utils/businessTime.js';
 
 describe('job query filters', () => {
   it('filters roleFamily against the scraped_jobs category field', () => {
@@ -18,7 +19,7 @@ describe('job query filters', () => {
     assert.equal(query.where.category, 'ai_ml');
   });
 
-  it('applies inclusive custom date ranges by local calendar day', () => {
+  it('applies inclusive custom date ranges by 7pm ET business day', () => {
     const query = buildJobQuery({
       since: 'custom',
       dateFrom: '2026-06-01',
@@ -26,8 +27,8 @@ describe('job query filters', () => {
       visibility: 'all',
     });
 
-    assert.deepEqual(dateParts(query.where.scrapedAt[Op.gte]), [2026, 5, 1]);
-    assert.deepEqual(dateParts(query.where.scrapedAt[Op.lt]), [2026, 5, 4]);
+    assert.equal(query.where.scrapedAt[Op.gte].toISOString(), '2026-06-01T23:00:00.000Z');
+    assert.equal(query.where.scrapedAt[Op.lt].toISOString(), '2026-06-04T23:00:00.000Z');
   });
 
   it('does not add a date filter for all time', () => {
@@ -41,7 +42,7 @@ describe('job query filters', () => {
     const today = new Date();
 
     assert.equal(query.where.scrapedAt[Op.gte], undefined);
-    assert.deepEqual(dateParts(query.where.scrapedAt[Op.lt]), [today.getFullYear(), today.getMonth(), today.getDate()]);
+    assert.equal(query.where.scrapedAt[Op.lt].toISOString(), businessDayStart(today).toISOString());
   });
 
   it('searches by public job id', () => {
@@ -76,9 +77,6 @@ describe('job query filters', () => {
   });
 });
 
-function dateParts(value) {
-  return [value.getFullYear(), value.getMonth(), value.getDate()];
-}
 
 describe('grouped scraped jobs', () => {
   it('builds an 8-character public job id from the database id', () => {

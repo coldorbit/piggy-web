@@ -26,6 +26,7 @@ import {
 } from '../lib/api.js';
 import { mergeKnownFilters, readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 import { PRIVILEGED_USER_ROLES, isAdminRole } from '../lib/roles.js';
+import { businessDayProgressPercent } from '../lib/timezone.js';
 
 const BID_FILTER_KEYS = [
   'search',
@@ -498,7 +499,7 @@ function BidDailyGoalBar({ activeColor, profile }) {
 
 function DailyGoalRow({ activeColor, goal }) {
   const percent = Math.min((goal.finished / goal.goal) * 100, 100);
-  const dayPercent = dayProgressPercent();
+  const dayPercent = businessDayProgressPercent();
   const isComplete = goal.finished >= goal.goal;
   const isOnTrack = isComplete || percent + 2 >= dayPercent;
   const statusLabel = isComplete ? 'Complete' : isOnTrack ? 'On track' : 'Behind pace';
@@ -556,11 +557,6 @@ function roleLabel(role) {
   if (role === 'readonly_bidder' || role === 'editable_bidder' || role === 'bidder') return 'bidder';
   if (role === 'user') return 'user';
   return '';
-}
-
-function dayProgressPercent(value = new Date()) {
-  const minutes = value.getHours() * 60 + value.getMinutes();
-  return (minutes / (24 * 60)) * 100;
 }
 
 function bidTabFromParam(value) {

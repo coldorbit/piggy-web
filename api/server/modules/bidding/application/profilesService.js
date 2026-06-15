@@ -11,6 +11,7 @@ import {
 import { Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
+import { addBusinessDays, businessDayStart } from '../../../utils/businessTime.js';
 import {
   ADMIN_MANAGED_PROFILE_OWNER_ROLES,
   APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES,
@@ -125,8 +126,8 @@ export async function profilesWithProgress(profiles, { user } = {}) {
   const profileIds = [...new Set(profiles.map((profile) => String(profile.id)).filter(Boolean))];
   if (!profileIds.length) return profiles;
   const isCaller = user?.role === 'caller';
-  const today = startOfLocalDay(new Date());
-  const tomorrow = addDays(today, 1);
+  const today = businessDayStart(new Date());
+  const tomorrow = addBusinessDays(today, 1);
   const profileUserIdsByProfileId = new Map(
     profiles.map((profile) => [String(profile.id), new Set([String(profile.userId)].filter(Boolean))]),
   );
@@ -299,16 +300,6 @@ export async function profilesWithProgress(profiles, { user } = {}) {
   }
 
   return profiles;
-}
-
-function startOfLocalDay(value) {
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-}
-
-function addDays(value, days) {
-  const next = new Date(value);
-  next.setDate(value.getDate() + days);
-  return next;
 }
 
 function compareDailyGoalProgress(left, right) {

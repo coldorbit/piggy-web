@@ -15,6 +15,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
+import { businessTimezoneDateKeyDaysAgo } from '../../lib/timezone.js';
 
 export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
   const appliedProfiles = meta?.appliedProfiles || [];
@@ -276,9 +277,7 @@ function dateFilterOptions(meta = {}) {
 }
 
 function yesterdayDate() {
-  const value = new Date();
-  value.setDate(value.getDate() - 1);
-  return value;
+  return parseDateOnly(businessTimezoneDateKeyDaysAgo(1)) || new Date();
 }
 
 const DateRangeInput = forwardRef(function DateRangeInput({ value, onClick, onChange }, ref) {
