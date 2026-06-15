@@ -83,10 +83,16 @@ export default function CalendarPage({ currentUser }) {
   );
   const loading = profilesLoading || interviewQueries.some((query) => query.isLoading);
   const pageError = profilesError?.message || interviewQueries.find((query) => query.error)?.error?.message || '';
-  const visibleDays = view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate);
+  const visibleDays = useMemo(
+    () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
+    [cursorDate, view],
+  );
   const eventsByDay = useMemo(() => groupEventsByDay(events), [events]);
   const rangeLabel = view === CALENDAR_VIEWS.week ? weekRangeLabel(cursorDate) : monthLabel(cursorDate);
-  const scheduledCount = events.length;
+  const scheduledCount = useMemo(
+    () => scheduledInterviewCount(events, view, cursorDate, visibleDays),
+    [cursorDate, events, view, visibleDays],
+  );
 
   function moveCursor(direction) {
     setCursorDate((current) => (view === CALENDAR_VIEWS.week ? addDaysToDateKey(current, direction * 7) : addMonthsToDateKey(current, direction)));
@@ -196,6 +202,16 @@ function groupEventsByDay(events) {
     grouped.set(key, [...(grouped.get(key) || []), event]);
   });
   return grouped;
+}
+
+function scheduledInterviewCount(events, view, cursorDate, visibleDays) {
+  if (view === CALENDAR_VIEWS.week) {
+    const visibleDaySet = new Set(visibleDays);
+    return events.filter((event) => visibleDaySet.has(defaultTimezoneDateKey(event.startsAt))).length;
+  }
+
+  const monthKey = dateKeyMonth(cursorDate);
+  return events.filter((event) => dateKeyMonth(defaultTimezoneDateKey(event.startsAt)) === monthKey).length;
 }
 
 function monthDays(dateKey) {

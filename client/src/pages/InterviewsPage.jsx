@@ -310,6 +310,7 @@ export default function InterviewsPage({ currentUser }) {
               boxShadow: 1,
               height: { xs: 'auto', md: '100%' },
               minHeight: { md: 0 },
+              minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
             }}
@@ -351,7 +352,7 @@ export default function InterviewsPage({ currentUser }) {
               </Box>
             </Box>
 
-            <Box sx={{ flex: 1, minHeight: { md: 0 }, overflow: 'hidden', bgcolor: 'background.paper' }}>
+            <Box sx={{ flex: 1, minHeight: { md: 0 }, minWidth: 0, overflow: 'hidden', bgcolor: 'background.paper' }}>
               {loading && !jobs.length ? <InterviewLoadingState /> : null}
               {!loading || jobs.length ? (
                 <InterviewKanbanBoard

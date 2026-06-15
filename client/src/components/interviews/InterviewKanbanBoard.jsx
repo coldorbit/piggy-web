@@ -42,16 +42,6 @@ export default function InterviewKanbanBoard({
     onDragOver('');
   }
 
-  function handleBoardWheel(event) {
-    if (event.ctrlKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-    const board = event.currentTarget;
-    const canScrollHorizontally = board.scrollWidth > board.clientWidth;
-    if (!canScrollHorizontally) return;
-
-    event.preventDefault();
-    board.scrollLeft += event.deltaY;
-  }
-
   return (
     <DndContext
       collisionDetection={closestCenter}
@@ -62,17 +52,22 @@ export default function InterviewKanbanBoard({
       onDragCancel={handleDragCancel}
     >
       <Box
-        onWheelCapture={handleBoardWheel}
         sx={{
           alignItems: 'stretch',
           display: 'grid',
-          gridAutoColumns: { xs: '82vw', sm: 340, xl: 360 },
-          gridAutoFlow: 'column',
+          gridTemplateColumns: {
+            xs: 'minmax(0, 1fr)',
+            sm: 'repeat(2, minmax(0, 1fr))',
+            lg: 'repeat(3, minmax(0, 1fr))',
+            xl: 'repeat(5, minmax(0, 1fr))',
+          },
+          gridAutoRows: { xs: 'minmax(260px, auto)', md: 'minmax(300px, 1fr)' },
           gap: 1,
           height: { xs: 'calc(100vh - 176px)', md: '100%' },
           minHeight: 0,
-          overflowX: 'auto',
-          overflowY: 'hidden',
+          minWidth: 0,
+          overflowX: 'hidden',
+          overflowY: 'auto',
           p: { xs: 1, sm: 1.5 },
         }}
       >
