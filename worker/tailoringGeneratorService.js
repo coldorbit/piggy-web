@@ -6,10 +6,6 @@ import {
   HeadingLevel,
   Packer,
   Paragraph,
-  PositionalTab,
-  PositionalTabAlignment,
-  PositionalTabLeader,
-  PositionalTabRelativeTo,
   TextRun,
 } from 'docx';
 import OpenAI from 'openai';
@@ -209,6 +205,8 @@ ATS optimization rules:
 - Use standard resume section concepts only: Summary, Work Experience, Education, Skills.
 - Use plain text content only: no icons, emojis, decorative symbols, tables, columns, headers, footers, or graphics.
 - Use consistent date formatting everywhere: "MMM yyyy" for dates, such as "Jan 2024" or "Sep 2022", and "Present" for current roles. Do not use full month names like "January 2024".
+- Populate work experience fields so the rendered resume can show the position on the first line, "Company | Work mode" on the second line, and "MMM yyyy – MMM yyyy" on the third line, for example "Senior Software Engineer" followed by "Atlassian | Remote" followed by "Mar 2024 – Present".
+- Do not put headquarters_location at the end of the visible work experience heading, and do not combine work dates into the heading line. headquarters_location is structured context only.
 - Preserve the provided LinkedIn profile as an actual URL in "linkedin_profile". If the profile includes any LinkedIn value, you MUST include it in "linkedin_profile" using the display format "linkedin.com/in/profile-slug". If no LinkedIn profile is provided, leave it blank. Never invent a LinkedIn URL.
 - Normalize noisy target job titles before setting the top-level "role": remove locations, remote/hybrid tags, agency/recruiter names, team names, department labels, requisition IDs, contract labels, and parenthetical clutter. Keep the plain role name commonly used in job postings, such as "Software Engineer", "Senior Data Engineer", or "Product Manager".
 
@@ -331,16 +329,12 @@ async function renderResumeDocx(data, profile) {
 
   addSection(children, 'Work Experience', template);
   for (const exp of workExperienceEntries(data)) {
-    const position = String(exp.position || '').trim() || 'Role not provided';
-    const company = String(exp.company || '').trim();
-    const location = formatHeadquartersLocation(exp.headquarters_location || exp.location || '');
-    const period = [exp.start_date, exp.end_date].filter(Boolean).join(' - ');
-    const workMode = normalizedWorkMode(exp.work_mode);
-    const roleLine = [position, workMode].filter(Boolean).join(' - ');
-
-    children.push(rightAlignedMetaParagraph(company || position, location, template, { bold: true, before: template.experienceBefore, after: 40 }));
-    if (company) children.push(rightAlignedMetaParagraph(roleLine, period, template, { size: template.metaSize, after: 50 }));
     const projects = projectNames(exp);
+    const period = workExperienceDateRange(exp);
+
+    addText(children, workExperienceTitle(exp), { bold: true, before: template.experienceBefore, after: 30 }, template);
+    addText(children, workExperienceCompanyLine(exp), { size: template.metaSize, after: 25 }, template);
+    addText(children, period, { size: template.metaSize, after: projects.length ? 30 : 60 }, template);
     if (projects.length) addText(children, `Projects: ${projects.join(', ')}`, { size: template.metaSize, after: 60 }, template);
     for (const bullet of exp.bullets || []) {
       children.push(
@@ -405,11 +399,11 @@ function addSection(children, title, template) {
   );
 }
 
-function addText(children, value, { after, bold = false, italics = false, size } = {}, template = RESUME_TEMPLATES.classic) {
+function addText(children, value, { after, before = 0, bold = false, italics = false, size } = {}, template = RESUME_TEMPLATES.classic) {
   if (!value) return;
   children.push(
     new Paragraph({
-      spacing: { after: after ?? template.paragraphAfter },
+      spacing: { before, after: after ?? template.paragraphAfter },
       children: [new TextRun({ text: String(value), bold, italics, size: size ?? template.bodySize })],
     }),
   );
@@ -429,29 +423,6 @@ function centeredText(value, template, { after = 80, bold = false, size } = {}) 
     alignment: AlignmentType.CENTER,
     spacing: { after },
     children: [new TextRun({ text: String(value), bold, size: size ?? template.bodySize })],
-  });
-}
-
-function rightAlignedMetaParagraph(left, right, template, { after = 80, before = 0, bold = false, size } = {}) {
-  const children = [new TextRun({ text: String(left || ''), bold, size: size ?? template.bodySize })];
-  if (right) {
-    children.push(
-      new TextRun({
-        children: [
-          new PositionalTab({
-            alignment: PositionalTabAlignment.RIGHT,
-            relativeTo: PositionalTabRelativeTo.MARGIN,
-            leader: PositionalTabLeader.NONE,
-          }),
-        ],
-      }),
-      new TextRun({ text: String(right), bold, size: size ?? template.bodySize }),
-    );
-  }
-
-  return new Paragraph({
-    spacing: { before, after },
-    children,
   });
 }
 
@@ -489,6 +460,37 @@ function normalizedWorkMode(value) {
   if (raw === 'onsite' || raw === 'on-site' || raw === 'on site') return 'Onsite';
   if (raw === 'hybrid') return 'Hybrid';
   return '';
+}
+
+function workExperienceTitle(exp) {
+  return String(exp.position || '').trim() || 'Role not provided';
+}
+
+function workExperienceCompanyLine(exp) {
+  const company = String(exp.company || '').trim();
+  const workPlace = workExperienceDisplayPlace(exp);
+  return [company, workPlace].filter(Boolean).join(' | ');
+}
+
+function workExperienceDisplayPlace(exp) {
+  const workMode = normalizedWorkMode(exp.work_mode);
+  if (workMode) return workMode;
+
+  const location = String(exp.location || '').trim();
+  if (!location) return '';
+
+  const formattedLocation = formatHeadquartersLocation(location);
+  const formattedHeadquarters = formatHeadquartersLocation(exp.headquarters_location || '');
+  if (formattedHeadquarters && formattedLocation.toLowerCase() === formattedHeadquarters.toLowerCase()) return '';
+
+  return location;
+}
+
+function workExperienceDateRange(exp) {
+  return [exp.start_date, exp.end_date]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' – ');
 }
 
 function projectNames(exp) {
@@ -553,13 +555,9 @@ function renderedResumeTextParts(data, profile) {
 
   for (const exp of workExperienceEntries(data)) {
     parts.push(
-      exp.position,
-      exp.company,
-      exp.location,
-      exp.headquarters_location,
-      exp.start_date,
-      exp.end_date,
-      exp.work_mode,
+      workExperienceTitle(exp),
+      workExperienceCompanyLine(exp),
+      workExperienceDateRange(exp),
       ...projectNames(exp),
       ...(exp.bullets || []),
       exp.tech ? `Tech stack: ${exp.tech}` : '',
