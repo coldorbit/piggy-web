@@ -1,7 +1,17 @@
 import { Op, Sequelize } from 'sequelize';
 import { formatJob } from '../../jobs/application/jobsService.js';
 import { clean } from '../../../utils/index.js';
-import { addBusinessDays, businessDateRange, businessDayRange, businessPresetRange } from '../../../utils/businessTime.js';
+import {
+  addBusinessDays,
+  addZonedDays,
+  businessDateRange,
+  businessDayRange,
+  businessPresetRange,
+  normalizeTimeZone,
+  zonedDateRange,
+  zonedDayRange,
+  zonedPresetRange,
+} from '../../../utils/businessTime.js';
 
 const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
 const DONE_BID_STATUSES = ['submitted', 'won', 'lost'];
@@ -174,6 +184,23 @@ function customGoalRange(filters) {
   const toStart = businessDateRange(filters.dateTo)?.from || null;
   if (!from && !toStart) return null;
   const to = toStart ? addBusinessDays(toStart, 1) : addBusinessDays(from, 1);
+  return { from: from || toStart, to };
+}
+
+export function dailyGoalRangeForUserBidFilter(filters = {}, user = {}, now = new Date()) {
+  const timeZone = normalizeTimeZone(user?.timezone);
+  const since = clean(filters.since || 'today');
+  if (since === 'until_yesterday') return zonedPresetRange('yesterday', now, { timeZone });
+  if (since === 'through_today') return zonedPresetRange('today', now, { timeZone });
+  if (since === 'custom') return customUserGoalRange(filters, timeZone) || zonedDayRange(now, { timeZone });
+  return zonedPresetRange(since, now, { timeZone }) || zonedDayRange(now, { timeZone });
+}
+
+function customUserGoalRange(filters, timeZone) {
+  const from = zonedDateRange(filters.dateFrom, { timeZone })?.from || null;
+  const toStart = zonedDateRange(filters.dateTo, { timeZone })?.from || null;
+  if (!from && !toStart) return null;
+  const to = toStart ? addZonedDays(toStart, 1, { timeZone }) : addZonedDays(from, 1, { timeZone });
   return { from: from || toStart, to };
 }
 

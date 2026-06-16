@@ -39,6 +39,11 @@ export function getWebUserModel() {
         allowNull: true,
         field: 'daily_bid_goal',
       },
+      timezone: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+        defaultValue: 'America/New_York',
+      },
       activeSessionId: {
         type: DataTypes.TEXT,
         field: 'active_session_id',

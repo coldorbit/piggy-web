@@ -22,7 +22,10 @@ export default function UserForm({ currentUser, form, isSaving, onChange, onSubm
       sx={{
         p: 1.5,
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1fr) minmax(160px, .7fr) minmax(160px, .7fr) 140px 120px auto' },
+        gridTemplateColumns: {
+          xs: '1fr',
+          md: 'minmax(220px, 1fr) minmax(150px, .65fr) minmax(150px, .65fr) 135px minmax(190px, .8fr) 110px auto',
+        },
         gap: 1.25,
         alignItems: 'center',
         boxShadow: 1,
@@ -60,6 +63,13 @@ export default function UserForm({ currentUser, form, isSaving, onChange, onSubm
           ))}
         </Select>
       </FormControl>
+      <TextField
+        label="Timezone"
+        placeholder="America/New_York"
+        size="small"
+        value={form.timezone || ''}
+        onChange={(event) => onChange((current) => ({ ...current, timezone: event.target.value }))}
+      />
       <TextField
         disabled={!canSetDailyGoal}
         inputProps={{ min: 1, max: 1000 }}

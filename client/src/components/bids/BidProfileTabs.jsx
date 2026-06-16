@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import EmptyState from '../common/EmptyState.jsx';
 import { PROFILE_BADGE_COLORS, PROFILE_COLORS } from '../profiles/profileConstants.js';
-import { businessDayProgressPercent } from '../../lib/timezone.js';
+import { businessDayProgressPercent, dayProgressPercent } from '../../lib/timezone.js';
 
 export default function BidProfileTabs({
   activeColor,
@@ -248,10 +248,22 @@ function profileDailyGoal(profile, usePace = true) {
   if (!goal) return { goal, finished, percent: 0, color: '#475569', bgcolor: '#f8fafc' };
   const percent = Math.min((finished / goal) * 100, 100);
   const isComplete = finished >= goal;
-  const isOnTrack = usePace ? isComplete || percent + 2 >= businessDayProgressPercent() : isComplete;
+  const isOnTrack = usePace ? isComplete || percent + 2 >= profileGoalDayProgressPercent(profile) : isComplete;
   if (isComplete) return { goal, finished, percent, color: '#15803d', bgcolor: '#dcfce7' };
   if (isOnTrack) return { goal, finished, percent, color: '#1d4ed8', bgcolor: '#dbeafe' };
   return { goal, finished, percent, color: '#b45309', bgcolor: '#ffedd5' };
+}
+
+function profileGoalDayProgressPercent(profile) {
+  const goals = Array.isArray(profile?.progress?.dailyGoals) ? profile.progress.dailyGoals : [];
+  const weighted = goals
+    .filter((goal) => Number(goal.goal || 0) > 0)
+    .reduce(
+      (total, goal) => total + Number(goal.goal || 0) * dayProgressPercent(new Date(), { timeZone: goal.timezone || undefined }),
+      0,
+    );
+  const totalGoal = goals.reduce((total, goal) => total + Number(goal.goal || 0), 0);
+  return totalGoal ? weighted / totalGoal : businessDayProgressPercent();
 }
 
 const openProfileIconSx = {

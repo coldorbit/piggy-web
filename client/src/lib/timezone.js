@@ -5,10 +5,10 @@ export const BUSINESS_DAY_START_HOUR = 19;
 const DATETIME_LOCAL_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-export function zonedDateParts(value) {
+export function zonedDateParts(value, timeZone = DEFAULT_TIME_ZONE) {
   const date = value instanceof Date ? value : new Date(value);
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: DEFAULT_TIME_ZONE,
+    timeZone: timeZone || DEFAULT_TIME_ZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -76,9 +76,13 @@ export function businessTimezoneDateKeyDaysAgo(days, value = new Date()) {
 }
 
 export function businessDayProgressPercent(value = new Date()) {
-  const parts = zonedDateParts(value);
+  return dayProgressPercent(value, { timeZone: DEFAULT_TIME_ZONE, startHour: BUSINESS_DAY_START_HOUR });
+}
+
+export function dayProgressPercent(value = new Date(), { timeZone = DEFAULT_TIME_ZONE, startHour = 0 } = {}) {
+  const parts = zonedDateParts(value, timeZone);
   const minutes = parts.hour * 60 + parts.minute;
-  const startMinutes = BUSINESS_DAY_START_HOUR * 60;
+  const startMinutes = startHour * 60;
   const elapsed = minutes >= startMinutes
     ? minutes - startMinutes
     : minutes + (24 * 60 - startMinutes);

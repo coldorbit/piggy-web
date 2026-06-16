@@ -4,6 +4,7 @@ import { Op } from 'sequelize';
 import {
   buildBidTabQuery,
   dailyGoalRangeForBidFilter,
+  dailyGoalRangeForUserBidFilter,
   shouldRefreshBidAtForStatus,
   shouldSetInterviewAtForStatus,
 } from '../server/modules/bidding/application/biddingService.js';
@@ -186,6 +187,29 @@ describe('dailyGoalRangeForBidFilter', () => {
 
     assert.equal(range.from.toISOString(), '2026-06-10T23:00:00.000Z');
     assert.equal(range.to.toISOString(), '2026-06-12T23:00:00.000Z');
+  });
+});
+
+describe('dailyGoalRangeForUserBidFilter', () => {
+  it('counts each user by their local calendar day', () => {
+    const now = new Date('2026-06-16T06:30:00.000Z');
+    const losAngeles = dailyGoalRangeForUserBidFilter({ since: 'today' }, { timezone: 'America/Los_Angeles' }, now);
+    const newYork = dailyGoalRangeForUserBidFilter({ since: 'today' }, { timezone: 'America/New_York' }, now);
+
+    assert.equal(losAngeles.from.toISOString(), '2026-06-15T07:00:00.000Z');
+    assert.equal(losAngeles.to.toISOString(), '2026-06-16T07:00:00.000Z');
+    assert.equal(newYork.from.toISOString(), '2026-06-16T04:00:00.000Z');
+    assert.equal(newYork.to.toISOString(), '2026-06-17T04:00:00.000Z');
+  });
+
+  it('uses custom dates in the contributor timezone', () => {
+    const range = dailyGoalRangeForUserBidFilter(
+      { since: 'custom', dateFrom: '2026-06-10', dateTo: '2026-06-10' },
+      { timezone: 'Asia/Manila' },
+    );
+
+    assert.equal(range.from.toISOString(), '2026-06-09T16:00:00.000Z');
+    assert.equal(range.to.toISOString(), '2026-06-10T16:00:00.000Z');
   });
 });
 

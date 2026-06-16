@@ -11,7 +11,6 @@ import {
 import { Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
-import { businessDayRange } from '../../../utils/businessTime.js';
 import {
   ADMIN_MANAGED_PROFILE_OWNER_ROLES,
   APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES,
@@ -19,6 +18,7 @@ import {
   PRIVILEGED_USER_ROLES,
   isAdminRole,
 } from '../../../utils/roles.js';
+import { dailyGoalRangeForUserBidFilter } from './biddingService.js';
 
 const DAILY_BID_GOAL_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
 
@@ -125,12 +125,10 @@ export function sortProfilesForDisplay(profiles) {
   return [...profiles].sort(compareProfilesForDisplay);
 }
 
-export async function profilesWithProgress(profiles, { user, dailyGoalRange } = {}) {
+export async function profilesWithProgress(profiles, { user, dailyGoalFilters, dailyGoalRange } = {}) {
   const profileIds = [...new Set(profiles.map((profile) => String(profile.id)).filter(Boolean))];
   if (!profileIds.length) return profiles;
   const isCaller = user?.role === 'caller';
-  // Goal progress uses the drawer's 7pm ET business-time range; cumulative presets collapse to a single day.
-  const { from, to } = dailyGoalRange || businessDayRange(new Date());
   const profileUserIdsByProfileId = new Map(
     profiles.map((profile) => [String(profile.id), new Set([String(profile.userId)].filter(Boolean))]),
   );
@@ -144,7 +142,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalRange } = 
     if (userIds && share.recipientUserId) userIds.add(String(share.recipientUserId));
   }
 
-  const [bidRows, dailyBidRows, tailoredRows, interviewRows] = await Promise.all([
+  const [bidRows, tailoredRows, interviewRows, dailyContributorRows] = await Promise.all([
     getJobBidModel().findAll({
       attributes: [
         'profileId',
@@ -166,21 +164,6 @@ export async function profilesWithProgress(profiles, { user, dailyGoalRange } = 
       ],
       where: { profileId: profileIds, ...(isCaller ? { callerUserId: user.id } : {}) },
       group: ['profileId'],
-      raw: true,
-    }),
-    getJobBidModel().findAll({
-      attributes: [
-        'profileId',
-        'userId',
-        [getSequelize().fn('COUNT', getSequelize().col('id')), 'dailyFinished'],
-      ],
-      where: {
-        profileId: profileIds,
-        status: { [Op.in]: DAILY_BID_GOAL_STATUSES },
-        bidAt: { [Op.gte]: from, [Op.lt]: to },
-        ...(isCaller ? { callerUserId: user.id } : {}),
-      },
-      group: ['profileId', 'userId'],
       raw: true,
     }),
     getTailoredResumeModel().findAll({
@@ -211,9 +194,19 @@ export async function profilesWithProgress(profiles, { user, dailyGoalRange } = 
       group: ['profileId'],
       raw: true,
     }),
+    getJobBidModel().findAll({
+      attributes: ['profileId', 'userId'],
+      where: {
+        profileId: profileIds,
+        status: { [Op.in]: DAILY_BID_GOAL_STATUSES },
+        ...(isCaller ? { callerUserId: user.id } : {}),
+      },
+      group: ['profileId', 'userId'],
+      raw: true,
+    }),
   ]);
 
-  for (const row of dailyBidRows) {
+  for (const row of dailyContributorRows) {
     const userIds = profileUserIdsByProfileId.get(String(row.profileId));
     if (userIds && row.userId) userIds.add(String(row.userId));
   }
@@ -221,12 +214,18 @@ export async function profilesWithProgress(profiles, { user, dailyGoalRange } = 
   const goalUserIds = [...new Set([...profileUserIdsByProfileId.values()].flatMap((userIds) => [...userIds]))];
   const goalUserRows = goalUserIds.length
     ? await getWebUserModel().findAll({
-        attributes: ['id', 'username', 'role', 'dailyBidGoal'],
+        attributes: ['id', 'username', 'role', 'dailyBidGoal', 'timezone'],
         where: { id: goalUserIds },
         raw: true,
       })
     : [];
   const goalUserById = new Map(goalUserRows.map((row) => [String(row.id), row]));
+  const dailyGoalRangeByUserId = dailyGoalRangesByUserId(goalUserRows, dailyGoalFilters, dailyGoalRange);
+  const dailyBidRows = await dailyBidRowsForGoalRanges({
+    profileIds,
+    rangeByUserId: dailyGoalRangeByUserId,
+    user,
+  });
 
   const progressByProfileId = new Map(
     profileIds.map((profileId) => [
@@ -264,6 +263,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalRange } = 
       userId: row.userId,
       username: goalUser?.username || `User ${row.userId}`,
       role: goalUser?.role || '',
+      timezone: goalUser?.timezone || '',
       finished: count,
     });
   }
@@ -293,6 +293,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalRange } = 
             userId: goalUser?.id || userId,
             username: goalUser?.username || `User ${userId}`,
             role: goalUser?.role || '',
+            timezone: goalUser?.timezone || '',
             goal: Number(goalUser?.dailyBidGoal || 0),
             finished: progress.dailyUsers
               .filter((row) => String(row.userId) === String(userId))
@@ -310,6 +311,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalRange } = 
           userId: goal.userId,
           username: goal.username,
           role: goal.role,
+          timezone: goal.timezone,
           finished: goal.finished,
         }));
     }
@@ -317,6 +319,62 @@ export async function profilesWithProgress(profiles, { user, dailyGoalRange } = 
   }
 
   return profiles;
+}
+
+function dailyGoalRangesByUserId(users, filters, fallbackRange) {
+  const ranges = new Map();
+  for (const user of users) {
+    if (!isDailyGoalUserRole(user?.role)) continue;
+    ranges.set(String(user.id), filters ? dailyGoalRangeForUserBidFilter(filters, user) : fallbackRange || dailyGoalRangeForUserBidFilter({}, user));
+  }
+  return ranges;
+}
+
+async function dailyBidRowsForGoalRanges({ profileIds, rangeByUserId, user }) {
+  const userIds = [...rangeByUserId.keys()];
+  const range = unionDateRange([...rangeByUserId.values()]);
+  if (!profileIds.length || !userIds.length || !range) return [];
+
+  const rows = await getJobBidModel().findAll({
+    attributes: ['profileId', 'userId', 'bidAt'],
+    where: {
+      profileId: profileIds,
+      userId: userIds,
+      status: { [Op.in]: DAILY_BID_GOAL_STATUSES },
+      bidAt: { [Op.gte]: range.from, [Op.lt]: range.to },
+      ...(user?.role === 'caller' ? { callerUserId: user.id } : {}),
+    },
+    raw: true,
+  });
+
+  const counts = new Map();
+  for (const row of rows) {
+    const userRange = rangeByUserId.get(String(row.userId));
+    if (!isDateInRange(row.bidAt, userRange)) continue;
+    const key = `${row.profileId}:${row.userId}`;
+    const current = counts.get(key) || { profileId: row.profileId, userId: row.userId, dailyFinished: 0 };
+    current.dailyFinished += 1;
+    counts.set(key, current);
+  }
+  return [...counts.values()];
+}
+
+function unionDateRange(ranges) {
+  let from = null;
+  let to = null;
+  for (const range of ranges) {
+    if (!range?.from || !range?.to) continue;
+    if (!from || range.from < from) from = range.from;
+    if (!to || range.to > to) to = range.to;
+  }
+  return from && to ? { from, to } : null;
+}
+
+function isDateInRange(value, range) {
+  if (!range?.from || !range?.to) return false;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  return date >= range.from && date < range.to;
 }
 
 function compareDailyGoalProgress(left, right) {

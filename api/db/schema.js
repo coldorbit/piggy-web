@@ -54,6 +54,7 @@ export async function ensureWebModels() {
       await ensureConsumptionTransactionSpenderColumns();
       await ensureWebUserEmailColumn();
       await ensureWebUserDailyBidGoalColumn();
+      await ensureWebUserTimezoneColumn();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
       await ensureSpamReviewColumns();
@@ -131,6 +132,22 @@ async function ensureWebUserDailyBidGoalColumn() {
     SET daily_bid_goal = NULL
     WHERE role IN ('superadmin', 'admin')
       AND daily_bid_goal IS NOT NULL
+  `);
+}
+
+async function ensureWebUserTimezoneColumn() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'web_users';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    timezone: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'America/New_York' },
+  });
+
+  await queryInterface.sequelize.query(`
+    UPDATE web_users
+    SET timezone = 'America/New_York'
+    WHERE timezone IS NULL OR trim(timezone) = ''
   `);
 }
 

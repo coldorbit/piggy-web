@@ -21,6 +21,18 @@ describe('userAttributesFromBody daily bid goals', () => {
     assert.equal(attrs.dailyBidGoal, 75);
   });
 
+  it('defaults users to the platform timezone', () => {
+    const attrs = userAttributesFromBody(validUserBody({ role: 'user' }), { requirePassword: true });
+
+    assert.equal(attrs.timezone, 'America/New_York');
+  });
+
+  it('accepts valid IANA timezones', () => {
+    const attrs = userAttributesFromBody(validUserBody({ role: 'user', timezone: 'America/Los_Angeles' }), { requirePassword: true });
+
+    assert.equal(attrs.timezone, 'America/Los_Angeles');
+  });
+
   it('does not assign bid goals to admins', () => {
     const attrs = userAttributesFromBody(validUserBody({ role: 'admin', dailyBidGoal: 75 }), { requirePassword: true });
 
@@ -31,6 +43,13 @@ describe('userAttributesFromBody daily bid goals', () => {
     assert.throws(
       () => userAttributesFromBody(validUserBody({ role: 'user', dailyBidGoal: 0 }), { requirePassword: true }),
       /Daily bid goal/,
+    );
+  });
+
+  it('rejects invalid timezones', () => {
+    assert.throws(
+      () => userAttributesFromBody(validUserBody({ role: 'user', timezone: 'PST' }), { requirePassword: true }),
+      /valid timezone/,
     );
   });
 });

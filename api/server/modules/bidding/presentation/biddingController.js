@@ -20,7 +20,7 @@ import {
   bidAttributesFromBody,
   buildBidTabQuery,
   buildZip,
-  dailyGoalRangeForBidFilter,
+  dailyGoalRangeForUserBidFilter,
   formatBid,
   formatTailoredResume,
   REVIEW_BID_STATUSES,
@@ -54,7 +54,6 @@ import {
   addBusinessDays,
   businessDateKeyDaysAgo,
   businessDateRange,
-  businessDayRange,
   businessDaySql,
   businessPresetRange,
 } from '../../../utils/businessTime.js';
@@ -71,14 +70,13 @@ export async function listProfiles(req, res, next) {
     const user = await currentDbUser(req);
     const scope = clean(req.query?.scope);
     const query = jobDateFiltersForUser(req.query, user);
-    const dailyGoalRange = dailyGoalRangeForBidFilter(query);
     const profiles =
       scope === 'applied-filter'
         ? await profilesForAppliedFilter(user)
         : scope === 'manage' && isAdminRole(user)
         ? await profilesManagedByUser(user)
         : await profilesVisibleToUser(user);
-    const visibleProfiles = sortProfilesForDisplay(await profilesWithSharing(await profilesWithProgress(profiles, { user, dailyGoalRange })));
+    const visibleProfiles = sortProfilesForDisplay(await profilesWithSharing(await profilesWithProgress(profiles, { user, dailyGoalFilters: query })));
     res.json({ profiles: visibleProfiles.map(formatProfile) });
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -218,6 +216,7 @@ export async function createCaller(req, res, next) {
       email: attrs.email,
       passwordHash: hashPassword(attrs.password),
       role: 'caller',
+      timezone: attrs.timezone,
     });
     res.status(201).json({ caller: publicUser(caller) });
   } catch (error) {
@@ -619,7 +618,6 @@ export async function listBidJobs(req, res, next) {
     const WebUser = getWebUserModel();
     const sequelize = getSequelize();
     const activeBidDateRange = bidDateRangeForTab(query, bidTab);
-    const dailyGoalRange = dailyGoalRangeForBidFilter(query);
     const { where, order: jobOrder, limit, offset } = buildJobQuery({
       ...jobQueryForBidTab(query, bidTab),
       limit: query.limit || 10,
@@ -680,8 +678,8 @@ export async function listBidJobs(req, res, next) {
       countBidTab('done'),
       countBidTab('bad_work'),
       canViewInternalData ? countInterviewsForProfile(profile.id) : Promise.resolve(0),
-      dailyBidProgressForUser(user, dailyGoalRange),
-      profilesWithProgress([profile], { user, dailyGoalRange }),
+      dailyBidProgressForUser(user, query),
+      profilesWithProgress([profile], { user, dailyGoalFilters: query }),
     ]);
     const profileWithDateProgress = profilesWithDateProgress[0] || profile;
 
@@ -1071,11 +1069,12 @@ function formatBidWithUser(row, bidUsersById, callerUsersById) {
   };
 }
 
-async function dailyBidProgressForUser(user, dailyGoalRange = businessDayRange(new Date())) {
+async function dailyBidProgressForUser(user, filters = {}) {
   const goal = Number(user.dailyBidGoal || 0);
   if (!goal) return { goal: null, finished: 0 };
 
-  // Goal progress uses the drawer's 7pm ET business-time range; cumulative presets collapse to a single day.
+  // Goal progress uses the user's local timezone; cumulative presets collapse to a single day.
+  const dailyGoalRange = filters?.from && filters?.to ? filters : dailyGoalRangeForUserBidFilter(filters, user);
   const { from, to } = dailyGoalRange;
   const finished = await getJobBidModel().count({
     where: {

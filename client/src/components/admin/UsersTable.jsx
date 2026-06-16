@@ -49,6 +49,7 @@ export default function UsersTable({
             <TableCell>User</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Role</TableCell>
+            <TableCell>Timezone</TableCell>
             <TableCell>Daily goal</TableCell>
             <TableCell>Status</TableCell>
             <TableCell>Last seen</TableCell>
@@ -86,7 +87,7 @@ export default function UsersTable({
 function EmptyRow({ detail, title }) {
   return (
     <TableRow>
-      <TableCell colSpan={9}>
+      <TableCell colSpan={10}>
         <EmptyState title={title} detail={detail} variant="plain" sx={{ py: 3 }} />
       </TableCell>
     </TableRow>
@@ -102,6 +103,7 @@ function UserSkeletonRows() {
       </TableCell>
       <TableCell><Skeleton width={180} /></TableCell>
       <TableCell><Skeleton variant="rounded" width={96} height={24} /></TableCell>
+      <TableCell><Skeleton width={132} /></TableCell>
       <TableCell><Skeleton width={64} /></TableCell>
       <TableCell><Skeleton variant="rounded" width={74} height={24} /></TableCell>
       <TableCell><Skeleton width={112} /></TableCell>
@@ -167,6 +169,16 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
         </TableCell>
         <TableCell>
           <TextField
+            fullWidth
+            label="Timezone"
+            placeholder="America/New_York"
+            size="small"
+            value={editing.timezone || ''}
+            onChange={(event) => onEditingChange((current) => ({ ...current, timezone: event.target.value }))}
+          />
+        </TableCell>
+        <TableCell>
+          <TextField
             disabled={!canSetDailyGoal}
             inputProps={{ min: 1, max: 1000 }}
             label="Daily goal"
@@ -226,6 +238,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
       <TableCell>
         <Chip color={isAdminRole(user) ? 'warning' : 'default'} label={roleLabel(user.role)} size="small" variant="outlined" />
       </TableCell>
+      <TableCell>{user.timezone || 'America/New_York'}</TableCell>
       <TableCell>{user.dailyBidGoal ? Number(user.dailyBidGoal).toLocaleString() : '-'}</TableCell>
       <TableCell>
         <Chip
