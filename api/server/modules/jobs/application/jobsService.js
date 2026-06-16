@@ -288,9 +288,9 @@ export function parseHiddenState(value) {
   throw new InputError('isHidden must be true or false');
 }
 
-export function formatJob(row) {
+export function formatJob(row, { includeRawJob = true } = {}) {
   const rawJob = row.rawJob || {};
-  return {
+  const job = {
     id: row.id,
     publicJobId: publicJobIdFromId(row.publicJobId || row.id),
     title: clean(row.title),
@@ -302,8 +302,8 @@ export function formatJob(row) {
     sourceUrl: row.sourceUrl,
     postedAt: row.postedAt,
     scrapedAt: row.scrapedAt,
+    description: row.listingText ? null : clean(firstRawJobValue(rawJob, ['description', 'listingText', 'jobDescription'])) || null,
     listingText: row.listingText,
-    rawJob,
     applyMode: applyMode(row.source, rawJob),
     companyLogoUrl: companyLogoUrl(rawJob),
     isManual: rawJob.importType === 'manual' || rawJob.isManualImport === true,
@@ -312,6 +312,9 @@ export function formatJob(row) {
     isHidden: row.isHidden,
     hiddenAt: row.hiddenAt,
   };
+
+  if (includeRawJob) job.rawJob = rawJob;
+  return job;
 }
 
 export function publicJobIdFromId(value) {
@@ -364,11 +367,11 @@ function sourceCondition(source) {
   return literal(`${sourceExpression} = '${normalizedSource}'`);
 }
 
-export function groupedJobsFromRows(rows) {
+export function groupedJobsFromRows(rows, options = {}) {
   const groups = new Map();
 
   for (const row of rows) {
-    const job = formatJob(row);
+    const job = formatJob(row, options);
     const groupKey = jobGroupKey(job);
     const group = groups.get(groupKey);
     if (!group) {
@@ -404,8 +407,8 @@ export function groupedJobsFromRows(rows) {
   }));
 }
 
-export function paginateGroupedJobs(rows, { limit, offset }) {
-  const groupedJobs = groupedJobsFromRows(rows);
+export function paginateGroupedJobs(rows, { limit, offset }, options = {}) {
+  const groupedJobs = groupedJobsFromRows(rows, options);
   return {
     rows: groupedJobs.slice(offset, offset + limit),
     count: groupedJobs.length,

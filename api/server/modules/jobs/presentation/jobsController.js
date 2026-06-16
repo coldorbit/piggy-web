@@ -28,7 +28,7 @@ export async function listJobs(req, res, next) {
       where,
       order,
     });
-    const grouped = paginateGroupedJobs(rows, { limit, offset });
+    const grouped = paginateGroupedJobs(rows, { limit, offset }, { includeRawJob: false });
 
     res.json({
       jobs: grouped.rows,

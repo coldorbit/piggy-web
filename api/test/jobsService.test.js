@@ -176,6 +176,34 @@ describe('grouped scraped jobs', () => {
     assert.equal(page.count, 2);
     assert.equal(page.rows.length, 1);
   });
+
+  it('can omit raw job blobs from grouped job list responses', () => {
+    const rows = [
+      jobRow({
+        id: 1,
+        title: 'Software Engineer',
+        company: 'Acme',
+        location: 'New York, NY',
+        listingText: null,
+        rawJob: { description: 'Raw description', largePayload: 'x'.repeat(1000) },
+      }),
+      jobRow({
+        id: 2,
+        title: 'Software Engineer',
+        company: 'Acme',
+        location: 'Austin, TX',
+        listingText: null,
+        rawJob: { description: 'Other raw description', largePayload: 'x'.repeat(1000) },
+      }),
+    ];
+
+    const page = paginateGroupedJobs(rows, { limit: 1, offset: 0 }, { includeRawJob: false });
+
+    assert.equal(page.rows[0].rawJob, undefined);
+    assert.ok(['Raw description', 'Other raw description'].includes(page.rows[0].description));
+    assert.equal(page.rows[0].locationOptions[0].rawJob, undefined);
+    assert.ok(page.rows[0].locationOptions.every((option) => option.description));
+  });
 });
 
 describe('job source options', () => {
@@ -400,8 +428,8 @@ function jobRow(overrides) {
     sourceUrl: overrides.sourceUrl || 'https://linkedin.com',
     postedAt: overrides.postedAt || new Date('2026-01-01T00:00:00Z'),
     scrapedAt: overrides.scrapedAt || new Date('2026-01-02T00:00:00Z'),
-    listingText: 'Job description',
-    rawJob: {},
+    listingText: Object.prototype.hasOwnProperty.call(overrides, 'listingText') ? overrides.listingText : 'Job description',
+    rawJob: overrides.rawJob || {},
     isSpam: null,
     spamReviewedAt: null,
     isHidden: false,
