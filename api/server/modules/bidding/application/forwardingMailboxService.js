@@ -7,7 +7,7 @@ import { InputError, NotFoundError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, isAdminRole } from '../../../utils/roles.js';
 import { currentDbUser } from './profilesService.js';
 
-const DEFAULT_PROFILE_MESSAGE_LIMIT = 15;
+const DEFAULT_PROFILE_MESSAGE_LIMIT = 10;
 const MAX_MESSAGE_FETCH = 50;
 const SKIPPED_MAILBOX_SPECIAL_USE = new Set(['\\All', '\\Drafts', '\\Junk', '\\Sent', '\\Trash']);
 
@@ -80,6 +80,7 @@ export function formatMailboxMessage(message, profile = null, match = null) {
     from: message.from || { name: '', address: '' },
     receivedAt: message.receivedAt || null,
     bodyPreview: message.bodyPreview || '',
+    bodyHtml: message.bodyHtml || '',
     mailboxPath: message.mailboxPath || null,
     isRead: Boolean(message.isRead),
     matchedProfile: profile
@@ -292,6 +293,7 @@ async function parseImapMessage(row, mailboxPath = '') {
     bcc: parseAddressList(parsed.bcc),
     receivedAt: (parsed.date || row.internalDate || null)?.toISOString?.() || null,
     bodyPreview: messagePreview(parsed),
+    bodyHtml: messageHtml(parsed),
     bodyText: messageBody(parsed),
     mailboxPath,
     isRead: Array.isArray(row.flags) ? row.flags.includes('\\Seen') : row.flags?.has?.('\\Seen'),
@@ -335,7 +337,7 @@ function messageHeaderText(message) {
 }
 
 function messageBodyText(message) {
-  return clean(message.bodyText || message.bodyPreview || '').toLowerCase();
+  return clean(message.bodyText || message.bodyHtml || message.bodyPreview || '').toLowerCase();
 }
 
 function headerValueText(value) {
@@ -353,6 +355,11 @@ function messagePreview(parsed) {
 
 function messageBody(parsed) {
   return clean(parsed.text || parsed.textAsHtml || '');
+}
+
+function messageHtml(parsed) {
+  const html = typeof parsed.html === 'string' ? parsed.html : '';
+  return clean(html || parsed.textAsHtml || '');
 }
 
 function matcherWithSource(matcher, matchedFrom) {

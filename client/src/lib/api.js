@@ -98,7 +98,7 @@ export function useForwardingMailboxStatus(queryOptions = {}) {
 export function useForwardedProfileMessages(profileId, queryOptions = {}) {
   return useQuery({
     queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages'],
-    queryFn: () => api(`/api/bid/profiles/${profileId}/mailbox/messages?limit=15`),
+    queryFn: () => api(`/api/bid/profiles/${profileId}/mailbox/messages?limit=10`),
     enabled: Boolean(profileId),
     staleTime: 15_000,
     ...queryOptions,

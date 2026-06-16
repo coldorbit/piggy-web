@@ -19,6 +19,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { AutoSizer, List as VirtualizedList } from 'react-virtualized';
 import { useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
@@ -402,29 +403,61 @@ function MessageListPane({
           />
         ) : null}
         {!isLoading
-          ? messages.map((message) => (
-              <MessageListItem
-                key={message.id}
+          ? (
+              <VirtualizedMessageList
                 activeColor={activeColor}
-                isSelected={String(message.id) === String(selectedMessage?.id)}
-                message={message}
-                onClick={() => onMessageSelect(message.id)}
+                messages={messages}
+                selectedMessage={selectedMessage}
+                onMessageSelect={onMessageSelect}
               />
-            ))
+            )
           : null}
       </Box>
     </Box>
   );
 }
 
-function MessageListItem({ activeColor, isSelected, message, onClick }) {
+function VirtualizedMessageList({ activeColor, messages, selectedMessage, onMessageSelect }) {
+  return (
+    <Box sx={{ height: '100%', minHeight: 0 }}>
+      <AutoSizer>
+        {({ height, width }) => (
+          <VirtualizedList
+            height={height}
+            width={width}
+            rowCount={messages.length}
+            rowHeight={122}
+            overscanRowCount={6}
+            rowRenderer={({ index, key, style }) => {
+              const message = messages[index];
+              return (
+                <MessageListItem
+                  key={key}
+                  activeColor={activeColor}
+                  isSelected={String(message.id) === String(selectedMessage?.id)}
+                  message={message}
+                  style={style}
+                  onClick={() => onMessageSelect(message.id)}
+                />
+              );
+            }}
+          />
+        )}
+      </AutoSizer>
+    </Box>
+  );
+}
+
+function MessageListItem({ activeColor, isSelected, message, onClick, style }) {
   return (
     <Box
       component="button"
       type="button"
       onClick={onClick}
+      style={style}
       sx={{
         width: '100%',
+        height: 122,
         border: 0,
         borderBottom: 1,
         borderColor: 'divider',
@@ -518,22 +551,47 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
             </Stack>
           </Box>
 
-          <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: { xs: 1.5, md: 2 }, py: 2 }}>
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'text.primary',
-                lineHeight: 1.7,
-                whiteSpace: 'pre-wrap',
-                maxWidth: 760,
-              }}
-            >
-              {message.bodyPreview || 'No message preview available.'}
-            </Typography>
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', bgcolor: '#ffffff' }}>
+            {message.bodyHtml ? (
+              <EmailHtmlFrame html={message.bodyHtml} title={message.subject || 'Email message'} />
+            ) : (
+              <Box sx={{ height: '100%', overflowY: 'auto', px: { xs: 1.5, md: 2 }, py: 2 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'text.primary',
+                    lineHeight: 1.7,
+                    whiteSpace: 'pre-wrap',
+                    maxWidth: 760,
+                  }}
+                >
+                  {message.bodyPreview || 'No message preview available.'}
+                </Typography>
+              </Box>
+            )}
           </Box>
         </>
       )}
     </Box>
+  );
+}
+
+function EmailHtmlFrame({ html, title }) {
+  return (
+    <Box
+      component="iframe"
+      title={title}
+      sandbox=""
+      srcDoc={emailFrameDocument(html)}
+      sx={{
+        display: 'block',
+        width: '100%',
+        height: '100%',
+        minHeight: { xs: 420, lg: '100%' },
+        border: 0,
+        bgcolor: '#ffffff',
+      }}
+    />
   );
 }
 
@@ -590,12 +648,45 @@ function filterMessages(messages, search) {
     [
       message.subject,
       message.bodyPreview,
+      message.bodyHtml,
       messageSender(message),
       message.receivedAt,
       message.mailboxPath,
       message.match?.value,
     ].some((value) => String(value || '').toLowerCase().includes(query)),
   );
+}
+
+function emailFrameDocument(html) {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base target="_blank">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 12px;
+      background: #ffffff;
+      color: #111827;
+      font-family: Arial, Helvetica, sans-serif;
+      overflow-wrap: anywhere;
+    }
+    img, video, canvas, svg {
+      max-width: 100% !important;
+      height: auto !important;
+    }
+    table {
+      max-width: 100% !important;
+    }
+    a {
+      color: #2563eb;
+    }
+  </style>
+</head>
+<body>${html || ''}</body>
+</html>`;
 }
 
 function messageSender(message) {

@@ -91,6 +91,7 @@ describe('forwarding mailbox helpers', () => {
       from: { name: 'Recruiter', address: 'recruiter@example.com' },
       receivedAt: '2026-06-16T12:00:00Z',
       bodyPreview: 'Can you talk tomorrow?',
+      bodyHtml: '<p>Can you talk tomorrow?</p>',
       mailboxPath: null,
       isRead: false,
     }), {
@@ -99,6 +100,7 @@ describe('forwarding mailbox helpers', () => {
       from: { name: 'Recruiter', address: 'recruiter@example.com' },
       receivedAt: '2026-06-16T12:00:00Z',
       bodyPreview: 'Can you talk tomorrow?',
+      bodyHtml: '<p>Can you talk tomorrow?</p>',
       mailboxPath: null,
       isRead: false,
       matchedProfile: null,
