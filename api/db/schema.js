@@ -397,6 +397,7 @@ async function ensureBidProfileColumns() {
     location: { type: DataTypes.TEXT, allowNull: true },
     phone: { type: DataTypes.TEXT, allowNull: true },
     email: { type: DataTypes.TEXT, allowNull: true },
+    forwarding_email: { type: DataTypes.TEXT, allowNull: true },
     linkedin: { type: DataTypes.TEXT, allowNull: true },
     years_of_experience: { type: DataTypes.TEXT, allowNull: true },
     resume_text: { type: DataTypes.TEXT, allowNull: true },

@@ -3,6 +3,7 @@ export const EMPTY_PROFILE = {
   location: '',
   phone: '',
   email: '',
+  forwardingEmail: '',
   linkedin: '',
   yearsOfExperience: '',
   resumeText: '',

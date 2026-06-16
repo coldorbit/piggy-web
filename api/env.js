@@ -19,6 +19,11 @@ export const ENV = {
   AWS_S3_BUCKET: process.env.AWS_S3_BUCKET,
   AWS_SQS_ENDPOINT: process.env.AWS_SQS_ENDPOINT,
   TAILORING_QUEUE_URL: process.env.TAILORING_QUEUE_URL,
+  MAILBOX_EMAIL: process.env.MAILBOX_EMAIL,
+  MAILBOX_PASSWORD: process.env.MAILBOX_PASSWORD,
+  MAILBOX_IMAP_HOST: process.env.MAILBOX_IMAP_HOST || 'mail.privateemail.com',
+  MAILBOX_IMAP_PORT: process.env.MAILBOX_IMAP_PORT || '993',
+  MAILBOX_IMAP_SECURE: process.env.MAILBOX_IMAP_SECURE || 'true',
 };
 
 export function isProduction() {

@@ -45,6 +45,12 @@ export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpe
               onChange={(event) => onChange((current) => ({ ...current, email: event.target.value }))}
             />
             <TextField
+              label="Forwarding alias"
+              type="email"
+              value={form.forwardingEmail}
+              onChange={(event) => onChange((current) => ({ ...current, forwardingEmail: event.target.value }))}
+            />
+            <TextField
               label="LinkedIn"
               value={form.linkedin}
               onChange={(event) => onChange((current) => ({ ...current, linkedin: event.target.value }))}

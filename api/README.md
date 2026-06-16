@@ -42,9 +42,17 @@ WEB_PASSWORD=change-me
 AWS_REGION=us-east-1
 AWS_S3_BUCKET=your-private-resume-bucket
 TAILORING_QUEUE_URL=
+
+MAILBOX_EMAIL=service@co-bounce.com
+MAILBOX_PASSWORD=
+MAILBOX_IMAP_HOST=mail.privateemail.com
+MAILBOX_IMAP_PORT=993
+MAILBOX_IMAP_SECURE=true
 ```
 
 For Docker Compose from the workspace root, put the shared values in the root `.env` instead. The client uses `client/.env` only for browser build-time values such as `VITE_API_BASE_URL`.
+
+Forwarded mail reads use one central IMAP inbox. Configure `MAILBOX_EMAIL` and `MAILBOX_PASSWORD`, then set each profile's forwarding alias so forwarded messages can be classified back to the profile.
 
 - `WEB_PORT`: API port, defaults to `4000` in package scripts.
 - `CLIENT_ORIGIN`: default allowed browser origin.
@@ -61,3 +69,8 @@ For Docker Compose from the workspace root, put the shared values in the root `.
 - `AWS_S3_BUCKET`: private S3 bucket used to download generated tailored resumes. `tailored_resumes.file_path` should contain the object key inside this bucket, not a public URL.
 - `AWS_SQS_ENDPOINT`: optional SQS-compatible endpoint, such as LocalStack.
 - `TAILORING_QUEUE_URL`: SQS queue URL where the API publishes tailored resume generation requests.
+- `MAILBOX_EMAIL`: central mailbox that receives forwarded profile email, for example `service@co-bounce.com`.
+- `MAILBOX_PASSWORD`: password for the central mailbox.
+- `MAILBOX_IMAP_HOST`: IMAP server, defaults to Namecheap Private Email's `mail.privateemail.com`.
+- `MAILBOX_IMAP_PORT`: IMAP port, defaults to `993`.
+- `MAILBOX_IMAP_SECURE`: whether IMAP uses SSL, defaults to `true`.

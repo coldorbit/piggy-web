@@ -17,6 +17,11 @@ services:
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
       AWS_SQS_ENDPOINT: ${AWS_SQS_ENDPOINT:-}
       TAILORING_QUEUE_URL: ${TAILORING_QUEUE_URL:-}
+      MAILBOX_EMAIL: ${MAILBOX_EMAIL:-service@co-bounce.com}
+      MAILBOX_PASSWORD: ${MAILBOX_PASSWORD:-}
+      MAILBOX_IMAP_HOST: ${MAILBOX_IMAP_HOST:-mail.privateemail.com}
+      MAILBOX_IMAP_PORT: ${MAILBOX_IMAP_PORT:-993}
+      MAILBOX_IMAP_SECURE: ${MAILBOX_IMAP_SECURE:-true}
     ports:
       - 0.0.0.0:${API_PORT:-4000}:4000
     init: true

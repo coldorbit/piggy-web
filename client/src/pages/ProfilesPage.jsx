@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
+import InboxIcon from '@mui/icons-material/Inbox';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
@@ -8,6 +10,8 @@ import {
   Card,
   CardContent,
   Checkbox,
+  Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -31,6 +35,8 @@ import {
   useBidProfiles,
   useCreateBidProfile,
   useDeleteBidProfile,
+  useForwardedProfileMessages,
+  useForwardingMailboxStatus,
   useProfileShareRecipients,
   useProfileShareRequests,
   useRespondToProfileShare,
@@ -79,6 +85,7 @@ export default function ProfilesPage({ currentUser }) {
       location: profile.location || '',
       phone: profile.phone || '',
       email: profile.email || '',
+      forwardingEmail: profile.forwardingEmail || '',
       linkedin: profile.linkedin || '',
       yearsOfExperience: profile.yearsOfExperience || '',
       resumeText: profile.resumeText || '',
@@ -458,7 +465,10 @@ function ProfileSkeletonCards() {
 
 function ProfileReadOnlyDialog({ profile, onClose }) {
   if (!profile) return null;
+  return <ProfileReadOnlyDialogContent profile={profile} onClose={onClose} />;
+}
 
+function ProfileReadOnlyDialogContent({ profile, onClose }) {
   return (
     <Dialog open={Boolean(profile)} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>{profile.name || 'Profile'}</DialogTitle>
@@ -467,6 +477,7 @@ function ProfileReadOnlyDialog({ profile, onClose }) {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
             <ReadOnlyField label="Location" value={profile.location} />
             <ReadOnlyField label="Email" value={profile.email} />
+            <ReadOnlyField label="Forwarding alias" value={profile.forwardingEmail} />
             <ReadOnlyField label="Phone" value={profile.phone} />
             <ReadOnlyField label="LinkedIn" value={profile.linkedin} />
             <ReadOnlyField label="Years of experience" value={profile.yearsOfExperience} />
@@ -476,6 +487,8 @@ function ProfileReadOnlyDialog({ profile, onClose }) {
           </Box>
 
           <Divider />
+          <ForwardingMailboxPanel profile={profile} />
+          <Divider />
           <ReadOnlySection label="Resume text" value={profile.resumeText} preserveText />
         </Box>
       </DialogContent>
@@ -483,6 +496,129 @@ function ProfileReadOnlyDialog({ profile, onClose }) {
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
     </Dialog>
+  );
+}
+
+function ForwardingMailboxPanel({ profile }) {
+  const [showMessages, setShowMessages] = useState(false);
+  const {
+    data: mailboxStatus,
+    isLoading: statusLoading,
+    error: statusError,
+  } = useForwardingMailboxStatus();
+  const configured = mailboxStatus?.configured !== false;
+  const mailboxEmail = mailboxStatus?.email || 'service@co-bounce.com';
+  const {
+    data: inboxData,
+    isFetching: messagesLoading,
+    error: messagesError,
+    refetch: refetchMessages,
+  } = useForwardedProfileMessages(profile.id, {
+    enabled: showMessages && configured,
+  });
+
+  useEffect(() => {
+    setShowMessages(false);
+  }, [profile.id]);
+
+  function loadMessages() {
+    setShowMessages(true);
+    if (showMessages) refetchMessages();
+  }
+
+  return (
+    <Box sx={{ display: 'grid', gap: 1 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'space-between', alignItems: 'center' }}>
+        <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap' }}>
+          <Typography variant="subtitle2" fontWeight={900}>
+            Forwarding inbox
+          </Typography>
+          {statusLoading ? <CircularProgress size={16} /> : null}
+          {configured ? (
+            <Chip label={mailboxEmail} size="small" color="success" variant="outlined" />
+          ) : (
+            <Chip label="Not configured" size="small" variant="outlined" />
+          )}
+        </Stack>
+        <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
+          <Button
+            size="small"
+            startIcon={messagesLoading ? <CircularProgress size={16} /> : showMessages ? <RefreshIcon /> : <InboxIcon />}
+            disabled={statusLoading || !configured}
+            onClick={loadMessages}
+          >
+            {showMessages ? 'Refresh' : 'Inbox'}
+          </Button>
+        </Stack>
+      </Box>
+
+      {!configured ? <Alert severity="warning">Forwarding mailbox is not configured.</Alert> : null}
+      {!profile.forwardingEmail && !profile.email ? <Alert severity="warning">Add a profile email or forwarding alias before classifying messages.</Alert> : null}
+      {statusError ? <Alert severity="error">{statusError.message}</Alert> : null}
+      {messagesError ? <Alert severity="error">{messagesError.message}</Alert> : null}
+
+      {showMessages && configured ? (
+        <ForwardingMessageList
+          isLoading={messagesLoading && !inboxData}
+          messages={inboxData?.messages || []}
+        />
+      ) : null}
+    </Box>
+  );
+}
+
+function ForwardingMessageList({ isLoading, messages }) {
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'grid', gap: 0.75 }}>
+        <Skeleton height={44} />
+        <Skeleton height={44} />
+        <Skeleton height={44} />
+      </Box>
+    );
+  }
+
+  if (!messages.length) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No recent inbox messages.
+      </Typography>
+    );
+  }
+
+  return (
+    <Box sx={{ display: 'grid', border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+      {messages.map((message) => (
+        <Box
+          key={message.id}
+          sx={{
+            display: 'grid',
+            gap: 0.35,
+            p: 1,
+            borderBottom: 1,
+            borderColor: 'divider',
+            bgcolor: message.isRead ? 'background.paper' : 'rgba(219, 234, 254, 0.35)',
+            '&:last-of-type': { borderBottom: 0 },
+          }}
+        >
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', justifyContent: 'space-between', minWidth: 0 }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={message.isRead ? 700 : 900} noWrap>
+                {message.subject || '(No subject)'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {messageSender(message)} · {formatMessageDate(message.receivedAt)}
+              </Typography>
+            </Box>
+          </Box>
+          {message.bodyPreview ? (
+            <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
+              {message.bodyPreview}
+            </Typography>
+          ) : null}
+        </Box>
+      ))}
+    </Box>
   );
 }
 
@@ -524,6 +660,22 @@ function ReadOnlySection({ label, value, preserveText = false }) {
       </Box>
     </Box>
   );
+}
+
+function messageSender(message) {
+  const from = message.from || {};
+  return [from.name, from.address].filter(Boolean).join(' <') + (from.name && from.address ? '>' : '') || 'Unknown sender';
+}
+
+function formatMessageDate(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return 'Unknown date';
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 function formatProfileValue(value, multiline = false) {

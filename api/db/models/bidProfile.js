@@ -26,6 +26,10 @@ export function getBidProfileModel() {
       location: DataTypes.TEXT,
       phone: DataTypes.TEXT,
       email: DataTypes.TEXT,
+      forwardingEmail: {
+        type: DataTypes.TEXT,
+        field: 'forwarding_email',
+      },
       linkedin: DataTypes.TEXT,
       yearsOfExperience: {
         type: DataTypes.TEXT,

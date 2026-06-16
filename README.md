@@ -50,6 +50,12 @@ AWS_REGION=us-east-1
 AWS_S3_BUCKET=your-private-resume-bucket
 TAILORING_QUEUE_URL=
 
+MAILBOX_EMAIL=service@co-bounce.com
+MAILBOX_PASSWORD=
+MAILBOX_IMAP_HOST=mail.privateemail.com
+MAILBOX_IMAP_PORT=993
+MAILBOX_IMAP_SECURE=true
+
 # Worker-only values.
 OPENAI_API_KEY=sk-your-api-key-here
 OPENAI_TIMEOUT_SECONDS=300
@@ -58,6 +64,15 @@ TAILORING_CONCURRENCY=4
 ```
 
 For API-only development, use `api/.env`. For worker-only development, use `worker/.env`. For client-only development, use `client/.env` with `VITE_API_BASE_URL`.
+
+## Forwarded Mail Inbox
+
+The app can read one central Namecheap Private Email inbox, such as `service@co-bounce.com`, and classify forwarded messages back to profiles.
+
+1. Set `MAILBOX_EMAIL=service@co-bounce.com` and `MAILBOX_PASSWORD` to that mailbox password.
+2. Keep Namecheap's IMAP defaults: `MAILBOX_IMAP_HOST=mail.privateemail.com`, `MAILBOX_IMAP_PORT=993`, `MAILBOX_IMAP_SECURE=true`.
+3. Set each profile's `Forwarding alias`, ideally a unique alias such as `service+daniel@co-bounce.com`.
+4. Forward each profile mailbox to its alias. If a profile only forwards to `service@co-bounce.com`, classification falls back to matching the original profile email in message headers.
 
 ## Build
 

@@ -86,6 +86,25 @@ export function useBidProfiles(options = {}, queryOptions = {}) {
   });
 }
 
+export function useForwardingMailboxStatus(queryOptions = {}) {
+  return useQuery({
+    queryKey: ['bid', 'mailbox', 'status'],
+    queryFn: () => api('/api/bid/mailbox/status'),
+    staleTime: 30_000,
+    ...queryOptions,
+  });
+}
+
+export function useForwardedProfileMessages(profileId, queryOptions = {}) {
+  return useQuery({
+    queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages'],
+    queryFn: () => api(`/api/bid/profiles/${profileId}/mailbox/messages?limit=15`),
+    enabled: Boolean(profileId),
+    staleTime: 15_000,
+    ...queryOptions,
+  });
+}
+
 export function useProfileShareRequests() {
   return useQuery({
     queryKey: ['bid', 'profile-shares'],
