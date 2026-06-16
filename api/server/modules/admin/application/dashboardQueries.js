@@ -61,19 +61,47 @@ function rangeCte({ sql, step, lookback }, timeZone) {
   `;
 }
 
+function currentPeriodCte({ sql, step }, timeZone) {
+  const startsAt = currentPeriodStartSql(sql, timeZone);
+  return `
+    current_period AS (
+      SELECT
+        ${startsAt} AS starts_at,
+        (${startsAt} + interval '${step}') AS ends_at
+    )
+  `;
+}
+
+function currentPeriodStartSql(grainSql, timeZone) {
+  if (grainSql !== 'week') return localNowBucketSql(grainSql, timeZone);
+
+  const localNow = localTimestampSql('now()', timeZone);
+  return `(date_trunc('day', ${localNow}) - (EXTRACT(DOW FROM ${localNow})::int * interval '1 day'))`;
+}
+
 function bucketExpression(column, grainConfig, timeZone) {
   return localBucketSql(column, grainConfig.sql, timeZone);
+}
+
+function localTimestampSql(column, timeZone) {
+  const normalizedTimeZone = normalizeTimeZone(timeZone).replaceAll("'", "''");
+  return `timezone('${normalizedTimeZone}', ${column})`;
+}
+
+function currentPeriodPredicate(column, timeZone, alias = 'current_period') {
+  const localTimestamp = localTimestampSql(column, timeZone);
+  return `${localTimestamp} >= ${alias}.starts_at AND ${localTimestamp} < ${alias}.ends_at`;
 }
 
 function overallSql(grainConfig, timeZone) {
   const normalizedTimeZone = normalizeTimeZone(timeZone);
   const jobBucket = bucketExpression('scraped_at', grainConfig, normalizedTimeZone);
   const bidBucket = bucketExpression('bid_at', grainConfig, normalizedTimeZone);
-  const interviewCreatedBucket = bucketExpression('created_at', grainConfig, normalizedTimeZone);
   const tailoringBucket = bucketExpression('created_at', grainConfig, normalizedTimeZone);
 
   return `
     ${rangeCte(grainConfig, normalizedTimeZone)},
+    ${currentPeriodCte(grainConfig, normalizedTimeZone)},
     local_day AS (
       SELECT
         ${localNowBucketSql('day', normalizedTimeZone)} AT TIME ZONE '${normalizedTimeZone}' AS starts_at,
@@ -127,8 +155,10 @@ function overallSql(grainConfig, timeZone) {
         COUNT(*) FILTER (WHERE status = 'won')::int AS successful_final_interviews,
         COUNT(*) FILTER (WHERE status = 'won')::int AS successful_offers,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_interviews
-      FROM interviews, range
-      WHERE ${interviewCreatedBucket} >= range.starts_at
+      FROM interviews
+      CROSS JOIN current_period
+      WHERE interview_next_at IS NOT NULL
+        AND ${currentPeriodPredicate('interview_next_at', normalizedTimeZone)}
     ),
     tailoring_totals AS (
       SELECT
@@ -434,25 +464,54 @@ function bidderPerformanceSql(grainConfig, timeZone) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)}
+    ${rangeCte(grainConfig, timeZone)},
+    ${currentPeriodCte(grainConfig, timeZone)},
+    bid_metrics AS (
+      SELECT
+        job_bids.user_id,
+        COUNT(DISTINCT job_bids.id)::int AS applications,
+        COUNT(DISTINCT job_bids.profile_id)::int AS profiles_used,
+        COUNT(DISTINCT scraped_jobs.category) FILTER (
+          WHERE NULLIF(scraped_jobs.category, '') IS NOT NULL
+        )::int AS role_families,
+        MIN(job_bids.bid_at) AS first_application_at,
+        MAX(job_bids.bid_at) AS last_application_at
+      FROM job_bids
+      LEFT JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+      CROSS JOIN range
+      WHERE ${bidBucket} >= starts_at
+      GROUP BY job_bids.user_id
+    ),
+    scheduled_interview_metrics AS (
+      SELECT
+        job_bids.user_id,
+        COUNT(DISTINCT interviews.id)::int AS interviews,
+        COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'won')::int AS offers,
+        COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'lost')::int AS lost
+      FROM interviews
+      JOIN job_bids ON job_bids.id = interviews.job_bid_id
+      CROSS JOIN current_period
+      WHERE interviews.interview_next_at IS NOT NULL
+        AND ${currentPeriodPredicate('interviews.interview_next_at', timeZone)}
+      GROUP BY job_bids.user_id
+    )
     SELECT
       web_users.id,
       web_users.username,
       web_users.role,
-      ${funnelMetricsSelect()},
-      COUNT(DISTINCT job_bids.profile_id)::int AS profiles_used,
-      COUNT(DISTINCT scraped_jobs.category) FILTER (
-        WHERE NULLIF(scraped_jobs.category, '') IS NOT NULL
-      )::int AS role_families,
-      MIN(job_bids.bid_at) AS first_application_at,
-      MAX(job_bids.bid_at) AS last_application_at
-    FROM job_bids
-    JOIN web_users ON web_users.id = job_bids.user_id
-    LEFT JOIN interviews ON interviews.job_bid_id = job_bids.id
-    LEFT JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
-    CROSS JOIN range
-    WHERE ${bidBucket} >= starts_at
-    GROUP BY web_users.id, web_users.username, web_users.role
+      COALESCE(bid_metrics.applications, 0)::int AS applications,
+      COALESCE(scheduled_interview_metrics.interviews, 0)::int AS interviews,
+      COALESCE(scheduled_interview_metrics.offers, 0)::int AS offers,
+      COALESCE(scheduled_interview_metrics.lost, 0)::int AS lost,
+      COALESCE(bid_metrics.profiles_used, 0)::int AS profiles_used,
+      COALESCE(bid_metrics.role_families, 0)::int AS role_families,
+      bid_metrics.first_application_at,
+      bid_metrics.last_application_at
+    FROM web_users
+    LEFT JOIN bid_metrics ON bid_metrics.user_id = web_users.id
+    LEFT JOIN scheduled_interview_metrics ON scheduled_interview_metrics.user_id = web_users.id
+    WHERE COALESCE(bid_metrics.applications, 0) > 0
+       OR COALESCE(scheduled_interview_metrics.interviews, 0) > 0
     ORDER BY offers DESC, interviews DESC, applications DESC, web_users.username ASC
   `;
 }
