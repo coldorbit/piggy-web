@@ -59,6 +59,31 @@ describe('forwarding mailbox helpers', () => {
     });
   });
 
+  it('classifies Outlook-style forwarded messages by alias in the body', () => {
+    const profile = {
+      id: '8',
+      name: 'Tiep Nguyen',
+      email: 'tiep@example.com',
+      forwardingEmail: 'service+tiep@co-bounce.com',
+    };
+    const row = classifyForwardedMessage({
+      to: [{ address: 'service@co-bounce.com' }],
+      headers: new Map(),
+      bodyText: [
+        'From: Recruiter <recruiter@example.com>',
+        'Sent: Tuesday, June 16, 2026 9:01 AM',
+        'To: service+tiep@co-bounce.com',
+        'Subject: Senior Data Engineer',
+      ].join('\n'),
+    }, [profile]);
+
+    assert.equal(row.profile, profile);
+    assert.deepEqual(row.match, {
+      value: 'service+tiep@co-bounce.com',
+      source: 'forwardingEmail:body',
+    });
+  });
+
   it('formats mailbox messages without exposing the raw payload', () => {
     assert.deepEqual(formatMailboxMessage({
       id: 'message-1',
@@ -66,6 +91,7 @@ describe('forwarding mailbox helpers', () => {
       from: { name: 'Recruiter', address: 'recruiter@example.com' },
       receivedAt: '2026-06-16T12:00:00Z',
       bodyPreview: 'Can you talk tomorrow?',
+      mailboxPath: null,
       isRead: false,
     }), {
       id: 'message-1',
@@ -73,6 +99,7 @@ describe('forwarding mailbox helpers', () => {
       from: { name: 'Recruiter', address: 'recruiter@example.com' },
       receivedAt: '2026-06-16T12:00:00Z',
       bodyPreview: 'Can you talk tomorrow?',
+      mailboxPath: null,
       isRead: false,
       matchedProfile: null,
       match: null,

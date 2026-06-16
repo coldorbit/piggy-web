@@ -9,6 +9,7 @@ import { currentDbUser } from './profilesService.js';
 
 const DEFAULT_PROFILE_MESSAGE_LIMIT = 15;
 const MAX_MESSAGE_FETCH = 50;
+const SKIPPED_MAILBOX_SPECIAL_USE = new Set(['\\All', '\\Drafts', '\\Junk', '\\Sent', '\\Trash']);
 
 export function forwardingMailboxConfigured() {
   return Boolean(
@@ -79,6 +80,7 @@ export function formatMailboxMessage(message, profile = null, match = null) {
     from: message.from || { name: '', address: '' },
     receivedAt: message.receivedAt || null,
     bodyPreview: message.bodyPreview || '',
+    mailboxPath: message.mailboxPath || null,
     isRead: Boolean(message.isRead),
     matchedProfile: profile
       ? {
@@ -117,6 +119,11 @@ export function forwardedMessageProfileMatch(message, profile) {
   const headers = messageHeaderText(message);
   for (const matcher of matchers) {
     if (headers.includes(matcher.value)) return matcherWithSource(matcher, 'header');
+  }
+
+  const body = messageBodyText(message);
+  for (const matcher of matchers) {
+    if (body.includes(matcher.value)) return matcherWithSource(matcher, 'body');
   }
 
   return null;
@@ -190,38 +197,93 @@ async function fetchRecentMailboxMessages(limit) {
 
   await client.connect();
   try {
-    const lock = await client.getMailboxLock('INBOX');
-    try {
-      const mailbox = client.mailbox || {};
-      const exists = Number(mailbox.exists || 0);
-      if (!exists) return [];
+    const mailboxPaths = await readableMailboxPaths(client);
+    const messages = [];
+    const perMailboxLimit = Math.min(limit, MAX_MESSAGE_FETCH);
 
-      const start = Math.max(exists - limit + 1, 1);
-      const messages = [];
-      for await (const row of client.fetch(`${start}:*`, {
-        envelope: true,
-        flags: true,
-        internalDate: true,
-        source: true,
-        uid: true,
-      })) {
-        messages.push(await parseImapMessage(row));
-      }
-      return messages.sort(compareMessagesByReceivedAtDesc);
-    } finally {
-      lock.release();
+    for (const mailboxPath of mailboxPaths) {
+      messages.push(...await fetchRecentMailboxMessagesFromPath(client, mailboxPath, perMailboxLimit));
     }
+
+    return dedupeMessages(messages).sort(compareMessagesByReceivedAtDesc).slice(0, limit);
   } finally {
     await client.logout().catch(() => {});
   }
 }
 
-async function parseImapMessage(row) {
+async function fetchRecentMailboxMessagesFromPath(client, mailboxPath, limit) {
+  const lock = await client.getMailboxLock(mailboxPath);
+  try {
+    const mailbox = client.mailbox || {};
+    const exists = Number(mailbox.exists || 0);
+    if (!exists) return [];
+
+    const start = Math.max(exists - limit + 1, 1);
+    const messages = [];
+    for await (const row of client.fetch(`${start}:*`, {
+      envelope: true,
+      flags: true,
+      internalDate: true,
+      source: true,
+      uid: true,
+    })) {
+      messages.push(await parseImapMessage(row, mailboxPath));
+    }
+    return messages;
+  } catch (error) {
+    console.warn('Skipping mailbox folder after fetch failure:', mailboxPath, error.message);
+    return [];
+  } finally {
+    lock.release();
+  }
+}
+
+async function readableMailboxPaths(client) {
+  try {
+    const folders = await client.list();
+    const paths = folders
+      .filter(isReadableMailbox)
+      .map((folder) => folder.path)
+      .filter(Boolean);
+    return uniqueMailboxPaths(paths.length ? paths : ['INBOX']);
+  } catch (error) {
+    console.warn('Unable to list mailbox folders; falling back to INBOX:', error.message);
+    return ['INBOX'];
+  }
+}
+
+function isReadableMailbox(folder) {
+  if (!folder?.path) return false;
+  if (folder.flags?.has?.('\\Noselect')) return false;
+  if (folder.specialUse && SKIPPED_MAILBOX_SPECIAL_USE.has(folder.specialUse)) return false;
+  return true;
+}
+
+function uniqueMailboxPaths(paths) {
+  const byKey = new Map();
+  for (const path of paths) {
+    const value = clean(path);
+    if (!value) continue;
+    byKey.set(value.toLowerCase(), value);
+  }
+  return [...byKey.values()];
+}
+
+function dedupeMessages(messages) {
+  const byKey = new Map();
+  for (const message of messages) {
+    const key = message.id || `${message.mailboxPath}:${message.receivedAt}:${message.subject}`;
+    if (!byKey.has(key)) byKey.set(key, message);
+  }
+  return [...byKey.values()];
+}
+
+async function parseImapMessage(row, mailboxPath = '') {
   const parsed = await simpleParser(row.source);
   const from = parseAddressList(parsed.from)[0] || { name: '', address: '' };
 
   return {
-    id: String(row.uid || parsed.messageId || parsed.headers?.get('message-id') || ''),
+    id: [mailboxPath, String(row.uid || parsed.messageId || parsed.headers?.get('message-id') || '')].filter(Boolean).join(':'),
     subject: parsed.subject || row.envelope?.subject || '',
     from,
     sender: parseAddressList(parsed.sender)[0] || from,
@@ -230,6 +292,8 @@ async function parseImapMessage(row) {
     bcc: parseAddressList(parsed.bcc),
     receivedAt: (parsed.date || row.internalDate || null)?.toISOString?.() || null,
     bodyPreview: messagePreview(parsed),
+    bodyText: messageBody(parsed),
+    mailboxPath,
     isRead: Array.isArray(row.flags) ? row.flags.includes('\\Seen') : row.flags?.has?.('\\Seen'),
     headers: parsed.headers || new Map(),
   };
@@ -270,6 +334,10 @@ function messageHeaderText(message) {
   return String(headers).toLowerCase();
 }
 
+function messageBodyText(message) {
+  return clean(message.bodyText || message.bodyPreview || '').toLowerCase();
+}
+
 function headerValueText(value) {
   if (Array.isArray(value)) return value.map(headerValueText).join(' ');
   if (value?.text) return value.text;
@@ -278,9 +346,13 @@ function headerValueText(value) {
 }
 
 function messagePreview(parsed) {
-  return clean(parsed.text || parsed.textAsHtml || '')
+  return messageBody(parsed)
     .replace(/\s+/g, ' ')
     .slice(0, 500);
+}
+
+function messageBody(parsed) {
+  return clean(parsed.text || parsed.textAsHtml || '');
 }
 
 function matcherWithSource(matcher, matchedFrom) {
