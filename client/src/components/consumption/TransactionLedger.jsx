@@ -1,7 +1,11 @@
 import DeleteIcon from '@mui/icons-material/Delete';
-import { Box, IconButton, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
+import { Box, IconButton, Paper, Skeleton, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, Typography } from '@mui/material';
 import EmptyState from '../common/EmptyState.jsx';
 import { formatAmount, formatDate, shortHash, typeLabel } from './consumptionFormatters.js';
+
+const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+const DEFAULT_ROWS_PER_PAGE = 25;
 
 export default function TransactionLedger({
   emptyDetail = 'Add a consumption record to start tracking balances and spend.',
@@ -13,6 +17,28 @@ export default function TransactionLedger({
   title = 'Transaction ledger',
   transactions,
 }) {
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
+  const transactionIds = useMemo(() => transactions.map((transaction) => transaction.id).join('|'), [transactions]);
+  const visibleTransactions = useMemo(
+    () => transactions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [page, rowsPerPage, transactions],
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [transactionIds]);
+
+  useEffect(() => {
+    const lastPage = Math.max(Math.ceil(transactions.length / rowsPerPage) - 1, 0);
+    setPage((current) => Math.min(current, lastPage));
+  }, [rowsPerPage, transactions.length]);
+
+  function handleRowsPerPageChange(event) {
+    setRowsPerPage(Number(event.target.value));
+    setPage(0);
+  }
+
   return (
     <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
       <Box sx={{ p: 1.25, borderBottom: 1, borderColor: 'divider' }}>
@@ -35,7 +61,7 @@ export default function TransactionLedger({
           </TableHead>
           <TableBody>
             {isLoading && !transactions.length ? <LedgerSkeletonRows /> : null}
-            {transactions.map((transaction) => (
+            {visibleTransactions.map((transaction) => (
               <TableRow key={transaction.id} hover>
                 <TableCell>{formatDate(transaction.occurredAt)}</TableCell>
                 <TableCell>{typeLabel(transaction.type)}</TableCell>
@@ -72,6 +98,18 @@ export default function TransactionLedger({
           </TableBody>
         </Table>
       </TableContainer>
+      {transactions.length ? (
+        <TablePagination
+          component="div"
+          count={transactions.length}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          rowsPerPageOptions={ROWS_PER_PAGE_OPTIONS}
+          onPageChange={(_event, nextPage) => setPage(nextPage)}
+          onRowsPerPageChange={handleRowsPerPageChange}
+          sx={{ borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}
+        />
+      ) : null}
     </Paper>
   );
 }
