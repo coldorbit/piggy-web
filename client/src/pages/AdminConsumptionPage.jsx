@@ -3,8 +3,8 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import TodayIcon from '@mui/icons-material/Today';
-import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, IconButton, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
+import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, IconButton, Paper, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
+import { useMemo, useState } from 'react';
 import RefreshButton from '../components/common/RefreshButton.jsx';
 import BalanceCards from '../components/consumption/BalanceCards.jsx';
 import ConsumptionForm from '../components/consumption/ConsumptionForm.jsx';
@@ -24,7 +24,6 @@ const PERIOD_OPTIONS = [
 export default function AdminConsumptionPage() {
   const [form, setForm] = useState(EMPTY_CONSUMPTION_FORM);
   const [error, setError] = useState('');
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
   const [isHelpDrawerOpen, setIsHelpDrawerOpen] = useState(false);
   const [period, setPeriod] = useState('daily');
@@ -43,10 +42,6 @@ export default function AdminConsumptionPage() {
   );
   const periodSummary = useMemo(() => summarizeTransactions(periodTransactions), [periodTransactions]);
   const isSaving = isCreating || isDeleting;
-
-  useEffect(() => {
-    if (data) setLastUpdatedAt(new Date());
-  }, [data]);
 
   function submitRecord(event) {
     event.preventDefault();
@@ -87,7 +82,6 @@ export default function AdminConsumptionPage() {
       <BalanceCards accounts={accounts} />
       <ConsumptionPeriodToolbar
         isRefreshing={isFetching}
-        lastUpdatedAt={lastUpdatedAt}
         period={period}
         periodLabel={periodRange.label}
         onMove={movePeriod}
@@ -126,12 +120,13 @@ export default function AdminConsumptionPage() {
   );
 }
 
-function ConsumptionPeriodToolbar({ isRefreshing, lastUpdatedAt, onAddTransaction, onMove, onOpenHelp, onPeriodChange, onRefresh, onToday, period, periodLabel }) {
+function ConsumptionPeriodToolbar({ isRefreshing, onAddTransaction, onMove, onOpenHelp, onPeriodChange, onRefresh, onToday, period, periodLabel }) {
   return (
     <Paper
       variant="outlined"
       sx={{
-        p: 1,
+        px: 1.25,
+        py: 1,
         boxShadow: 1,
         display: 'flex',
         alignItems: 'center',
@@ -166,25 +161,31 @@ function ConsumptionPeriodToolbar({ isRefreshing, lastUpdatedAt, onAddTransactio
             </ToggleButton>
           ))}
         </ToggleButtonGroup>
-        <IconButton aria-label="Previous period" onClick={() => onMove(-1)} sx={periodIconButtonSx}>
-          <ChevronLeftIcon />
-        </IconButton>
-        <IconButton aria-label="Next period" onClick={() => onMove(1)} sx={periodIconButtonSx}>
-          <ChevronRightIcon />
-        </IconButton>
-        <Button onClick={onToday} startIcon={<TodayIcon />} size="small" variant="outlined" sx={{ minHeight: 34, fontWeight: 900 }}>
+        <Tooltip title="Previous period">
+          <IconButton aria-label="Previous period" onClick={() => onMove(-1)} sx={periodIconButtonSx}>
+            <ChevronLeftIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Next period">
+          <IconButton aria-label="Next period" onClick={() => onMove(1)} sx={periodIconButtonSx}>
+            <ChevronRightIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Button onClick={onToday} startIcon={<TodayIcon fontSize="small" />} size="small" variant="outlined" sx={toolbarButtonSx}>
           Today
         </Button>
-        <Button onClick={onAddTransaction} startIcon={<AddIcon />} size="small" variant="contained" sx={{ minHeight: 34, fontWeight: 900 }}>
+        <Button onClick={onAddTransaction} startIcon={<AddIcon fontSize="small" />} size="small" variant="contained" sx={primaryToolbarButtonSx}>
           Add transaction
         </Button>
         <RefreshButton
           isRefreshing={isRefreshing}
-          lastUpdatedAt={lastUpdatedAt}
           onRefresh={onRefresh}
-          sx={{ flex: '0 0 auto' }}
+          sx={{
+            flex: '0 0 auto',
+            '& .MuiButton-root': toolbarButtonSx,
+          }}
         />
-        <Button onClick={onOpenHelp} startIcon={<HelpOutlinedIcon />} size="small" variant="outlined" sx={{ minHeight: 34, fontWeight: 900 }}>
+        <Button onClick={onOpenHelp} startIcon={<HelpOutlinedIcon fontSize="small" />} size="small" variant="outlined" sx={toolbarButtonSx}>
           Help & FAQ
         </Button>
       </Stack>
@@ -361,4 +362,24 @@ const periodIconButtonSx = {
   border: 1,
   borderColor: 'divider',
   bgcolor: 'background.paper',
+  borderRadius: 1,
+  '&:hover': {
+    bgcolor: '#F8FAFC',
+    borderColor: 'primary.main',
+  },
+};
+
+const toolbarButtonSx = {
+  minHeight: 34,
+  borderRadius: 1,
+  fontWeight: 900,
+  textTransform: 'none',
+  boxShadow: 0,
+};
+
+const primaryToolbarButtonSx = {
+  ...toolbarButtonSx,
+  '&:hover': {
+    boxShadow: 1,
+  },
 };

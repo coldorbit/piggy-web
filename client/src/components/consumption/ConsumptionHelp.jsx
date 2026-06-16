@@ -1,7 +1,7 @@
 import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
-import { Accordion, AccordionDetails, AccordionSummary, Box, Divider, Drawer, IconButton, Stack, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Box, Drawer, IconButton, Stack, Typography } from '@mui/material';
 
 const HELP_ITEMS = [
   ['Crypto spend', 'Use this for vendor payments. It subtracts the token amount and the ETH gas fee.'],
@@ -25,25 +25,56 @@ export default function ConsumptionHelp({ isOpen, onClose }) {
         sx: {
           width: { xs: '100%', sm: 420 },
           maxWidth: '100vw',
+          bgcolor: '#F8FAFC',
         },
       }}
     >
-      <Box sx={{ height: '100%', display: 'grid', gridTemplateRows: 'auto 1fr', minWidth: 0 }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1.5, py: 1.25 }}>
-          <HelpOutlinedIcon fontSize="small" />
-          <Typography fontWeight={900} sx={{ flex: 1 }}>Help & FAQ</Typography>
-          <IconButton aria-label="Close help" onClick={onClose}>
-            <CloseIcon />
+      <Box sx={{ height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{
+            flex: '0 0 auto',
+            minHeight: 56,
+            px: 1.5,
+            py: 1,
+            bgcolor: 'background.paper',
+            borderBottom: 1,
+            borderColor: 'divider',
+          }}
+        >
+          <Box
+            sx={{
+              width: 30,
+              height: 30,
+              display: 'grid',
+              placeItems: 'center',
+              borderRadius: 1,
+              bgcolor: '#EFF6FF',
+              color: 'primary.main',
+              flexShrink: 0,
+            }}
+          >
+            <HelpOutlinedIcon fontSize="small" />
+          </Box>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography fontWeight={900} lineHeight={1.2}>Help & FAQ</Typography>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+              Transaction type guide
+            </Typography>
+          </Box>
+          <IconButton aria-label="Close help" onClick={onClose} sx={closeButtonSx}>
+            <CloseIcon fontSize="small" />
           </IconButton>
         </Stack>
-        <Divider />
-        <Box sx={{ overflow: 'auto', p: 1.25 }}>
+        <Box sx={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', px: 1.25, py: 1.25 }}>
           {HELP_ITEMS.map(([title, text], index) => (
-            <Accordion key={title} defaultExpanded={index === 0} disableGutters variant="outlined" sx={{ mb: 1, boxShadow: 0 }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography fontWeight={900}>{title}</Typography>
+            <Accordion key={title} defaultExpanded={index === 0} disableGutters variant="outlined" sx={accordionSx}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon fontSize="small" />} sx={accordionSummarySx}>
+                <Typography fontWeight={900} variant="body2">{title}</Typography>
               </AccordionSummary>
-              <AccordionDetails>
+              <AccordionDetails sx={{ px: 1.25, pt: 0, pb: 1.25 }}>
                 <Typography color="text.secondary" variant="body2">{text}</Typography>
               </AccordionDetails>
             </Accordion>
@@ -53,3 +84,39 @@ export default function ConsumptionHelp({ isOpen, onClose }) {
     </Drawer>
   );
 }
+
+const closeButtonSx = {
+  width: 34,
+  height: 34,
+  border: 1,
+  borderColor: 'divider',
+  borderRadius: 1,
+  bgcolor: 'background.paper',
+  '&:hover': {
+    bgcolor: '#F8FAFC',
+  },
+};
+
+const accordionSx = {
+  mb: 0.75,
+  overflow: 'hidden',
+  borderColor: 'divider',
+  boxShadow: 0,
+  bgcolor: 'background.paper',
+  borderRadius: '6px !important',
+  '&:before': { display: 'none' },
+};
+
+const accordionSummarySx = {
+  minHeight: 42,
+  px: 1.25,
+  '&.Mui-expanded': {
+    minHeight: 42,
+  },
+  '& .MuiAccordionSummary-content': {
+    my: 0.75,
+  },
+  '& .MuiAccordionSummary-content.Mui-expanded': {
+    my: 0.75,
+  },
+};
