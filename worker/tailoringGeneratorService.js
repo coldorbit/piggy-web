@@ -190,7 +190,7 @@ Hard truthfulness rules:
 - When a role title implies a specialty such as Machine Learning, Data Engineering, Frontend, Backend, DevOps, Security, Product, or Management, bullets and tech must primarily reflect that specialty unless the profile explicitly provides cross-functional evidence.
 - You may tailor wording, achievements, metrics, and technology emphasis only when they remain plausible for the provided role/company and do not imply a different title or responsibility level.
 - You may slightly adjust technology emphasis or include adjacent technical stacks from the JD when they plausibly fit the candidate's role, dates, domain, and existing profile evidence. Do not invent business workflows, product ownership, teams, launches, customers, or responsibilities.
-- The top-level "role" field is the target resume headline. It may match the exact job-posting title for ATS visibility, but it must not be used as a previous experience title unless the profile already has that title.
+- The top-level "role" field is the target resume headline. It must contain only the cleaned role name from the job posting, not team, squad, project, product, platform, department, org, or initiative names. It must not be used as a previous experience title unless the profile already has that title.
 - Do not backdate technologies. Before adding any technology, tool, framework, model, API, platform, or vendor to a work_experience bullet or "tech" field, verify it plausibly existed and was publicly usable during that role's start/end dates and fits that role's domain. If unsure, omit it from that work_experience entry.
 - Newer target-job keywords may appear in Summary or Skills when they reflect current candidate positioning, but do not place them inside older work_experience entries unless the profile explicitly supports that usage.
 - Focus the strongest tailoring on the latest work_experience entry, usually the first or current role. Make that role read as the closest credible match to the JD by emphasizing overlapping systems, product surfaces, tools, scale, collaboration patterns, and domain themes already supported by the profile.
@@ -198,7 +198,7 @@ Hard truthfulness rules:
 - If no verified company/product context is available, tailor only from the profile and JD. Never invent work at the latest company or any previous company.
 
 ATS optimization rules:
-- Match the exact job title from the posting in the top-level "role" field when available.
+- Use the cleaned target role name in the top-level "role" field for ATS visibility. Do not copy a noisy posting title verbatim when it includes team, squad, project, product, platform, department, org, or initiative names.
 - Weave in 25-35 relevant, role-specific keywords copied exactly from the job description across summary, bullets, tech, and categorized skills, while respecting historical validity for work_experience.
 - Do not keyword-stuff, hide keywords, repeat unnatural keyword lists, or add irrelevant terms.
 - Prefer exact terms from the job description over synonyms or abbreviations unless the posting itself uses the abbreviation.
@@ -208,7 +208,7 @@ ATS optimization rules:
 - Populate work experience fields so the rendered resume can show the position on the first line, "Company | Work mode" on the second line, and "MMM yyyy – MMM yyyy" on the third line, for example "Senior Software Engineer" followed by "Atlassian | Remote" followed by "Mar 2024 – Present".
 - Do not put headquarters_location at the end of the visible work experience heading, and do not combine work dates into the heading line. headquarters_location is structured context only.
 - Preserve the provided LinkedIn profile as an actual URL in "linkedin_profile". If the profile includes any LinkedIn value, you MUST include it in "linkedin_profile" using the display format "linkedin.com/in/profile-slug". If no LinkedIn profile is provided, leave it blank. Never invent a LinkedIn URL.
-- Normalize noisy target job titles before setting the top-level "role": remove locations, remote/hybrid tags, agency/recruiter names, team names, department labels, requisition IDs, contract labels, and parenthetical clutter. Keep the plain role name commonly used in job postings, such as "Software Engineer", "Senior Data Engineer", or "Product Manager".
+- Normalize noisy target job titles before setting the top-level "role": remove locations, remote/hybrid tags, agency/recruiter names, team names, squad names, project names, product names, platform names, department labels, requisition IDs, contract labels, parenthetical clutter, and descriptive suffixes after separators such as "-", "|", "/", ":", "–", or "—". Keep the plain role name commonly used in job postings, such as "Software Engineer", "Senior Data Engineer", or "Product Manager". For example, "Senior Systems Engineer — AI Code Metrics Daemon" must become "Senior Systems Engineer".
 
 Instructions:
 - If a full resume/profile is provided, base the output on that content.
@@ -232,7 +232,7 @@ Instructions:
 - Skills must be categorized and include more than 7 large area categories with 7-9 specific items each. Use categories such as Frameworks, Languages, Cloud Platforms, Messaging/Queueing, Orchestration, VCS/Project Management, Leadership & Collaboration, Core Competencies, Databases, Observability, Testing, Data/ML, Security, and Developer Tools as relevant to the profile and JD.
 - Keep language ATS-friendly, professional, and grammatically perfect.
 - Set target_company to the company from the job description. If unavailable, use "Company".
-- Set the top-level "role" field to the cleaned, plain role name from the job description when available. Use the exact posting title only when it is already a clean role name; otherwise remove location, agency, team, department, contract, and requisition clutter.
+- Set the top-level "role" field to the cleaned, plain role name from the job description when available. Use the exact posting title only when it is already a clean role name; otherwise remove location, agency, team, squad, project, product, platform, department, org, initiative, contract, and requisition clutter.
 - Keep each company's real industry/domain; do not fabricate industry context.
 - Output ONLY valid JSON. Do NOT include markdown or explanations.
 - The JSON must match this shape:
@@ -333,7 +333,7 @@ async function renderResumeDocx(data, profile) {
     const period = workExperienceDateRange(exp);
 
     addText(children, workExperienceTitle(exp), { bold: true, before: template.experienceBefore, after: 30 }, template);
-    addText(children, workExperienceCompanyLine(exp), { size: template.metaSize, after: 25 }, template);
+    addWorkExperienceCompanyLine(children, exp, template);
     addText(children, period, { size: template.metaSize, after: projects.length ? 30 : 60 }, template);
     if (projects.length) addText(children, `Projects: ${projects.join(', ')}`, { size: template.metaSize, after: 60 }, template);
     for (const bullet of exp.bullets || []) {
@@ -405,6 +405,26 @@ function addText(children, value, { after, before = 0, bold = false, italics = f
     new Paragraph({
       spacing: { before, after: after ?? template.paragraphAfter },
       children: [new TextRun({ text: String(value), bold, italics, size: size ?? template.bodySize })],
+    }),
+  );
+}
+
+function addWorkExperienceCompanyLine(children, exp, template) {
+  const company = String(exp.company || '').trim();
+  const workPlace = workExperienceDisplayPlace(exp);
+  const runs = [];
+
+  if (company) runs.push(new TextRun({ text: company, bold: true, size: template.metaSize }));
+  if (workPlace) {
+    if (runs.length) runs.push(new TextRun({ text: ' | ', size: template.metaSize }));
+    runs.push(new TextRun({ text: workPlace, size: template.metaSize }));
+  }
+  if (!runs.length) return;
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 25 },
+      children: runs,
     }),
   );
 }
