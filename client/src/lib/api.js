@@ -673,9 +673,7 @@ function matchesSource(job, source = 'all') {
 }
 
 function normalizedSource(value) {
-  const source = String(value || '').trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
-  if (source === 'builtin' || source === 'built in') return 'builtin';
-  return source;
+  return String(value || '').trim().toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
 }
 
 function matchesLocationRegion(job, locationRegion = 'all') {

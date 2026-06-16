@@ -331,15 +331,12 @@ export function publicJobIdFromId(value) {
 }
 
 export function normalizeJobSource(value) {
-  const source = clean(value).toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
-  if (source === 'builtin' || source === 'built in') return 'builtin';
-  return source;
+  return clean(value).toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
 }
 
 export function jobSourceLabel(value) {
   const label = clean(value);
   const source = normalizeJobSource(label);
-  if (source === 'builtin') return 'Built In';
   if (source === 'linkedin') return 'LinkedIn';
   if (source === 'manual') return 'Manual';
   return label || 'Unknown';
@@ -363,7 +360,6 @@ export function mergedJobSourceOptions(sourceRows = []) {
 function sourceCondition(source) {
   const normalizedSource = escapedSqlLiteral(normalizeJobSource(source));
   const sourceExpression = "lower(regexp_replace(btrim(coalesce(source, '')), '[-_[:space:]]+', ' ', 'g'))";
-  if (normalizedSource === 'builtin') return literal(`${sourceExpression} IN ('builtin', 'built in')`);
   return literal(`${sourceExpression} = '${normalizedSource}'`);
 }
 
@@ -416,7 +412,11 @@ export function paginateGroupedJobs(rows, { limit, offset }, options = {}) {
 }
 
 function jobGroupKey(job) {
-  return `${normalizeGroupValue(job.title || 'Untitled role')}::${normalizeGroupValue(job.company || 'Unknown company')}`;
+  return [
+    normalizeJobSource(job.source || 'Unknown source') || 'unknown source',
+    normalizeGroupValue(job.title || 'Untitled role'),
+    normalizeGroupValue(job.company || 'Unknown company'),
+  ].join('::');
 }
 
 function normalizeGroupValue(value) {

@@ -75,11 +75,12 @@ describe('job query filters', () => {
     assert.equal(sourceCondition.val.endsWith("= 'linkedin'"), true);
   });
 
-  it('matches compact and spaced Built In source values together', () => {
+  it('filters Built In source values without compact aliasing', () => {
     const query = buildJobQuery({ source: 'Built In', since: 'all', visibility: 'all' });
     const sourceCondition = query.where[Op.and].find((condition) => String(condition.val || '').includes('regexp_replace'));
 
-    assert.match(sourceCondition.val, /IN \('builtin', 'built in'\)/);
+    assert.equal(sourceCondition.val.endsWith("= 'built in'"), true);
+    assert.equal(sourceCondition.val.includes(' IN '), false);
   });
 
   it('adds a Canada location region condition', () => {
@@ -129,7 +130,7 @@ describe('grouped scraped jobs', () => {
     );
   });
 
-  it('keeps grouped Built In representatives stable regardless of row order', () => {
+  it('keeps grouped representatives stable regardless of row order', () => {
     const earlierAustin = jobRow({
       id: 10,
       source: 'builtin',
@@ -141,7 +142,7 @@ describe('grouped scraped jobs', () => {
     });
     const laterRemote = jobRow({
       id: 20,
-      source: 'Built In',
+      source: 'builtin',
       title: 'Software Engineer',
       company: 'ACME',
       location: 'Remote',
@@ -154,6 +155,7 @@ describe('grouped scraped jobs', () => {
 
     assert.equal(firstGroup.representativeJobId, 20);
     assert.equal(secondGroup.representativeJobId, 20);
+    assert.equal(firstGroup.id, 'job-group:builtin::software engineer::acme');
     assert.equal(firstGroup.title, 'Software Engineer');
     assert.equal(secondGroup.title, 'Software Engineer');
     assert.equal(firstGroup.location, 'Austin, TX + 1 more');
@@ -161,6 +163,19 @@ describe('grouped scraped jobs', () => {
     assert.deepEqual(
       firstGroup.locationOptions.map((option) => option.id),
       secondGroup.locationOptions.map((option) => option.id),
+    );
+  });
+
+  it('keeps compact and spaced source values in separate groups', () => {
+    const groups = groupedJobsFromRows([
+      jobRow({ id: 10, source: 'builtin', title: 'Software Engineer', company: 'Acme', location: 'Austin, TX' }),
+      jobRow({ id: 20, source: 'Built In', title: 'Software Engineer', company: 'ACME', location: 'Remote' }),
+    ]);
+
+    assert.equal(groups.length, 2);
+    assert.deepEqual(
+      groups.map((group) => group.id),
+      ['job-group:builtin::software engineer::acme', 'job-group:built in::software engineer::acme'],
     );
   });
 
@@ -207,7 +222,7 @@ describe('grouped scraped jobs', () => {
 });
 
 describe('job source options', () => {
-  it('merges source counts by trimmed lowercase source', () => {
+  it('merges source counts by normalized source without source-specific aliases', () => {
     const sources = mergedJobSourceOptions([
       { source: 'linkedin', count: 2 },
       { source: ' LinkedIn ', count: 3 },
@@ -217,7 +232,8 @@ describe('job source options', () => {
     ]);
 
     assert.deepEqual(sources, [
-      { source: 'Built In', count: 9 },
+      { source: 'Built In', count: 5 },
+      { source: 'builtin', count: 4 },
       { source: 'LinkedIn', count: 5 },
       { source: 'Manual', count: 1 },
     ]);

@@ -28,7 +28,7 @@ import {
   shouldSetInterviewAtForStatus,
   tailoredResumesForJobs,
 } from '../application/biddingService.js';
-import { buildJobQuery, formatJob, jobDateFiltersForUser } from '../../jobs/application/jobsService.js';
+import { buildJobQuery, formatJob, jobDateFiltersForUser, normalizeJobSource } from '../../jobs/application/jobsService.js';
 import {
   accessibleProfile,
   accessibleAppliedProfile,
@@ -822,7 +822,11 @@ export function groupedBidJobs(jobs) {
 }
 
 function bidJobGroupKey(job) {
-  return `${normalizeBidGroupValue(job.title || 'Untitled role')}::${normalizeBidGroupValue(job.company || 'Unknown company')}`;
+  return [
+    normalizeJobSource(job.source || 'Unknown source') || 'unknown source',
+    normalizeBidGroupValue(job.title || 'Untitled role'),
+    normalizeBidGroupValue(job.company || 'Unknown company'),
+  ].join('::');
 }
 
 function normalizeBidGroupValue(value) {

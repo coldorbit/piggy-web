@@ -31,7 +31,20 @@ describe('groupedBidJobs', () => {
 
     assert.equal(group.id, 202);
     assert.equal(group.representativeJobId, 202);
-    assert.equal(group.groupId, 'bid-job-group:software engineer::built in');
+    assert.equal(group.groupId, 'bid-job-group:builtin::software engineer::built in');
+  });
+
+  it('does not collapse matching title and company rows from different source values', () => {
+    const rows = groupedBidJobs([
+      bidJob({ id: 101, source: 'builtin', location: 'Austin, TX' }),
+      bidJob({ id: 202, source: 'Built In', location: 'Remote' }),
+    ]);
+
+    assert.equal(rows.length, 2);
+    assert.deepEqual(
+      rows.map((row) => row.groupId),
+      ['bid-job-group:builtin::software engineer::built in', 'bid-job-group:built in::software engineer::built in'],
+    );
   });
 });
 
@@ -44,6 +57,7 @@ function bidJob(overrides = {}) {
     postedAt: null,
     scrapedAt: '2026-01-01T00:00:00.000Z',
     url: `https://builtin.com/jobs/${overrides.id || 1}`,
+    source: 'builtin',
     tailoredResume: null,
     ...overrides,
   };
