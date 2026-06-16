@@ -13,6 +13,18 @@ export const EMPTY_PROFILE = {
   dailyBidGoal: 60,
 };
 
+export function forwardingAliasForProfileName(name) {
+  const firstName = String(name || '').trim().split(/\s+/)[0] || '';
+  const tag = firstName
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
+
+  return tag ? `service+${tag}@co-bounce.com` : 'service+first_name@co-bounce.com';
+}
+
 export const COLOR_OPTIONS = ['green', 'blue', 'violet', 'amber', 'rose', 'slate'];
 
 export const RESUME_TEMPLATE_OPTIONS = [

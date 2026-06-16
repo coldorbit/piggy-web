@@ -21,6 +21,8 @@ import {
 import { dailyGoalRangeForUserBidFilter } from './biddingService.js';
 
 const DAILY_BID_GOAL_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
+const FORWARDING_ALIAS_LOCAL_PART = 'service';
+const FORWARDING_ALIAS_DOMAIN = 'co-bounce.com';
 
 export async function currentDbUser(req) {
   const user = await repositories.findUserByUsername(req.user.username);
@@ -540,7 +542,7 @@ export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, cu
     location: clean(body?.location) || null,
     phone: clean(body?.phone) || null,
     email: clean(body?.email) || null,
-    forwardingEmail: clean(body?.forwardingEmail) || null,
+    forwardingEmail: clean(body?.forwardingEmail) || forwardingAliasForProfileName(name),
     linkedin: clean(body?.linkedin) || null,
     yearsOfExperience: clean(body?.yearsOfExperience) || null,
     resumeText: clean(body?.resumeText) || null,
@@ -549,6 +551,18 @@ export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, cu
     profileBadge,
     dailyBidGoal,
   };
+}
+
+export function forwardingAliasForProfileName(name) {
+  const firstName = clean(name).split(/\s+/)[0] || '';
+  const tag = firstName
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .trim();
+
+  return tag ? `${FORWARDING_ALIAS_LOCAL_PART}+${tag}@${FORWARDING_ALIAS_DOMAIN}` : null;
 }
 
 export function profileStatusAttributesFromBody(body) {

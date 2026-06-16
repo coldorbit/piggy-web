@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   appliedFilterOwnerRoles,
+  forwardingAliasForProfileName,
   profileAttributesFromBody,
   profileStatusAttributesFromBody,
   sortProfilesForDisplay,
@@ -37,6 +38,25 @@ describe('profile status helpers', () => {
 
   it('defaults new profile daily bid goals to 60', () => {
     assert.equal(profileAttributesFromBody({ name: 'SWE' }).dailyBidGoal, 60);
+  });
+
+  it('defaults forwarding aliases to service plus first name', () => {
+    assert.equal(
+      profileAttributesFromBody({ name: 'Tiep Nguyen' }).forwardingEmail,
+      'service+tiep@co-bounce.com',
+    );
+  });
+
+  it('preserves explicit forwarding aliases', () => {
+    assert.equal(
+      profileAttributesFromBody({ name: 'Tiep Nguyen', forwardingEmail: 'service+tiep-nguyen@co-bounce.com' }).forwardingEmail,
+      'service+tiep-nguyen@co-bounce.com',
+    );
+  });
+
+  it('builds forwarding aliases from email-safe first names', () => {
+    assert.equal(forwardingAliasForProfileName('Élodie Smith'), 'service+elodie@co-bounce.com');
+    assert.equal(forwardingAliasForProfileName('Jean-Luc Picard'), 'service+jeanluc@co-bounce.com');
   });
 
   it('preserves profile daily bid goals for non-admin updates', () => {

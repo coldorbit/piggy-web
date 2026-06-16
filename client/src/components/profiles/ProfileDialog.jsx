@@ -13,7 +13,13 @@ import {
   Select,
   TextField,
 } from '@mui/material';
-import { COLOR_OPTIONS, PROFILE_BADGE_COLORS, PROFILE_BADGE_OPTIONS, RESUME_TEMPLATE_OPTIONS } from './profileConstants.js';
+import {
+  COLOR_OPTIONS,
+  PROFILE_BADGE_COLORS,
+  PROFILE_BADGE_OPTIONS,
+  RESUME_TEMPLATE_OPTIONS,
+  forwardingAliasForProfileName,
+} from './profileConstants.js';
 
 export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpen, isSaving, mode = 'create', onChange, onClose, onSubmit }) {
   return (
@@ -49,6 +55,8 @@ export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpe
               type="email"
               value={form.forwardingEmail}
               onChange={(event) => onChange((current) => ({ ...current, forwardingEmail: event.target.value }))}
+              placeholder={forwardingAliasForProfileName(form.name)}
+              helperText={`Default: ${forwardingAliasForProfileName(form.name)}`}
             />
             <TextField
               label="LinkedIn"
