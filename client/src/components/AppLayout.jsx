@@ -7,6 +7,7 @@ import EventNoteIcon from '@mui/icons-material/EventNote';
 import EditIcon from '@mui/icons-material/Edit';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import HandshakeIcon from '@mui/icons-material/Handshake';
+import InboxIcon from '@mui/icons-material/Inbox';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -67,6 +68,7 @@ export default function AppLayout({ user }) {
   const isCallerRoute = location.pathname.startsWith('/callers');
   const isCalendarRoute = location.pathname.startsWith('/calendar');
   const isFaqRoute = location.pathname.startsWith('/faqs');
+  const isInboxRoute = location.pathname.startsWith('/inbox');
   const isInterviewRoute = location.pathname.startsWith('/interviews');
   const isMarketplaceRoute = location.pathname.startsWith('/marketplace');
   const isProfileRoute = location.pathname.startsWith('/profiles');
@@ -79,6 +81,7 @@ export default function AppLayout({ user }) {
   const canAccessInterviews = INTERVIEW_ROLES.includes(user.role);
   const canAccessMarketplace = MARKETPLACE_ACCESS_ROLES.includes(user.role);
   const canManageCallers = !CALLER_BLOCKED_ROLES.includes(user.role);
+  const canAccessInbox = !CALLER_BLOCKED_ROLES.includes(user.role);
   const isCaller = user.role === 'caller';
 
   async function handleLogout() {
@@ -109,7 +112,7 @@ export default function AppLayout({ user }) {
     );
   }
 
-  const title = isAdminDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminDashboardRoute
     ? 'Monitor user and bidder performance'
     : isConsumptionRoute
@@ -122,6 +125,8 @@ export default function AppLayout({ user }) {
       ? 'Browse answers and publish help content'
     : isBidderRoute
       ? 'Review bidder output and interview pass-through'
+    : isInboxRoute
+      ? 'Review forwarded profile messages'
     : isMarketplaceRoute
       ? 'Review, match, schedule, and close caller-interview work'
     : isCallerRoute
@@ -189,6 +194,7 @@ export default function AppLayout({ user }) {
           {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
             <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" onNavigate={() => setMobileOpen(false)} />
           ) : null}
+          {canAccessInbox ? <NavItem to="/inbox" icon={<InboxIcon />} label="Inbox" onNavigate={() => setMobileOpen(false)} /> : null}
           {canAccessInterviews ? (
             <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" onNavigate={() => setMobileOpen(false)} />
           ) : null}

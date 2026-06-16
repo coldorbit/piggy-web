@@ -37,6 +37,12 @@ export function RequireCallerManagement({ user, children }) {
   return children;
 }
 
+export function RequireInboxAccess({ user, children }) {
+  const location = useLocation();
+  if (CALLER_BLOCKED_ROLES.includes(user.role)) return <Navigate to="/jobs" replace state={{ from: location }} />;
+  return children;
+}
+
 export function RequireMarketplaceAccess({ user, children }) {
   const location = useLocation();
   if (!MARKETPLACE_ACCESS_ROLES.includes(user.role)) return <Navigate to="/jobs" replace state={{ from: location }} />;

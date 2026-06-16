@@ -33,6 +33,8 @@ import { BID_TABS } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 
+const SELECTED_JOB_CARD_BG = '#EFF6FF';
+
 export default function BidJobCard({
   isSelected = false,
   isSelectionDisabled = false,
@@ -179,10 +181,10 @@ export default function BidJobCard({
                   : '4px solid transparent',
             bgcolor: isTodoLocked
               ? '#f8fafc'
-              : hasSameCompanyWarning
-                ? '#fef2f2'
-                : isSelected
-                  ? accent.soft
+              : isSelected
+                ? SELECTED_JOB_CARD_BG
+                : hasSameCompanyWarning
+                  ? '#fef2f2'
                   : isResumeDownloaded
                     ? '#f0fdf4'
                     : 'background.paper',

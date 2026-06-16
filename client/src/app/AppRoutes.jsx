@@ -6,6 +6,7 @@ import {
   RequireAdmin,
   RequireCallerManagement,
   RequireConsumptionAccess,
+  RequireInboxAccess,
   RequireInterviewAccess,
   RequireMarketplaceAccess,
 } from './routeGuards.jsx';
@@ -20,6 +21,7 @@ const CallersPage = lazy(() => import('../pages/CallersPage.jsx'));
 const CalendarPage = lazy(() => import('../pages/CalendarPage.jsx'));
 const FaqEditorPage = lazy(() => import('../pages/FaqEditorPage.jsx'));
 const FaqsPage = lazy(() => import('../pages/FaqsPage.jsx'));
+const InboxPage = lazy(() => import('../pages/InboxPage.jsx'));
 const InterviewsPage = lazy(() => import('../pages/InterviewsPage.jsx'));
 const JobsPage = lazy(() => import('../pages/JobsPage.jsx'));
 const MarketplacePage = lazy(() => import('../pages/MarketplacePage.jsx'));
@@ -65,6 +67,14 @@ export function AuthenticatedRoutes({ user }) {
             <BlockCallers user={user}>
               <BiddersPage currentUser={user} />
             </BlockCallers>
+          }
+        />
+        <Route
+          path="/inbox"
+          element={
+            <RequireInboxAccess user={user}>
+              <InboxPage currentUser={user} />
+            </RequireInboxAccess>
           }
         />
         <Route
