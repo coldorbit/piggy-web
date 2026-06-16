@@ -198,6 +198,22 @@ describe('manual CSV job imports', () => {
     assert.equal(job.title, 'Senior AI/ML Software Engineer');
   });
 
+  it('schedules manually imported jobs for the next business day filter window', () => {
+    const importedAt = new Date('2026-06-16T14:00:00.000Z');
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company',
+        'https://example.com/jobs/manual-next-day-1,Software Engineer,Acme',
+      ].join('\n'),
+      { importedBy: 'test-user', importedAt },
+    );
+
+    assert.equal(job.firstSeenAt.toISOString(), importedAt.toISOString());
+    assert.equal(job.updatedAt.toISOString(), importedAt.toISOString());
+    assert.equal(job.rawJob.importedAt, importedAt.toISOString());
+    assert.equal(job.scrapedAt.toISOString(), '2026-06-16T23:00:00.000Z');
+  });
+
   it('treats imported LinkedIn jobs as both LinkedIn-sourced and manual', () => {
     const [job] = jobsFromCsv(
       [

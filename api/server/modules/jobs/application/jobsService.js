@@ -2,7 +2,7 @@ import { literal, Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
 import { ROLES } from '../../../utils/roles.js';
-import { addBusinessDays, businessDateRange, businessPresetRange } from '../../../utils/businessTime.js';
+import { addBusinessDays, businessDateRange, businessDayRange, businessPresetRange } from '../../../utils/businessTime.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],
@@ -634,13 +634,14 @@ export function canImportJobs(user) {
   return [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.editableBidder].includes(user?.role);
 }
 
-export function jobsFromCsv(csvText, { importedBy } = {}) {
+export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue } = {}) {
   const rows = parseCsv(csvText);
   if (rows.length < 2) throw new InputError('CSV must include a header row and at least one job row');
 
   const headers = rows[0].map(normalizeHeader);
   validateCsvHeaders(headers);
-  const importedAt = new Date();
+  const importedAt = validDateOrNow(importedAtValue);
+  const scrapedAt = businessDayRange(importedAt).to;
   const jobs = [];
   const errors = [];
 
@@ -677,7 +678,7 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
       location: csvValue(raw, 'location') || null,
       category,
       postedAt,
-      scrapedAt: importedAt,
+      scrapedAt,
       listingText: listingText || null,
       rawJob: {
         ...manualRawJob(raw),
@@ -699,6 +700,11 @@ export function jobsFromCsv(csvText, { importedBy } = {}) {
   if (errors.length) throw new InputError(errors.slice(0, 10).join('; '));
   if (!jobs.length) throw new InputError('CSV did not contain any importable jobs');
   return jobs;
+}
+
+function validDateOrNow(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
 export function planCsvJobImport(rows, existingRows = []) {
