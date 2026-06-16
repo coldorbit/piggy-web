@@ -5,6 +5,7 @@ import {
   forwardingMailboxStatus,
   listForwardedInboxMessages,
   listForwardedProfileMessages,
+  markForwardedProfileMessageRead,
   mailboxProfileForRequest,
 } from '../application/forwardingMailboxService.js';
 
@@ -32,6 +33,17 @@ export async function listProfileForwardedMessages(req, res, next) {
     await ensureWebModels();
     const { profile } = await mailboxProfileForRequest(req, req.params.id);
     res.json(await listForwardedProfileMessages(profile, { limit: req.query?.limit, offset: req.query?.offset }));
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function markProfileForwardedMessageRead(req, res, next) {
+  try {
+    await ensureWebModels();
+    const { profile } = await mailboxProfileForRequest(req, req.params.id);
+    const message = await markForwardedProfileMessageRead(profile, { messageId: req.body?.messageId });
+    res.json({ message });
   } catch (error) {
     handleInputError(error, res, next);
   }

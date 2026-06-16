@@ -1,7 +1,8 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
+import { QueryTypes } from 'sequelize';
 import { ENV } from '../../../../env.js';
-import { getBidProfileModel } from '../../../../db.js';
+import { getBidProfileModel, getJobBidModel, getSequelize } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, isAdminRole } from '../../../utils/roles.js';
@@ -10,6 +11,7 @@ import { currentDbUser } from './profilesService.js';
 const DEFAULT_PROFILE_MESSAGE_LIMIT = 10;
 const MAX_MESSAGE_FETCH = 200;
 const SKIPPED_MAILBOX_SPECIAL_USE = new Set(['\\All', '\\Drafts', '\\Junk', '\\Sent', '\\Trash']);
+const APPLIED_STATUSES = new Set(['submitted', 'interviewing', 'won', 'lost']);
 
 export function forwardingMailboxConfigured() {
   return Boolean(
@@ -63,6 +65,54 @@ export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PR
   };
 }
 
+export async function markForwardedProfileMessageRead(profile, { messageId } = {}) {
+  assertForwardingMailboxConfigured();
+  const messageRef = mailboxMessageRefFromId(messageId);
+  if (!messageRef) throw new InputError('Message is required');
+
+  const client = new ImapFlow({
+    host: clean(ENV.MAILBOX_IMAP_HOST),
+    port: mailboxPort(),
+    secure: mailboxSecure(),
+    auth: {
+      user: clean(ENV.MAILBOX_EMAIL),
+      pass: String(ENV.MAILBOX_PASSWORD || ''),
+    },
+    logger: false,
+  });
+
+  await client.connect();
+  try {
+    const lock = await client.getMailboxLock(messageRef.mailboxPath);
+    try {
+      const row = await client.fetchOne(String(messageRef.uid), {
+        envelope: true,
+        flags: true,
+        internalDate: true,
+        source: true,
+        uid: true,
+      }, { uid: true });
+      if (!row) throw new NotFoundError('Message not found');
+
+      const message = await parseImapMessage(row, messageRef.mailboxPath);
+      const classified = classifyForwardedMessage(message, [profile]);
+      if (!classified.profile) throw new NotFoundError('Message not found');
+
+      if (!message.isRead) {
+        await client.messageFlagsAdd(String(messageRef.uid), ['\\Seen'], { uid: true });
+        message.isRead = true;
+      }
+
+      const application = await applicationResultForMailboxMessage(message, profile);
+      return formatMailboxMessage(message, classified.profile, classified.match, { application });
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
 export async function listForwardedInboxMessages({ limit = 25 } = {}) {
   assertForwardingMailboxConfigured();
   const profiles = await getBidProfileModel().findAll({
@@ -80,7 +130,8 @@ export async function listForwardedInboxMessages({ limit = 25 } = {}) {
   };
 }
 
-export function formatMailboxMessage(message, profile = null, match = null) {
+export function formatMailboxMessage(message, profile = null, match = null, options = {}) {
+  const classification = options.classification === undefined ? classifyMailboxMessageIntent(message) : options.classification;
   return {
     id: message.id,
     subject: message.subject || '',
@@ -104,7 +155,22 @@ export function formatMailboxMessage(message, profile = null, match = null) {
           source: match.source,
         }
       : null,
+    classification,
+    application: options.application || null,
   };
+}
+
+export function classifyMailboxMessageIntent(message) {
+  const text = searchableMessageText(message);
+  if (!text) return null;
+
+  if (isDeclinedMessageText(text)) {
+    return { type: 'declined', label: 'Declined email' };
+  }
+  if (isApplicationConfirmationText(text)) {
+    return { type: 'application_confirmation', label: 'Application confirmation' };
+  }
+  return null;
 }
 
 export function classifyForwardedMessage(message, profiles) {
@@ -247,11 +313,15 @@ async function fetchForwardedProfileMessagePage(profile, { limit, offset }) {
     const unreadTotal = sortedRefs.filter((message) => !message.isRead).length;
     const pageRefs = sortedRefs.slice(offset, offset + limit);
     const messagesById = await fetchMailboxMessagesByRef(client, pageRefs);
-    const messages = pageRefs
-      .map((ref) => messagesById.get(ref.id) || ref)
-      .map((message) => classifyForwardedMessage(message, [profile]))
-      .filter((row) => row.profile)
-      .map((row) => formatMailboxMessage(row.message, row.profile, row.match));
+    const messages = [];
+
+    for (const pageRef of pageRefs) {
+      const message = messagesById.get(pageRef.id) || pageRef;
+      const row = classifyForwardedMessage(message, [profile]);
+      if (!row.profile) continue;
+      const application = await applicationResultForMailboxMessage(message, profile);
+      messages.push(formatMailboxMessage(message, row.profile, row.match, { application }));
+    }
 
     return { messages, total, unreadTotal, scannedCount: pageRefs.length };
   } finally {
@@ -354,6 +424,190 @@ function formatImapMessageRef(row, mailboxPath = '') {
   };
 }
 
+async function applicationResultForMailboxMessage(message, profile) {
+  const classification = classifyMailboxMessageIntent(message);
+  if (classification?.type !== 'application_confirmation') return null;
+  return markMatchedJobAppliedFromMessage(message, profile);
+}
+
+async function markMatchedJobAppliedFromMessage(message, profile) {
+  const match = await matchingJobFromConfirmationMessage(message);
+  if (!match.job) {
+    return {
+      status: match.status,
+      reason: match.reason || null,
+      candidates: match.candidates || [],
+    };
+  }
+
+  const now = new Date();
+  const JobBid = getJobBidModel();
+  const existingBid = await existingBidForJobIdentity(profile, match.job);
+
+  if (existingBid) {
+    if (APPLIED_STATUSES.has(existingBid.status)) {
+      return applicationResult('already_applied', match.job, existingBid);
+    }
+    if (existingBid.status !== 'planned') {
+      return applicationResult('skipped_existing_status', match.job, existingBid);
+    }
+
+    await existingBid.update({
+      status: 'submitted',
+      bidAt: now,
+      updatedAt: now,
+    });
+    return applicationResult('applied', match.job, existingBid);
+  }
+
+  const bid = await JobBid.create({
+    userId: profile.userId,
+    profileId: profile.id,
+    jobId: match.job.id,
+    status: 'submitted',
+    bidAt: now,
+    updatedAt: now,
+  });
+  return applicationResult('applied', match.job, bid);
+}
+
+async function existingBidForJobIdentity(profile, job) {
+  const rows = await getSequelize().query(
+    `
+    SELECT job_bids.id
+    FROM job_bids
+    JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+    WHERE job_bids.profile_id = :profileId
+      AND lower(regexp_replace(btrim(coalesce(scraped_jobs.company, '')), '\\s+', ' ', 'g')) = :company
+      AND lower(regexp_replace(btrim(coalesce(scraped_jobs.title, '')), '\\s+', ' ', 'g')) = :title
+    ORDER BY
+      CASE WHEN job_bids.job_id = :jobId THEN 0 ELSE 1 END,
+      job_bids.updated_at DESC NULLS LAST,
+      job_bids.id DESC
+    LIMIT 1
+    `,
+    {
+      replacements: {
+        profileId: profile.id,
+        jobId: job.id,
+        company: normalizedMatchingText(job.company),
+        title: normalizedMatchingText(job.title),
+      },
+      type: QueryTypes.SELECT,
+    },
+  );
+
+  const bidId = rows[0]?.id;
+  return bidId ? getJobBidModel().findByPk(bidId) : null;
+}
+
+function applicationResult(status, job, bid) {
+  return {
+    status,
+    jobId: job.id,
+    jobTitle: job.title || 'Untitled role',
+    company: job.company || 'Unknown company',
+    bidId: bid?.id || null,
+  };
+}
+
+async function matchingJobFromConfirmationMessage(message) {
+  const messageText = normalizedMatchingText(searchableMessageText(message));
+  if (!messageText) return { status: 'job_not_found', reason: 'No readable confirmation text' };
+
+  const rows = await getSequelize().query(
+    `
+    SELECT id, title, company, scraped_at
+    FROM scraped_jobs
+    WHERE NULLIF(btrim(title), '') IS NOT NULL
+      AND NULLIF(btrim(company), '') IS NOT NULL
+      AND position(lower(regexp_replace(btrim(company), '\\s+', ' ', 'g')) in :messageText) > 0
+      AND position(lower(regexp_replace(btrim(title), '\\s+', ' ', 'g')) in :messageText) > 0
+    ORDER BY length(title) DESC, scraped_at DESC NULLS LAST, id DESC
+    LIMIT 10
+    `,
+    {
+      replacements: { messageText },
+      type: QueryTypes.SELECT,
+    },
+  );
+
+  if (!rows.length) return { status: 'job_not_found', reason: 'No matching job found' };
+
+  const rowsByKey = new Map();
+  for (const row of rows) {
+    const key = `${normalizedMatchingText(row.company)}::${normalizedMatchingText(row.title)}`;
+    if (!rowsByKey.has(key)) rowsByKey.set(key, []);
+    rowsByKey.get(key).push(row);
+  }
+
+  if (rowsByKey.size > 1) {
+    return {
+      status: 'ambiguous_job_match',
+      reason: 'More than one company/title pair matched',
+      candidates: [...rowsByKey.values()].map(([row]) => ({
+        jobId: row.id,
+        jobTitle: row.title,
+        company: row.company,
+      })),
+    };
+  }
+
+  return { status: 'matched', job: [...rowsByKey.values()][0][0] };
+}
+
+function searchableMessageText(message) {
+  return [
+    message.subject,
+    message.from?.name,
+    message.from?.address,
+    message.bodyPreview,
+    message.bodyText,
+    htmlToText(message.bodyHtml),
+  ]
+    .filter(Boolean)
+    .join('\n')
+    .toLowerCase();
+}
+
+function isDeclinedMessageText(text) {
+  return [
+    /unfortunately[\s\S]{0,240}(not|unable|won't|will not|cannot|can't)/i,
+    /(not|no longer|won't|will not)[\s\S]{0,120}(move forward|proceed|be proceeding|continue|advance)/i,
+    /(not selected|not be selected|not chosen|pursue other candidates|other candidates|another candidate)/i,
+    /(regret to inform|we regret|sorry to inform)/i,
+    /(application|candidacy)[\s\S]{0,120}(declined|unsuccessful|rejected)/i,
+  ].some((pattern) => pattern.test(text));
+}
+
+function isApplicationConfirmationText(text) {
+  return [
+    /(thank you|thanks)[\s\S]{0,80}(applying|application)/i,
+    /(application|resume)[\s\S]{0,80}(received|submitted|successfully submitted)/i,
+    /we (have )?received your application/i,
+    /your application (has been|was) (received|submitted)/i,
+    /you applied (to|for)/i,
+  ].some((pattern) => pattern.test(text));
+}
+
+function normalizedMatchingText(value) {
+  return clean(value)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .trim()
+    .slice(0, 30000);
+}
+
+function htmlToText(value) {
+  return clean(value)
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ');
+}
+
 async function fetchRecentMailboxMessagesFromPath(client, mailboxPath, limit) {
   const lock = await client.getMailboxLock(mailboxPath);
   try {
@@ -445,6 +699,16 @@ async function parseImapMessage(row, mailboxPath = '') {
 
 function imapMessageId(row, mailboxPath = '', parsed = null) {
   return [mailboxPath, String(row.uid || parsed?.messageId || parsed?.headers?.get('message-id') || '')].filter(Boolean).join(':');
+}
+
+function mailboxMessageRefFromId(messageId) {
+  const value = clean(messageId);
+  const separatorIndex = value.lastIndexOf(':');
+  if (separatorIndex <= 0) return null;
+  const mailboxPath = value.slice(0, separatorIndex);
+  const uid = Number.parseInt(value.slice(separatorIndex + 1), 10);
+  if (!mailboxPath || !Number.isFinite(uid) || uid <= 0) return null;
+  return { mailboxPath, uid };
 }
 
 function parseEnvelopeAddressList(value) {

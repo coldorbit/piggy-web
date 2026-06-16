@@ -29,6 +29,7 @@ import {
   getForwardingMailboxStatus,
   listForwardingMailboxMessages,
   listProfileForwardedMessages,
+  markProfileForwardedMessageRead,
 } from './forwardingMailboxController.js';
 import { subscribeTailoredResumeEvents } from '../application/tailoringQueueService.js';
 
@@ -43,6 +44,7 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/mailbox/status', requireAuth, getForwardingMailboxStatus);
   app.get('/api/bid/mailbox/messages', requireAuth, listForwardingMailboxMessages);
   app.get('/api/bid/profiles/:id/mailbox/messages', requireAuth, listProfileForwardedMessages);
+  app.patch('/api/bid/profiles/:id/mailbox/messages/read', requireAuth, markProfileForwardedMessageRead);
   app.patch('/api/bid/profiles/:id', requireAuth, updateProfile);
   app.patch('/api/bid/profiles/:id/status', requireAuth, updateProfileStatus);
   app.delete('/api/bid/profiles/:id', requireAuth, deleteProfile);

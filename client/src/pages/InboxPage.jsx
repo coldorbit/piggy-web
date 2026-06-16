@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import InboxIcon from '@mui/icons-material/Inbox';
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
@@ -24,8 +24,13 @@ import { useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { useBidProfiles, useForwardedProfileMessages, useForwardingMailboxStatus } from '../lib/api.js';
+import { useBidProfiles, useForwardedProfileMessages, useForwardingMailboxStatus, useMarkProfileMailboxMessageRead } from '../lib/api.js';
 import { isAdminRole } from '../lib/roles.js';
+
+const INBOX_MESSAGE_ACCENT = { main: '#2563EB', soft: '#E0ECFF', dark: '#1D4ED8' };
+const DECLINED_ACCENT = { main: '#E11D48', soft: '#FFF1F2', dark: '#BE123C' };
+const CONFIRMATION_ACCENT = { main: '#0F766E', soft: '#ECFDF5', dark: '#047857' };
+const COMPACT_MESSAGE_ROW_HEIGHT = 96;
 
 export default function InboxPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -66,6 +71,7 @@ export default function InboxPage({ currentUser }) {
   } = useForwardedProfileMessages(activeProfile?.id, {
     enabled: canFetchMessages,
   });
+  const markMessageRead = useMarkProfileMailboxMessageRead();
   const messages = useMemo(
     () => (configured ? dedupeMessagesById(inboxData?.pages?.flatMap((page) => page.messages || []) || []) : []),
     [configured, inboxData],
@@ -83,6 +89,9 @@ export default function InboxPage({ currentUser }) {
   const isLoadingMessages = statusLoading || (messagesLoading && !inboxData);
   const totalMessages = configured ? profileMailboxStats.total : 0;
   const unreadCount = configured ? profileMailboxStats.unreadTotal : 0;
+  const declinedCount = profileMailboxStats.declinedTotal;
+  const confirmationCount = profileMailboxStats.confirmationTotal;
+  const autoAppliedCount = profileMailboxStats.autoAppliedTotal;
   const hasMatcher = Boolean(activeProfile?.forwardingEmail || activeProfile?.email);
 
   useEffect(() => {
@@ -133,6 +142,13 @@ export default function InboxPage({ currentUser }) {
     return () => setHeaderSearch(EMPTY_HEADER_SEARCH);
   }, [setHeaderSearch]);
 
+  const handleMessageSelect = useCallback((messageId) => {
+    setSelectedMessageId(messageId);
+    const message = messages.find((row) => String(row.id) === String(messageId));
+    if (!activeProfile?.id || !message?.id || message.isRead) return;
+    markMessageRead.mutate({ profileId: activeProfile.id, messageId: message.id });
+  }, [activeProfile?.id, markMessageRead, messages]);
+
   return (
     <Box sx={{ display: 'grid', gap: 1.25, alignContent: 'start' }}>
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
@@ -165,6 +181,8 @@ export default function InboxPage({ currentUser }) {
             inboxProfiles={inboxProfiles}
             isLoading={profilesLoading}
             mailboxEmail={mailboxEmail}
+            confirmationCount={confirmationCount}
+            declinedCount={declinedCount}
             messagesCount={totalMessages}
             onProfileChange={setActiveProfileId}
             statusLoading={statusLoading}
@@ -172,7 +190,6 @@ export default function InboxPage({ currentUser }) {
           />
 
           <MessageListPane
-            activeColor={activeColor}
             configured={configured}
             hasMatcher={hasMatcher}
             isLoading={isLoadingMessages}
@@ -183,8 +200,11 @@ export default function InboxPage({ currentUser }) {
             search={search}
             selectedMessage={selectedMessage}
             totalMessages={totalMessages}
+            autoAppliedCount={autoAppliedCount}
+            confirmationCount={confirmationCount}
+            declinedCount={declinedCount}
             canLoadMore={Boolean(hasNextPage)}
-            onMessageSelect={setSelectedMessageId}
+            onMessageSelect={handleMessageSelect}
             onLoadMore={() => fetchNextPage()}
             onRefresh={() => refetchMessages()}
           />
@@ -205,6 +225,8 @@ export default function InboxPage({ currentUser }) {
 function MailboxSidebar({
   activeColor,
   activeProfile,
+  confirmationCount,
+  declinedCount,
   inboxProfiles,
   isLoading,
   mailboxEmail,
@@ -242,6 +264,8 @@ function MailboxSidebar({
       <Box sx={{ px: 0.75, display: 'grid', gap: 0.25 }}>
         <MailboxNavRow icon={<InboxIcon fontSize="small" />} label="Inbox" count={messagesCount} selected />
         <MailboxNavRow icon={<MarkEmailUnreadIcon fontSize="small" />} label="Unread" count={unreadCount} />
+        <MailboxNavRow icon={<MailOutlinedIcon fontSize="small" />} label="Confirmations" count={confirmationCount} />
+        <MailboxNavRow icon={<MailOutlinedIcon fontSize="small" />} label="Declined" count={declinedCount} />
         <MailboxNavRow icon={<FolderOutlinedIcon fontSize="small" />} label="Profile folders" count={inboxProfiles.length} />
       </Box>
 
@@ -338,9 +362,11 @@ function ProfileFolderRow({ activeColor, isSelected, onClick, profile }) {
 }
 
 function MessageListPane({
-  activeColor,
+  autoAppliedCount,
   canLoadMore,
+  confirmationCount,
   configured,
+  declinedCount,
   hasMatcher,
   isLoading,
   isLoadingMore,
@@ -371,7 +397,7 @@ function MessageListPane({
         sx={{
           px: 1.25,
           py: 1,
-          minHeight: 62,
+          minHeight: 74,
           borderBottom: 1,
           borderColor: 'divider',
           display: 'flex',
@@ -384,6 +410,9 @@ function MessageListPane({
           <Typography fontWeight={950} noWrap>{profile?.name || 'Inbox'}</Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
             {messages.length.toLocaleString()} of {totalMessages.toLocaleString()} messages
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {confirmationCount.toLocaleString()} confirmations · {declinedCount.toLocaleString()} declined · {autoAppliedCount.toLocaleString()} auto-applied
           </Typography>
         </Box>
         <Tooltip title="Refresh inbox">
@@ -422,7 +451,6 @@ function MessageListPane({
         {!isLoading
           ? (
               <VirtualizedMessageList
-                activeColor={activeColor}
                 canLoadMore={canLoadMore}
                 isLoadingMore={isLoadingMore}
                 messages={messages}
@@ -438,7 +466,6 @@ function MessageListPane({
 }
 
 function VirtualizedMessageList({
-  activeColor,
   canLoadMore,
   isLoadingMore,
   messages,
@@ -457,7 +484,7 @@ function VirtualizedMessageList({
             height={height}
             width={width}
             rowCount={rowCount}
-            rowHeight={122}
+            rowHeight={COMPACT_MESSAGE_ROW_HEIGHT}
             overscanRowCount={6}
             onRowsRendered={({ stopIndex }) => {
               if (canLoadMore && !isLoadingMore && stopIndex >= loadThresholdIndex) onLoadMore?.();
@@ -476,7 +503,6 @@ function VirtualizedMessageList({
               return (
                 <MessageListItem
                   key={key}
-                  activeColor={activeColor}
                   isSelected={String(message.id) === String(selectedMessage?.id)}
                   message={message}
                   style={style}
@@ -496,7 +522,7 @@ function MessageLoadingRow({ isLoading, style }) {
     <Box
       style={style}
       sx={{
-        height: 122,
+        height: COMPACT_MESSAGE_ROW_HEIGHT,
         borderBottom: 1,
         borderColor: 'divider',
         display: 'grid',
@@ -514,7 +540,12 @@ function MessageLoadingRow({ isLoading, style }) {
   );
 }
 
-function MessageListItem({ activeColor, isSelected, message, onClick, style }) {
+function MessageListItem({ isSelected, message, onClick, style }) {
+  const isDeclined = message.classification?.type === 'declined';
+  const isConfirmation = message.classification?.type === 'application_confirmation';
+  const selectedBg = INBOX_MESSAGE_ACCENT.soft;
+  const defaultBg = isDeclined ? DECLINED_ACCENT.soft : message.isRead ? '#ffffff' : '#F8FAFC';
+  const hoverBg = isSelected ? selectedBg : isDeclined ? '#FFE4E6' : '#F8FAFC';
   return (
     <Box
       component="button"
@@ -523,20 +554,24 @@ function MessageListItem({ activeColor, isSelected, message, onClick, style }) {
       style={style}
       sx={{
         width: '100%',
-        height: 122,
+        height: COMPACT_MESSAGE_ROW_HEIGHT,
         border: 0,
         borderBottom: 1,
         borderColor: 'divider',
         borderRadius: 0,
-        bgcolor: isSelected ? activeColor.soft : message.isRead ? '#ffffff' : '#F8FAFC',
+        bgcolor: isSelected ? selectedBg : defaultBg,
         cursor: 'pointer',
         px: 1,
-        py: 1,
+        py: 0.75,
         display: 'grid',
-        gap: 0.5,
+        gap: 0.25,
         textAlign: 'left',
-        boxShadow: isSelected ? `inset 3px 0 0 ${activeColor.main}` : 'none',
-        '&:hover': { bgcolor: isSelected ? activeColor.soft : '#F8FAFC' },
+        boxShadow: isSelected
+          ? `inset 3px 0 0 ${INBOX_MESSAGE_ACCENT.main}`
+          : isDeclined
+            ? `inset 3px 0 0 ${DECLINED_ACCENT.main}`
+            : 'none',
+        '&:hover': { bgcolor: hoverBg },
       }}
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} minWidth={0}>
@@ -550,11 +585,13 @@ function MessageListItem({ activeColor, isSelected, message, onClick, style }) {
       <Typography variant="body2" fontWeight={message.isRead ? 800 : 950} color="text.primary" noWrap>
         {message.subject || '(No subject)'}
       </Typography>
-      <Typography variant="caption" color="text.secondary" noWrap>
+      <Typography variant="caption" color={isDeclined ? DECLINED_ACCENT.dark : 'text.secondary'} noWrap>
         {message.bodyPreview || 'No preview available'}
       </Typography>
-      <Stack direction="row" spacing={0.5} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap' }}>
-        {!message.isRead ? <Chip label="Unread" size="small" sx={smallChipSx(activeColor.soft, activeColor.dark)} /> : null}
+      <Stack direction="row" spacing={0.5} alignItems="center" useFlexGap sx={{ flexWrap: 'nowrap', overflow: 'hidden', minWidth: 0 }}>
+        {!message.isRead ? <Chip label="Unread" size="small" sx={smallChipSx(INBOX_MESSAGE_ACCENT.soft, INBOX_MESSAGE_ACCENT.dark)} /> : null}
+        {isDeclined ? <Chip label="Declined" size="small" sx={smallChipSx(DECLINED_ACCENT.soft, DECLINED_ACCENT.dark)} /> : null}
+        {isConfirmation ? <Chip label={applicationChipLabel(message.application)} size="small" sx={smallChipSx(CONFIRMATION_ACCENT.soft, CONFIRMATION_ACCENT.dark)} /> : null}
         {message.mailboxPath ? <Chip label={message.mailboxPath} size="small" variant="outlined" sx={smallOutlinedChipSx} /> : null}
       </Stack>
     </Box>
@@ -596,6 +633,10 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
                 </Typography>
               </Box>
               <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', justifyContent: { sm: 'flex-end' } }}>
+                {message.classification?.type === 'declined' ? <Chip label="Declined" size="small" sx={smallChipSx(DECLINED_ACCENT.soft, DECLINED_ACCENT.dark)} /> : null}
+                {message.classification?.type === 'application_confirmation' ? (
+                  <Chip label={applicationChipLabel(message.application)} size="small" sx={smallChipSx(CONFIRMATION_ACCENT.soft, CONFIRMATION_ACCENT.dark)} />
+                ) : null}
                 {message.match?.source ? <Chip label={matchSourceLabel(message.match.source)} size="small" sx={smallChipSx(activeColor.soft, activeColor.dark)} /> : null}
                 {message.mailboxPath ? <Chip label={message.mailboxPath} size="small" variant="outlined" sx={smallOutlinedChipSx} /> : null}
               </Stack>
@@ -616,6 +657,10 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
               <MailOutlinedIcon sx={{ color: 'text.secondary', mt: 0.5 }} fontSize="small" />
             </Stack>
           </Box>
+
+          {message.classification?.type === 'application_confirmation' ? (
+            <ApplicationConfirmationInfo application={message.application} />
+          ) : null}
 
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', bgcolor: '#ffffff' }}>
             {message.bodyHtml ? (
@@ -638,6 +683,20 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
           </Box>
         </>
       )}
+    </Box>
+  );
+}
+
+function ApplicationConfirmationInfo({ application }) {
+  const detail = applicationDetailText(application);
+  return (
+    <Box sx={{ px: { xs: 1.5, md: 2 }, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: CONFIRMATION_ACCENT.soft }}>
+      <Typography variant="body2" fontWeight={900} color={CONFIRMATION_ACCENT.dark}>
+        Application confirmation
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {detail}
+      </Typography>
     </Box>
   );
 }
@@ -719,6 +778,10 @@ function filterMessages(messages, search) {
       message.receivedAt,
       message.mailboxPath,
       message.match?.value,
+      message.classification?.label,
+      message.application?.status,
+      message.application?.jobTitle,
+      message.application?.company,
     ].some((value) => String(value || '').toLowerCase().includes(query)),
   );
 }
@@ -735,11 +798,37 @@ function dedupeMessagesById(messages) {
 function mailboxStatsFromPages(pages, messages) {
   const loadedTotal = messages.length;
   const loadedUnreadTotal = messages.filter((message) => !message.isRead).length;
+  const confirmationTotal = messages.filter((message) => message.classification?.type === 'application_confirmation').length;
+  const declinedTotal = messages.filter((message) => message.classification?.type === 'declined').length;
+  const autoAppliedTotal = messages.filter((message) => ['applied', 'already_applied'].includes(message.application?.status)).length;
   const firstPagination = pages.find((page) => page?.pagination)?.pagination || {};
   return {
     total: Math.max(Number(firstPagination.total || 0), loadedTotal),
     unreadTotal: Math.max(Number(firstPagination.unreadTotal || 0), loadedUnreadTotal),
+    confirmationTotal,
+    declinedTotal,
+    autoAppliedTotal,
   };
+}
+
+function applicationChipLabel(application) {
+  if (!application) return 'Confirmation';
+  if (application.status === 'applied') return 'Auto-applied';
+  if (application.status === 'already_applied') return 'Already applied';
+  if (application.status === 'job_not_found') return 'No job match';
+  if (application.status === 'ambiguous_job_match') return 'Needs review';
+  return 'Confirmation';
+}
+
+function applicationDetailText(application) {
+  if (!application) return 'This looks like an application confirmation.';
+  const jobLabel = [application.jobTitle, application.company].filter(Boolean).join(' at ');
+  if (application.status === 'applied') return `Marked ${jobLabel || 'the matching job'} as applied.`;
+  if (application.status === 'already_applied') return `${jobLabel || 'The matching job'} was already marked as applied.`;
+  if (application.status === 'job_not_found') return 'No matching job was found from this email text.';
+  if (application.status === 'ambiguous_job_match') return 'Multiple company/title matches were found, so no job was changed.';
+  if (application.status === 'skipped_existing_status') return `${jobLabel || 'The matching job'} has a status that was left unchanged.`;
+  return 'This looks like an application confirmation.';
 }
 
 function emailFrameDocument(html) {

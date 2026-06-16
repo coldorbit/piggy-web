@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  classifyMailboxMessageIntent,
   classifyForwardedMessage,
   formatMailboxMessage,
   parseAddressList,
@@ -105,6 +106,32 @@ describe('forwarding mailbox helpers', () => {
       isRead: false,
       matchedProfile: null,
       match: null,
+      classification: null,
+      application: null,
+    });
+  });
+
+  it('classifies declined emails', () => {
+    const classification = classifyMailboxMessageIntent({
+      subject: 'Your application for Software Engineer',
+      bodyText: 'Unfortunately, we will not be moving forward with your application at this time.',
+    });
+
+    assert.deepEqual(classification, {
+      type: 'declined',
+      label: 'Declined email',
+    });
+  });
+
+  it('classifies application confirmation emails', () => {
+    const classification = classifyMailboxMessageIntent({
+      subject: 'Application received',
+      bodyText: 'Thank you for applying to the Senior Data Engineer role. We received your application.',
+    });
+
+    assert.deepEqual(classification, {
+      type: 'application_confirmation',
+      label: 'Application confirmation',
     });
   });
 });

@@ -109,6 +109,63 @@ export function useForwardedProfileMessages(profileId, queryOptions = {}) {
   });
 }
 
+export function useMarkProfileMailboxMessageRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, messageId }) =>
+      api(`/api/bid/profiles/${profileId}/mailbox/messages/read`, {
+        method: 'PATCH',
+        body: JSON.stringify({ messageId }),
+      }).then((data) => data.message),
+    onMutate: async ({ profileId, messageId }) => {
+      const queryKey = ['bid', 'profiles', profileId, 'mailbox', 'messages'];
+      await queryClient.cancelQueries({ queryKey });
+      const previousData = queryClient.getQueryData(queryKey);
+      queryClient.setQueryData(queryKey, (currentData) => updateMailboxMessageReadState(currentData, messageId, { isRead: true }));
+      return { previousData, queryKey };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.queryKey) queryClient.setQueryData(context.queryKey, context.previousData);
+    },
+    onSuccess: (message, { profileId, messageId }) => {
+      queryClient.setQueryData(['bid', 'profiles', profileId, 'mailbox', 'messages'], (currentData) =>
+        updateMailboxMessageReadState(currentData, messageId, message),
+      );
+    },
+  });
+}
+
+function updateMailboxMessageReadState(currentData, messageId, updates = {}) {
+  if (!currentData?.pages) return currentData;
+  let changedUnread = false;
+  let changedMessage = false;
+  const pages = currentData.pages.map((page) => {
+    let pageChanged = false;
+    const messages = (page.messages || []).map((message) => {
+      if (String(message.id) !== String(messageId)) return message;
+      if (!message.isRead && updates.isRead !== false && !changedUnread) changedUnread = true;
+      pageChanged = true;
+      changedMessage = true;
+      return { ...message, ...updates, isRead: updates.isRead !== undefined ? Boolean(updates.isRead) : true };
+    });
+    return pageChanged ? { ...page, messages } : page;
+  });
+  if (!changedMessage) return currentData;
+  if (!changedUnread) return { ...currentData, pages };
+  return {
+    ...currentData,
+    pages: pages.map((page) => ({
+      ...page,
+      pagination: page.pagination
+        ? {
+            ...page.pagination,
+            unreadTotal: Math.max(Number(page.pagination.unreadTotal || 0) - 1, 0),
+          }
+        : page.pagination,
+    })),
+  };
+}
+
 export function useProfileShareRequests() {
   return useQuery({
     queryKey: ['bid', 'profile-shares'],
