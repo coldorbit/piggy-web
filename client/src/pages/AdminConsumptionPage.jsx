@@ -75,26 +75,17 @@ export default function AdminConsumptionPage() {
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}>
-        <Typography color="text.secondary">
-          Track wallet deposits, wallet balances, card balances, crypto spend, card funding, transfers, swaps, gas fees, and reconciliation adjustments.
-        </Typography>
-        <RefreshButton
-          isRefreshing={isFetching}
-          lastUpdatedAt={lastUpdatedAt}
-          onRefresh={refetch}
-          sx={{ alignSelf: { xs: 'flex-end', sm: 'flex-start' }, flex: '0 0 auto', ml: { sm: 'auto' } }}
-        />
-      </Stack>
-
       {error || queryError ? <Alert severity="error">{error || queryError?.message}</Alert> : null}
 
       <BalanceCards accounts={accounts} />
       <ConsumptionPeriodToolbar
+        isRefreshing={isFetching}
+        lastUpdatedAt={lastUpdatedAt}
         period={period}
         periodLabel={periodRange.label}
         onMove={movePeriod}
         onPeriodChange={changePeriod}
+        onRefresh={refetch}
         onToday={() => setPeriodAnchor(new Date())}
       />
       <ConsumptionPeriodSummary summary={periodSummary} />
@@ -113,7 +104,7 @@ export default function AdminConsumptionPage() {
   );
 }
 
-function ConsumptionPeriodToolbar({ onMove, onPeriodChange, onToday, period, periodLabel }) {
+function ConsumptionPeriodToolbar({ isRefreshing, lastUpdatedAt, onMove, onPeriodChange, onRefresh, onToday, period, periodLabel }) {
   return (
     <Paper
       variant="outlined"
@@ -162,6 +153,12 @@ function ConsumptionPeriodToolbar({ onMove, onPeriodChange, onToday, period, per
         <Button onClick={onToday} startIcon={<TodayIcon />} size="small" variant="outlined" sx={{ minHeight: 34, fontWeight: 900 }}>
           Today
         </Button>
+        <RefreshButton
+          isRefreshing={isRefreshing}
+          lastUpdatedAt={lastUpdatedAt}
+          onRefresh={onRefresh}
+          sx={{ flex: '0 0 auto' }}
+        />
       </Stack>
     </Paper>
   );
