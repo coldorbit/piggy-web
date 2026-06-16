@@ -85,6 +85,16 @@ export function businessDayProgressPercent(value = new Date()) {
   return (elapsed / (24 * 60)) * 100;
 }
 
+export function millisecondsUntilNextBusinessDayStart(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return 60_000;
+  const parts = zonedDateParts(date);
+  const dateKey = `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+  const nextDateKey = parts.hour >= BUSINESS_DAY_START_HOUR ? addDaysToDateKey(dateKey, 1) : dateKey;
+  const nextStart = new Date(fromDefaultTimezoneDatetimeLocal(`${nextDateKey}T${pad(BUSINESS_DAY_START_HOUR)}:00`));
+  return Math.max(nextStart.getTime() - date.getTime(), 1_000);
+}
+
 export function addDaysToDateKey(dateKey, days) {
   const [year, month, day] = dateKey.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day) + days * MS_PER_DAY);

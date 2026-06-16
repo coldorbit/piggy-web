@@ -1,10 +1,13 @@
 import { Op, Sequelize } from 'sequelize';
 import { formatJob } from '../../jobs/application/jobsService.js';
 import { clean } from '../../../utils/index.js';
+import { addBusinessDays, businessDateRange, businessDayRange, businessPresetRange } from '../../../utils/businessTime.js';
 
 const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
 const DONE_BID_STATUSES = ['submitted', 'won', 'lost'];
 const INTERVIEW_BID_STATUSES = ['interviewing', 'won', 'lost'];
+const FINISHED_BID_AT_STATUSES = new Set(['submitted', 'interviewing', 'won', 'lost']);
+const APPLICATION_SUBMITTED_STATUS = 'submitted';
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 export const REVIEW_BID_STATUSES = new Set(['mismatching_bid', 'spam_job']);
 
@@ -139,6 +142,7 @@ export function formatBid(row) {
     coverLetter: row.coverLetter,
     notes: row.notes,
     interviewStage: row.interviewStage,
+    interviewAt: row.interviewAt,
     interviewNextAt: row.interviewNextAt,
     interviewDurationMinutes: row.interviewDurationMinutes || 60,
     interviewNotes: row.interviewNotes,
@@ -147,6 +151,30 @@ export function formatBid(row) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+export function shouldRefreshBidAtForStatus(nextStatus, previousStatus) {
+  return nextStatus === APPLICATION_SUBMITTED_STATUS && !FINISHED_BID_AT_STATUSES.has(previousStatus);
+}
+
+export function shouldSetInterviewAtForStatus(nextStatus, previousStatus, currentInterviewAt) {
+  return nextStatus === 'interviewing' && previousStatus !== 'interviewing' && !currentInterviewAt;
+}
+
+export function dailyGoalRangeForBidFilter(filters = {}, now = new Date()) {
+  const since = clean(filters.since || 'today');
+  if (since === 'until_yesterday') return businessPresetRange('yesterday', now);
+  if (since === 'through_today') return businessPresetRange('today', now);
+  if (since === 'custom') return customGoalRange(filters) || businessDayRange(now);
+  return businessPresetRange(since, now) || businessDayRange(now);
+}
+
+function customGoalRange(filters) {
+  const from = businessDateRange(filters.dateFrom)?.from || null;
+  const toStart = businessDateRange(filters.dateTo)?.from || null;
+  if (!from && !toStart) return null;
+  const to = toStart ? addBusinessDays(toStart, 1) : addBusinessDays(from, 1);
+  return { from: from || toStart, to };
 }
 
 export function formatTailoredResume(row) {

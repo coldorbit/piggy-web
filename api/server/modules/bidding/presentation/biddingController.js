@@ -20,9 +20,12 @@ import {
   bidAttributesFromBody,
   buildBidTabQuery,
   buildZip,
+  dailyGoalRangeForBidFilter,
   formatBid,
   formatTailoredResume,
   REVIEW_BID_STATUSES,
+  shouldRefreshBidAtForStatus,
+  shouldSetInterviewAtForStatus,
   tailoredResumesForJobs,
 } from '../application/biddingService.js';
 import { buildJobQuery, formatJob } from '../../jobs/application/jobsService.js';
@@ -58,8 +61,7 @@ import {
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
-const BID_AT_FINISHED_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
-const DAILY_BID_GOAL_STATUSES = BID_AT_FINISHED_STATUSES;
+const DAILY_BID_GOAL_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -614,6 +616,7 @@ export async function listBidJobs(req, res, next) {
     const WebUser = getWebUserModel();
     const sequelize = getSequelize();
     const activeBidDateRange = bidDateRangeForTab(req.query, bidTab);
+    const dailyGoalRange = dailyGoalRangeForBidFilter(req.query);
     const { where, order: jobOrder, limit, offset } = buildJobQuery({
       ...jobQueryForBidTab(req.query, bidTab),
       limit: req.query.limit || 10,
@@ -653,7 +656,16 @@ export async function listBidJobs(req, res, next) {
       });
     };
 
-    const [rows, todoCount, tailoredCount, doneCount, badWorkCount, interviewsCount, dailyBidProgress] = await Promise.all([
+    const [
+      rows,
+      todoCount,
+      tailoredCount,
+      doneCount,
+      badWorkCount,
+      interviewsCount,
+      dailyBidProgress,
+      profilesWithDateProgress,
+    ] = await Promise.all([
       ScrapedJob.findAll({
         where: activeTabQuery.where,
         order: activeTabQuery.order || jobOrder,
@@ -665,8 +677,10 @@ export async function listBidJobs(req, res, next) {
       countBidTab('done'),
       countBidTab('bad_work'),
       canViewInternalData ? countInterviewsForProfile(profile.id) : Promise.resolve(0),
-      dailyBidProgressForUser(user),
+      dailyBidProgressForUser(user, dailyGoalRange),
+      profilesWithProgress([profile], { user, dailyGoalRange }),
     ]);
+    const profileWithDateProgress = profilesWithDateProgress[0] || profile;
 
     const tailoredResumesByUrl = await tailoredResumesForJobs({
       TailoredResume,
@@ -707,6 +721,7 @@ export async function listBidJobs(req, res, next) {
         dailyBidGoal: dailyBidProgress.goal,
         dailyFinishedBids: dailyBidProgress.finished,
       },
+      profile: formatProfile(profileWithDateProgress),
       total: tabJobs.length,
       tabCounts: {
         todo: todoCount,
@@ -1049,17 +1064,17 @@ function formatBidWithUser(row, bidUsersById, callerUsersById) {
   };
 }
 
-async function dailyBidProgressForUser(user) {
+async function dailyBidProgressForUser(user, dailyGoalRange = businessDayRange(new Date())) {
   const goal = Number(user.dailyBidGoal || 0);
   if (!goal) return { goal: null, finished: 0 };
 
-  // bidAt is stored as UTC; this range is the platform day converted from 7pm ET boundaries to UTC instants.
-  const { from: today, to: tomorrow } = businessDayRange(new Date());
+  // Goal progress uses the drawer's 7pm ET business-time range; cumulative presets collapse to a single day.
+  const { from, to } = dailyGoalRange;
   const finished = await getJobBidModel().count({
     where: {
       userId: user.id,
       status: { [Op.in]: DAILY_BID_GOAL_STATUSES },
-      bidAt: { [Op.gte]: today, [Op.lt]: tomorrow },
+      bidAt: { [Op.gte]: from, [Op.lt]: to },
     },
   });
 
@@ -1635,6 +1650,7 @@ export async function createJobBid(req, res, next) {
       profileId: profile.id,
       jobId: job.id,
       bidAt: now,
+      ...(attrs.status === 'interviewing' ? { interviewAt: now } : {}),
       updatedAt: now,
     });
     if (['interviewing', 'won', 'lost'].includes(attrs.status)) {
@@ -2062,8 +2078,11 @@ export async function updateJobBid(req, res, next) {
     }
     const now = new Date();
     const updates = { ...bidUpdateValuesFromAttrs(attrs), updatedAt: now };
-    if (attrs.status === 'submitted' && !BID_AT_FINISHED_STATUSES.includes(bid.status)) {
+    if (shouldRefreshBidAtForStatus(attrs.status, bid.status)) {
       updates.bidAt = now;
+    }
+    if (shouldSetInterviewAtForStatus(attrs.status, bid.status, bid.interviewAt)) {
+      updates.interviewAt = now;
     }
     await bid.update(updates);
     if (['interviewing', 'won', 'lost'].includes(attrs.status)) {
@@ -2092,11 +2111,17 @@ export async function updateInterview(req, res, next) {
       delete attrs.callerUserId;
     }
     const previous = interviewSnapshot(interview);
-    await interview.update({ ...interviewValuesFromAttrs(attrs, interview), updatedAt: new Date() });
+    const now = new Date();
+    await interview.update({ ...interviewValuesFromAttrs(attrs, interview), updatedAt: now });
     await logInterviewChanges({ interview, previous, attrs, userId: user.id });
     if (interview.jobBidId) {
       const bid = await getJobBidModel().findByPk(interview.jobBidId);
-      if (bid) await bid.update({ ...bidUpdateValuesFromAttrs(attrs), updatedAt: new Date() });
+      if (bid) {
+        const bidUpdates = { ...bidUpdateValuesFromAttrs(attrs), updatedAt: now };
+        if (shouldRefreshBidAtForStatus(attrs.status, bid.status)) bidUpdates.bidAt = now;
+        if (shouldSetInterviewAtForStatus(attrs.status, bid.status, bid.interviewAt)) bidUpdates.interviewAt = now;
+        await bid.update(bidUpdates);
+      }
     }
     res.json({ bid: formatInterviewBid(interview) });
   } catch (error) {

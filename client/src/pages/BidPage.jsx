@@ -105,6 +105,22 @@ export default function BidPage({ currentUser }) {
   const { mutate: requestTailoredResume } = useRequestTailoredResume();
   const { mutate: stopTailoredResume, isPending: stoppingTailoredResume } = useStopTailoredResume();
   useTailoredResumeEvents(activeProfile?.id);
+  const dateFilteredProfile = bidJobsData?.profile;
+  const profilesForDisplay = useMemo(
+    () =>
+      activeProfiles.map((profile) =>
+        String(profile.id) === String(dateFilteredProfile?.id)
+          ? { ...profile, ...dateFilteredProfile, progress: dateFilteredProfile.progress || profile.progress }
+          : profile,
+      ),
+    [activeProfiles, dateFilteredProfile],
+  );
+  const activeProfileForDisplay = useMemo(
+    () => profilesForDisplay.find((profile) => String(profile.id) === String(activeProfile?.id || '')) || activeProfile,
+    [activeProfile, profilesForDisplay],
+  );
+  const dailyGoalLabel = goalDateLabelForFilters(filters);
+  const isDailyGoalCurrent = isCurrentDailyGoalFilter(filters);
 
   useEffect(() => {
     if (!activeProfiles[0]) return;
@@ -361,9 +377,11 @@ export default function BidPage({ currentUser }) {
         >
           <BidProfileTabs
             activeColor={activeColor}
-            activeProfile={activeProfile}
+            activeProfile={activeProfileForDisplay}
+            dailyGoalLabel={dailyGoalLabel}
+            isDailyGoalCurrent={isDailyGoalCurrent}
             isLoading={profilesLoading}
-            profiles={activeProfiles}
+            profiles={profilesForDisplay}
             showDailyGoal={canViewBidGoals}
             onProfileChange={setActiveProfileId}
           />
@@ -395,7 +413,14 @@ export default function BidPage({ currentUser }) {
                   refetchJobs();
                 }}
               />
-              {canViewBidGoals ? <BidDailyGoalBar activeColor={activeColor} profile={activeProfile} /> : null}
+              {canViewBidGoals ? (
+                <BidDailyGoalBar
+                  activeColor={activeColor}
+                  dateLabel={dailyGoalLabel}
+                  isCurrentDate={isDailyGoalCurrent}
+                  profile={activeProfileForDisplay}
+                />
+              ) : null}
               <BidWorkspaceProvider value={bidWorkspace}>
                 <BidJobsPanel key={activeProfile.id} />
               </BidWorkspaceProvider>
@@ -457,7 +482,7 @@ function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs) {
   }, {});
 }
 
-function BidDailyGoalBar({ activeColor, profile }) {
+function BidDailyGoalBar({ activeColor, dateLabel, isCurrentDate, profile }) {
   const totalGoal = Number(profile?.progress?.dailyGoal || 0);
   const totalFinished = Number(profile?.progress?.dailyFinished || 0);
   const users = dailyApplicationRows(profile);
@@ -481,10 +506,18 @@ function BidDailyGoalBar({ activeColor, profile }) {
           {profile?.name ? `${profile.name} daily bid goal` : 'Profile daily bid goal'}
         </Typography>
         <Typography variant="body2" fontWeight={900} color="text.secondary">
-          {totalGoal ? `${totalFinished.toLocaleString()} / ${totalGoal.toLocaleString()} applications today` : `${totalFinished.toLocaleString()} applications today`}
+          {totalGoal
+            ? `${totalFinished.toLocaleString()} / ${totalGoal.toLocaleString()} applications ${dateLabel}`
+            : `${totalFinished.toLocaleString()} applications ${dateLabel}`}
         </Typography>
       </Box>
-      {totalGoal ? <DailyGoalRow activeColor={activeColor} goal={{ goal: totalGoal, finished: totalFinished, username: 'Profile' }} /> : null}
+      {totalGoal ? (
+        <DailyGoalRow
+          activeColor={activeColor}
+          goal={{ goal: totalGoal, finished: totalFinished, username: 'Profile' }}
+          isCurrentDate={isCurrentDate}
+        />
+      ) : null}
       {users.length ? (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
           {users.map((user) => (
@@ -498,12 +531,12 @@ function BidDailyGoalBar({ activeColor, profile }) {
   );
 }
 
-function DailyGoalRow({ activeColor, goal }) {
+function DailyGoalRow({ activeColor, goal, isCurrentDate }) {
   const percent = Math.min((goal.finished / goal.goal) * 100, 100);
   const dayPercent = businessDayProgressPercent();
   const isComplete = goal.finished >= goal.goal;
-  const isOnTrack = isComplete || percent + 2 >= dayPercent;
-  const statusLabel = isComplete ? 'Complete' : isOnTrack ? 'On track' : 'Behind pace';
+  const isOnTrack = isComplete || (isCurrentDate && percent + 2 >= dayPercent);
+  const statusLabel = isComplete ? 'Complete' : isCurrentDate && isOnTrack ? 'On track' : 'Below goal';
   const statusColor = isComplete ? '#15803d' : isOnTrack ? activeColor.dark : '#b45309';
   const remaining = Math.max(goal.goal - goal.finished, 0);
 
@@ -574,6 +607,20 @@ function bidFiltersFromParams(params) {
   return normalizeBidDateFilter(
     mergeKnownFilters(persistedFilters, paramFilters, BID_FILTER_KEYS),
   );
+}
+
+function goalDateLabelForFilters(filters) {
+  if (filters.since === 'until_yesterday' || filters.since === 'yesterday') return 'yesterday';
+  if (filters.since === 'last_week') return 'last week';
+  if (filters.since === 'custom') {
+    if (filters.dateFrom && filters.dateTo && filters.dateFrom !== filters.dateTo) return 'selected range';
+    if (filters.dateFrom || filters.dateTo) return 'selected day';
+  }
+  return 'today';
+}
+
+function isCurrentDailyGoalFilter(filters) {
+  return filters.since === 'today' || filters.since === 'through_today';
 }
 
 function normalizeBidDateFilter(filters) {

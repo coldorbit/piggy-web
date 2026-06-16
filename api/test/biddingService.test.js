@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
-import { buildBidTabQuery } from '../server/modules/bidding/application/biddingService.js';
+import {
+  buildBidTabQuery,
+  dailyGoalRangeForBidFilter,
+  shouldRefreshBidAtForStatus,
+  shouldSetInterviewAtForStatus,
+} from '../server/modules/bidding/application/biddingService.js';
 
 class JobBid {}
 
@@ -124,6 +129,63 @@ describe('buildBidTabQuery', () => {
       ),
       true,
     );
+  });
+});
+
+describe('shouldRefreshBidAtForStatus', () => {
+  it('refreshes bidAt when an unfinished bid is submitted today', () => {
+    assert.equal(shouldRefreshBidAtForStatus('submitted', 'planned'), true);
+    assert.equal(shouldRefreshBidAtForStatus('submitted', 'mismatching_bid'), true);
+    assert.equal(shouldRefreshBidAtForStatus('submitted', 'spam_job'), true);
+  });
+
+  it('does not move bidAt for interview or outcome status changes', () => {
+    assert.equal(shouldRefreshBidAtForStatus('interviewing', 'planned'), false);
+    assert.equal(shouldRefreshBidAtForStatus('won', 'planned'), false);
+    assert.equal(shouldRefreshBidAtForStatus('lost', 'planned'), false);
+    assert.equal(shouldRefreshBidAtForStatus('interviewing', 'submitted'), false);
+    assert.equal(shouldRefreshBidAtForStatus('won', 'interviewing'), false);
+    assert.equal(shouldRefreshBidAtForStatus('lost', 'submitted'), false);
+    assert.equal(shouldRefreshBidAtForStatus('planned', 'submitted'), false);
+  });
+});
+
+describe('shouldSetInterviewAtForStatus', () => {
+  it('sets interviewAt when an application first enters interviewing', () => {
+    assert.equal(shouldSetInterviewAtForStatus('interviewing', 'submitted', null), true);
+    assert.equal(shouldSetInterviewAtForStatus('interviewing', 'planned', undefined), true);
+  });
+
+  it('keeps an existing interviewAt and ignores non-interview statuses', () => {
+    assert.equal(shouldSetInterviewAtForStatus('interviewing', 'submitted', new Date()), false);
+    assert.equal(shouldSetInterviewAtForStatus('won', 'submitted', null), false);
+    assert.equal(shouldSetInterviewAtForStatus('submitted', 'interviewing', null), false);
+  });
+});
+
+describe('dailyGoalRangeForBidFilter', () => {
+  it('collapses through-today and until-yesterday drawer filters to one business day', () => {
+    const now = new Date('2026-06-16T14:00:00.000Z');
+    const throughToday = dailyGoalRangeForBidFilter({ since: 'through_today' }, now);
+    const today = dailyGoalRangeForBidFilter({ since: 'today' }, now);
+    const untilYesterday = dailyGoalRangeForBidFilter({ since: 'until_yesterday' }, now);
+    const yesterday = dailyGoalRangeForBidFilter({ since: 'yesterday' }, now);
+
+    assert.equal(throughToday.from.toISOString(), '2026-06-15T23:00:00.000Z');
+    assert.equal(throughToday.to.toISOString(), '2026-06-16T23:00:00.000Z');
+    assert.equal(today.from.toISOString(), throughToday.from.toISOString());
+    assert.equal(today.to.toISOString(), throughToday.to.toISOString());
+    assert.equal(untilYesterday.from.toISOString(), '2026-06-14T23:00:00.000Z');
+    assert.equal(untilYesterday.to.toISOString(), '2026-06-15T23:00:00.000Z');
+    assert.equal(yesterday.from.toISOString(), untilYesterday.from.toISOString());
+    assert.equal(yesterday.to.toISOString(), untilYesterday.to.toISOString());
+  });
+
+  it('uses custom drawer dates with the same 7pm ET boundaries', () => {
+    const range = dailyGoalRangeForBidFilter({ since: 'custom', dateFrom: '2026-06-10', dateTo: '2026-06-11' });
+
+    assert.equal(range.from.toISOString(), '2026-06-10T23:00:00.000Z');
+    assert.equal(range.to.toISOString(), '2026-06-12T23:00:00.000Z');
   });
 });
 

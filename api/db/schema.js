@@ -375,11 +375,18 @@ async function ensureJobBidInterviewColumns() {
   await addMissingColumns(queryInterface, tableName, table, {
     caller_user_id: { type: DataTypes.BIGINT, allowNull: true },
     interview_stage: { type: DataTypes.TEXT, allowNull: true },
+    interview_at: { type: DataTypes.DATE, allowNull: true },
     interview_next_at: { type: DataTypes.DATE, allowNull: true },
     interview_duration_minutes: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 60 },
     interview_notes: { type: DataTypes.TEXT, allowNull: true },
     stage_meeting_links: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
   });
+  await queryInterface.sequelize.query(`
+    UPDATE job_bids
+    SET interview_at = COALESCE(updated_at, bid_at, created_at)
+    WHERE status = 'interviewing'
+      AND interview_at IS NULL
+  `);
 }
 
 async function ensureBidProfileColumns() {

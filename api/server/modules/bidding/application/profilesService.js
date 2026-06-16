@@ -124,12 +124,12 @@ export function sortProfilesForDisplay(profiles) {
   return [...profiles].sort(compareProfilesForDisplay);
 }
 
-export async function profilesWithProgress(profiles, { user } = {}) {
+export async function profilesWithProgress(profiles, { user, dailyGoalRange } = {}) {
   const profileIds = [...new Set(profiles.map((profile) => String(profile.id)).filter(Boolean))];
   if (!profileIds.length) return profiles;
   const isCaller = user?.role === 'caller';
-  // bidAt is stored as UTC; this range is the platform day converted from 7pm ET boundaries to UTC instants.
-  const { from: today, to: tomorrow } = businessDayRange(new Date());
+  // Goal progress uses the drawer's 7pm ET business-time range; cumulative presets collapse to a single day.
+  const { from, to } = dailyGoalRange || businessDayRange(new Date());
   const profileUserIdsByProfileId = new Map(
     profiles.map((profile) => [String(profile.id), new Set([String(profile.userId)].filter(Boolean))]),
   );
@@ -176,7 +176,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
       where: {
         profileId: profileIds,
         status: { [Op.in]: DAILY_BID_GOAL_STATUSES },
-        bidAt: { [Op.gte]: today, [Op.lt]: tomorrow },
+        bidAt: { [Op.gte]: from, [Op.lt]: to },
         ...(isCaller ? { callerUserId: user.id } : {}),
       },
       group: ['profileId', 'userId'],

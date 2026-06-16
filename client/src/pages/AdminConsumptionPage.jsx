@@ -1,7 +1,9 @@
+import AddIcon from '@mui/icons-material/Add';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import TodayIcon from '@mui/icons-material/Today';
-import { Alert, Box, Button, IconButton, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, IconButton, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import RefreshButton from '../components/common/RefreshButton.jsx';
 import BalanceCards from '../components/consumption/BalanceCards.jsx';
@@ -23,6 +25,8 @@ export default function AdminConsumptionPage() {
   const [form, setForm] = useState(EMPTY_CONSUMPTION_FORM);
   const [error, setError] = useState('');
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+  const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
+  const [isHelpDrawerOpen, setIsHelpDrawerOpen] = useState(false);
   const [period, setPeriod] = useState('daily');
   const [periodAnchor, setPeriodAnchor] = useState(() => new Date());
   const { data, isFetching, isLoading, error: queryError, refetch } = useAdminConsumption();
@@ -48,7 +52,10 @@ export default function AdminConsumptionPage() {
     event.preventDefault();
     setError('');
     createRecord(form, {
-      onSuccess: () => setForm(EMPTY_CONSUMPTION_FORM),
+      onSuccess: () => {
+        setForm(EMPTY_CONSUMPTION_FORM);
+        setIsTransactionDialogOpen(false);
+      },
       onError: (recordError) => setError(recordError.message),
     });
   }
@@ -84,13 +91,28 @@ export default function AdminConsumptionPage() {
         period={period}
         periodLabel={periodRange.label}
         onMove={movePeriod}
+        onOpenHelp={() => setIsHelpDrawerOpen(true)}
+        onAddTransaction={() => setIsTransactionDialogOpen(true)}
         onPeriodChange={changePeriod}
         onRefresh={refetch}
         onToday={() => setPeriodAnchor(new Date())}
       />
       <ConsumptionPeriodSummary summary={periodSummary} />
-      <ConsumptionForm accountOptions={accountOptions} form={form} isSaving={isSaving} onChange={updateForm} onSubmit={submitRecord} spenderOptions={spenderOptions} />
-      <ConsumptionHelp />
+      <Dialog open={isTransactionDialogOpen} onClose={() => setIsTransactionDialogOpen(false)} fullWidth maxWidth="lg">
+        <DialogTitle>Add transaction</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <ConsumptionForm
+            accountOptions={accountOptions}
+            form={form}
+            isSaving={isSaving}
+            onChange={updateForm}
+            onSubmit={submitRecord}
+            spenderOptions={spenderOptions}
+            surface="plain"
+          />
+        </DialogContent>
+      </Dialog>
+      <ConsumptionHelp isOpen={isHelpDrawerOpen} onClose={() => setIsHelpDrawerOpen(false)} />
       <TransactionLedger
         emptyDetail={`No consumption activity was recorded for ${periodRange.label}.`}
         emptyTitle="No transactions in this period"
@@ -104,7 +126,7 @@ export default function AdminConsumptionPage() {
   );
 }
 
-function ConsumptionPeriodToolbar({ isRefreshing, lastUpdatedAt, onMove, onPeriodChange, onRefresh, onToday, period, periodLabel }) {
+function ConsumptionPeriodToolbar({ isRefreshing, lastUpdatedAt, onAddTransaction, onMove, onOpenHelp, onPeriodChange, onRefresh, onToday, period, periodLabel }) {
   return (
     <Paper
       variant="outlined"
@@ -153,12 +175,18 @@ function ConsumptionPeriodToolbar({ isRefreshing, lastUpdatedAt, onMove, onPerio
         <Button onClick={onToday} startIcon={<TodayIcon />} size="small" variant="outlined" sx={{ minHeight: 34, fontWeight: 900 }}>
           Today
         </Button>
+        <Button onClick={onAddTransaction} startIcon={<AddIcon />} size="small" variant="contained" sx={{ minHeight: 34, fontWeight: 900 }}>
+          Add transaction
+        </Button>
         <RefreshButton
           isRefreshing={isRefreshing}
           lastUpdatedAt={lastUpdatedAt}
           onRefresh={onRefresh}
           sx={{ flex: '0 0 auto' }}
         />
+        <Button onClick={onOpenHelp} startIcon={<HelpOutlinedIcon />} size="small" variant="outlined" sx={{ minHeight: 34, fontWeight: 900 }}>
+          Help & FAQ
+        </Button>
       </Stack>
     </Paper>
   );

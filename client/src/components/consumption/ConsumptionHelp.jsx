@@ -1,6 +1,7 @@
+import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
-import { Accordion, AccordionDetails, AccordionSummary, Grid, Stack, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Box, Divider, Drawer, IconButton, Stack, Typography } from '@mui/material';
 
 const HELP_ITEMS = [
   ['Crypto spend', 'Use this for vendor payments. It subtracts the token amount and the ETH gas fee.'],
@@ -14,25 +15,41 @@ const HELP_ITEMS = [
   ['Adjustment', 'Use this only when reconciling balances against the real wallet/card balance.'],
 ];
 
-export default function ConsumptionHelp() {
+export default function ConsumptionHelp({ isOpen, onClose }) {
   return (
-    <Accordion variant="outlined" sx={{ boxShadow: 1 }}>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Stack direction="row" spacing={1} alignItems="center">
+    <Drawer
+      anchor="right"
+      open={isOpen}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: { xs: '100%', sm: 420 },
+          maxWidth: '100vw',
+        },
+      }}
+    >
+      <Box sx={{ height: '100%', display: 'grid', gridTemplateRows: 'auto 1fr', minWidth: 0 }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1.5, py: 1.25 }}>
           <HelpOutlinedIcon fontSize="small" />
-          <Typography fontWeight={900}>Help and FAQ</Typography>
+          <Typography fontWeight={900} sx={{ flex: 1 }}>Help & FAQ</Typography>
+          <IconButton aria-label="Close help" onClick={onClose}>
+            <CloseIcon />
+          </IconButton>
         </Stack>
-      </AccordionSummary>
-      <AccordionDetails>
-        <Grid container spacing={1.25}>
-          {HELP_ITEMS.map(([title, text]) => (
-            <Grid key={title} size={{ xs: 12, md: 6 }}>
-              <Typography fontWeight={900}>{title}</Typography>
-              <Typography color="text.secondary" variant="body2">{text}</Typography>
-            </Grid>
+        <Divider />
+        <Box sx={{ overflow: 'auto', p: 1.25 }}>
+          {HELP_ITEMS.map(([title, text], index) => (
+            <Accordion key={title} defaultExpanded={index === 0} disableGutters variant="outlined" sx={{ mb: 1, boxShadow: 0 }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography fontWeight={900}>{title}</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography color="text.secondary" variant="body2">{text}</Typography>
+              </AccordionDetails>
+            </Accordion>
           ))}
-        </Grid>
-      </AccordionDetails>
-    </Accordion>
+        </Box>
+      </Box>
+    </Drawer>
   );
 }

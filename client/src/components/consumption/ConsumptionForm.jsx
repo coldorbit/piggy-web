@@ -1,20 +1,22 @@
 import AddIcon from '@mui/icons-material/Add';
-import { Button, FormControl, Grid, InputLabel, MenuItem, Paper, Select, TextField } from '@mui/material';
+import { Box, Button, FormControl, Grid, InputLabel, MenuItem, Paper, Select, TextField } from '@mui/material';
 import { CRYPTO_CURRENCIES, TEAM_WALLET_DEPOSIT_CURRENCIES, TYPE_OPTIONS } from './consumptionConstants.js';
 
 const DENSE_TRANSACTION_TYPES = new Set(['card_deposit', 'swap']);
 const DEFAULT_FIELD_SIZE = 2;
 const DENSE_FIELD_SIZE = 1.2;
 
-export default function ConsumptionForm({ accountOptions, form, isSaving, onChange, onSubmit, spenderOptions }) {
+export default function ConsumptionForm({ accountOptions, form, isSaving, onChange, onSubmit, spenderOptions, surface = 'paper' }) {
   const fieldSize = DENSE_TRANSACTION_TYPES.has(form.type) ? DENSE_FIELD_SIZE : DEFAULT_FIELD_SIZE;
   const showSpender = form.type !== 'wallet_deposit';
   const issuedCardAccountOptions = accountOptions.filter((account) => account.type === 'card');
   const accountNameOptions = accountOptions.map((account) => ({ value: account.name, label: account.name }));
   const issuedCardNameOptions = issuedCardAccountOptions.map((account) => ({ value: account.name, label: account.name }));
+  const Container = surface === 'plain' ? Box : Paper;
+  const containerProps = surface === 'plain' ? {} : { variant: 'outlined' };
 
   return (
-    <Paper component="form" variant="outlined" onSubmit={onSubmit} sx={{ p: 1.5, boxShadow: 1 }}>
+    <Container component="form" onSubmit={onSubmit} sx={{ p: surface === 'plain' ? 0 : 1.5, boxShadow: surface === 'plain' ? 0 : 1 }} {...containerProps}>
       <Grid container spacing={1.25} alignItems="flex-start">
         <Grid size={{ xs: 12, md: 2 }}>
           <SelectField label="Type" value={form.type} options={TYPE_OPTIONS} onChange={(type) => onChange({ type })} />
@@ -59,7 +61,7 @@ export default function ConsumptionForm({ accountOptions, form, isSaving, onChan
           </Grid>
         </Grid>
       </Grid>
-    </Paper>
+    </Container>
   );
 }
 

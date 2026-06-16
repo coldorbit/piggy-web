@@ -11,12 +11,16 @@ export {
 } from './api/adminApi.js';
 import { api, authUrl } from './authApi.js';
 import { jobRegion } from './jobRegion.js';
+import { millisecondsUntilNextBusinessDayStart } from './timezone.js';
+
+const BUSINESS_DAY_ROLLOVER_REFETCH_DELAY_MS = 1_000;
 
 export function useJobs(filters) {
   const queryParams = new URLSearchParams(filters).toString();
   return useQuery({
     queryKey: ['jobs', filters],
     queryFn: () => api(`/api/jobs?${queryParams}`),
+    refetchInterval: businessDayRolloverRefetchInterval,
   });
 }
 
@@ -77,6 +81,7 @@ export function useBidProfiles(options = {}, queryOptions = {}) {
     queryKey: ['bid', 'profiles', options],
     queryFn: () => api(`/api/bid/profiles${queryParams ? `?${queryParams}` : ''}`).then((data) => data.profiles),
     staleTime: 60_000,
+    refetchInterval: businessDayRolloverRefetchInterval,
     ...queryOptions,
   });
 }
@@ -103,7 +108,12 @@ export function useBidJobs(profileId, filters = {}) {
     enabled: Boolean(profileId),
     placeholderData: keepPreviousData,
     staleTime: 15_000,
+    refetchInterval: businessDayRolloverRefetchInterval,
   });
+}
+
+function businessDayRolloverRefetchInterval() {
+  return millisecondsUntilNextBusinessDayStart() + BUSINESS_DAY_ROLLOVER_REFETCH_DELAY_MS;
 }
 
 export function useCallers() {
@@ -721,6 +731,7 @@ function optimisticBid({ id, jobId, bidData }) {
     meetingLink: bidData?.meetingLink || '',
     logs: bidData?.logs || [],
     bidAt: now,
+    interviewAt: bidData?.interviewAt || (bidData?.status === 'interviewing' ? now : null),
     createdAt: now,
     updatedAt: now,
   };

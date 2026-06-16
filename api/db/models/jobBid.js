@@ -56,6 +56,10 @@ export function getJobBidModel() {
         type: DataTypes.DATE,
         field: 'interview_next_at',
       },
+      interviewAt: {
+        type: DataTypes.DATE,
+        field: 'interview_at',
+      },
       interviewDurationMinutes: {
         type: DataTypes.INTEGER,
         allowNull: false,

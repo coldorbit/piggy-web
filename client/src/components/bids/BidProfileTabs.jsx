@@ -9,6 +9,8 @@ import { businessDayProgressPercent } from '../../lib/timezone.js';
 export default function BidProfileTabs({
   activeColor,
   activeProfile,
+  dailyGoalLabel = 'today',
+  isDailyGoalCurrent = true,
   isLoading,
   profiles,
   onProfileChange,
@@ -75,6 +77,8 @@ export default function BidProfileTabs({
                 value={String(profile.id)}
                 label={
                   <ProfileTabLabel
+                    dailyGoalLabel={dailyGoalLabel}
+                    isDailyGoalCurrent={isDailyGoalCurrent}
                     profile={profile}
                     showDailyGoal={showDailyGoal}
                     showInterviewCounts={showInterviewCounts}
@@ -127,8 +131,8 @@ function openProfilePage(profile) {
   window.open(url.toString(), '_blank', 'noopener,noreferrer');
 }
 
-function ProfileTabLabel({ profile, onOpenProfilePage, showDailyGoal, showInterviewCounts }) {
-  const dailyGoal = showDailyGoal ? profileDailyGoal(profile) : null;
+function ProfileTabLabel({ dailyGoalLabel, isDailyGoalCurrent, profile, onOpenProfilePage, showDailyGoal, showInterviewCounts }) {
+  const dailyGoal = showDailyGoal ? profileDailyGoal(profile, isDailyGoalCurrent) : null;
 
   function handleOpen(event) {
     event.preventDefault();
@@ -204,8 +208,8 @@ function ProfileTabLabel({ profile, onOpenProfilePage, showDailyGoal, showInterv
           <Chip
             label={
               dailyGoal.goal
-                ? `${dailyGoal.finished.toLocaleString()} / ${dailyGoal.goal.toLocaleString()} today`
-                : `${dailyGoal.finished.toLocaleString()} today`
+                ? `${dailyGoal.finished.toLocaleString()} / ${dailyGoal.goal.toLocaleString()} ${dailyGoalLabel}`
+                : `${dailyGoal.finished.toLocaleString()} ${dailyGoalLabel}`
             }
             size="small"
             sx={{
@@ -238,13 +242,13 @@ function ProfileTabLabel({ profile, onOpenProfilePage, showDailyGoal, showInterv
   );
 }
 
-function profileDailyGoal(profile) {
+function profileDailyGoal(profile, usePace = true) {
   const goal = Number(profile?.progress?.dailyGoal || 0);
   const finished = Number(profile?.progress?.dailyFinished || 0);
   if (!goal) return { goal, finished, percent: 0, color: '#475569', bgcolor: '#f8fafc' };
   const percent = Math.min((finished / goal) * 100, 100);
   const isComplete = finished >= goal;
-  const isOnTrack = isComplete || percent + 2 >= businessDayProgressPercent();
+  const isOnTrack = usePace ? isComplete || percent + 2 >= businessDayProgressPercent() : isComplete;
   if (isComplete) return { goal, finished, percent, color: '#15803d', bgcolor: '#dcfce7' };
   if (isOnTrack) return { goal, finished, percent, color: '#1d4ed8', bgcolor: '#dbeafe' };
   return { goal, finished, percent, color: '#b45309', bgcolor: '#ffedd5' };
