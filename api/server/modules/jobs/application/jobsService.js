@@ -2,7 +2,7 @@ import { literal, Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
 import { ROLES } from '../../../utils/roles.js';
-import { addBusinessDays, businessDateRange, businessDayStart, businessWeekStart } from '../../../utils/businessTime.js';
+import { addBusinessDays, businessDateRange, businessPresetRange } from '../../../utils/businessTime.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],
@@ -257,30 +257,7 @@ function normalizeDatePreset(value) {
 }
 
 function presetDateRange(value) {
-  const today = businessDayStart(new Date());
-
-  if (value === 'today') {
-    return { from: today, to: addBusinessDays(today, 1) };
-  }
-  if (value === 'yesterday') {
-    return { from: addBusinessDays(today, -1), to: today };
-  }
-  if (value === 'until_yesterday') {
-    return { from: null, to: today };
-  }
-  if (value === 'through_today') {
-    return { from: null, to: addBusinessDays(today, 1) };
-  }
-  if (value === 'this_week') {
-    const weekStart = businessWeekStart(today);
-    return { from: weekStart, to: addBusinessDays(weekStart, 7) };
-  }
-  if (value === 'last_week') {
-    const thisWeekStart = businessWeekStart(today);
-    return { from: addBusinessDays(thisWeekStart, -7), to: thisWeekStart };
-  }
-
-  return null;
+  return businessPresetRange(value);
 }
 
 function customDateRange(dateFrom, dateTo) {

@@ -46,19 +46,16 @@ const BID_FILTER_KEYS = [
 ];
 const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters';
 const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.done, BID_TABS.badWork]);
+const BID_DATE_PRESETS = new Set(['until_yesterday', 'through_today', 'today', 'yesterday', 'last_week', 'custom']);
 
 export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const canIncludeTodayScrapedJobs = isAdminRole(currentUser);
   const canViewBidGoals = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [profileForm, setProfileForm] = useState(EMPTY_PROFILE);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [activeBidTab, setActiveBidTab] = useState(() => bidTabFromParam(searchParams.get('tab')));
-  const [filters, setFilters] = useState(() => bidFiltersFromParams(searchParams, {
-    activeBidTab,
-    canIncludeTodayScrapedJobs,
-  }));
+  const [filters, setFilters] = useState(() => bidFiltersFromParams(searchParams));
   const [drafts, setDrafts] = useState({});
   const [error, setError] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -118,15 +115,12 @@ export default function BidPage({ currentUser }) {
   useEffect(() => {
     const nextProfileId = searchParams.get('profileId') || '';
     const nextTab = bidTabFromParam(searchParams.get('tab'));
-    const nextFilters = bidFiltersFromParams(searchParams, {
-      activeBidTab: nextTab,
-      canIncludeTodayScrapedJobs,
-    });
+    const nextFilters = bidFiltersFromParams(searchParams);
 
     if (String(nextProfileId) !== String(activeProfileId)) setActiveProfileId(nextProfileId);
     if (nextTab !== activeBidTab) setActiveBidTab(nextTab);
     if (!areBidFiltersEqual(nextFilters, filters)) setFilters(nextFilters);
-  }, [canIncludeTodayScrapedJobs, searchParams]);
+  }, [searchParams]);
 
   useEffect(() => {
     const nextParams = bidParamsFromState({ activeProfileId, activeBidTab, filters });
@@ -189,7 +183,6 @@ export default function BidPage({ currentUser }) {
     setActiveBidTab(value);
     setFilters((current) => normalizeBidDateFilter(
       { ...current, page: 1 },
-      { activeBidTab: value, canIncludeTodayScrapedJobs },
     ));
   }
 
@@ -392,10 +385,6 @@ export default function BidPage({ currentUser }) {
                   ...(metaData || { sources: [] }),
                   appliedProfiles: appliedProfileOptions,
                   bidDateStrategy: true,
-                  canIncludeTodayScrapedJobs: canIncludeTodayDateFilter({
-                    activeBidTab,
-                    canIncludeTodayScrapedJobs,
-                  }),
                   showAppliedProfileFilter: activeBidTab === BID_TABS.todo && canUseCrossUserAppliedFilter,
                 }}
                 onClose={() => setIsFilterPanelOpen(false)}
@@ -575,7 +564,7 @@ function bidTabFromParam(value) {
   return APPLICATION_TABS.has(value) ? value : BID_TABS.todo;
 }
 
-function bidFiltersFromParams(params, { activeBidTab = BID_TABS.todo, canIncludeTodayScrapedJobs = false } = {}) {
+function bidFiltersFromParams(params) {
   const persistedFilters = readPersistedFilters(BID_FILTERS_STORAGE_KEY, DEFAULT_BID_FILTERS, BID_FILTER_KEYS);
   const paramFilters = {};
   BID_FILTER_KEYS.forEach((key) => {
@@ -584,21 +573,12 @@ function bidFiltersFromParams(params, { activeBidTab = BID_TABS.todo, canInclude
   });
   return normalizeBidDateFilter(
     mergeKnownFilters(persistedFilters, paramFilters, BID_FILTER_KEYS),
-    { activeBidTab, canIncludeTodayScrapedJobs },
   );
 }
 
-function normalizeBidDateFilter(filters, { activeBidTab = BID_TABS.todo, canIncludeTodayScrapedJobs = false } = {}) {
-  if (canIncludeTodayDateFilter({ activeBidTab, canIncludeTodayScrapedJobs })) {
-    if (!['this_week', 'all'].includes(filters.since)) return filters;
-    return { ...filters, since: 'today', dateFrom: '', dateTo: '' };
-  }
-  if (!['today', 'through_today', 'this_week', 'all'].includes(filters.since)) return filters;
-  return { ...filters, since: 'until_yesterday', dateFrom: '', dateTo: '' };
-}
-
-function canIncludeTodayDateFilter({ activeBidTab, canIncludeTodayScrapedJobs = false }) {
-  return canIncludeTodayScrapedJobs || activeBidTab === BID_TABS.done || activeBidTab === BID_TABS.badWork;
+function normalizeBidDateFilter(filters) {
+  if (BID_DATE_PRESETS.has(filters.since)) return filters;
+  return { ...filters, since: DEFAULT_BID_FILTERS.since, dateFrom: '', dateTo: '' };
 }
 
 function bidParamsFromState({ activeProfileId, activeBidTab, filters }) {

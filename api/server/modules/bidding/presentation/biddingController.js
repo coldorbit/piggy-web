@@ -53,14 +53,13 @@ import {
   businessDateRange,
   businessDayRange,
   businessDaySql,
-  businessDayStart,
-  businessWeekStart,
+  businessPresetRange,
 } from '../../../utils/businessTime.js';
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
-const DAILY_BID_GOAL_STATUSES = ['submitted', 'won', 'lost'];
 const BID_AT_FINISHED_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
+const DAILY_BID_GOAL_STATUSES = BID_AT_FINISHED_STATUSES;
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -619,7 +618,6 @@ export async function listBidJobs(req, res, next) {
       ...jobQueryForBidTab(req.query, bidTab),
       limit: req.query.limit || 10,
     });
-    if (!isAdminRole(user) && isBidStrategyTab(bidTab)) enforceBidStrategyScrapedBeforeToday(where);
     const bidUsers = await bidUsersForProfile(profile);
     const appliedProfileId = bidTab === 'todo' ? await appliedProfileFilter(req, req.query.appliedProfileId) : '';
     const activeTabQuery = buildBidTabQuery({
@@ -637,7 +635,6 @@ export async function listBidJobs(req, res, next) {
         ...jobQueryForBidTab(req.query, tab),
         limit: req.query.limit || 10,
       });
-      if (!isAdminRole(user) && isBidStrategyTab(tab)) enforceBidStrategyScrapedBeforeToday(countWhere);
       const countQuery = buildBidTabQuery({
         where: countWhere,
         tab,
@@ -751,20 +748,7 @@ function bidDateRange({ since, dateFrom, dateTo }) {
 }
 
 function presetBidDateRange(since) {
-  const today = businessDayStart(new Date());
-  if (since === 'today') return { from: today, to: addBusinessDays(today, 1) };
-  if (since === 'yesterday') return { from: addBusinessDays(today, -1), to: today };
-  if (since === 'until_yesterday') return { from: null, to: today };
-  if (since === 'through_today') return { from: null, to: addBusinessDays(today, 1) };
-  if (since === 'this_week') {
-    const weekStart = businessWeekStart(today);
-    return { from: weekStart, to: addBusinessDays(weekStart, 7) };
-  }
-  if (since === 'last_week') {
-    const thisWeekStart = businessWeekStart(today);
-    return { from: addBusinessDays(thisWeekStart, -7), to: thisWeekStart };
-  }
-  return null;
+  return businessPresetRange(since);
 }
 
 function isCompletedBidTab(tab) {
@@ -1210,16 +1194,6 @@ function daysSince(value, now = new Date()) {
   return Math.max(Math.floor((now.getTime() - timestamp) / DAY_MS), 0);
 }
 
-function enforceBidStrategyScrapedBeforeToday(where) {
-  const today = businessDayStart(new Date());
-  const currentScrapedAt = where.scrapedAt || {};
-  const currentUpperBound = currentScrapedAt[Op.lt];
-  where.scrapedAt = {
-    ...currentScrapedAt,
-    [Op.lt]: currentUpperBound && new Date(currentUpperBound) < today ? currentUpperBound : today,
-  };
-}
-
 export async function createTailoredResume(req, res, next) {
   try {
     await ensureWebModels();
@@ -1554,18 +1528,7 @@ function tailoringDateRange({ since, dateFrom, dateTo }) {
 }
 
 function presetTailoringDateRange(since) {
-  const today = businessDayStart(new Date());
-  if (since === 'today') return { from: today, to: addBusinessDays(today, 1) };
-  if (since === 'yesterday') return { from: addBusinessDays(today, -1), to: today };
-  if (since === 'this_week') {
-    const weekStart = businessWeekStart(today);
-    return { from: weekStart, to: addBusinessDays(weekStart, 7) };
-  }
-  if (since === 'last_week') {
-    const thisWeekStart = businessWeekStart(today);
-    return { from: addBusinessDays(thisWeekStart, -7), to: thisWeekStart };
-  }
-  return null;
+  return businessPresetRange(since);
 }
 
 export async function downloadTailoredResume(req, res, next) {

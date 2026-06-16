@@ -29,6 +29,23 @@ export function businessDateRange(dateKey) {
   return { from, to: addBusinessDays(from, 1) };
 }
 
+export function businessPresetRange(value, now = new Date()) {
+  const today = businessDayStart(now);
+  if (value === 'today') return { from: today, to: addBusinessDays(today, 1) };
+  if (value === 'yesterday') return { from: addBusinessDays(today, -1), to: today };
+  if (value === 'until_yesterday') return { from: null, to: today };
+  if (value === 'through_today') return { from: null, to: addBusinessDays(today, 1) };
+  if (value === 'this_week') {
+    const weekStart = businessWeekStart(today);
+    return { from: weekStart, to: addBusinessDays(weekStart, 7) };
+  }
+  if (value === 'last_week') {
+    const thisWeekStart = businessWeekStart(today);
+    return { from: addBusinessDays(thisWeekStart, -7), to: thisWeekStart };
+  }
+  return null;
+}
+
 export function addBusinessDays(value, days) {
   const startParts = zonedDateParts(value);
   const nextDate = addCalendarDays(startParts, days);

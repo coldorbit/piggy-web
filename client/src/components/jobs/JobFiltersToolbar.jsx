@@ -15,7 +15,6 @@ import {
   Tooltip,
 } from '@mui/material';
 import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
-import { businessTimezoneDateKeyDaysAgo } from '../../lib/timezone.js';
 
 export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
   const appliedProfiles = meta?.appliedProfiles || [];
@@ -28,7 +27,7 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
   const sinceValue = dateOptions.some((option) => option.value === filters.since) ? filters.since : dateOptions[0].value;
   const customRangeStart = parseDateOnly(filters.dateFrom);
   const customRangeEnd = parseDateOnly(filters.dateTo);
-  const maxCustomDate = meta?.canIncludeTodayScrapedJobs === false ? yesterdayDate() : new Date();
+  const maxCustomDate = new Date();
 
   function updateSince(value) {
     onFilterChange('since', value);
@@ -258,8 +257,8 @@ function dateFilterOptions(meta = {}) {
   if (meta.bidDateStrategy) {
     return [
       { value: 'until_yesterday', label: 'Until yesterday' },
-      ...(meta.canIncludeTodayScrapedJobs ? [{ value: 'through_today', label: 'Through today' }] : []),
-      ...(meta.canIncludeTodayScrapedJobs ? [{ value: 'today', label: 'Today' }] : []),
+      { value: 'through_today', label: 'Through today' },
+      { value: 'today', label: 'Today' },
       { value: 'yesterday', label: 'Yesterday' },
       { value: 'last_week', label: 'Last week' },
       { value: 'custom', label: 'Custom range' },
@@ -268,18 +267,14 @@ function dateFilterOptions(meta = {}) {
 
   return [
     { value: 'until_yesterday', label: 'Until yesterday' },
-    ...(meta.canIncludeTodayScrapedJobs ? [{ value: 'through_today', label: 'Through today' }] : []),
-    ...(meta.canIncludeTodayScrapedJobs ? [{ value: 'today', label: 'Today' }] : []),
+    { value: 'through_today', label: 'Through today' },
+    { value: 'today', label: 'Today' },
     { value: 'yesterday', label: 'Yesterday' },
     { value: 'this_week', label: 'This week' },
     { value: 'last_week', label: 'Last week' },
     { value: 'all', label: 'All time' },
     { value: 'custom', label: 'Custom range' },
   ];
-}
-
-function yesterdayDate() {
-  return parseDateOnly(businessTimezoneDateKeyDaysAgo(1)) || new Date();
 }
 
 const DateRangeInput = forwardRef(function DateRangeInput({ value, onClick, onChange }, ref) {

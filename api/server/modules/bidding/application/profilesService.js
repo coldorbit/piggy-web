@@ -20,6 +20,8 @@ import {
   isAdminRole,
 } from '../../../utils/roles.js';
 
+const DAILY_BID_GOAL_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
+
 export async function currentDbUser(req) {
   const user = await repositories.findUserByUsername(req.user.username);
   if (!user) throw new InputError('Current user is not available');
@@ -173,7 +175,7 @@ export async function profilesWithProgress(profiles, { user } = {}) {
       ],
       where: {
         profileId: profileIds,
-        status: { [Op.in]: ['submitted', 'won', 'lost'] },
+        status: { [Op.in]: DAILY_BID_GOAL_STATUSES },
         bidAt: { [Op.gte]: today, [Op.lt]: tomorrow },
         ...(isCaller ? { callerUserId: user.id } : {}),
       },
