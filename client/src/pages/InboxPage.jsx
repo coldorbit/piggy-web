@@ -68,9 +68,13 @@ export default function InboxPage({ currentUser }) {
   useEffect(() => {
     const nextProfileId = searchParams.get('profileId') || '';
     const nextSearch = searchParams.get('search') || '';
-    if (searchParams.has('profileId') && String(nextProfileId) !== String(activeProfileId)) setActiveProfileId(nextProfileId);
-    if (nextSearch !== search) setSearch(nextSearch);
-  }, [activeProfileId, search, searchParams]);
+    setActiveProfileId((currentProfileId) => (
+      searchParams.has('profileId') && String(nextProfileId) !== String(currentProfileId)
+        ? nextProfileId
+        : currentProfileId
+    ));
+    setSearch((currentSearch) => (nextSearch !== currentSearch ? nextSearch : currentSearch));
+  }, [searchParams]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
