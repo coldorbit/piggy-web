@@ -51,12 +51,12 @@ import { clean } from '../../../utils/index.js';
 import { handleInputError, handleUserWriteError, InputError, NotFoundError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, INTERNAL_DATA_ROLES, INTERVIEW_ACCESS_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../../../utils/roles.js';
 import {
-  addBusinessDays,
-  businessDateKeyDaysAgo,
-  businessDateRange,
-  businessDaySql,
-  businessPresetRange,
-} from '../../../utils/businessTime.js';
+  addLocalDays,
+  localDateKeyDaysAgo,
+  localDateRange,
+  localDaySql,
+  localPresetRange,
+} from '../../../utils/localTime.js';
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
@@ -250,6 +250,9 @@ export async function listBidders(req, res, next) {
       ? bidderRows
       : bidderRows.filter((bidder) => String(bidder.id) === String(user.id));
     const bidderIds = visibleBidders.map((bidder) => Number(bidder.id)).filter((id) => Number.isFinite(id));
+    const viewerTimeZone = user.timezone;
+    const bidDaySql = localDaySql('job_bids.bid_at', viewerTimeZone);
+    const nowDaySql = localDaySql('now()', viewerTimeZone);
 
     if (!bidderIds.length) {
       res.json({ bidders: [] });
@@ -288,16 +291,16 @@ export async function listBidders(req, res, next) {
         )
         SELECT
           visible_profile_access.user_id,
-          to_char(${businessDaySql('job_bids.bid_at')}, 'YYYY-MM-DD') AS day,
+          to_char(${bidDaySql}, 'YYYY-MM-DD') AS day,
           COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source,
           COUNT(*)::int AS applications
         FROM job_bids
         JOIN visible_profile_access ON visible_profile_access.profile_id = job_bids.profile_id
         JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
-        WHERE ${businessDaySql('job_bids.bid_at')} >= ${businessDaySql('now()')} - interval '13 days'
+        WHERE ${bidDaySql} >= ${nowDaySql} - interval '13 days'
           AND job_bids.status NOT IN ('mismatching_bid', 'spam_job')
-        GROUP BY visible_profile_access.user_id, ${businessDaySql('job_bids.bid_at')}, COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')
-        ORDER BY ${businessDaySql('job_bids.bid_at')} ASC, source ASC
+        GROUP BY visible_profile_access.user_id, ${bidDaySql}, COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')
+        ORDER BY ${bidDaySql} ASC, source ASC
       `),
       sequelize.query(`
         WITH visible_profile_access AS (
@@ -340,7 +343,7 @@ export async function listBidders(req, res, next) {
 
     const summaryByUserId = new Map(summaryRows[0].map((row) => [String(row.user_id), row]));
     const interviewSummaryByUserId = new Map(interviewSummaryRows[0].map((row) => [String(row.user_id), row]));
-    const dailyByUserId = buildDailyApplications(dailyRows[0]);
+    const dailyByUserId = buildDailyApplications(dailyRows[0], viewerTimeZone);
     const interviewsByUserId = new Map(bidderIds.map((id) => [String(id), []]));
     for (const row of interviewRows[0]) {
       const interviews = interviewsByUserId.get(String(row.user_id));
@@ -379,7 +382,7 @@ export async function listBidders(req, res, next) {
           interviewPassThrough: Number(interviewSummary.interview_pass_through || 0),
           won: Number(interviewSummary.won || 0),
           lost: Number(interviewSummary.lost || 0),
-          dailyApplications: dailyByUserId.get(String(bidder.id)) || buildEmptyDailyApplications(),
+          dailyApplications: dailyByUserId.get(String(bidder.id)) || buildEmptyDailyApplications(viewerTimeZone),
           interviews: interviewsByUserId.get(String(bidder.id)) || [],
         };
       }),
@@ -617,11 +620,11 @@ export async function listBidJobs(req, res, next) {
     const TailoredResume = getTailoredResumeModel();
     const WebUser = getWebUserModel();
     const sequelize = getSequelize();
-    const activeBidDateRange = bidDateRangeForTab(query, bidTab);
+    const activeBidDateRange = bidDateRangeForTab(query, bidTab, user);
     const { where, order: jobOrder, limit, offset } = buildJobQuery({
       ...jobQueryForBidTab(query, bidTab),
       limit: query.limit || 10,
-    });
+    }, { timeZone: user.timezone });
     const bidUsers = await bidUsersForProfile(profile);
     const appliedProfileId = bidTab === 'todo' ? await appliedProfileFilter(req, req.query.appliedProfileId) : '';
     const activeTabQuery = buildBidTabQuery({
@@ -638,13 +641,13 @@ export async function listBidJobs(req, res, next) {
       const { where: countWhere } = buildJobQuery({
         ...jobQueryForBidTab(query, tab),
         limit: query.limit || 10,
-      });
+      }, { timeZone: user.timezone });
       const countQuery = buildBidTabQuery({
         where: countWhere,
         tab,
         profileId: profile.id,
         appliedProfileId: tab === 'todo' && tab === bidTab ? appliedProfileId : '',
-        bidDateRange: bidDateRangeForTab(query, tab),
+        bidDateRange: bidDateRangeForTab(query, tab, user),
         JobBid,
         sequelize,
       });
@@ -744,27 +747,28 @@ function jobQueryForBidTab(query, tab) {
   return { ...query, since: 'all', dateFrom: '', dateTo: '' };
 }
 
-function bidDateRangeForTab(query, tab) {
+function bidDateRangeForTab(query, tab, user) {
   if (!isCompletedBidTab(tab)) return null;
   return bidDateRange({
     since: clean(query?.since || 'today'),
     dateFrom: query?.dateFrom,
     dateTo: query?.dateTo,
+    timeZone: user?.timezone,
   });
 }
 
-function bidDateRange({ since, dateFrom, dateTo }) {
+function bidDateRange({ since, dateFrom, dateTo, timeZone }) {
   if (since === 'all') return null;
   if (since === 'custom') {
-    const from = businessDateRange(dateFrom)?.from || null;
-    const to = businessDateRange(dateTo)?.from || null;
-    return { from, to: to ? addBusinessDays(to, 1) : null };
+    const from = localDateRange(dateFrom, { timeZone })?.from || null;
+    const to = localDateRange(dateTo, { timeZone })?.from || null;
+    return { from, to: to ? addLocalDays(to, 1, { timeZone }) : null };
   }
-  return presetBidDateRange(since);
+  return presetBidDateRange(since, timeZone);
 }
 
-function presetBidDateRange(since) {
-  return businessPresetRange(since);
+function presetBidDateRange(since, timeZone) {
+  return localPresetRange(since, new Date(), { timeZone });
 }
 
 function isCompletedBidTab(tab) {
@@ -909,10 +913,10 @@ async function listInterviewJobs(req, res, { user, profile }) {
       offset,
     }),
     Interview.count({ where }),
-    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'todo', query: req.query }),
-    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'tailored', query: req.query }),
-    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'done', query: req.query }),
-    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'bad_work', query: req.query }),
+    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'todo', query: req.query, user }),
+    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'tailored', query: req.query, user }),
+    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'done', query: req.query, user }),
+    user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'bad_work', query: req.query, user }),
     Interview.count({ where: { profileId: profile.id, ...(user.role === 'caller' ? { callerUserId: user.id } : {}) } }),
     bidUsersForProfile(profile),
     isAdminRole(user) ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }) : Promise.resolve([]),
@@ -947,7 +951,7 @@ async function listInterviewJobs(req, res, { user, profile }) {
   });
 }
 
-async function countBidTabForProfile({ profile, tab, query, appliedProfileId = '' }) {
+async function countBidTabForProfile({ profile, tab, query, user, appliedProfileId = '' }) {
   const ScrapedJob = getScrapedJobModel();
   const JobBid = getJobBidModel();
   const sequelize = getSequelize();
@@ -956,13 +960,13 @@ async function countBidTabForProfile({ profile, tab, query, appliedProfileId = '
     bidTab: tab,
     profileId: profile.id,
     limit: query.limit || 10,
-  });
+  }, { timeZone: user?.timezone });
   const countQuery = buildBidTabQuery({
     where,
     tab,
     profileId: profile.id,
     appliedProfileId,
-    bidDateRange: bidDateRangeForTab(query, tab),
+    bidDateRange: bidDateRangeForTab(query, tab, user),
     JobBid,
     sequelize,
   });
@@ -1390,6 +1394,7 @@ export async function listTailoringRequests(req, res, next) {
       since: clean(req.query?.since || 'all'),
       dateFrom: req.query?.dateFrom,
       dateTo: req.query?.dateTo,
+      timeZone: user.timezone,
     });
     const page = Math.max(1, Number(req.query?.page) || 1);
     const limit = Math.max(1, Math.min(Number(req.query?.limit) || 50, 100));
@@ -1538,18 +1543,18 @@ export async function listTailoringRequests(req, res, next) {
   }
 }
 
-function tailoringDateRange({ since, dateFrom, dateTo }) {
+function tailoringDateRange({ since, dateFrom, dateTo, timeZone }) {
   if (since === 'all') return null;
   if (since === 'custom') {
-    const from = businessDateRange(dateFrom)?.from || null;
-    const to = businessDateRange(dateTo)?.from || null;
-    return { from, to: to ? addBusinessDays(to, 1) : null };
+    const from = localDateRange(dateFrom, { timeZone })?.from || null;
+    const to = localDateRange(dateTo, { timeZone })?.from || null;
+    return { from, to: to ? addLocalDays(to, 1, { timeZone }) : null };
   }
-  return presetTailoringDateRange(since);
+  return presetTailoringDateRange(since, timeZone);
 }
 
-function presetTailoringDateRange(since) {
-  return businessPresetRange(since);
+function presetTailoringDateRange(since, timeZone) {
+  return localPresetRange(since, new Date(), { timeZone });
 }
 
 export async function downloadTailoredResume(req, res, next) {
@@ -2020,8 +2025,8 @@ function formatTailoringRequest(row) {
   };
 }
 
-function buildDailyApplications(rows) {
-  const emptySeries = buildEmptyDailyApplications();
+function buildDailyApplications(rows, timeZone) {
+  const emptySeries = buildEmptyDailyApplications(timeZone);
   const byUserId = new Map();
   for (const row of rows) {
     const userId = String(row.user_id);
@@ -2042,10 +2047,10 @@ function buildDailyApplications(rows) {
   return byUserId;
 }
 
-function buildEmptyDailyApplications() {
+function buildEmptyDailyApplications(timeZone) {
   return Array.from({ length: 14 }, (_item, index) => {
     return {
-      date: businessDateKeyDaysAgo(13 - index),
+      date: localDateKeyDaysAgo(13 - index, new Date(), { timeZone }),
       applications: 0,
       sources: [],
     };

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
 import { buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobDateFiltersForUser, jobsFromCsv, mergedJobSourceOptions, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
-import { addBusinessDays, businessDayStart } from '../server/utils/businessTime.js';
+import { addLocalDays, localDayStart } from '../server/utils/localTime.js';
 
 describe('job query filters', () => {
   it('filters roleFamily against the scraped_jobs category field', () => {
@@ -19,16 +19,16 @@ describe('job query filters', () => {
     assert.equal(query.where.category, 'ai_ml');
   });
 
-  it('applies inclusive custom date ranges by 7pm ET business day', () => {
+  it('applies inclusive custom date ranges by local day', () => {
     const query = buildJobQuery({
       since: 'custom',
       dateFrom: '2026-06-01',
       dateTo: '2026-06-03',
       visibility: 'all',
-    });
+    }, { timeZone: 'America/Los_Angeles' });
 
-    assert.equal(query.where.scrapedAt[Op.gte].toISOString(), '2026-06-01T23:00:00.000Z');
-    assert.equal(query.where.scrapedAt[Op.lt].toISOString(), '2026-06-04T23:00:00.000Z');
+    assert.equal(query.where.scrapedAt[Op.gte].toISOString(), '2026-06-01T07:00:00.000Z');
+    assert.equal(query.where.scrapedAt[Op.lt].toISOString(), '2026-06-04T07:00:00.000Z');
   });
 
   it('does not add a date filter for all time', () => {
@@ -42,15 +42,15 @@ describe('job query filters', () => {
     const today = new Date();
 
     assert.equal(query.where.scrapedAt[Op.gte], undefined);
-    assert.equal(query.where.scrapedAt[Op.lt].toISOString(), businessDayStart(today).toISOString());
+    assert.equal(query.where.scrapedAt[Op.lt].toISOString(), localDayStart(today).toISOString());
   });
 
-  it('filters tomorrow to the next business day for manual imports', () => {
-    const query = buildJobQuery({ since: 'tomorrow', visibility: 'all' });
-    const todayStart = businessDayStart(new Date());
+  it('filters tomorrow to the next local day for manual imports', () => {
+    const query = buildJobQuery({ since: 'tomorrow', visibility: 'all' }, { timeZone: 'America/Los_Angeles' });
+    const todayStart = localDayStart(new Date(), { timeZone: 'America/Los_Angeles' });
 
-    assert.equal(query.where.scrapedAt[Op.gte].toISOString(), addBusinessDays(todayStart, 1).toISOString());
-    assert.equal(query.where.scrapedAt[Op.lt].toISOString(), addBusinessDays(todayStart, 2).toISOString());
+    assert.equal(query.where.scrapedAt[Op.gte].toISOString(), addLocalDays(todayStart, 1, { timeZone: 'America/Los_Angeles' }).toISOString());
+    assert.equal(query.where.scrapedAt[Op.lt].toISOString(), addLocalDays(todayStart, 2, { timeZone: 'America/Los_Angeles' }).toISOString());
   });
 
   it('only honors tomorrow date filters for admins', () => {
@@ -258,20 +258,20 @@ describe('manual CSV job imports', () => {
     assert.equal(job.title, 'Senior AI/ML Software Engineer');
   });
 
-  it('schedules manually imported jobs for the next business day filter window', () => {
+  it('schedules manually imported jobs for the next local day filter window', () => {
     const importedAt = new Date('2026-06-16T14:00:00.000Z');
     const [job] = jobsFromCsv(
       [
         'url,title,company',
         'https://example.com/jobs/manual-next-day-1,Software Engineer,Acme',
       ].join('\n'),
-      { importedBy: 'test-user', importedAt },
+      { importedBy: 'test-user', importedAt, timeZone: 'America/Los_Angeles' },
     );
 
     assert.equal(job.firstSeenAt.toISOString(), importedAt.toISOString());
     assert.equal(job.updatedAt.toISOString(), importedAt.toISOString());
     assert.equal(job.rawJob.importedAt, importedAt.toISOString());
-    assert.equal(job.scrapedAt.toISOString(), '2026-06-16T23:00:00.000Z');
+    assert.equal(job.scrapedAt.toISOString(), '2026-06-17T07:00:00.000Z');
   });
 
   it('treats imported LinkedIn jobs as both LinkedIn-sourced and manual', () => {

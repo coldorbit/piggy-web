@@ -1,7 +1,7 @@
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, ROLES, VALID_USER_ROLES } from '../../../utils/roles.js';
-import { BUSINESS_TIME_ZONE, isValidTimeZone } from '../../../utils/businessTime.js';
+import { DEFAULT_TIME_ZONE, isValidTimeZone } from '../../../utils/localTime.js';
 
 const DAILY_BID_GOAL_DEFAULTS = {
   [ROLES.user]: 100,
@@ -56,7 +56,7 @@ function dailyBidGoalFromBody(body, role) {
 }
 
 function timezoneFromBody(body) {
-  const timezone = clean(body?.timezone) || BUSINESS_TIME_ZONE;
+  const timezone = clean(body?.timezone) || DEFAULT_TIME_ZONE;
   if (!isValidTimeZone(timezone)) {
     throw new InputError('Use a valid timezone like America/New_York');
   }

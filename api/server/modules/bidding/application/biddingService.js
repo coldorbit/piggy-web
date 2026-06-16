@@ -2,16 +2,12 @@ import { Op, Sequelize } from 'sequelize';
 import { formatJob } from '../../jobs/application/jobsService.js';
 import { clean } from '../../../utils/index.js';
 import {
-  addBusinessDays,
-  addZonedDays,
-  businessDateRange,
-  businessDayRange,
-  businessPresetRange,
+  addLocalDays,
+  localDateRange,
+  localDayRange,
+  localPresetRange,
   normalizeTimeZone,
-  zonedDateRange,
-  zonedDayRange,
-  zonedPresetRange,
-} from '../../../utils/businessTime.js';
+} from '../../../utils/localTime.js';
 
 const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
 const DONE_BID_STATUSES = ['submitted', 'won', 'lost'];
@@ -172,35 +168,23 @@ export function shouldSetInterviewAtForStatus(nextStatus, previousStatus, curren
 }
 
 export function dailyGoalRangeForBidFilter(filters = {}, now = new Date()) {
-  const since = clean(filters.since || 'today');
-  if (since === 'until_yesterday') return businessPresetRange('yesterday', now);
-  if (since === 'through_today') return businessPresetRange('today', now);
-  if (since === 'custom') return customGoalRange(filters) || businessDayRange(now);
-  return businessPresetRange(since, now) || businessDayRange(now);
-}
-
-function customGoalRange(filters) {
-  const from = businessDateRange(filters.dateFrom)?.from || null;
-  const toStart = businessDateRange(filters.dateTo)?.from || null;
-  if (!from && !toStart) return null;
-  const to = toStart ? addBusinessDays(toStart, 1) : addBusinessDays(from, 1);
-  return { from: from || toStart, to };
+  return dailyGoalRangeForUserBidFilter(filters, {}, now);
 }
 
 export function dailyGoalRangeForUserBidFilter(filters = {}, user = {}, now = new Date()) {
   const timeZone = normalizeTimeZone(user?.timezone);
   const since = clean(filters.since || 'today');
-  if (since === 'until_yesterday') return zonedPresetRange('yesterday', now, { timeZone });
-  if (since === 'through_today') return zonedPresetRange('today', now, { timeZone });
-  if (since === 'custom') return customUserGoalRange(filters, timeZone) || zonedDayRange(now, { timeZone });
-  return zonedPresetRange(since, now, { timeZone }) || zonedDayRange(now, { timeZone });
+  if (since === 'until_yesterday') return localPresetRange('yesterday', now, { timeZone });
+  if (since === 'through_today') return localPresetRange('today', now, { timeZone });
+  if (since === 'custom') return customGoalRange(filters, timeZone) || localDayRange(now, { timeZone });
+  return localPresetRange(since, now, { timeZone }) || localDayRange(now, { timeZone });
 }
 
-function customUserGoalRange(filters, timeZone) {
-  const from = zonedDateRange(filters.dateFrom, { timeZone })?.from || null;
-  const toStart = zonedDateRange(filters.dateTo, { timeZone })?.from || null;
+function customGoalRange(filters, timeZone) {
+  const from = localDateRange(filters.dateFrom, { timeZone })?.from || null;
+  const toStart = localDateRange(filters.dateTo, { timeZone })?.from || null;
   if (!from && !toStart) return null;
-  const to = toStart ? addZonedDays(toStart, 1, { timeZone }) : addZonedDays(from, 1, { timeZone });
+  const to = toStart ? addLocalDays(toStart, 1, { timeZone }) : addLocalDays(from, 1, { timeZone });
   return { from: from || toStart, to };
 }
 

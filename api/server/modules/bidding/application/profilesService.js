@@ -220,7 +220,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
       })
     : [];
   const goalUserById = new Map(goalUserRows.map((row) => [String(row.id), row]));
-  const dailyGoalRangeByUserId = dailyGoalRangesByUserId(goalUserRows, dailyGoalFilters, dailyGoalRange);
+  const dailyGoalRangeByUserId = dailyGoalRangesByUserId(goalUserRows, dailyGoalFilters, dailyGoalRange, user);
   const dailyBidRows = await dailyBidRowsForGoalRanges({
     profileIds,
     rangeByUserId: dailyGoalRangeByUserId,
@@ -237,6 +237,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
         done: 0,
         dailyGoal: null,
         dailyFinished: 0,
+        dailyGoalTimezone: user?.timezone || '',
         dailyGoals: [],
         dailyUsers: [],
         totalInterviews: 0,
@@ -321,11 +322,12 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
   return profiles;
 }
 
-function dailyGoalRangesByUserId(users, filters, fallbackRange) {
+function dailyGoalRangesByUserId(users, filters, fallbackRange, viewerUser) {
   const ranges = new Map();
-  for (const user of users) {
-    if (!isDailyGoalUserRole(user?.role)) continue;
-    ranges.set(String(user.id), filters ? dailyGoalRangeForUserBidFilter(filters, user) : fallbackRange || dailyGoalRangeForUserBidFilter({}, user));
+  const viewerRange = filters ? dailyGoalRangeForUserBidFilter(filters, viewerUser) : fallbackRange || dailyGoalRangeForUserBidFilter({}, viewerUser);
+  for (const goalUser of users) {
+    if (!isDailyGoalUserRole(goalUser?.role)) continue;
+    ranges.set(String(goalUser.id), viewerRange);
   }
   return ranges;
 }

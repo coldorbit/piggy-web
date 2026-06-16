@@ -26,7 +26,7 @@ import {
 } from '../lib/api.js';
 import { mergeKnownFilters, readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 import { PRIVILEGED_USER_ROLES, isAdminRole } from '../lib/roles.js';
-import { businessDayProgressPercent, dayProgressPercent } from '../lib/timezone.js';
+import { dayProgressPercent, localDayProgressPercent } from '../lib/timezone.js';
 
 const BID_FILTER_KEYS = [
   'search',
@@ -493,6 +493,7 @@ function BidDailyGoalBar({ activeColor, dateLabel, isCurrentDate, profile }) {
   const totalFinished = Number(profile?.progress?.dailyFinished || 0);
   const users = dailyApplicationRows(profile);
   const dayPercent = profileGoalDayProgressPercent(profile);
+  const dateContext = [dateLabel, profile?.progress?.dailyGoalTimezone].filter(Boolean).join(' - ');
   if (!totalGoal && !totalFinished) return null;
 
   return (
@@ -514,8 +515,8 @@ function BidDailyGoalBar({ activeColor, dateLabel, isCurrentDate, profile }) {
         </Typography>
         <Typography variant="body2" fontWeight={900} color="text.secondary">
           {totalGoal
-            ? `${totalFinished.toLocaleString()} / ${totalGoal.toLocaleString()} applications ${dateLabel}`
-            : `${totalFinished.toLocaleString()} applications ${dateLabel}`}
+            ? `${totalFinished.toLocaleString()} / ${totalGoal.toLocaleString()} applications ${dateContext}`
+            : `${totalFinished.toLocaleString()} applications ${dateContext}`}
         </Typography>
       </Box>
       {totalGoal ? (
@@ -530,7 +531,7 @@ function BidDailyGoalBar({ activeColor, dateLabel, isCurrentDate, profile }) {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
           {users.map((user) => (
             <Typography key={user.userId || user.username} variant="caption" color="text.secondary" fontWeight={800}>
-              {[user.username || 'User', roleLabel(user.role), user.timezone].filter(Boolean).join(' - ')}: {user.finished.toLocaleString()}
+              {[user.username || 'User', roleLabel(user.role)].filter(Boolean).join(' - ')}: {user.finished.toLocaleString()}
             </Typography>
           ))}
         </Box>
@@ -539,7 +540,7 @@ function BidDailyGoalBar({ activeColor, dateLabel, isCurrentDate, profile }) {
   );
 }
 
-function DailyGoalRow({ activeColor, dayPercent = businessDayProgressPercent(), goal, isCurrentDate }) {
+function DailyGoalRow({ activeColor, dayPercent = localDayProgressPercent(), goal, isCurrentDate }) {
   const percent = Math.min((goal.finished / goal.goal) * 100, 100);
   const isComplete = goal.finished >= goal.goal;
   const isOnTrack = isComplete || (isCurrentDate && percent + 2 >= dayPercent);
@@ -596,15 +597,8 @@ function dailyApplicationRows(profile) {
 }
 
 function profileGoalDayProgressPercent(profile) {
-  const goals = Array.isArray(profile?.progress?.dailyGoals) ? profile.progress.dailyGoals : [];
-  const weighted = goals
-    .filter((goal) => Number(goal.goal || 0) > 0)
-    .reduce(
-      (total, goal) => total + Number(goal.goal || 0) * dayProgressPercent(new Date(), { timeZone: goal.timezone || undefined }),
-      0,
-    );
-  const totalGoal = goals.reduce((total, goal) => total + Number(goal.goal || 0), 0);
-  return totalGoal ? weighted / totalGoal : businessDayProgressPercent();
+  const timeZone = profile?.progress?.dailyGoalTimezone;
+  return timeZone ? dayProgressPercent(new Date(), { timeZone }) : localDayProgressPercent();
 }
 
 function roleLabel(role) {

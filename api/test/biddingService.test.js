@@ -165,28 +165,28 @@ describe('shouldSetInterviewAtForStatus', () => {
 });
 
 describe('dailyGoalRangeForBidFilter', () => {
-  it('collapses through-today and until-yesterday drawer filters to one business day', () => {
+  it('collapses through-today and until-yesterday drawer filters to one local day', () => {
     const now = new Date('2026-06-16T14:00:00.000Z');
     const throughToday = dailyGoalRangeForBidFilter({ since: 'through_today' }, now);
     const today = dailyGoalRangeForBidFilter({ since: 'today' }, now);
     const untilYesterday = dailyGoalRangeForBidFilter({ since: 'until_yesterday' }, now);
     const yesterday = dailyGoalRangeForBidFilter({ since: 'yesterday' }, now);
 
-    assert.equal(throughToday.from.toISOString(), '2026-06-15T23:00:00.000Z');
-    assert.equal(throughToday.to.toISOString(), '2026-06-16T23:00:00.000Z');
+    assert.equal(throughToday.from.toISOString(), '2026-06-16T04:00:00.000Z');
+    assert.equal(throughToday.to.toISOString(), '2026-06-17T04:00:00.000Z');
     assert.equal(today.from.toISOString(), throughToday.from.toISOString());
     assert.equal(today.to.toISOString(), throughToday.to.toISOString());
-    assert.equal(untilYesterday.from.toISOString(), '2026-06-14T23:00:00.000Z');
-    assert.equal(untilYesterday.to.toISOString(), '2026-06-15T23:00:00.000Z');
+    assert.equal(untilYesterday.from.toISOString(), '2026-06-15T04:00:00.000Z');
+    assert.equal(untilYesterday.to.toISOString(), '2026-06-16T04:00:00.000Z');
     assert.equal(yesterday.from.toISOString(), untilYesterday.from.toISOString());
     assert.equal(yesterday.to.toISOString(), untilYesterday.to.toISOString());
   });
 
-  it('uses custom drawer dates with the same 7pm ET boundaries', () => {
+  it('uses custom drawer dates with local day boundaries', () => {
     const range = dailyGoalRangeForBidFilter({ since: 'custom', dateFrom: '2026-06-10', dateTo: '2026-06-11' });
 
-    assert.equal(range.from.toISOString(), '2026-06-10T23:00:00.000Z');
-    assert.equal(range.to.toISOString(), '2026-06-12T23:00:00.000Z');
+    assert.equal(range.from.toISOString(), '2026-06-10T04:00:00.000Z');
+    assert.equal(range.to.toISOString(), '2026-06-12T04:00:00.000Z');
   });
 });
 

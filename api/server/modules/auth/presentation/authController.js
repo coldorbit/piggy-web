@@ -8,6 +8,7 @@ import {
 import { repositories } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { handleUserWriteError } from '../../../utils/errors.js';
+import { isValidTimeZone } from '../../../utils/localTime.js';
 
 export async function login(req, res, next) {
   try {
@@ -51,17 +52,35 @@ export async function updateMe(req, res, next) {
       return;
     }
 
+    const updates = {};
     const username = clean(req.body?.username).toLowerCase();
-    if (!username) {
-      res.status(400).json({ error: 'Username is required' });
-      return;
+    if (req.body?.username !== undefined) {
+      if (!username) {
+        res.status(400).json({ error: 'Username is required' });
+        return;
+      }
+      if (username.includes('@')) {
+        res.status(400).json({ error: 'Username must not be an email address' });
+        return;
+      }
+      updates.username = username;
     }
-    if (username.includes('@')) {
-      res.status(400).json({ error: 'Username must not be an email address' });
+
+    const timezone = clean(req.body?.timezone);
+    if (req.body?.timezone !== undefined) {
+      if (!isValidTimeZone(timezone)) {
+        res.status(400).json({ error: 'Use a valid timezone like America/New_York' });
+        return;
+      }
+      updates.timezone = timezone;
+    }
+
+    if (!Object.keys(updates).length) {
+      res.status(400).json({ error: 'No account changes provided' });
       return;
     }
 
-    await user.update({ username });
+    await user.update(updates);
     const nextUser = publicUser(user);
     const token = await createLoginSession(nextUser);
     res.json({ user: nextUser, token });

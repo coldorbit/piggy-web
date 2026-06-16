@@ -4,7 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import EmptyState from '../common/EmptyState.jsx';
 import { PROFILE_BADGE_COLORS, PROFILE_COLORS } from '../profiles/profileConstants.js';
-import { businessDayProgressPercent, dayProgressPercent } from '../../lib/timezone.js';
+import { dayProgressPercent, localDayProgressPercent } from '../../lib/timezone.js';
 
 export default function BidProfileTabs({
   activeColor,
@@ -255,15 +255,8 @@ function profileDailyGoal(profile, usePace = true) {
 }
 
 function profileGoalDayProgressPercent(profile) {
-  const goals = Array.isArray(profile?.progress?.dailyGoals) ? profile.progress.dailyGoals : [];
-  const weighted = goals
-    .filter((goal) => Number(goal.goal || 0) > 0)
-    .reduce(
-      (total, goal) => total + Number(goal.goal || 0) * dayProgressPercent(new Date(), { timeZone: goal.timezone || undefined }),
-      0,
-    );
-  const totalGoal = goals.reduce((total, goal) => total + Number(goal.goal || 0), 0);
-  return totalGoal ? weighted / totalGoal : businessDayProgressPercent();
+  const timeZone = profile?.progress?.dailyGoalTimezone;
+  return timeZone ? dayProgressPercent(new Date(), { timeZone }) : localDayProgressPercent();
 }
 
 const openProfileIconSx = {

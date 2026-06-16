@@ -4,13 +4,13 @@ import { clean } from '../../../utils/index.js';
 import { formatDashboardResponse } from './dashboardFormatters.js';
 import { DEFAULT_GRAIN, GRAIN_KEYS, dashboardQueries, grainConfigFor } from './dashboardQueries.js';
 
-export async function getDashboardMetrics(query = {}) {
+export async function getDashboardMetrics(query = {}, { user } = {}) {
   await ensureWebModels();
 
   const requestedGrain = clean(query.grain);
   const grain = GRAIN_KEYS.includes(requestedGrain) ? requestedGrain : DEFAULT_GRAIN;
   const sequelize = getSequelize();
-  const sql = dashboardQueries(grainConfigFor(grain));
+  const sql = dashboardQueries(grainConfigFor(grain), { timeZone: user?.timezone });
 
   const [
     overall,

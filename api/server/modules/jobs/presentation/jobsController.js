@@ -23,7 +23,7 @@ export async function listJobs(req, res, next) {
     await ensureWebModels();
     const ScrapedJob = getScrapedJobModel();
     const query = jobDateFiltersForUser(req.query, req.user);
-    const { where, order, limit, offset } = buildJobQuery(query);
+    const { where, order, limit, offset } = buildJobQuery(query, { timeZone: req.user?.timezone });
     const rows = await ScrapedJob.findAll({
       where,
       order,
@@ -193,7 +193,10 @@ export async function importJobsCsv(req, res, next) {
       return;
     }
 
-    const rows = jobsFromCsv(req.body?.csv || req.body?.csvText || '', { importedBy: req.user?.username });
+    const rows = jobsFromCsv(req.body?.csv || req.body?.csvText || '', {
+      importedBy: req.user?.username,
+      timeZone: req.user?.timezone,
+    });
     const ScrapedJob = getScrapedJobModel();
     const existingRows = await ScrapedJob.findAll({
       attributes: ['url', 'title', 'company', 'category', 'location'],

@@ -11,16 +11,16 @@ export {
 } from './api/adminApi.js';
 import { api, authUrl } from './authApi.js';
 import { jobRegion } from './jobRegion.js';
-import { millisecondsUntilNextBusinessDayStart } from './timezone.js';
+import { millisecondsUntilNextLocalDayStart } from './timezone.js';
 
-const BUSINESS_DAY_ROLLOVER_REFETCH_DELAY_MS = 1_000;
+const LOCAL_DAY_ROLLOVER_REFETCH_DELAY_MS = 1_000;
 
 export function useJobs(filters) {
   const queryParams = new URLSearchParams(filters).toString();
   return useQuery({
     queryKey: ['jobs', filters],
     queryFn: () => api(`/api/jobs?${queryParams}`),
-    refetchInterval: businessDayRolloverRefetchInterval,
+    refetchInterval: localDayRolloverRefetchInterval,
   });
 }
 
@@ -81,7 +81,7 @@ export function useBidProfiles(options = {}, queryOptions = {}) {
     queryKey: ['bid', 'profiles', options],
     queryFn: () => api(`/api/bid/profiles${queryParams ? `?${queryParams}` : ''}`).then((data) => data.profiles),
     staleTime: 60_000,
-    refetchInterval: businessDayRolloverRefetchInterval,
+    refetchInterval: localDayRolloverRefetchInterval,
     ...queryOptions,
   });
 }
@@ -127,12 +127,12 @@ export function useBidJobs(profileId, filters = {}) {
     enabled: Boolean(profileId),
     placeholderData: keepPreviousData,
     staleTime: 15_000,
-    refetchInterval: businessDayRolloverRefetchInterval,
+    refetchInterval: localDayRolloverRefetchInterval,
   });
 }
 
-function businessDayRolloverRefetchInterval() {
-  return millisecondsUntilNextBusinessDayStart() + BUSINESS_DAY_ROLLOVER_REFETCH_DELAY_MS;
+function localDayRolloverRefetchInterval() {
+  return millisecondsUntilNextLocalDayStart() + LOCAL_DAY_ROLLOVER_REFETCH_DELAY_MS;
 }
 
 export function useCallers() {

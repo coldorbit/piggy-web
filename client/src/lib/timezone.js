@@ -1,6 +1,6 @@
-export const DEFAULT_TIME_ZONE = 'America/New_York';
-export const DEFAULT_TIME_ZONE_LABEL = 'ET';
-export const BUSINESS_DAY_START_HOUR = 19;
+export const FALLBACK_TIME_ZONE = 'America/New_York';
+export const DEFAULT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || FALLBACK_TIME_ZONE;
+export const DEFAULT_TIME_ZONE_LABEL = defaultTimezoneAbbreviation();
 
 const DATETIME_LOCAL_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -65,18 +65,8 @@ export function defaultTimezoneTodayKey() {
   return defaultTimezoneDateKey(new Date());
 }
 
-export function businessTimezoneTodayKey(value = new Date()) {
-  const parts = zonedDateParts(value);
-  const dateKey = `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
-  return parts.hour >= BUSINESS_DAY_START_HOUR ? dateKey : addDaysToDateKey(dateKey, -1);
-}
-
-export function businessTimezoneDateKeyDaysAgo(days, value = new Date()) {
-  return addDaysToDateKey(businessTimezoneTodayKey(value), -days);
-}
-
-export function businessDayProgressPercent(value = new Date()) {
-  return dayProgressPercent(value, { timeZone: DEFAULT_TIME_ZONE, startHour: BUSINESS_DAY_START_HOUR });
+export function localDayProgressPercent(value = new Date()) {
+  return dayProgressPercent(value, { timeZone: DEFAULT_TIME_ZONE });
 }
 
 export function dayProgressPercent(value = new Date(), { timeZone = DEFAULT_TIME_ZONE, startHour = 0 } = {}) {
@@ -89,13 +79,13 @@ export function dayProgressPercent(value = new Date(), { timeZone = DEFAULT_TIME
   return (elapsed / (24 * 60)) * 100;
 }
 
-export function millisecondsUntilNextBusinessDayStart(value = new Date()) {
+export function millisecondsUntilNextLocalDayStart(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return 60_000;
   const parts = zonedDateParts(date);
   const dateKey = `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
-  const nextDateKey = parts.hour >= BUSINESS_DAY_START_HOUR ? addDaysToDateKey(dateKey, 1) : dateKey;
-  const nextStart = new Date(fromDefaultTimezoneDatetimeLocal(`${nextDateKey}T${pad(BUSINESS_DAY_START_HOUR)}:00`));
+  const nextDateKey = addDaysToDateKey(dateKey, 1);
+  const nextStart = new Date(fromDefaultTimezoneDatetimeLocal(`${nextDateKey}T00:00`));
   return Math.max(nextStart.getTime() - date.getTime(), 1_000);
 }
 

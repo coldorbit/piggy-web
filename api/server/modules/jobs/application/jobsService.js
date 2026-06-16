@@ -2,7 +2,7 @@ import { literal, Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
 import { ROLES, isAdminRole } from '../../../utils/roles.js';
-import { addBusinessDays, businessDateRange, businessDayRange, businessPresetRange } from '../../../utils/businessTime.js';
+import { addLocalDays, localDateRange, localDayRange, localPresetRange, normalizeTimeZone } from '../../../utils/localTime.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],
@@ -91,7 +91,8 @@ const US_WORLDWIDE_LOCATION_PATTERN = [
   '(^|[\\s,(/-])(us|ny|sf|ca|tx|fl|wa|ma|il|ga|co|az|pa|nj|nc|va|mi|oh|or|ut|tn)($|[\\s,)/-])',
 ].join('|');
 
-export function buildJobQuery(query) {
+export function buildJobQuery(query, { timeZone } = {}) {
+  const localTimeZone = normalizeTimeZone(timeZone || query?.timezone);
   const where = {};
   const search = clean(query.search);
   const roleFamily = clean(query.roleFamily || 'all');
@@ -115,7 +116,7 @@ export function buildJobQuery(query) {
   applyVisibilityFilter(where, visibility);
   applyOriginFilter(where, origin);
   applyLocationRegionFilter(where, locationRegion);
-  applyDateFilter(where, { since, dateFrom: query.dateFrom, dateTo: query.dateTo });
+  applyDateFilter(where, { since, dateFrom: query.dateFrom, dateTo: query.dateTo, timeZone: localTimeZone });
   if (search) {
     const pattern = `%${search}%`;
     where[Op.or] = [
@@ -237,12 +238,12 @@ function orderForSort(sort) {
   return [[sort === 'posted_desc' ? 'postedAt' : 'scrapedAt', 'DESC NULLS LAST'], ['id', 'DESC']];
 }
 
-function applyDateFilter(where, { since, dateFrom, dateTo }) {
+function applyDateFilter(where, { since, dateFrom, dateTo, timeZone }) {
   if (since === 'all') return;
 
   const range = since === 'custom'
-    ? customDateRange(dateFrom, dateTo)
-    : presetDateRange(since);
+    ? customDateRange(dateFrom, dateTo, timeZone)
+    : presetDateRange(since, timeZone);
   if (!range) return;
 
   const scrapedAt = {};
@@ -261,17 +262,17 @@ function normalizeDatePreset(value) {
   return legacyDateFilters[value] || value;
 }
 
-function presetDateRange(value) {
-  return businessPresetRange(value);
+function presetDateRange(value, timeZone) {
+  return localPresetRange(value, new Date(), { timeZone });
 }
 
-function customDateRange(dateFrom, dateTo) {
-  const from = businessDateRange(dateFrom)?.from || null;
-  const to = businessDateRange(dateTo)?.from || null;
+function customDateRange(dateFrom, dateTo, timeZone) {
+  const from = localDateRange(dateFrom, { timeZone })?.from || null;
+  const to = localDateRange(dateTo, { timeZone })?.from || null;
 
   return {
     from,
-    to: to ? addBusinessDays(to, 1) : null,
+    to: to ? addLocalDays(to, 1, { timeZone }) : null,
   };
 }
 
@@ -642,14 +643,14 @@ export function canImportJobs(user) {
   return [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.editableBidder].includes(user?.role);
 }
 
-export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue } = {}) {
+export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, timeZone } = {}) {
   const rows = parseCsv(csvText);
   if (rows.length < 2) throw new InputError('CSV must include a header row and at least one job row');
 
   const headers = rows[0].map(normalizeHeader);
   validateCsvHeaders(headers);
   const importedAt = validDateOrNow(importedAtValue);
-  const scrapedAt = businessDayRange(importedAt).to;
+  const scrapedAt = localDayRange(importedAt, { timeZone }).to;
   const jobs = [];
   const errors = [];
 
