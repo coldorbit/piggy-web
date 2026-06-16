@@ -17,7 +17,7 @@ export function grainConfigFor(value) {
 
 export function dashboardQueries(grainConfig, { timeZone = DEFAULT_TIME_ZONE } = {}) {
   return {
-    overall: overallSql(timeZone),
+    overall: overallSql(grainConfig, timeZone),
     trend: trendSql(grainConfig, timeZone),
     users: userPerformanceSql(grainConfig, timeZone),
     bidders: bidderPerformanceSql(grainConfig, timeZone),
@@ -65,10 +65,16 @@ function bucketExpression(column, grainConfig, timeZone) {
   return localBucketSql(column, grainConfig.sql, timeZone);
 }
 
-function overallSql(timeZone) {
+function overallSql(grainConfig, timeZone) {
   const normalizedTimeZone = normalizeTimeZone(timeZone);
+  const jobBucket = bucketExpression('scraped_at', grainConfig, normalizedTimeZone);
+  const bidBucket = bucketExpression('bid_at', grainConfig, normalizedTimeZone);
+  const interviewCreatedBucket = bucketExpression('created_at', grainConfig, normalizedTimeZone);
+  const tailoringBucket = bucketExpression('created_at', grainConfig, normalizedTimeZone);
+
   return `
-    WITH local_day AS (
+    ${rangeCte(grainConfig, normalizedTimeZone)},
+    local_day AS (
       SELECT
         ${localNowBucketSql('day', normalizedTimeZone)} AT TIME ZONE '${normalizedTimeZone}' AS starts_at,
         (${localNowBucketSql('day', normalizedTimeZone)} + interval '1 day') AT TIME ZONE '${normalizedTimeZone}' AS ends_at
@@ -82,7 +88,8 @@ function overallSql(timeZone) {
         COUNT(*) FILTER (WHERE is_spam = true)::int AS spam_jobs,
         COUNT(*) FILTER (WHERE is_spam = false)::int AS reviewed_good_jobs,
         COUNT(*) FILTER (WHERE is_spam IS NULL)::int AS unreviewed_jobs
-      FROM scraped_jobs
+      FROM scraped_jobs, range
+      WHERE ${jobBucket} >= range.starts_at
     ),
     bid_totals AS (
       SELECT
@@ -93,7 +100,8 @@ function overallSql(timeZone) {
         COUNT(*) FILTER (WHERE status = 'won')::int AS won_applications,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications,
         COUNT(*) FILTER (WHERE status IN ('mismatching_bid', 'spam_job'))::int AS review_blocked_applications
-      FROM job_bids
+      FROM job_bids, range
+      WHERE ${bidBucket} >= range.starts_at
     ),
     daily_bid_totals AS (
       SELECT
@@ -119,13 +127,15 @@ function overallSql(timeZone) {
         COUNT(*) FILTER (WHERE status = 'won')::int AS successful_final_interviews,
         COUNT(*) FILTER (WHERE status = 'won')::int AS successful_offers,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_interviews
-      FROM interviews
+      FROM interviews, range
+      WHERE ${interviewCreatedBucket} >= range.starts_at
     ),
     tailoring_totals AS (
       SELECT
         COUNT(*)::int AS tailored_resume_requests,
         COUNT(*) FILTER (WHERE status = 'ready')::int AS ready_tailored_resumes
-      FROM tailored_resumes
+      FROM tailored_resumes, range
+      WHERE ${tailoringBucket} >= range.starts_at
     )
     SELECT job_totals.*, bid_totals.*, daily_bid_totals.*, interview_totals.*, tailoring_totals.*
     FROM job_totals
@@ -214,6 +224,7 @@ function trendSql(grainConfig, timeZone) {
 
 function userPerformanceSql(grainConfig, timeZone) {
   const bidBucket = bucketExpression('bid_at', grainConfig, timeZone);
+  const interviewCreatedBucket = bucketExpression('interviews.created_at', grainConfig, timeZone);
   const interviewActivityBucket = bucketExpression('COALESCE(interviews.updated_at, interviews.created_at)', grainConfig, timeZone);
   const tailoringBucket = bucketExpression('created_at', grainConfig, timeZone);
 
@@ -235,10 +246,25 @@ function userPerformanceSql(grainConfig, timeZone) {
       WHERE ${bidBucket} >= starts_at
       GROUP BY user_id
     ),
-    interview_metrics AS (
+    interview_created_metrics AS (
       SELECT
         interviews.user_id,
         COUNT(*)::int AS interviews,
+        COUNT(*) FILTER (WHERE interviews.first_interview_scheduled_at IS NOT NULL)::int AS first_interviews_scheduled,
+        MIN(interviews.created_at) AS first_interview_at,
+        AVG(EXTRACT(EPOCH FROM (interviews.created_at - interviews.first_interview_scheduled_at)) / 86400)
+          FILTER (WHERE interviews.first_interview_scheduled_at IS NOT NULL AND interviews.created_at >= interviews.first_interview_scheduled_at) AS avg_days_from_scheduled_to_created,
+        AVG(EXTRACT(EPOCH FROM (interviews.created_at - linked_bid.bid_at)) / 86400)
+          FILTER (WHERE linked_bid.bid_at IS NOT NULL AND interviews.created_at >= linked_bid.bid_at) AS avg_days_from_application_to_interview
+      FROM interviews
+      LEFT JOIN job_bids linked_bid ON linked_bid.id = interviews.job_bid_id
+      CROSS JOIN range
+      WHERE ${interviewCreatedBucket} >= starts_at
+      GROUP BY interviews.user_id
+    ),
+    interview_activity_metrics AS (
+      SELECT
+        interviews.user_id,
         COUNT(*) FILTER (WHERE interviews.status = 'interviewing')::int AS active_interviews,
         COUNT(*) FILTER (WHERE interviews.interview_stage IN ('technical_interview', 'system_design'))::int AS technical_interviews,
         COUNT(*) FILTER (WHERE interviews.status = 'won' OR interviews.interview_stage IN ('panel', 'behavioral', 'system_design', 'final'))::int AS successful_technical_interviews,
@@ -246,17 +272,10 @@ function userPerformanceSql(grainConfig, timeZone) {
         COUNT(*) FILTER (WHERE interviews.status = 'won')::int AS successful_final_interviews,
         COUNT(*) FILTER (WHERE interviews.status = 'won')::int AS offers,
         COUNT(*) FILTER (WHERE interviews.status = 'lost')::int AS lost_interviews,
-        COUNT(*) FILTER (WHERE interviews.first_interview_scheduled_at IS NOT NULL)::int AS first_interviews_scheduled,
         COUNT(*) FILTER (WHERE interviews.interview_next_at >= now())::int AS upcoming_interviews,
         COUNT(*) FILTER (WHERE interviews.interview_next_at IS NULL AND interviews.status = 'interviewing')::int AS unscheduled_active_interviews,
-        MIN(interviews.created_at) AS first_interview_at,
-        MAX(interviews.updated_at) AS last_interview_activity_at,
-        AVG(EXTRACT(EPOCH FROM (interviews.created_at - interviews.first_interview_scheduled_at)) / 86400)
-          FILTER (WHERE interviews.first_interview_scheduled_at IS NOT NULL AND interviews.created_at >= interviews.first_interview_scheduled_at) AS avg_days_from_scheduled_to_created,
-        AVG(EXTRACT(EPOCH FROM (interviews.created_at - linked_bid.bid_at)) / 86400)
-          FILTER (WHERE linked_bid.bid_at IS NOT NULL AND interviews.created_at >= linked_bid.bid_at) AS avg_days_from_application_to_interview
+        MAX(interviews.updated_at) AS last_interview_activity_at
       FROM interviews
-      LEFT JOIN job_bids linked_bid ON linked_bid.id = interviews.job_bid_id
       CROSS JOIN range
       WHERE ${interviewActivityBucket} >= starts_at
       GROUP BY interviews.user_id
@@ -300,21 +319,21 @@ function userPerformanceSql(grainConfig, timeZone) {
       COALESCE(bid_metrics.review_blocked_applications, 0)::int AS review_blocked_applications,
       bid_metrics.first_application_at,
       bid_metrics.last_application_at,
-      COALESCE(interview_metrics.interviews, 0)::int AS interviews,
-      COALESCE(interview_metrics.active_interviews, 0)::int AS active_interviews,
-      COALESCE(interview_metrics.technical_interviews, 0)::int AS technical_interviews,
-      COALESCE(interview_metrics.successful_technical_interviews, 0)::int AS successful_technical_interviews,
-      COALESCE(interview_metrics.final_interviews, 0)::int AS final_interviews,
-      COALESCE(interview_metrics.successful_final_interviews, 0)::int AS successful_final_interviews,
-      COALESCE(interview_metrics.offers, 0)::int AS offers,
-      COALESCE(interview_metrics.lost_interviews, 0)::int AS lost_interviews,
-      COALESCE(interview_metrics.first_interviews_scheduled, 0)::int AS first_interviews_scheduled,
-      COALESCE(interview_metrics.upcoming_interviews, 0)::int AS upcoming_interviews,
-      COALESCE(interview_metrics.unscheduled_active_interviews, 0)::int AS unscheduled_active_interviews,
-      interview_metrics.first_interview_at,
-      interview_metrics.last_interview_activity_at,
-      COALESCE(interview_metrics.avg_days_from_scheduled_to_created, 0)::float AS avg_days_from_scheduled_to_created,
-      COALESCE(interview_metrics.avg_days_from_application_to_interview, 0)::float AS avg_days_from_application_to_interview,
+      COALESCE(interview_created_metrics.interviews, 0)::int AS interviews,
+      COALESCE(interview_activity_metrics.active_interviews, 0)::int AS active_interviews,
+      COALESCE(interview_activity_metrics.technical_interviews, 0)::int AS technical_interviews,
+      COALESCE(interview_activity_metrics.successful_technical_interviews, 0)::int AS successful_technical_interviews,
+      COALESCE(interview_activity_metrics.final_interviews, 0)::int AS final_interviews,
+      COALESCE(interview_activity_metrics.successful_final_interviews, 0)::int AS successful_final_interviews,
+      COALESCE(interview_activity_metrics.offers, 0)::int AS offers,
+      COALESCE(interview_activity_metrics.lost_interviews, 0)::int AS lost_interviews,
+      COALESCE(interview_created_metrics.first_interviews_scheduled, 0)::int AS first_interviews_scheduled,
+      COALESCE(interview_activity_metrics.upcoming_interviews, 0)::int AS upcoming_interviews,
+      COALESCE(interview_activity_metrics.unscheduled_active_interviews, 0)::int AS unscheduled_active_interviews,
+      interview_created_metrics.first_interview_at,
+      interview_activity_metrics.last_interview_activity_at,
+      COALESCE(interview_created_metrics.avg_days_from_scheduled_to_created, 0)::float AS avg_days_from_scheduled_to_created,
+      COALESCE(interview_created_metrics.avg_days_from_application_to_interview, 0)::float AS avg_days_from_application_to_interview,
       COALESCE(profile_metrics.profiles, 0)::int AS profiles,
       COALESCE(profile_metrics.active_profiles, 0)::int AS active_profiles,
       COALESCE(profile_metrics.inactive_profiles, 0)::int AS inactive_profiles,
@@ -325,7 +344,8 @@ function userPerformanceSql(grainConfig, timeZone) {
       COALESCE(tailoring_metrics.downloaded_tailored_resumes, 0)::int AS downloaded_tailored_resumes
     FROM web_users
     LEFT JOIN bid_metrics ON bid_metrics.user_id = web_users.id
-    LEFT JOIN interview_metrics ON interview_metrics.user_id = web_users.id
+    LEFT JOIN interview_created_metrics ON interview_created_metrics.user_id = web_users.id
+    LEFT JOIN interview_activity_metrics ON interview_activity_metrics.user_id = web_users.id
     LEFT JOIN profile_metrics ON profile_metrics.user_id = web_users.id
     LEFT JOIN shared_profile_metrics ON shared_profile_metrics.user_id = web_users.id
     LEFT JOIN tailoring_metrics ON tailoring_metrics.user_id = web_users.id
@@ -333,25 +353,36 @@ function userPerformanceSql(grainConfig, timeZone) {
       AND (
         web_users.role IN ('admin', 'user', 'finance_manager', 'internal')
         OR COALESCE(bid_metrics.applications, 0) > 0
-        OR COALESCE(interview_metrics.interviews, 0) > 0
+        OR COALESCE(interview_created_metrics.interviews, 0) > 0
+        OR COALESCE(interview_activity_metrics.active_interviews, 0) > 0
         OR COALESCE(tailoring_metrics.tailored_resume_requests, 0) > 0
       )
-    ORDER BY COALESCE(interview_metrics.offers, 0) DESC,
-      COALESCE(interview_metrics.interviews, 0) DESC,
+    ORDER BY COALESCE(interview_activity_metrics.offers, 0) DESC,
+      COALESCE(interview_created_metrics.interviews, 0) DESC,
       COALESCE(bid_metrics.applications, 0) DESC,
       web_users.username ASC
   `;
 }
 
 function callerPerformanceSql(grainConfig, timeZone) {
+  const callerCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
   const callerActivityBucket = bucketExpression('COALESCE(updated_at, created_at)', grainConfig, timeZone);
 
   return `
     ${rangeCte(grainConfig, timeZone)},
-    caller_metrics AS (
+    caller_created_metrics AS (
       SELECT
         caller_user_id AS user_id,
         COUNT(*)::int AS assigned_interviews,
+        MIN(created_at) AS first_assignment_at
+      FROM interviews, range
+      WHERE caller_user_id IS NOT NULL
+        AND ${callerCreatedBucket} >= starts_at
+      GROUP BY caller_user_id
+    ),
+    caller_activity_metrics AS (
+      SELECT
+        caller_user_id AS user_id,
         COUNT(*) FILTER (WHERE status = 'interviewing')::int AS active_interviews,
         COUNT(*) FILTER (WHERE status IN ('won', 'lost'))::int AS completed_interviews,
         COUNT(*) FILTER (WHERE status = 'won')::int AS won_interviews,
@@ -363,7 +394,6 @@ function callerPerformanceSql(grainConfig, timeZone) {
         COUNT(*) FILTER (WHERE interview_stage = 'hiring_manager')::int AS hiring_manager_interviews,
         COUNT(*) FILTER (WHERE interview_stage IN ('technical_interview', 'system_design'))::int AS technical_interviews,
         COUNT(*) FILTER (WHERE interview_stage = 'final')::int AS final_interviews,
-        MIN(created_at) AS first_assignment_at,
         MAX(updated_at) AS last_assignment_activity_at
       FROM interviews, range
       WHERE caller_user_id IS NOT NULL
@@ -374,26 +404,28 @@ function callerPerformanceSql(grainConfig, timeZone) {
       web_users.id,
       web_users.username,
       web_users.role,
-      COALESCE(caller_metrics.assigned_interviews, 0)::int AS assigned_interviews,
-      COALESCE(caller_metrics.active_interviews, 0)::int AS active_interviews,
-      COALESCE(caller_metrics.completed_interviews, 0)::int AS completed_interviews,
-      COALESCE(caller_metrics.won_interviews, 0)::int AS won_interviews,
-      COALESCE(caller_metrics.lost_interviews, 0)::int AS lost_interviews,
-      COALESCE(caller_metrics.upcoming_interviews, 0)::int AS upcoming_interviews,
-      COALESCE(caller_metrics.unscheduled_active_interviews, 0)::int AS unscheduled_active_interviews,
-      COALESCE(caller_metrics.interviews_with_meeting_links, 0)::int AS interviews_with_meeting_links,
-      COALESCE(caller_metrics.screening_interviews, 0)::int AS screening_interviews,
-      COALESCE(caller_metrics.hiring_manager_interviews, 0)::int AS hiring_manager_interviews,
-      COALESCE(caller_metrics.technical_interviews, 0)::int AS technical_interviews,
-      COALESCE(caller_metrics.final_interviews, 0)::int AS final_interviews,
-      caller_metrics.first_assignment_at,
-      caller_metrics.last_assignment_activity_at
+      COALESCE(caller_created_metrics.assigned_interviews, 0)::int AS assigned_interviews,
+      COALESCE(caller_activity_metrics.active_interviews, 0)::int AS active_interviews,
+      COALESCE(caller_activity_metrics.completed_interviews, 0)::int AS completed_interviews,
+      COALESCE(caller_activity_metrics.won_interviews, 0)::int AS won_interviews,
+      COALESCE(caller_activity_metrics.lost_interviews, 0)::int AS lost_interviews,
+      COALESCE(caller_activity_metrics.upcoming_interviews, 0)::int AS upcoming_interviews,
+      COALESCE(caller_activity_metrics.unscheduled_active_interviews, 0)::int AS unscheduled_active_interviews,
+      COALESCE(caller_activity_metrics.interviews_with_meeting_links, 0)::int AS interviews_with_meeting_links,
+      COALESCE(caller_activity_metrics.screening_interviews, 0)::int AS screening_interviews,
+      COALESCE(caller_activity_metrics.hiring_manager_interviews, 0)::int AS hiring_manager_interviews,
+      COALESCE(caller_activity_metrics.technical_interviews, 0)::int AS technical_interviews,
+      COALESCE(caller_activity_metrics.final_interviews, 0)::int AS final_interviews,
+      caller_created_metrics.first_assignment_at,
+      caller_activity_metrics.last_assignment_activity_at
     FROM web_users
-    LEFT JOIN caller_metrics ON caller_metrics.user_id = web_users.id
+    LEFT JOIN caller_created_metrics ON caller_created_metrics.user_id = web_users.id
+    LEFT JOIN caller_activity_metrics ON caller_activity_metrics.user_id = web_users.id
     WHERE web_users.role = 'caller'
-       OR COALESCE(caller_metrics.assigned_interviews, 0) > 0
-    ORDER BY COALESCE(caller_metrics.active_interviews, 0) DESC,
-      COALESCE(caller_metrics.assigned_interviews, 0) DESC,
+       OR COALESCE(caller_created_metrics.assigned_interviews, 0) > 0
+       OR COALESCE(caller_activity_metrics.active_interviews, 0) > 0
+    ORDER BY COALESCE(caller_activity_metrics.active_interviews, 0) DESC,
+      COALESCE(caller_created_metrics.assigned_interviews, 0) DESC,
       web_users.username ASC
   `;
 }
@@ -574,26 +606,26 @@ function bidStatusBreakdownSql(grainConfig, timeZone) {
 }
 
 function interviewStageBreakdownSql(grainConfig, timeZone) {
-  const interviewActivityBucket = bucketExpression('COALESCE(updated_at, created_at)', grainConfig, timeZone);
+  const interviewCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
 
   return `
     ${rangeCte(grainConfig, timeZone)}
     SELECT COALESCE(NULLIF(interview_stage, ''), 'unknown') AS stage, COUNT(*)::int AS count
     FROM interviews, range
-    WHERE ${interviewActivityBucket} >= starts_at
+    WHERE ${interviewCreatedBucket} >= starts_at
     GROUP BY 1
     ORDER BY count DESC, stage ASC
   `;
 }
 
 function interviewStatusBreakdownSql(grainConfig, timeZone) {
-  const interviewActivityBucket = bucketExpression('COALESCE(updated_at, created_at)', grainConfig, timeZone);
+  const interviewCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
 
   return `
     ${rangeCte(grainConfig, timeZone)}
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
     FROM interviews, range
-    WHERE ${interviewActivityBucket} >= starts_at
+    WHERE ${interviewCreatedBucket} >= starts_at
     GROUP BY 1
     ORDER BY count DESC, status ASC
   `;
