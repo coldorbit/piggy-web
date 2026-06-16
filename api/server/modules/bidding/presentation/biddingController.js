@@ -28,7 +28,7 @@ import {
   shouldSetInterviewAtForStatus,
   tailoredResumesForJobs,
 } from '../application/biddingService.js';
-import { buildJobQuery, formatJob } from '../../jobs/application/jobsService.js';
+import { buildJobQuery, formatJob, jobDateFiltersForUser } from '../../jobs/application/jobsService.js';
 import {
   accessibleProfile,
   accessibleAppliedProfile,
@@ -70,7 +70,8 @@ export async function listProfiles(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const scope = clean(req.query?.scope);
-    const dailyGoalRange = dailyGoalRangeForBidFilter(req.query);
+    const query = jobDateFiltersForUser(req.query, user);
+    const dailyGoalRange = dailyGoalRangeForBidFilter(query);
     const profiles =
       scope === 'applied-filter'
         ? await profilesForAppliedFilter(user)
@@ -600,9 +601,10 @@ export async function listBidJobs(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const bidTab = clean(req.query.bidTab || 'todo');
+    const query = jobDateFiltersForUser(req.query, user);
     const profile = user.role === 'caller' && bidTab === 'interviews'
-      ? await assignedCallerProfile(user, req.query.profileId)
-      : await accessibleProfile(req, req.query.profileId);
+      ? await assignedCallerProfile(user, query.profileId)
+      : await accessibleProfile(req, query.profileId);
     const canViewInternalData = isInternalUser(user);
     if (bidTab === 'interviews') {
       requireInterviewAccessUser(user, res);
@@ -616,11 +618,11 @@ export async function listBidJobs(req, res, next) {
     const TailoredResume = getTailoredResumeModel();
     const WebUser = getWebUserModel();
     const sequelize = getSequelize();
-    const activeBidDateRange = bidDateRangeForTab(req.query, bidTab);
-    const dailyGoalRange = dailyGoalRangeForBidFilter(req.query);
+    const activeBidDateRange = bidDateRangeForTab(query, bidTab);
+    const dailyGoalRange = dailyGoalRangeForBidFilter(query);
     const { where, order: jobOrder, limit, offset } = buildJobQuery({
-      ...jobQueryForBidTab(req.query, bidTab),
-      limit: req.query.limit || 10,
+      ...jobQueryForBidTab(query, bidTab),
+      limit: query.limit || 10,
     });
     const bidUsers = await bidUsersForProfile(profile);
     const appliedProfileId = bidTab === 'todo' ? await appliedProfileFilter(req, req.query.appliedProfileId) : '';
@@ -636,15 +638,15 @@ export async function listBidJobs(req, res, next) {
 
     const countBidTab = (tab) => {
       const { where: countWhere } = buildJobQuery({
-        ...jobQueryForBidTab(req.query, tab),
-        limit: req.query.limit || 10,
+        ...jobQueryForBidTab(query, tab),
+        limit: query.limit || 10,
       });
       const countQuery = buildBidTabQuery({
         where: countWhere,
         tab,
         profileId: profile.id,
         appliedProfileId: tab === 'todo' && tab === bidTab ? appliedProfileId : '',
-        bidDateRange: bidDateRangeForTab(req.query, tab),
+        bidDateRange: bidDateRangeForTab(query, tab),
         JobBid,
         sequelize,
       });

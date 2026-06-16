@@ -46,7 +46,7 @@ const BID_FILTER_KEYS = [
 ];
 const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters';
 const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.done, BID_TABS.badWork]);
-const BID_DATE_PRESETS = new Set(['until_yesterday', 'through_today', 'today', 'yesterday', 'last_week', 'custom']);
+const BID_DATE_PRESETS = new Set(['today', 'tomorrow', 'yesterday', 'this_week', 'last_week', 'until_yesterday', 'through_today', 'all', 'custom']);
 
 export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -62,10 +62,15 @@ export default function BidPage({ currentUser }) {
   const [tailoringByProfileJobId, setTailoringByProfileJobId] = useState({});
   const [sameCompanyConfirmation, setSameCompanyConfirmation] = useState(null);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
-  const profileGoalFilters = useMemo(() => bidGoalFilterParams(filters), [filters.since, filters.dateFrom, filters.dateTo]);
+  const canUseTomorrowDateFilter = isAdminRole(currentUser);
+  const dateFiltersForRole = useMemo(
+    () => (canUseTomorrowDateFilter ? filters : withoutTomorrowDateFilter(filters)),
+    [canUseTomorrowDateFilter, filters],
+  );
+  const profileGoalFilters = useMemo(() => bidGoalFilterParams(dateFiltersForRole), [dateFiltersForRole]);
 
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
-    { ...(isAdminRole(currentUser) ? { scope: 'manage' } : {}), ...profileGoalFilters },
+    { ...(canUseTomorrowDateFilter ? { scope: 'manage' } : {}), ...profileGoalFilters },
   );
   const canUseCrossUserAppliedFilter = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
   const { data: appliedFilterProfiles = [] } = useBidProfiles(
@@ -120,8 +125,8 @@ export default function BidPage({ currentUser }) {
     () => profilesForDisplay.find((profile) => String(profile.id) === String(activeProfile?.id || '')) || activeProfile,
     [activeProfile, profilesForDisplay],
   );
-  const dailyGoalLabel = goalDateLabelForFilters(filters);
-  const isDailyGoalCurrent = isCurrentDailyGoalFilter(filters);
+  const dailyGoalLabel = goalDateLabelForFilters(dateFiltersForRole);
+  const isDailyGoalCurrent = isCurrentDailyGoalFilter(dateFiltersForRole);
 
   useEffect(() => {
     if (!activeProfiles[0]) return;
@@ -403,7 +408,7 @@ export default function BidPage({ currentUser }) {
                 meta={{
                   ...(metaData || { sources: [] }),
                   appliedProfiles: appliedProfileOptions,
-                  bidDateStrategy: true,
+                  showTomorrowDateFilter: canUseTomorrowDateFilter,
                   showAppliedProfileFilter: activeBidTab === BID_TABS.todo && canUseCrossUserAppliedFilter,
                 }}
                 onClose={() => setIsFilterPanelOpen(false)}
@@ -611,13 +616,20 @@ function bidFiltersFromParams(params) {
 }
 
 function goalDateLabelForFilters(filters) {
+  if (filters.since === 'tomorrow') return 'tomorrow';
   if (filters.since === 'until_yesterday' || filters.since === 'yesterday') return 'yesterday';
+  if (filters.since === 'this_week') return 'this week';
   if (filters.since === 'last_week') return 'last week';
   if (filters.since === 'custom') {
     if (filters.dateFrom && filters.dateTo && filters.dateFrom !== filters.dateTo) return 'selected range';
     if (filters.dateFrom || filters.dateTo) return 'selected day';
   }
   return 'today';
+}
+
+function withoutTomorrowDateFilter(filters) {
+  if (filters.since !== 'tomorrow') return filters;
+  return { ...filters, since: 'today', dateFrom: '', dateTo: '' };
 }
 
 function bidGoalFilterParams(filters) {

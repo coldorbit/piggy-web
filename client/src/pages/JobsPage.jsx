@@ -217,7 +217,7 @@ export default function JobsPage({ currentUser }) {
       <JobFiltersDrawer
         isOpen={isFilterPanelOpen}
         filters={filters}
-        meta={meta}
+        meta={{ ...meta, showTomorrowDateFilter: isAdminRole(currentUser) }}
         onClose={() => setIsFilterPanelOpen(false)}
         onFilterChange={updateFilter}
         onOpen={() => setIsFilterPanelOpen(true)}

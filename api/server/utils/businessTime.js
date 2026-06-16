@@ -32,6 +32,7 @@ export function businessDateRange(dateKey) {
 export function businessPresetRange(value, now = new Date()) {
   const today = businessDayStart(now);
   if (value === 'today') return { from: today, to: addBusinessDays(today, 1) };
+  if (value === 'tomorrow') return { from: addBusinessDays(today, 1), to: addBusinessDays(today, 2) };
   if (value === 'yesterday') return { from: addBusinessDays(today, -1), to: today };
   if (value === 'until_yesterday') return { from: null, to: today };
   if (value === 'through_today') return { from: null, to: addBusinessDays(today, 1) };

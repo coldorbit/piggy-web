@@ -1,7 +1,7 @@
 import { literal, Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
-import { ROLES } from '../../../utils/roles.js';
+import { ROLES, isAdminRole } from '../../../utils/roles.js';
 import { addBusinessDays, businessDateRange, businessDayRange, businessPresetRange } from '../../../utils/businessTime.js';
 
 const JOB_CSV_COLUMNS = {
@@ -133,6 +133,11 @@ export function buildJobQuery(query) {
     limit,
     offset,
   };
+}
+
+export function jobDateFiltersForUser(query = {}, user) {
+  if (clean(query.since) !== 'tomorrow' || isAdminRole(user)) return query;
+  return { ...query, since: 'today', dateFrom: '', dateTo: '' };
 }
 
 function applyRoleFamilyFilter(where, roleFamily) {

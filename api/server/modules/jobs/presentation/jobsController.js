@@ -5,6 +5,7 @@ import {
   canImportJobs,
   formatJob,
   groupedJobsFromRows,
+  jobDateFiltersForUser,
   jobsFromCsv,
   mergedJobSourceOptions,
   paginateGroupedJobs,
@@ -21,7 +22,8 @@ export async function listJobs(req, res, next) {
   try {
     await ensureWebModels();
     const ScrapedJob = getScrapedJobModel();
-    const { where, order, limit, offset } = buildJobQuery(req.query);
+    const query = jobDateFiltersForUser(req.query, req.user);
+    const { where, order, limit, offset } = buildJobQuery(query);
     const rows = await ScrapedJob.findAll({
       where,
       order,

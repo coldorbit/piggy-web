@@ -254,24 +254,14 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
 }
 
 function dateFilterOptions(meta = {}) {
-  if (meta.bidDateStrategy) {
-    return [
-      { value: 'until_yesterday', label: 'Until yesterday' },
-      { value: 'through_today', label: 'Through today' },
-      { value: 'today', label: 'Today' },
-      { value: 'yesterday', label: 'Yesterday' },
-      { value: 'last_week', label: 'Last week' },
-      { value: 'custom', label: 'Custom range' },
-    ];
-  }
-
   return [
-    { value: 'until_yesterday', label: 'Until yesterday' },
-    { value: 'through_today', label: 'Through today' },
     { value: 'today', label: 'Today' },
+    ...(meta.showTomorrowDateFilter ? [{ value: 'tomorrow', label: 'Tomorrow' }] : []),
     { value: 'yesterday', label: 'Yesterday' },
     { value: 'this_week', label: 'This week' },
     { value: 'last_week', label: 'Last week' },
+    { value: 'until_yesterday', label: 'Until yesterday' },
+    { value: 'through_today', label: 'Through today' },
     { value: 'all', label: 'All time' },
     { value: 'custom', label: 'Custom range' },
   ];

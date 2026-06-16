@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
-import { buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobsFromCsv, mergedJobSourceOptions, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
-import { businessDayStart } from '../server/utils/businessTime.js';
+import { buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobDateFiltersForUser, jobsFromCsv, mergedJobSourceOptions, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
+import { addBusinessDays, businessDayStart } from '../server/utils/businessTime.js';
 
 describe('job query filters', () => {
   it('filters roleFamily against the scraped_jobs category field', () => {
@@ -43,6 +43,22 @@ describe('job query filters', () => {
 
     assert.equal(query.where.scrapedAt[Op.gte], undefined);
     assert.equal(query.where.scrapedAt[Op.lt].toISOString(), businessDayStart(today).toISOString());
+  });
+
+  it('filters tomorrow to the next business day for manual imports', () => {
+    const query = buildJobQuery({ since: 'tomorrow', visibility: 'all' });
+    const todayStart = businessDayStart(new Date());
+
+    assert.equal(query.where.scrapedAt[Op.gte].toISOString(), addBusinessDays(todayStart, 1).toISOString());
+    assert.equal(query.where.scrapedAt[Op.lt].toISOString(), addBusinessDays(todayStart, 2).toISOString());
+  });
+
+  it('only honors tomorrow date filters for admins', () => {
+    const userQuery = jobDateFiltersForUser({ since: 'tomorrow', dateFrom: '2026-06-01', dateTo: '2026-06-02' }, { role: 'user' });
+    const adminQuery = jobDateFiltersForUser({ since: 'tomorrow' }, { role: 'admin' });
+
+    assert.deepEqual(userQuery, { since: 'today', dateFrom: '', dateTo: '' });
+    assert.deepEqual(adminQuery, { since: 'tomorrow' });
   });
 
   it('searches by public job id', () => {
