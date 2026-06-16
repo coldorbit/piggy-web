@@ -37,7 +37,13 @@ describe('job query filters', () => {
     assert.equal(query.where.scrapedAt, undefined);
   });
 
-  it('filters bid strategy jobs to anything scraped before today', () => {
+  it('does not add a date filter by default', () => {
+    const query = buildJobQuery({ visibility: 'all' });
+
+    assert.equal(query.where.scrapedAt, undefined);
+  });
+
+  it('honors the until-yesterday date preset', () => {
     const query = buildJobQuery({ since: 'until_yesterday', visibility: 'all' });
     const today = new Date();
 
@@ -45,7 +51,7 @@ describe('job query filters', () => {
     assert.equal(query.where.scrapedAt[Op.lt].toISOString(), localDayStart(today).toISOString());
   });
 
-  it('filters tomorrow to the next local day for manual imports', () => {
+  it('filters the tomorrow date preset to the next local day', () => {
     const query = buildJobQuery({ since: 'tomorrow', visibility: 'all' }, { timeZone: 'America/Los_Angeles' });
     const todayStart = localDayStart(new Date(), { timeZone: 'America/Los_Angeles' });
 
@@ -57,7 +63,7 @@ describe('job query filters', () => {
     const userQuery = jobDateFiltersForUser({ since: 'tomorrow', dateFrom: '2026-06-01', dateTo: '2026-06-02' }, { role: 'user' });
     const adminQuery = jobDateFiltersForUser({ since: 'tomorrow' }, { role: 'admin' });
 
-    assert.deepEqual(userQuery, { since: 'today', dateFrom: '', dateTo: '' });
+    assert.deepEqual(userQuery, { since: 'all', dateFrom: '', dateTo: '' });
     assert.deepEqual(adminQuery, { since: 'tomorrow' });
   });
 
@@ -258,7 +264,7 @@ describe('manual CSV job imports', () => {
     assert.equal(job.title, 'Senior AI/ML Software Engineer');
   });
 
-  it('schedules manually imported jobs for the next local day filter window', () => {
+  it('uses the import time as the scraped date for manually imported jobs', () => {
     const importedAt = new Date('2026-06-16T14:00:00.000Z');
     const [job] = jobsFromCsv(
       [
@@ -271,7 +277,7 @@ describe('manual CSV job imports', () => {
     assert.equal(job.firstSeenAt.toISOString(), importedAt.toISOString());
     assert.equal(job.updatedAt.toISOString(), importedAt.toISOString());
     assert.equal(job.rawJob.importedAt, importedAt.toISOString());
-    assert.equal(job.scrapedAt.toISOString(), '2026-06-17T07:00:00.000Z');
+    assert.equal(job.scrapedAt.toISOString(), importedAt.toISOString());
   });
 
   it('treats imported LinkedIn jobs as both LinkedIn-sourced and manual', () => {

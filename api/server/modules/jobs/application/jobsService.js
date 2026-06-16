@@ -2,7 +2,7 @@ import { literal, Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
 import { ROLES, isAdminRole } from '../../../utils/roles.js';
-import { addLocalDays, localDateRange, localDayRange, localPresetRange, normalizeTimeZone } from '../../../utils/localTime.js';
+import { addLocalDays, localDateRange, localPresetRange, normalizeTimeZone } from '../../../utils/localTime.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],
@@ -98,7 +98,7 @@ export function buildJobQuery(query, { timeZone } = {}) {
   const roleFamily = clean(query.roleFamily || 'all');
   const source = normalizeJobSource(query.source);
   const locationRegion = clean(query.locationRegion || 'all');
-  const since = normalizeDatePreset(clean(query.since || 'today'));
+  const since = normalizeDatePreset(clean(query.since || 'all'));
   const spam = clean(query.spam || 'all');
   const visibility = clean(query.visibility || 'visible');
   const origin = clean(query.origin || 'all');
@@ -138,7 +138,7 @@ export function buildJobQuery(query, { timeZone } = {}) {
 
 export function jobDateFiltersForUser(query = {}, user) {
   if (clean(query.since) !== 'tomorrow' || isAdminRole(user)) return query;
-  return { ...query, since: 'today', dateFrom: '', dateTo: '' };
+  return { ...query, since: 'all', dateFrom: '', dateTo: '' };
 }
 
 function applyRoleFamilyFilter(where, roleFamily) {
@@ -650,7 +650,7 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
   const headers = rows[0].map(normalizeHeader);
   validateCsvHeaders(headers);
   const importedAt = validDateOrNow(importedAtValue);
-  const scrapedAt = localDayRange(importedAt, { timeZone }).to;
+  const scrapedAt = importedAt;
   const jobs = [];
   const errors = [];
 

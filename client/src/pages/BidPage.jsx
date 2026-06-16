@@ -44,7 +44,7 @@ const BID_FILTER_KEYS = [
   'page',
   'limit',
 ];
-const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters';
+const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters.v2';
 const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.done, BID_TABS.badWork]);
 const BID_DATE_PRESETS = new Set(['today', 'tomorrow', 'yesterday', 'this_week', 'last_week', 'until_yesterday', 'through_today', 'all', 'custom']);
 
@@ -637,10 +637,18 @@ function goalDateLabelForFilters(filters) {
 
 function withoutTomorrowDateFilter(filters) {
   if (filters.since !== 'tomorrow') return filters;
-  return { ...filters, since: 'today', dateFrom: '', dateTo: '' };
+  return { ...filters, since: 'all', dateFrom: '', dateTo: '' };
 }
 
 function bidGoalFilterParams(filters) {
+  if (filters.since === 'all') {
+    return {
+      since: 'today',
+      dateFrom: '',
+      dateTo: '',
+    };
+  }
+
   return {
     since: filters.since || DEFAULT_BID_FILTERS.since,
     dateFrom: filters.dateFrom || '',
@@ -649,7 +657,7 @@ function bidGoalFilterParams(filters) {
 }
 
 function isCurrentDailyGoalFilter(filters) {
-  return filters.since === 'today' || filters.since === 'through_today';
+  return filters.since === 'all' || filters.since === 'today' || filters.since === 'through_today';
 }
 
 function normalizeBidDateFilter(filters) {
