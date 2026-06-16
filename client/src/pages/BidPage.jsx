@@ -62,9 +62,10 @@ export default function BidPage({ currentUser }) {
   const [tailoringByProfileJobId, setTailoringByProfileJobId] = useState({});
   const [sameCompanyConfirmation, setSameCompanyConfirmation] = useState(null);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
+  const profileGoalFilters = useMemo(() => bidGoalFilterParams(filters), [filters.since, filters.dateFrom, filters.dateTo]);
 
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
-    isAdminRole(currentUser) ? { scope: 'manage' } : {},
+    { ...(isAdminRole(currentUser) ? { scope: 'manage' } : {}), ...profileGoalFilters },
   );
   const canUseCrossUserAppliedFilter = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
   const { data: appliedFilterProfiles = [] } = useBidProfiles(
@@ -617,6 +618,14 @@ function goalDateLabelForFilters(filters) {
     if (filters.dateFrom || filters.dateTo) return 'selected day';
   }
   return 'today';
+}
+
+function bidGoalFilterParams(filters) {
+  return {
+    since: filters.since || DEFAULT_BID_FILTERS.since,
+    dateFrom: filters.dateFrom || '',
+    dateTo: filters.dateTo || '',
+  };
 }
 
 function isCurrentDailyGoalFilter(filters) {

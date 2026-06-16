@@ -70,13 +70,14 @@ export async function listProfiles(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const scope = clean(req.query?.scope);
+    const dailyGoalRange = dailyGoalRangeForBidFilter(req.query);
     const profiles =
       scope === 'applied-filter'
         ? await profilesForAppliedFilter(user)
         : scope === 'manage' && isAdminRole(user)
         ? await profilesManagedByUser(user)
         : await profilesVisibleToUser(user);
-    const visibleProfiles = sortProfilesForDisplay(await profilesWithSharing(await profilesWithProgress(profiles, { user })));
+    const visibleProfiles = sortProfilesForDisplay(await profilesWithSharing(await profilesWithProgress(profiles, { user, dailyGoalRange })));
     res.json({ profiles: visibleProfiles.map(formatProfile) });
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
