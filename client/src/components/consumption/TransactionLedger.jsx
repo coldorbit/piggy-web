@@ -3,12 +3,21 @@ import { Box, IconButton, Paper, Skeleton, Stack, Table, TableBody, TableCell, T
 import EmptyState from '../common/EmptyState.jsx';
 import { formatAmount, formatDate, shortHash, typeLabel } from './consumptionFormatters.js';
 
-export default function TransactionLedger({ isLoading, isSaving, onDelete, transactions }) {
+export default function TransactionLedger({
+  emptyDetail = 'Add a consumption record to start tracking balances and spend.',
+  emptyTitle = 'No transactions yet',
+  isLoading,
+  isSaving,
+  onDelete,
+  subtitle,
+  title = 'Transaction ledger',
+  transactions,
+}) {
   return (
     <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
       <Box sx={{ p: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography fontWeight={900}>Transaction ledger</Typography>
-        <Typography variant="caption" color="text.secondary">{transactions.length.toLocaleString()} transactions, newest first.</Typography>
+        <Typography fontWeight={900}>{title}</Typography>
+        <Typography variant="caption" color="text.secondary">{subtitle || `${transactions.length.toLocaleString()} transactions, newest first.`}</Typography>
       </Box>
       <TableContainer sx={{ maxHeight: 560 }}>
         <Table stickyHeader size="small">
@@ -52,8 +61,8 @@ export default function TransactionLedger({ isLoading, isSaving, onDelete, trans
               <TableRow>
                 <TableCell colSpan={8}>
                   <EmptyState
-                    title="No transactions yet"
-                    detail="Add a consumption record to start tracking balances and spend."
+                    title={emptyTitle}
+                    detail={emptyDetail}
                     variant="plain"
                     sx={{ py: 4 }}
                   />
