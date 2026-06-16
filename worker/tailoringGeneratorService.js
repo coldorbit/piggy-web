@@ -205,7 +205,7 @@ ATS optimization rules:
 - Use standard resume section concepts only: Summary, Work Experience, Education, Skills.
 - Use plain text content only: no icons, emojis, decorative symbols, tables, columns, headers, footers, or graphics.
 - Use consistent date formatting everywhere: "MMM yyyy" for dates, such as "Jan 2024" or "Sep 2022", and "Present" for current roles. Do not use full month names like "January 2024".
-- Populate work experience fields so the rendered resume can show the position on the first line, company on the second line, work mode or work location on the third line, and "MMM yyyy – MMM yyyy" on the fourth line, for example "Senior Software Engineer" followed by "Atlassian" followed by "Remote" followed by "Mar 2024 – Apr 2026".
+- Populate work experience fields so the rendered resume can show the position on the first line, company and work mode/location on the second line, and "MMM yyyy – MMM yyyy" on the third line. Example: "Senior Data Engineer" followed by "ReefPoint Group, Remote" followed by "Aug 2025 – Jun 2026".
 - Do not put headquarters_location at the end of the visible work experience heading, and do not combine work dates into the heading line. headquarters_location is structured context only.
 - Preserve the provided LinkedIn profile as an actual URL in "linkedin_profile". If the profile includes any LinkedIn value, you MUST include it in "linkedin_profile" using the display format "linkedin.com/in/profile-slug". If no LinkedIn profile is provided, leave it blank. Never invent a LinkedIn URL.
 - Normalize noisy target job titles before setting the top-level "role": remove locations, remote/hybrid tags, agency/recruiter names, team names, squad names, project names, product names, platform names, department labels, requisition IDs, contract labels, parenthetical clutter, and descriptive suffixes after separators such as "-", "|", "/", ":", "–", or "—". Keep the plain role name commonly used in job postings, such as "Software Engineer", "Senior Data Engineer", or "Product Manager". For example, "Senior Systems Engineer — AI Code Metrics Daemon" must become "Senior Systems Engineer".
@@ -334,7 +334,6 @@ async function renderResumeDocx(data, profile) {
 
     addText(children, workExperienceTitle(exp), { bold: true, before: template.experienceBefore, after: 30 }, template);
     addWorkExperienceCompanyLine(children, exp, template);
-    addWorkExperiencePlaceLine(children, exp, template);
     addText(children, period, { size: template.metaSize, after: projects.length ? 30 : 60 }, template);
     if (projects.length) addText(children, `Projects: ${projects.join(', ')}`, { size: template.metaSize, after: 60 }, template);
     for (const bullet of exp.bullets || []) {
@@ -411,27 +410,21 @@ function addText(children, value, { after, before = 0, bold = false, italics = f
 }
 
 function addWorkExperienceCompanyLine(children, exp, template) {
-  const company = String(exp.company || '').trim();
-  if (!company) return;
+  const companyLine = workExperienceCompanyLine(exp);
+  if (!companyLine) return;
 
   children.push(
     new Paragraph({
       spacing: { after: 25 },
-      children: [new TextRun({ text: company, bold: true, size: template.metaSize })],
+      children: [new TextRun({ text: companyLine, bold: true, size: template.metaSize })],
     }),
   );
 }
 
-function addWorkExperiencePlaceLine(children, exp, template) {
+function workExperienceCompanyLine(exp) {
+  const company = String(exp.company || '').trim();
   const workPlace = workExperienceDisplayPlace(exp);
-  if (!workPlace) return;
-
-  children.push(
-    new Paragraph({
-      spacing: { after: 25 },
-      children: [new TextRun({ text: workPlace, size: template.metaSize })],
-    }),
-  );
+  return [company, workPlace].filter(Boolean).join(', ');
 }
 
 function addSpacer(children, after) {
@@ -575,8 +568,7 @@ function renderedResumeTextParts(data, profile) {
   for (const exp of workExperienceEntries(data)) {
     parts.push(
       workExperienceTitle(exp),
-      exp.company,
-      workExperienceDisplayPlace(exp),
+      workExperienceCompanyLine(exp),
       workExperienceDateRange(exp),
       ...projectNames(exp),
       ...(exp.bullets || []),
