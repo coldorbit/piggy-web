@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 export { api, authToken, authUrl, clearAuthToken, setAuthToken, useLogin, useLogout, useMe, useUpdateMe } from './authApi.js';
 export {
@@ -96,9 +96,13 @@ export function useForwardingMailboxStatus(queryOptions = {}) {
 }
 
 export function useForwardedProfileMessages(profileId, queryOptions = {}) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages'],
-    queryFn: () => api(`/api/bid/profiles/${profileId}/mailbox/messages?limit=10`),
+    queryFn: ({ pageParam = 0 }) => api(`/api/bid/profiles/${profileId}/mailbox/messages?limit=10&offset=${pageParam}`),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => (
+      lastPage?.pagination?.hasMore ? lastPage.pagination.nextOffset : undefined
+    ),
     enabled: Boolean(profileId),
     staleTime: 15_000,
     ...queryOptions,

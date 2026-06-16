@@ -57,13 +57,23 @@ export default function InboxPage({ currentUser }) {
   const canFetchMessages = Boolean(activeProfile?.id && mailboxStatus?.configured);
   const {
     data: inboxData,
+    fetchNextPage,
+    hasNextPage,
     isFetching: messagesLoading,
+    isFetchingNextPage,
     error: messagesError,
     refetch: refetchMessages,
   } = useForwardedProfileMessages(activeProfile?.id, {
     enabled: canFetchMessages,
   });
-  const messages = configured ? inboxData?.messages || [] : [];
+  const messages = useMemo(
+    () => (configured ? dedupeMessagesById(inboxData?.pages?.flatMap((page) => page.messages || []) || []) : []),
+    [configured, inboxData],
+  );
+  const profileMailboxStats = useMemo(
+    () => mailboxStatsFromPages(inboxData?.pages || [], messages),
+    [inboxData, messages],
+  );
   const filteredMessages = useMemo(() => filterMessages(messages, search), [messages, search]);
   const selectedMessage = useMemo(
     () => filteredMessages.find((message) => String(message.id) === String(selectedMessageId)) || filteredMessages[0] || null,
@@ -71,7 +81,8 @@ export default function InboxPage({ currentUser }) {
   );
   const pageError = profilesError?.message || statusError?.message || (configured ? messagesError?.message : '') || '';
   const isLoadingMessages = statusLoading || (messagesLoading && !inboxData);
-  const unreadCount = messages.filter((message) => !message.isRead).length;
+  const totalMessages = configured ? profileMailboxStats.total : 0;
+  const unreadCount = configured ? profileMailboxStats.unreadTotal : 0;
   const hasMatcher = Boolean(activeProfile?.forwardingEmail || activeProfile?.email);
 
   useEffect(() => {
@@ -154,7 +165,7 @@ export default function InboxPage({ currentUser }) {
             inboxProfiles={inboxProfiles}
             isLoading={profilesLoading}
             mailboxEmail={mailboxEmail}
-            messagesCount={messages.length}
+            messagesCount={totalMessages}
             onProfileChange={setActiveProfileId}
             statusLoading={statusLoading}
             unreadCount={unreadCount}
@@ -165,13 +176,16 @@ export default function InboxPage({ currentUser }) {
             configured={configured}
             hasMatcher={hasMatcher}
             isLoading={isLoadingMessages}
-            isRefreshing={messagesLoading && Boolean(inboxData)}
+            isLoadingMore={isFetchingNextPage}
+            isRefreshing={messagesLoading && !isFetchingNextPage && Boolean(inboxData)}
             messages={filteredMessages}
             profile={activeProfile}
             search={search}
             selectedMessage={selectedMessage}
-            totalMessages={messages.length}
+            totalMessages={totalMessages}
+            canLoadMore={Boolean(hasNextPage)}
             onMessageSelect={setSelectedMessageId}
+            onLoadMore={() => fetchNextPage()}
             onRefresh={() => refetchMessages()}
           />
 
@@ -325,15 +339,18 @@ function ProfileFolderRow({ activeColor, isSelected, onClick, profile }) {
 
 function MessageListPane({
   activeColor,
+  canLoadMore,
   configured,
   hasMatcher,
   isLoading,
+  isLoadingMore,
   isRefreshing,
   messages,
   profile,
   search,
   selectedMessage,
   totalMessages,
+  onLoadMore,
   onMessageSelect,
   onRefresh,
 }) {
@@ -406,8 +423,11 @@ function MessageListPane({
           ? (
               <VirtualizedMessageList
                 activeColor={activeColor}
+                canLoadMore={canLoadMore}
+                isLoadingMore={isLoadingMore}
                 messages={messages}
                 selectedMessage={selectedMessage}
+                onLoadMore={onLoadMore}
                 onMessageSelect={onMessageSelect}
               />
             )
@@ -417,7 +437,18 @@ function MessageListPane({
   );
 }
 
-function VirtualizedMessageList({ activeColor, messages, selectedMessage, onMessageSelect }) {
+function VirtualizedMessageList({
+  activeColor,
+  canLoadMore,
+  isLoadingMore,
+  messages,
+  selectedMessage,
+  onLoadMore,
+  onMessageSelect,
+}) {
+  const rowCount = messages.length + (canLoadMore ? 1 : 0);
+  const loadThresholdIndex = Math.max(messages.length - 3, 0);
+
   return (
     <Box sx={{ height: '100%', minHeight: 0 }}>
       <AutoSizer>
@@ -425,11 +456,23 @@ function VirtualizedMessageList({ activeColor, messages, selectedMessage, onMess
           <VirtualizedList
             height={height}
             width={width}
-            rowCount={messages.length}
+            rowCount={rowCount}
             rowHeight={122}
             overscanRowCount={6}
+            onRowsRendered={({ stopIndex }) => {
+              if (canLoadMore && !isLoadingMore && stopIndex >= loadThresholdIndex) onLoadMore?.();
+            }}
             rowRenderer={({ index, key, style }) => {
               const message = messages[index];
+              if (!message) {
+                return (
+                  <MessageLoadingRow
+                    key={key}
+                    isLoading={isLoadingMore}
+                    style={style}
+                  />
+                );
+              }
               return (
                 <MessageListItem
                   key={key}
@@ -444,6 +487,29 @@ function VirtualizedMessageList({ activeColor, messages, selectedMessage, onMess
           />
         )}
       </AutoSizer>
+    </Box>
+  );
+}
+
+function MessageLoadingRow({ isLoading, style }) {
+  return (
+    <Box
+      style={style}
+      sx={{
+        height: 122,
+        borderBottom: 1,
+        borderColor: 'divider',
+        display: 'grid',
+        placeItems: 'center',
+        color: 'text.secondary',
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center">
+        {isLoading ? <CircularProgress size={18} /> : null}
+        <Typography variant="caption" fontWeight={800}>
+          {isLoading ? 'Loading more messages' : 'Scroll for more messages'}
+        </Typography>
+      </Stack>
     </Box>
   );
 }
@@ -655,6 +721,25 @@ function filterMessages(messages, search) {
       message.match?.value,
     ].some((value) => String(value || '').toLowerCase().includes(query)),
   );
+}
+
+function dedupeMessagesById(messages) {
+  const byId = new Map();
+  for (const message of messages) {
+    const id = String(message?.id || '');
+    if (id && !byId.has(id)) byId.set(id, message);
+  }
+  return [...byId.values()];
+}
+
+function mailboxStatsFromPages(pages, messages) {
+  const loadedTotal = messages.length;
+  const loadedUnreadTotal = messages.filter((message) => !message.isRead).length;
+  const firstPagination = pages.find((page) => page?.pagination)?.pagination || {};
+  return {
+    total: Math.max(Number(firstPagination.total || 0), loadedTotal),
+    unreadTotal: Math.max(Number(firstPagination.unreadTotal || 0), loadedUnreadTotal),
+  };
 }
 
 function emailFrameDocument(html) {

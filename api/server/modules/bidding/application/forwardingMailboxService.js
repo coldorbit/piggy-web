@@ -8,7 +8,7 @@ import { BIDDER_ROLES, isAdminRole } from '../../../utils/roles.js';
 import { currentDbUser } from './profilesService.js';
 
 const DEFAULT_PROFILE_MESSAGE_LIMIT = 10;
-const MAX_MESSAGE_FETCH = 50;
+const MAX_MESSAGE_FETCH = 200;
 const SKIPPED_MAILBOX_SPECIAL_USE = new Set(['\\All', '\\Drafts', '\\Junk', '\\Sent', '\\Trash']);
 
 export function forwardingMailboxConfigured() {
@@ -40,19 +40,26 @@ export async function currentMailboxAdmin(req) {
   return user;
 }
 
-export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT } = {}) {
+export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
   assertForwardingMailboxConfigured();
-  const messageLimit = profileMessageLimit(limit);
-  const parsedMessages = await fetchRecentMailboxMessages(Math.min(Math.max(messageLimit * 5, 25), MAX_MESSAGE_FETCH));
-  const messages = parsedMessages
-    .map((message) => classifyForwardedMessage(message, [profile]))
-    .filter((row) => row.profile)
-    .slice(0, messageLimit)
-    .map((row) => formatMailboxMessage(row.message, row.profile, row.match));
+  const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
+  const page = await fetchForwardedProfileMessagePage(profile, {
+    limit: messageLimit,
+    offset: messageOffset,
+  });
+  const nextOffset = Math.min(messageOffset + page.scannedCount, page.total);
 
   return {
     mailbox: forwardingMailboxStatus(),
-    messages,
+    messages: page.messages,
+    pagination: {
+      limit: messageLimit,
+      offset: messageOffset,
+      total: page.total,
+      unreadTotal: page.unreadTotal,
+      nextOffset,
+      hasMore: nextOffset < page.total,
+    },
   };
 }
 
@@ -212,6 +219,141 @@ async function fetchRecentMailboxMessages(limit) {
   }
 }
 
+async function fetchForwardedProfileMessagePage(profile, { limit, offset }) {
+  const matchers = profileMailboxMatchers(profile);
+  if (!matchers.length) return { messages: [], total: 0, unreadTotal: 0, scannedCount: 0 };
+
+  const client = new ImapFlow({
+    host: clean(ENV.MAILBOX_IMAP_HOST),
+    port: mailboxPort(),
+    secure: mailboxSecure(),
+    auth: {
+      user: clean(ENV.MAILBOX_EMAIL),
+      pass: String(ENV.MAILBOX_PASSWORD || ''),
+    },
+    logger: false,
+  });
+
+  await client.connect();
+  try {
+    const mailboxPaths = await readableMailboxPaths(client);
+    const refs = [];
+    for (const mailboxPath of mailboxPaths) {
+      refs.push(...await searchForwardedProfileMessageRefs(client, mailboxPath, matchers));
+    }
+
+    const sortedRefs = dedupeMessages(refs).sort(compareMessagesByReceivedAtDesc);
+    const total = sortedRefs.length;
+    const unreadTotal = sortedRefs.filter((message) => !message.isRead).length;
+    const pageRefs = sortedRefs.slice(offset, offset + limit);
+    const messagesById = await fetchMailboxMessagesByRef(client, pageRefs);
+    const messages = pageRefs
+      .map((ref) => messagesById.get(ref.id) || ref)
+      .map((message) => classifyForwardedMessage(message, [profile]))
+      .filter((row) => row.profile)
+      .map((row) => formatMailboxMessage(row.message, row.profile, row.match));
+
+    return { messages, total, unreadTotal, scannedCount: pageRefs.length };
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
+async function searchForwardedProfileMessageRefs(client, mailboxPath, matchers) {
+  const lock = await client.getMailboxLock(mailboxPath);
+  try {
+    const uids = await client.search(profileMatcherSearchQuery(matchers), { uid: true }) || [];
+    if (!uids.length) return [];
+
+    const refs = [];
+    for await (const row of client.fetch(uids, {
+      envelope: true,
+      flags: true,
+      internalDate: true,
+      uid: true,
+    }, { uid: true })) {
+      refs.push(formatImapMessageRef(row, mailboxPath));
+    }
+    return refs;
+  } catch (error) {
+    console.warn('Skipping mailbox folder after profile search failure:', mailboxPath, error.message);
+    return [];
+  } finally {
+    lock.release();
+  }
+}
+
+async function fetchMailboxMessagesByRef(client, refs) {
+  const messagesById = new Map();
+  const refsByPath = refsByMailboxPath(refs);
+
+  for (const [mailboxPath, mailboxRefs] of refsByPath.entries()) {
+    const lock = await client.getMailboxLock(mailboxPath);
+    try {
+      const uids = mailboxRefs.map((ref) => ref.uid).filter(Boolean);
+      if (!uids.length) continue;
+
+      for await (const row of client.fetch(uids, {
+        envelope: true,
+        flags: true,
+        internalDate: true,
+        source: true,
+        uid: true,
+      }, { uid: true })) {
+        const message = await parseImapMessage(row, mailboxPath);
+        messagesById.set(message.id, message);
+      }
+    } catch (error) {
+      console.warn('Skipping mailbox folder after page fetch failure:', mailboxPath, error.message);
+    } finally {
+      lock.release();
+    }
+  }
+
+  return messagesById;
+}
+
+function profileMatcherSearchQuery(matchers) {
+  const terms = matchers
+    .map((matcher) => matcher.value)
+    .filter(Boolean)
+    .map((value) => ({ text: value }));
+
+  if (terms.length === 1) return terms[0];
+  return { or: terms };
+}
+
+function refsByMailboxPath(refs) {
+  const byPath = new Map();
+  for (const ref of refs) {
+    const mailboxPath = ref.mailboxPath || 'INBOX';
+    byPath.set(mailboxPath, [...(byPath.get(mailboxPath) || []), ref]);
+  }
+  return byPath;
+}
+
+function formatImapMessageRef(row, mailboxPath = '') {
+  const from = parseEnvelopeAddressList(row.envelope?.from)[0] || { name: '', address: '' };
+
+  return {
+    id: imapMessageId(row, mailboxPath),
+    uid: row.uid,
+    subject: row.envelope?.subject || '',
+    from,
+    sender: parseEnvelopeAddressList(row.envelope?.sender)[0] || from,
+    to: parseEnvelopeAddressList(row.envelope?.to),
+    cc: parseEnvelopeAddressList(row.envelope?.cc),
+    bcc: parseEnvelopeAddressList(row.envelope?.bcc),
+    receivedAt: (row.envelope?.date || row.internalDate || null)?.toISOString?.() || null,
+    bodyPreview: '',
+    bodyHtml: '',
+    bodyText: '',
+    mailboxPath,
+    isRead: Array.isArray(row.flags) ? row.flags.includes('\\Seen') : row.flags?.has?.('\\Seen'),
+    headers: new Map(),
+  };
+}
+
 async function fetchRecentMailboxMessagesFromPath(client, mailboxPath, limit) {
   const lock = await client.getMailboxLock(mailboxPath);
   try {
@@ -284,7 +426,7 @@ async function parseImapMessage(row, mailboxPath = '') {
   const from = parseAddressList(parsed.from)[0] || { name: '', address: '' };
 
   return {
-    id: [mailboxPath, String(row.uid || parsed.messageId || parsed.headers?.get('message-id') || '')].filter(Boolean).join(':'),
+    id: imapMessageId(row, mailboxPath, parsed),
     subject: parsed.subject || row.envelope?.subject || '',
     from,
     sender: parseAddressList(parsed.sender)[0] || from,
@@ -301,14 +443,31 @@ async function parseImapMessage(row, mailboxPath = '') {
   };
 }
 
+function imapMessageId(row, mailboxPath = '', parsed = null) {
+  return [mailboxPath, String(row.uid || parsed?.messageId || parsed?.headers?.get('message-id') || '')].filter(Boolean).join(':');
+}
+
+function parseEnvelopeAddressList(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((address) => ({
+      name: address.name || '',
+      address: normalizeEmail(address.address || [address.mailbox, address.host].filter(Boolean).join('@')),
+    }))
+    .filter((address) => address.address);
+}
+
 function assertForwardingMailboxConfigured() {
   if (!forwardingMailboxConfigured()) {
     throw new InputError('Forwarding mailbox is not configured');
   }
 }
 
-function profileMessageLimit(value) {
-  return Math.min(Math.max(Number.parseInt(value, 10) || DEFAULT_PROFILE_MESSAGE_LIMIT, 1), DEFAULT_PROFILE_MESSAGE_LIMIT);
+function profileMessagePage(limit, offset) {
+  return {
+    limit: Math.min(Math.max(Number.parseInt(limit, 10) || DEFAULT_PROFILE_MESSAGE_LIMIT, 1), MAX_MESSAGE_FETCH),
+    offset: Math.max(Number.parseInt(offset, 10) || 0, 0),
+  };
 }
 
 function mailboxPort() {

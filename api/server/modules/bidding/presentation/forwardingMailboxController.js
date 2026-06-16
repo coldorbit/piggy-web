@@ -31,7 +31,7 @@ export async function listProfileForwardedMessages(req, res, next) {
   try {
     await ensureWebModels();
     const { profile } = await mailboxProfileForRequest(req, req.params.id);
-    res.json(await listForwardedProfileMessages(profile, { limit: req.query?.limit }));
+    res.json(await listForwardedProfileMessages(profile, { limit: req.query?.limit, offset: req.query?.offset }));
   } catch (error) {
     handleInputError(error, res, next);
   }

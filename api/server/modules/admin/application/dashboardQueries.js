@@ -484,16 +484,16 @@ function bidderPerformanceSql(grainConfig, timeZone) {
     ),
     scheduled_interview_metrics AS (
       SELECT
-        job_bids.user_id,
+        COALESCE(job_bids.user_id, interviews.user_id) AS user_id,
         COUNT(DISTINCT interviews.id)::int AS interviews,
         COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'won')::int AS offers,
         COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'lost')::int AS lost
       FROM interviews
-      JOIN job_bids ON job_bids.id = interviews.job_bid_id
+      LEFT JOIN job_bids ON job_bids.id = interviews.job_bid_id
       CROSS JOIN current_period
       WHERE interviews.interview_next_at IS NOT NULL
         AND ${currentPeriodPredicate('interviews.interview_next_at', timeZone)}
-      GROUP BY job_bids.user_id
+      GROUP BY COALESCE(job_bids.user_id, interviews.user_id)
     )
     SELECT
       web_users.id,
