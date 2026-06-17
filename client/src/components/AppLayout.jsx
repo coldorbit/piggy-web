@@ -11,6 +11,7 @@ import InboxIcon from '@mui/icons-material/Inbox';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
+import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import PaidIcon from '@mui/icons-material/Paid';
 import PeopleIcon from '@mui/icons-material/People';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
@@ -36,6 +37,7 @@ import {
   ListItemText,
   TextField,
   Toolbar,
+  Tooltip,
   Typography,
   useMediaQuery,
 } from '@mui/material';
@@ -47,6 +49,8 @@ import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES,
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
+const COLLAPSED_DRAWER_WIDTH = 72;
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'applypilot-sidebar-collapsed';
 const shellLine = '#E2E8F0';
 
 export default function AppLayout({ user }) {
@@ -55,6 +59,7 @@ export default function AppLayout({ user }) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => readSidebarCollapsedPreference());
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [accountUsername, setAccountUsername] = useState(user.username || '');
   const [accountError, setAccountError] = useState('');
@@ -83,6 +88,8 @@ export default function AppLayout({ user }) {
   const canManageCallers = !CALLER_BLOCKED_ROLES.includes(user.role);
   const canAccessInbox = !CALLER_BLOCKED_ROLES.includes(user.role);
   const isCaller = user.role === 'caller';
+  const isDrawerCollapsed = isDesktop && isSidebarCollapsed;
+  const drawerWidth = isDrawerCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH;
 
   async function handleLogout() {
     logout(undefined, {
@@ -110,6 +117,14 @@ export default function AppLayout({ user }) {
         onError: (error) => setAccountError(error.message),
       },
     );
+  }
+
+  function toggleSidebarCollapsed() {
+    setIsSidebarCollapsed((current) => {
+      const next = !current;
+      writeSidebarCollapsedPreference(next);
+      return next;
+    });
   }
 
   const title = isAdminDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
@@ -146,105 +161,158 @@ export default function AppLayout({ user }) {
         sx={{
           minHeight: 68,
           gap: 1,
-          px: 1.5,
+          px: isDrawerCollapsed ? 1 : 1.5,
           borderBottom: 1,
           borderColor: shellLine,
           bgcolor: '#ffffff',
+          justifyContent: isDrawerCollapsed ? 'center' : 'space-between',
         }}
       >
-        <Box
-          sx={{
-            width: 38,
-            height: 38,
-            display: 'grid',
-            placeItems: 'center',
-            border: 1,
-            borderColor: '#DBEAFE',
-            borderRadius: 2,
-            bgcolor: '#EFF6FF',
-            boxShadow: '0 10px 24px rgba(37, 99, 235, 0.14)',
-          }}
-        >
-          <Avatar
-            src="/assets/applypilot-logo.png"
-            alt="ApplyPilot logo"
-            variant="rounded"
-            sx={{ width: 26, height: 26, bgcolor: 'background.paper', borderRadius: 1.25 }}
-          />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+          {!isDrawerCollapsed ? (
+            <>
+              <Box
+                sx={{
+                  width: 38,
+                  height: 38,
+                  display: 'grid',
+                  placeItems: 'center',
+                  border: 1,
+                  borderColor: '#DBEAFE',
+                  borderRadius: 2,
+                  bgcolor: '#EFF6FF',
+                  boxShadow: '0 10px 24px rgba(37, 99, 235, 0.14)',
+                  flexShrink: 0,
+                }}
+              >
+                <Avatar
+                  src="/assets/applypilot-logo.png"
+                  alt="ApplyPilot logo"
+                  variant="rounded"
+                  sx={{ width: 26, height: 26, bgcolor: 'background.paper', borderRadius: 1.25 }}
+                />
+              </Box>
+              <Box minWidth={0}>
+                <Typography fontWeight={900} lineHeight={1.1} sx={{ color: 'primary.dark', letterSpacing: 0.2 }}>
+                  ApplyPilot
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Career command center
+                </Typography>
+              </Box>
+            </>
+          ) : null}
         </Box>
-        <Box minWidth={0}>
-          <Typography fontWeight={900} lineHeight={1.1} sx={{ color: 'primary.dark', letterSpacing: 0.2 }}>
-            ApplyPilot
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Career command center
-          </Typography>
-        </Box>
+        {isDesktop ? (
+          <Tooltip title={isDrawerCollapsed ? 'Expand navigation' : 'Collapse navigation'} placement="right">
+            <IconButton
+              type="button"
+              onClick={toggleSidebarCollapsed}
+              aria-label={isDrawerCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+              aria-pressed={isDrawerCollapsed}
+              sx={{
+                border: 1,
+                borderColor: shellLine,
+                bgcolor: '#ffffff',
+                color: 'text.secondary',
+                width: 34,
+                height: 34,
+                flexShrink: 0,
+                '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE', color: 'primary.dark' },
+              }}
+            >
+              {isDrawerCollapsed ? <MenuIcon fontSize="small" /> : <MenuOpenIcon fontSize="small" />}
+            </IconButton>
+          </Tooltip>
+        ) : null}
       </Toolbar>
-      <Box sx={{ px: 1, py: 1 }}>
+      <Box sx={{ px: isDrawerCollapsed ? 0.75 : 1, py: 1 }}>
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.35 }}>
           {isAdminRole(user) ? (
-            <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted onNavigate={() => setMobileOpen(false)} />
+            <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canAccessConsumption(user) ? (
-            <NavItem to="/admin/consumption" icon={<PaidIcon />} label="Consumption" onNavigate={() => setMobileOpen(false)} />
+            <NavItem to="/admin/consumption" icon={<PaidIcon />} label="Consumption" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {!isCaller ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" onNavigate={() => setMobileOpen(false)} /> : null}
-          {!isCaller ? <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" onNavigate={() => setMobileOpen(false)} /> : null}
+          {!isCaller ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
+          {!isCaller ? <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
-            <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" onNavigate={() => setMobileOpen(false)} />
+            <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {canAccessInbox ? <NavItem to="/inbox" icon={<InboxIcon />} label="Inbox" onNavigate={() => setMobileOpen(false)} /> : null}
+          {canAccessInbox ? <NavItem to="/inbox" icon={<InboxIcon />} label="Inbox" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
           {canAccessInterviews ? (
-            <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" onNavigate={() => setMobileOpen(false)} />
+            <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canAccessInterviews ? (
-            <NavItem to="/calendar" icon={<CalendarMonthIcon />} label="Calendar" onNavigate={() => setMobileOpen(false)} />
+            <NavItem to="/calendar" icon={<CalendarMonthIcon />} label="Calendar" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canAccessMarketplace ? (
-            <NavItem to="/marketplace" icon={<HandshakeIcon />} label="Marketplace" onNavigate={() => setMobileOpen(false)} />
+            <NavItem to="/marketplace" icon={<HandshakeIcon />} label="Marketplace" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canManageCallers ? (
-            <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" onNavigate={() => setMobileOpen(false)} />
+            <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {!isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" onNavigate={() => setMobileOpen(false)} /> : null}
+          {!isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller ? (
-            <NavItem to="/tailoring-requests" icon={<StyleIcon />} label="Tailoring" onNavigate={() => setMobileOpen(false)} />
+            <NavItem to="/tailoring-requests" icon={<StyleIcon />} label="Tailoring" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" onNavigate={() => setMobileOpen(false)} />
+          <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           {isAdminRole(user) ? (
-            <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" onNavigate={() => setMobileOpen(false)} />
+            <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
         </List>
       </Box>
-      <Box sx={{ mt: 'auto', p: 1 }}>
-        <Box
-          sx={{
-            border: 1,
-            borderColor: shellLine,
-            borderRadius: 1,
-            p: 1,
-            bgcolor: '#F8FAFC',
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Signed in as
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-            <Typography fontWeight={900} noWrap sx={{ minWidth: 0, flex: 1 }}>
-              {user.username}
-            </Typography>
-            <IconButton size="small" onClick={openAccountDialog} aria-label="Edit username">
-              <EditIcon fontSize="small" />
+      <Box sx={{ mt: 'auto', p: isDrawerCollapsed ? 0.75 : 1 }}>
+        {isDrawerCollapsed ? (
+          <Tooltip title={`${user.username} · ${roleLabel(user.role)}`} placement="right">
+            <IconButton
+              type="button"
+              onClick={openAccountDialog}
+              aria-label="Edit username"
+              sx={{
+                width: 42,
+                height: 42,
+                mx: 'auto',
+                display: 'flex',
+                border: 1,
+                borderColor: shellLine,
+                bgcolor: '#F8FAFC',
+                color: 'primary.dark',
+                '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE' },
+              }}
+            >
+              <AccountCircleIcon />
             </IconButton>
-          </Box>
-          {user.email ? (
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {user.email}
+          </Tooltip>
+        ) : (
+          <Box
+            sx={{
+              border: 1,
+              borderColor: shellLine,
+              borderRadius: 1,
+              p: 1,
+              bgcolor: '#F8FAFC',
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Signed in as
             </Typography>
-          ) : null}
-          <Chip label={roleLabel(user.role)} size="small" sx={{ mt: 1, bgcolor: 'secondary.main', color: '#ffffff' }} />
-        </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+              <Typography fontWeight={900} noWrap sx={{ minWidth: 0, flex: 1 }}>
+                {user.username}
+              </Typography>
+              <IconButton size="small" onClick={openAccountDialog} aria-label="Edit username">
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            {user.email ? (
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {user.email}
+              </Typography>
+            ) : null}
+            <Chip label={roleLabel(user.role)} size="small" sx={{ mt: 1, bgcolor: 'secondary.main', color: '#ffffff' }} />
+          </Box>
+        )}
       </Box>
     </>
   );
@@ -265,16 +333,25 @@ export default function AppLayout({ user }) {
         ModalProps={{ keepMounted: true }}
         sx={{
           display: { xs: 'block', md: 'block' },
-          width: { md: DRAWER_WIDTH },
+          width: { md: drawerWidth },
           flexShrink: { md: 0 },
+          transition: (theme) => theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.shorter,
+          }),
           '& .MuiDrawer-paper': {
-            width: DRAWER_WIDTH,
+            width: { xs: DRAWER_WIDTH, md: drawerWidth },
             boxSizing: 'border-box',
             borderRight: 1,
             borderColor: shellLine,
             background: '#ffffff',
             boxShadow: { xs: 4, md: '8px 0 26px rgba(15, 23, 42, 0.05)' },
             display: 'flex',
+            overflowX: 'hidden',
+            transition: (theme) => theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.shorter,
+            }),
           },
         }}
       >
@@ -417,7 +494,7 @@ export default function AppLayout({ user }) {
   );
 }
 
-function NavItem({ alwaysHighlighted = false, icon, label, onNavigate, to }) {
+function NavItem({ alwaysHighlighted = false, collapsed = false, icon, label, onNavigate, to }) {
   const highlightedStyles = {
     bgcolor: 'primary.main',
     borderColor: 'primary.main',
@@ -438,16 +515,20 @@ function NavItem({ alwaysHighlighted = false, icon, label, onNavigate, to }) {
     '& .MuiListItemText-primary': { color: '#0F766E' },
   };
 
-  return (
+  const button = (
     <ListItemButton
       component={NavLink}
       to={to}
       onClick={onNavigate}
       sx={{
-        minHeight: 38,
+        minHeight: collapsed ? 42 : 38,
+        width: collapsed ? 42 : '100%',
         borderRadius: 1,
         border: 1,
         borderColor: 'transparent',
+        mx: collapsed ? 'auto' : 0,
+        px: collapsed ? 0 : 1,
+        justifyContent: collapsed ? 'center' : 'flex-start',
         color: alwaysHighlighted ? '#0F766E' : 'text.secondary',
         '& .MuiListItemIcon-root': { color: alwaysHighlighted ? '#0F766E' : 'text.secondary' },
         '&:hover': {
@@ -461,8 +542,33 @@ function NavItem({ alwaysHighlighted = false, icon, label, onNavigate, to }) {
         '&.active': highlightedStyles,
       }}
     >
-    <ListItemIcon sx={{ minWidth: 32, '& .MuiSvgIcon-root': { fontSize: 20 } }}>{icon}</ListItemIcon>
-    <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 700, fontSize: 13 }} />
-  </ListItemButton>
+      <ListItemIcon
+        sx={{
+          minWidth: collapsed ? 0 : 32,
+          justifyContent: 'center',
+          '& .MuiSvgIcon-root': { fontSize: 20 },
+        }}
+      >
+        {icon}
+      </ListItemIcon>
+      {!collapsed ? <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 700, fontSize: 13 }} /> : null}
+    </ListItemButton>
   );
+
+  if (!collapsed) return button;
+  return (
+    <Tooltip title={label} placement="right">
+      {button}
+    </Tooltip>
+  );
+}
+
+function readSidebarCollapsedPreference() {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
+}
+
+function writeSidebarCollapsedPreference(value) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(Boolean(value)));
 }
