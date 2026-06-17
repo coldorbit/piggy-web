@@ -86,6 +86,27 @@ export function useBidProfiles(options = {}, queryOptions = {}) {
   });
 }
 
+export function useAssessmentProfiles(queryOptions = {}) {
+  return useQuery({
+    queryKey: ['assessments', 'profiles'],
+    queryFn: () => api('/api/assessments/profiles').then((data) => data.profiles),
+    staleTime: 60_000,
+    refetchInterval: localDayRolloverRefetchInterval,
+    ...queryOptions,
+  });
+}
+
+export function useAssessments(profileId, queryOptions = {}) {
+  const params = new URLSearchParams({ profileId: String(profileId || '') });
+  return useQuery({
+    queryKey: ['assessments', profileId],
+    queryFn: () => api(`/api/assessments?${params}`),
+    enabled: Boolean(profileId),
+    staleTime: 15_000,
+    ...queryOptions,
+  });
+}
+
 export function usePersonalDashboard(queryOptions = {}) {
   return useQuery({
     queryKey: ['bid', 'dashboard'],
@@ -905,6 +926,31 @@ export function useCreateBidProfile() {
       }).then((data) => data.profile),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+    },
+  });
+}
+
+export function useCreateAssessment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (assessmentData) =>
+      api('/api/assessments', {
+        method: 'POST',
+        body: JSON.stringify(assessmentData),
+      }).then((data) => data.assessment),
+    onSuccess: (assessment) => {
+      queryClient.invalidateQueries({ queryKey: ['assessments'] });
+      queryClient.invalidateQueries({ queryKey: ['assessments', assessment?.profileId] });
+    },
+  });
+}
+
+export function useDeleteAssessment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ assessmentId }) => api(`/api/assessments/${assessmentId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assessments'] });
     },
   });
 }

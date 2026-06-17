@@ -15,6 +15,7 @@ import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import PaidIcon from '@mui/icons-material/Paid';
 import PeopleIcon from '@mui/icons-material/People';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
+import QuizIcon from '@mui/icons-material/Quiz';
 import SearchIcon from '@mui/icons-material/Search';
 import StyleIcon from '@mui/icons-material/Style';
 import WorkIcon from '@mui/icons-material/Work';
@@ -51,6 +52,7 @@ import {
   MARKETPLACE_ACCESS_ROLES,
   ROLES,
   canAccessConsumption,
+  canAccessAssessments,
   canAccessPersonalDashboard,
   isAdminRole,
   roleLabel,
@@ -77,6 +79,7 @@ export default function AppLayout({ user }) {
   const isAdminDashboardRoute = location.pathname.startsWith('/admin/dashboard');
   const isPersonalDashboardRoute = location.pathname.startsWith('/dashboard');
   const isConsumptionRoute = location.pathname.startsWith('/admin/consumption');
+  const isAssessmentRoute = location.pathname.startsWith('/assessments');
   const isAdminRoute = location.pathname.startsWith('/admin/users');
   const isBidRoute = location.pathname.startsWith('/bids');
   const isBidderRoute = location.pathname.startsWith('/bidders');
@@ -97,6 +100,7 @@ export default function AppLayout({ user }) {
   const canAccessMarketplace = MARKETPLACE_ACCESS_ROLES.includes(user.role);
   const canManageCallers = !CALLER_BLOCKED_ROLES.includes(user.role);
   const canAccessInbox = !CALLER_BLOCKED_ROLES.includes(user.role);
+  const canViewAssessments = canAccessAssessments(user);
   const canViewPersonalDashboard = canAccessPersonalDashboard(user);
   const isCaller = user.role === 'caller';
   const isDrawerCollapsed = isDesktop && isSidebarCollapsed;
@@ -138,13 +142,15 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminDashboardRoute || isPersonalDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminDashboardRoute || isPersonalDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAssessmentRoute ? 'Assessments' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminDashboardRoute
     ? 'Monitor user and bidder performance'
     : isPersonalDashboardRoute
     ? 'Track your applications, interviews, and profile momentum'
     : isConsumptionRoute
     ? 'Track team spend across currencies and channels'
+    : isAssessmentRoute
+    ? 'Register assessment links and deadlines by profile'
     : isAdminRoute
     ? 'Manage back-office accounts'
     : isTailoringRoute
@@ -252,6 +258,7 @@ export default function AppLayout({ user }) {
           ) : null}
           {!isCaller ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller ? <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
+          {canViewAssessments ? <NavItem to="/assessments" icon={<QuizIcon />} label="Assessments" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
           {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
             <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}

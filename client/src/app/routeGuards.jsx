@@ -3,6 +3,7 @@ import {
   CALLER_BLOCKED_ROLES,
   INTERVIEW_ROLES,
   MARKETPLACE_ACCESS_ROLES,
+  canAccessAssessments,
   canAccessConsumption,
   canAccessPersonalDashboard,
   isAdminRole,
@@ -24,6 +25,12 @@ export function RequireSuperadmin({ user, children }) {
 export function RequireConsumptionAccess({ user, children }) {
   const location = useLocation();
   if (!canAccessConsumption(user)) return <Navigate to="/jobs" replace state={{ from: location }} />;
+  return children;
+}
+
+export function RequireAssessmentAccess({ user, children }) {
+  const location = useLocation();
+  if (!canAccessAssessments(user)) return <Navigate to="/jobs" replace state={{ from: location }} />;
   return children;
 }
 

@@ -1,5 +1,6 @@
 export { getSequelize } from './db/connection.js';
 export {
+  getAssessmentModel,
   getBidProfileModel,
   getConsumptionAccountModel,
   getConsumptionLedgerEntryModel,

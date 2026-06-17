@@ -1,5 +1,6 @@
 export class InputError extends Error {}
 export class NotFoundError extends Error {}
+export class ForbiddenError extends Error {}
 
 export function handleUserWriteError(error, res, next) {
   if (error instanceof InputError) {
@@ -20,6 +21,10 @@ export function handleInputError(error, res, next) {
   }
   if (error instanceof NotFoundError) {
     res.status(404).json({ error: error.message });
+    return;
+  }
+  if (error instanceof ForbiddenError) {
+    res.status(403).json({ error: error.message });
     return;
   }
   next(error);

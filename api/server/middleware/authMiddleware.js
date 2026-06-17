@@ -1,5 +1,5 @@
 import { readValidSession } from '../../auth.js';
-import { MARKETPLACE_ACCESS_ROLES, canAccessConsumption, isAdminRole, isSuperadmin } from '../utils/roles.js';
+import { MARKETPLACE_ACCESS_ROLES, canAccessAssessments, canAccessConsumption, isAdminRole, isSuperadmin } from '../utils/roles.js';
 
 export async function requireAuth(req, res, next) {
   try {
@@ -39,6 +39,16 @@ export function requireConsumptionAccess(req, res, next) {
   requireAuth(req, res, () => {
     if (!canAccessConsumption(req.user)) {
       res.status(403).json({ error: 'Consumption access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireAssessmentAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canAccessAssessments(req.user)) {
+      res.status(403).json({ error: 'Assessment access required' });
       return;
     }
     next();

@@ -1,6 +1,7 @@
 import { DataTypes } from 'sequelize';
 import { getSequelize } from './connection.js';
 import {
+  getAssessmentModel,
   getBidProfileModel,
   getConsumptionAccountModel,
   getConsumptionLedgerEntryModel,
@@ -33,6 +34,7 @@ export async function ensureWebModels() {
       await getFaqModel().sync();
       await getBidProfileModel().sync();
       await getProfileShareRequestModel().sync();
+      await getAssessmentModel().sync();
       await getJobBidModel().sync();
       await getInterviewModel().sync();
       await getInterviewLogModel().sync();
@@ -64,6 +66,7 @@ export async function ensureWebModels() {
       await ensureProfileShareIndexes();
       await ensureJobBidProfileScopedUniqueness();
       await ensureInterviewIndexes();
+      await ensureAssessmentIndexes();
       await ensureMarketplaceIndexes();
     })().catch((error) => {
       initializationPromise = undefined;
@@ -72,6 +75,27 @@ export async function ensureWebModels() {
   }
 
   await initializationPromise;
+}
+
+async function ensureAssessmentIndexes() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS assessments_profile_expires_at_idx
+    ON assessments (profile_id, expires_at ASC NULLS LAST)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS assessments_profile_created_at_idx
+    ON assessments (profile_id, created_at DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS assessments_profile_category_idx
+    ON assessments (profile_id, category)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS assessments_user_created_at_idx
+    ON assessments (user_id, created_at DESC)
+  `);
 }
 
 async function ensureMarketplaceIndexes() {

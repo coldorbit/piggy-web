@@ -1,3 +1,4 @@
+export { getAssessmentModel } from './assessment.js';
 export { getBidProfileModel } from './bidProfile.js';
 export { getFaqModel } from './faq.js';
 export { getConsumptionAccountModel } from './consumptionAccount.js';
@@ -16,6 +17,7 @@ export { getTailoredResumeModel } from './tailoredResume.js';
 export { getTeamConsumptionModel } from './teamConsumption.js';
 export { getWebUserModel } from './webUser.js';
 
+import { getAssessmentModel } from './assessment.js';
 import { getBidProfileModel } from './bidProfile.js';
 import { getFaqModel } from './faq.js';
 import { getConsumptionAccountModel } from './consumptionAccount.js';
@@ -38,6 +40,7 @@ export function setupWebAssociations() {
   const WebUserModel = getWebUserModel();
   const ScrapedJobModel = getScrapedJobModel();
   const BidProfileModel = getBidProfileModel();
+  const AssessmentModel = getAssessmentModel();
   const FaqModel = getFaqModel();
   const ConsumptionAccountModel = getConsumptionAccountModel();
   const ConsumptionLedgerEntryModel = getConsumptionLedgerEntryModel();
@@ -85,6 +88,12 @@ export function setupWebAssociations() {
   MarketplaceMatchModel.belongsTo(WebUserModel, { foreignKey: 'assignedInternalUserId', as: 'assignedInternalUser' });
   BidProfileModel.hasMany(JobBidModel, { foreignKey: 'profileId', as: 'bids' });
   JobBidModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  BidProfileModel.hasMany(AssessmentModel, { foreignKey: 'profileId', as: 'assessments' });
+  AssessmentModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  WebUserModel.hasMany(AssessmentModel, { foreignKey: 'userId', as: 'createdAssessments' });
+  AssessmentModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'createdBy' });
+  ScrapedJobModel.hasMany(AssessmentModel, { foreignKey: 'jobId', as: 'assessments' });
+  AssessmentModel.belongsTo(ScrapedJobModel, { foreignKey: 'jobId', as: 'job' });
   BidProfileModel.hasMany(InterviewModel, { foreignKey: 'profileId', as: 'interviews' });
   InterviewModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
   InterviewModel.hasMany(InterviewLogModel, { foreignKey: 'interviewId', as: 'logs' });

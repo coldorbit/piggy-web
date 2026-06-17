@@ -11,6 +11,7 @@ export const ROLES = {
 };
 
 export const ADMIN_ROLES = [ROLES.superadmin, ROLES.admin];
+export const ASSESSMENT_ACCESS_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
 export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
 export const PERSONAL_DASHBOARD_ROLES = [ROLES.user, ROLES.financeManager];
 export const MARKETPLACE_ACCESS_ROLES = ADMIN_ROLES;
@@ -50,6 +51,10 @@ export function isAdminRole(userOrRole) {
 
 export function canAccessConsumption(userOrRole) {
   return [ROLES.superadmin, ROLES.financeManager].includes(roleOf(userOrRole));
+}
+
+export function canAccessAssessments(userOrRole) {
+  return ASSESSMENT_ACCESS_ROLES.includes(roleOf(userOrRole));
 }
 
 export function canAccessPersonalDashboard(userOrRole) {

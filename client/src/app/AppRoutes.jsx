@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { LoginScreen } from '../components/AuthScreens.jsx';
 import {
   BlockCallers,
+  RequireAssessmentAccess,
   RequireAdmin,
   RequireCallerManagement,
   RequireConsumptionAccess,
@@ -17,6 +18,7 @@ const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
 const AdminConsumptionPage = lazy(() => import('../pages/AdminConsumptionPage.jsx'));
 const AdminDashboardPage = lazy(() => import('../pages/AdminDashboardPage.jsx'));
 const AppLayout = lazy(() => import('../components/AppLayout.jsx'));
+const AssessmentsPage = lazy(() => import('../pages/AssessmentsPage.jsx'));
 const BidPage = lazy(() => import('../pages/BidPage.jsx'));
 const BiddersPage = lazy(() => import('../pages/BiddersPage.jsx'));
 const CallersPage = lazy(() => import('../pages/CallersPage.jsx'));
@@ -70,6 +72,14 @@ export function AuthenticatedRoutes({ user }) {
             <BlockCallers user={user}>
               <BidPage currentUser={user} />
             </BlockCallers>
+          }
+        />
+        <Route
+          path="/assessments"
+          element={
+            <RequireAssessmentAccess user={user}>
+              <AssessmentsPage currentUser={user} />
+            </RequireAssessmentAccess>
           }
         />
         <Route
