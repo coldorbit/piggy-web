@@ -742,6 +742,54 @@ export async function listBidJobs(req, res, next) {
   }
 }
 
+export async function listCalendarInterviews(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    requireInterviewAccessUser(user, res);
+    if (res.headersSent) return;
+
+    const Interview = getInterviewModel();
+    const BidProfile = getBidProfileModel();
+    const WebUser = getWebUserModel();
+    const where = {
+      interviewNextAt: { [Op.not]: null },
+      ...(user.role === 'caller' ? { callerUserId: user.id } : {}),
+    };
+    const interviews = await Interview.findAll({
+      where,
+      include: [
+        {
+          model: BidProfile,
+          as: 'profile',
+          required: true,
+          include: [{ model: WebUser, as: 'user', required: false }],
+        },
+      ],
+      order: [
+        ['interviewNextAt', 'ASC'],
+        ['updatedAt', 'DESC'],
+      ],
+    });
+
+    const profilesById = new Map();
+    for (const interview of interviews) {
+      if (!interview.profile) continue;
+      if (user.role === 'caller') interview.profile.setDataValue('shareStatus', 'caller');
+      profilesById.set(String(interview.profile.id), interview.profile);
+    }
+
+    res.json({
+      profiles: sortProfilesForDisplay([...profilesById.values()]).map(formatProfile),
+      jobs: interviews.map((interview) => formatInterviewAsJob(interview)),
+      currentUser: { id: user.id, username: user.username, role: user.role },
+      total: interviews.length,
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 function jobQueryForBidTab(query, tab) {
   if (!isCompletedBidTab(tab)) return query;
   return { ...query, since: 'all', dateFrom: '', dateTo: '' };

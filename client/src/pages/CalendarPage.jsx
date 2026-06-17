@@ -1,15 +1,13 @@
 import { Alert, Box } from '@mui/material';
-import { useQueries } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import CalendarGrid from '../components/calendar/CalendarGrid.jsx';
 import CalendarProfileLegend from '../components/calendar/CalendarProfileLegend.jsx';
 import CalendarToolbar, { CALENDAR_VIEWS } from '../components/calendar/CalendarToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
-import { INTERVIEW_FILTERS } from '../components/interviews/interviewUtils.js';
 import { CALENDAR_PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { api, useBidProfiles } from '../lib/api.js';
+import { api } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
-import { isAdminRole } from '../lib/roles.js';
 import {
   addDaysToDateKey,
   addMonthsToDateKey,
@@ -20,39 +18,35 @@ import {
   monthLabelForDateKey,
 } from '../lib/timezone.js';
 
-export default function CalendarPage({ currentUser }) {
+export default function CalendarPage() {
   const [view, setView] = useState(CALENDAR_VIEWS.week);
   const [cursorDate, setCursorDate] = useState(() => defaultTimezoneTodayKey());
   const [search, setSearch] = useState('');
   const [checkedProfileIds, setCheckedProfileIds] = useState([]);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
-  const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
-    isAdminRole(currentUser) ? { scope: 'manage' } : {},
-  );
-  const activeProfiles = useMemo(
-    () => profiles.filter((profile) => ['active', 'legacy'].includes(profile.profileStatus || 'active')),
-    [profiles],
-  );
+  const {
+    data: calendarData,
+    isLoading: calendarLoading,
+    error: calendarError,
+  } = useQuery({
+    queryKey: ['calendar', 'interviews'],
+    queryFn: fetchCalendarInterviews,
+    staleTime: 30_000,
+  });
+  const profiles = calendarData?.profiles || [];
+  const jobs = calendarData?.jobs || [];
   const calendarProfiles = useMemo(
     () =>
-      activeProfiles.map((profile, index) => ({
+      profiles.map((profile, index) => ({
         ...profile,
         calendarColor: CALENDAR_PROFILE_COLORS[index % CALENDAR_PROFILE_COLORS.length],
       })),
-    [activeProfiles],
+    [profiles],
   );
   const profileById = useMemo(
     () => new Map(calendarProfiles.map((profile) => [String(profile.id), profile])),
     [calendarProfiles],
   );
-  const interviewQueries = useQueries({
-    queries: calendarProfiles.map((profile) => ({
-      queryKey: ['calendar', 'interviews', profile.id],
-      queryFn: () => fetchProfileInterviews(profile.id),
-      enabled: Boolean(profile.id),
-      staleTime: 30_000,
-    })),
-  });
 
   useEffect(() => {
     setHeaderSearch({
@@ -78,11 +72,11 @@ export default function CalendarPage({ currentUser }) {
   }, [calendarProfiles]);
 
   const events = useMemo(
-    () => calendarEvents(interviewQueries, profileById, checkedProfileIds, search),
-    [interviewQueries, profileById, checkedProfileIds, search],
+    () => calendarEvents(jobs, profileById, checkedProfileIds, search),
+    [jobs, profileById, checkedProfileIds, search],
   );
-  const loading = profilesLoading || interviewQueries.some((query) => query.isLoading);
-  const pageError = profilesError?.message || interviewQueries.find((query) => query.error)?.error?.message || '';
+  const loading = calendarLoading;
+  const pageError = calendarError?.message || '';
   const visibleDays = useMemo(
     () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
     [cursorDate, view],
@@ -155,11 +149,10 @@ export default function CalendarPage({ currentUser }) {
   );
 }
 
-function calendarEvents(queries, profileById, checkedProfileIds, search) {
+function calendarEvents(jobs, profileById, checkedProfileIds, search) {
   const pattern = String(search || '').trim().toLowerCase();
   const checkedProfileIdSet = new Set(checkedProfileIds.map(String));
-  return queries
-    .flatMap((query) => query.data?.jobs || [])
+  return jobs
     .map((job) => {
       const startsAt = job.bid?.interviewNextAt ? new Date(job.bid.interviewNextAt) : null;
       const profile = profileById.get(String(job.bid?.profileId || ''));
@@ -185,14 +178,8 @@ function calendarEvents(queries, profileById, checkedProfileIds, search) {
     .sort((left, right) => left.startsAt - right.startsAt);
 }
 
-function fetchProfileInterviews(profileId) {
-  const params = new URLSearchParams({
-    ...INTERVIEW_FILTERS,
-    bidTab: 'interviews',
-    profileId: String(profileId),
-    limit: '250',
-  });
-  return api(`/api/bid/jobs?${params}`);
+function fetchCalendarInterviews() {
+  return api('/api/bid/calendar');
 }
 
 function groupEventsByDay(events) {

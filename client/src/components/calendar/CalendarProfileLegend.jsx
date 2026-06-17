@@ -81,7 +81,7 @@ export default function CalendarProfileLegend({ checkedProfileIds, profiles, onC
           })
         ) : (
           <Typography color="text.secondary" sx={{ px: 0.25, py: 0.5 }}>
-            No active profiles.
+            No scheduled profiles.
           </Typography>
         )}
       </Box>
