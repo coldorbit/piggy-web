@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, LinearProgress, Paper, Typography } from '@mui/material';
+import { Alert, Box } from '@mui/material';
 import { useSearchParams } from 'react-router-dom';
+import BidDailyGoalBar from '../components/bids/BidDailyGoalBar.jsx';
 import BidJobsPanel from '../components/bids/BidJobsPanel.jsx';
 import BidProfileSummary from '../components/bids/BidProfileSummary.jsx';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BidWorkspaceProvider } from '../components/bids/BidWorkspaceContext.jsx';
+import SameCompanyTailoringDialog from '../components/bids/SameCompanyTailoringDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
-import { BID_TABS, DEFAULT_BID_FILTERS, DONE_STATUSES, EMPTY_BID, INTERVIEW_STATUSES, REVIEW_STATUSES } from '../components/bids/bidConstants.js';
-import { hasTailoredResumeActivity } from '../components/bids/bidJobState.js';
+import { BID_TABS, EMPTY_BID } from '../components/bids/bidConstants.js';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import { EMPTY_PROFILE, PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import {
@@ -24,29 +25,26 @@ import {
   useUpdateLinkedInExternalUrl,
   useUpdateJobBid,
 } from '../lib/api.js';
-import { mergeKnownFilters, readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
+import { writePersistedFilters } from '../lib/persistedFilters.js';
 import { PRIVILEGED_USER_ROLES, isAdminRole } from '../lib/roles.js';
-import { dayProgressPercent, localDayProgressPercent } from '../lib/timezone.js';
-
-const BID_FILTER_KEYS = [
-  'search',
-  'roleFamily',
-  'source',
-  'locationRegion',
-  'appliedProfileId',
-  'since',
-  'dateFrom',
-  'dateTo',
-  'spam',
-  'visibility',
-  'origin',
-  'sort',
-  'page',
-  'limit',
-];
-const BID_FILTERS_STORAGE_KEY = 'applypilot.bids.filters.v2';
-const APPLICATION_TABS = new Set([BID_TABS.todo, BID_TABS.tailored, BID_TABS.done, BID_TABS.badWork]);
-const BID_DATE_PRESETS = new Set(['today', 'tomorrow', 'yesterday', 'this_week', 'last_week', 'until_yesterday', 'through_today', 'all', 'custom']);
+import {
+  BID_FILTER_KEYS,
+  BID_FILTERS_STORAGE_KEY,
+  areBidFiltersEqual,
+  bidFiltersFromParams,
+  bidGoalFilterParams,
+  bidJobActionId,
+  bidJobCardKey,
+  bidParamsFromState,
+  bidTabFromParam,
+  goalDateLabelForFilters,
+  isCurrentDailyGoalFilter,
+  isJobVisibleForTab,
+  normalizeBidDateFilter,
+  profileJobKey,
+  tailoringByProfileJobs,
+  withoutTomorrowDateFilter,
+} from './bidPage/bidPageUtils.js';
 
 export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -444,257 +442,11 @@ export default function BidPage({ currentUser }) {
         onClose={() => setIsProfileDialogOpen(false)}
         onSubmit={submitProfile}
       />
-      <Dialog open={Boolean(sameCompanyConfirmation)} onClose={closeSameCompanyConfirmation} fullWidth maxWidth="sm">
-        <DialogTitle>Different role at same company</DialogTitle>
-        <DialogContent sx={{ display: 'grid', gap: 1, pt: 1 }}>
-          <Typography variant="body2">
-            {sameCompanyConfirmation?.message || 'A recent tailoring request already exists for this company.'}
-          </Typography>
-          {sameCompanyConfirmation?.warning ? (
-            <Typography color="text.secondary" variant="body2">
-              Proceeding will mark the previous tailored request for {sameCompanyConfirmation.warning.priorTitle} as invalid.
-            </Typography>
-          ) : null}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeSameCompanyConfirmation}>Cancel</Button>
-          <Button onClick={confirmSameCompanyTailoring} variant="contained">Proceed intentionally</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
-}
-
-function profileJobKey(profileId, jobKey) {
-  return `${profileId || 'no-profile'}:${jobKey}`;
-}
-
-function bidJobCardKey(job) {
-  return String(job?.groupId || job?.id || '');
-}
-
-function bidJobActionId(job) {
-  return job?.representativeJobId || job?.id;
-}
-
-function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs) {
-  if (!profileId) return {};
-  return jobs.reduce((tailoringByJobId, job) => {
-    const cardKey = bidJobCardKey(job);
-    const isTailoring = Boolean(tailoringByProfileJobId[profileJobKey(profileId, cardKey)]);
-    tailoringByJobId[cardKey] = isTailoring;
-    tailoringByJobId[job.id] = isTailoring;
-    return tailoringByJobId;
-  }, {});
-}
-
-function BidDailyGoalBar({ activeColor, dateLabel, isCurrentDate, profile }) {
-  const totalGoal = Number(profile?.progress?.dailyGoal || 0);
-  const totalFinished = Number(profile?.progress?.dailyFinished || 0);
-  const users = dailyApplicationRows(profile);
-  const dayPercent = profileGoalDayProgressPercent(profile);
-  const dateContext = [dateLabel, profile?.progress?.dailyGoalTimezone].filter(Boolean).join(' - ');
-  if (!totalGoal && !totalFinished) return null;
-
-  return (
-    <Paper
-      variant="outlined"
-      sx={{
-        mb: 1,
-        px: 1.25,
-        py: 1,
-        display: 'grid',
-        gap: 0.75,
-        bgcolor: '#f8fafc',
-        borderColor: totalFinished >= totalGoal ? '#bbf7d0' : activeColor.soft,
-      }}
-    >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <Typography variant="body2" fontWeight={900}>
-          {profile?.name ? `${profile.name} daily bid goal` : 'Profile daily bid goal'}
-        </Typography>
-        <Typography variant="body2" fontWeight={900} color="text.secondary">
-          {totalGoal
-            ? `${totalFinished.toLocaleString()} / ${totalGoal.toLocaleString()} applications ${dateContext}`
-            : `${totalFinished.toLocaleString()} applications ${dateContext}`}
-        </Typography>
-      </Box>
-      {totalGoal ? (
-        <DailyGoalRow
-          activeColor={activeColor}
-          goal={{ goal: totalGoal, finished: totalFinished, username: 'Profile' }}
-          isCurrentDate={isCurrentDate}
-          dayPercent={dayPercent}
-        />
-      ) : null}
-      {users.length ? (
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-          {users.map((user) => (
-            <Typography key={user.userId || user.username} variant="caption" color="text.secondary" fontWeight={800}>
-              {[user.username || 'User', roleLabel(user.role)].filter(Boolean).join(' - ')}: {user.finished.toLocaleString()}
-            </Typography>
-          ))}
-        </Box>
-      ) : null}
-    </Paper>
-  );
-}
-
-function DailyGoalRow({ activeColor, dayPercent = localDayProgressPercent(), goal, isCurrentDate }) {
-  const percent = Math.min((goal.finished / goal.goal) * 100, 100);
-  const isComplete = goal.finished >= goal.goal;
-  const isOnTrack = isComplete || (isCurrentDate && percent + 2 >= dayPercent);
-  const statusLabel = isComplete ? 'Complete' : isCurrentDate && isOnTrack ? 'On track' : 'Below goal';
-  const statusColor = isComplete ? '#15803d' : isOnTrack ? activeColor.dark : '#b45309';
-  const remaining = Math.max(goal.goal - goal.finished, 0);
-
-  return (
-    <Box sx={{ display: 'grid', gap: 0.45 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <Typography variant="caption" fontWeight={900}>
-          {[goal.username || 'User', roleLabel(goal.role)].filter(Boolean).join(' - ')}
-        </Typography>
-        <Typography variant="caption" fontWeight={900} sx={{ color: statusColor }}>
-          {goal.finished.toLocaleString()} / {goal.goal.toLocaleString()}
-        </Typography>
-      </Box>
-      <LinearProgress
-        variant="determinate"
-        value={percent}
-        sx={{
-          height: 7,
-          borderRadius: 1,
-          bgcolor: '#e5e7eb',
-          '& .MuiLinearProgress-bar': {
-            borderRadius: 1,
-            bgcolor: statusColor,
-          },
-        }}
+      <SameCompanyTailoringDialog
+        confirmation={sameCompanyConfirmation}
+        onClose={closeSameCompanyConfirmation}
+        onConfirm={confirmSameCompanyTailoring}
       />
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={800}>
-          {statusLabel}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" fontWeight={800}>
-          {remaining ? `${remaining.toLocaleString()} remaining` : 'Goal reached'}
-        </Typography>
-      </Box>
     </Box>
   );
-}
-
-function dailyApplicationRows(profile) {
-  const users = Array.isArray(profile?.progress?.dailyUsers) ? profile.progress.dailyUsers : [];
-  return users
-    .map((user) => ({
-      userId: user.userId,
-      username: user.username,
-      role: user.role,
-      timezone: user.timezone,
-      finished: Number(user.finished || 0),
-    }))
-    .filter((user) => user.finished > 0);
-}
-
-function profileGoalDayProgressPercent(profile) {
-  const timeZone = profile?.progress?.dailyGoalTimezone;
-  return timeZone ? dayProgressPercent(new Date(), { timeZone }) : localDayProgressPercent();
-}
-
-function roleLabel(role) {
-  if (role === 'readonly_bidder' || role === 'editable_bidder' || role === 'bidder') return 'bidder';
-  if (role === 'user') return 'user';
-  return '';
-}
-
-function bidTabFromParam(value) {
-  return APPLICATION_TABS.has(value) ? value : BID_TABS.todo;
-}
-
-function bidFiltersFromParams(params) {
-  const persistedFilters = readPersistedFilters(BID_FILTERS_STORAGE_KEY, DEFAULT_BID_FILTERS, BID_FILTER_KEYS);
-  const paramFilters = {};
-  BID_FILTER_KEYS.forEach((key) => {
-    const value = params.get(key);
-    if (value !== null) paramFilters[key] = value;
-  });
-  return normalizeBidDateFilter(
-    mergeKnownFilters(persistedFilters, paramFilters, BID_FILTER_KEYS),
-  );
-}
-
-function goalDateLabelForFilters(filters) {
-  if (filters.since === 'tomorrow') return 'tomorrow';
-  if (filters.since === 'until_yesterday' || filters.since === 'yesterday') return 'yesterday';
-  if (filters.since === 'this_week') return 'this week';
-  if (filters.since === 'last_week') return 'last week';
-  if (filters.since === 'custom') {
-    if (filters.dateFrom && filters.dateTo && filters.dateFrom !== filters.dateTo) return 'selected range';
-    if (filters.dateFrom || filters.dateTo) return 'selected day';
-  }
-  return 'today';
-}
-
-function withoutTomorrowDateFilter(filters) {
-  if (filters.since !== 'tomorrow') return filters;
-  return { ...filters, since: 'all', dateFrom: '', dateTo: '' };
-}
-
-function bidGoalFilterParams(filters) {
-  if (filters.since === 'all') {
-    return {
-      since: 'today',
-      dateFrom: '',
-      dateTo: '',
-    };
-  }
-
-  return {
-    since: filters.since || DEFAULT_BID_FILTERS.since,
-    dateFrom: filters.dateFrom || '',
-    dateTo: filters.dateTo || '',
-  };
-}
-
-function isCurrentDailyGoalFilter(filters) {
-  return filters.since === 'all' || filters.since === 'today' || filters.since === 'through_today';
-}
-
-function normalizeBidDateFilter(filters) {
-  if (BID_DATE_PRESETS.has(filters.since)) return filters;
-  return { ...filters, since: DEFAULT_BID_FILTERS.since, dateFrom: '', dateTo: '' };
-}
-
-function bidParamsFromState({ activeProfileId, activeBidTab, filters }) {
-  const params = new URLSearchParams();
-  if (activeProfileId) params.set('profileId', String(activeProfileId));
-  params.set('tab', activeBidTab);
-
-  for (const key of BID_FILTER_KEYS) {
-    const value = filters[key];
-    if (value !== undefined && value !== null && String(value) !== '') {
-      params.set(key, String(value));
-    }
-  }
-
-  return params;
-}
-
-function areBidFiltersEqual(left, right) {
-  return BID_FILTER_KEYS.every(
-    (key) => String(left[key]) === String(right[key]),
-  );
-}
-
-function isJobVisibleForTab(job, activeTab, draft) {
-  const done = DONE_STATUSES.has(draft.status);
-  const interviewing = INTERVIEW_STATUSES.has(draft.status);
-  const reviewBlocked = REVIEW_STATUSES.has(draft.status);
-  const hasTailoredRequest = hasTailoredResumeActivity(job);
-
-  if (activeTab === BID_TABS.interviews) return interviewing;
-  if (activeTab === BID_TABS.tailored) return hasTailoredRequest && !done && !reviewBlocked;
-  if (activeTab === BID_TABS.done) return done;
-  if (activeTab === BID_TABS.badWork) return reviewBlocked;
-  return !done && !interviewing && !reviewBlocked;
 }
