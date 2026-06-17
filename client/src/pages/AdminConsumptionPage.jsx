@@ -94,7 +94,7 @@ export default function AdminConsumptionPage() {
       <ConsumptionPeriodSummary summary={periodSummary} />
       <Dialog open={isTransactionDialogOpen} onClose={() => setIsTransactionDialogOpen(false)} fullWidth maxWidth="lg">
         <DialogTitle>Add transaction</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
+        <DialogContent sx={{ pt: 2 }}>
           <ConsumptionForm
             accountOptions={accountOptions}
             form={form}
