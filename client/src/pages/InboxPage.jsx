@@ -26,7 +26,7 @@ import { useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { useBidProfiles, useForwardedMailboxMessages, useForwardedProfileMessages, useForwardingMailboxStatus, useMarkProfileMailboxMessageRead } from '../lib/api.js';
+import { useBidProfiles, useForwardedMailboxMessages, useForwardedMailboxSummary, useForwardedProfileMessages, useForwardingMailboxStatus, useMarkProfileMailboxMessageRead } from '../lib/api.js';
 import { isAdminRole } from '../lib/roles.js';
 
 const INBOX_MESSAGE_ACCENT = { main: '#2563EB', soft: '#E0ECFF', dark: '#1D4ED8' };
@@ -47,7 +47,8 @@ export default function InboxPage({ currentUser }) {
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [activeMailboxGroup, setActiveMailboxGroup] = useState(() => normalizedMailboxGroup(searchParams.get('group')));
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
-  const [selectedMessageId, setSelectedMessageId] = useState('');
+  const [selectedMessageId, setSelectedMessageId] = useState(() => searchParams.get('messageId') || '');
+  const [shouldPersistSelectedMessage, setShouldPersistSelectedMessage] = useState(() => searchParams.has('messageId'));
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const {
     data: profiles = [],
@@ -73,6 +74,11 @@ export default function InboxPage({ currentUser }) {
   } = useForwardingMailboxStatus();
   const configured = mailboxStatus?.configured !== false;
   const mailboxEmail = mailboxStatus?.email || 'service@co-bounce.com';
+  const {
+    data: mailboxSummary,
+  } = useForwardedMailboxSummary({
+    enabled: Boolean(mailboxStatus?.configured),
+  });
   const canFetchAggregateMessages = Boolean(isAggregateInbox && mailboxStatus?.configured);
   const canFetchProfileMessages = Boolean(!isAggregateInbox && activeProfile?.id && mailboxStatus?.configured);
   const {
@@ -119,13 +125,22 @@ export default function InboxPage({ currentUser }) {
   );
   const filteredMessages = useMemo(() => filterMessages(groupedMessages, search), [groupedMessages, search]);
   const selectedMessage = useMemo(
-    () => filteredMessages.find((message) => String(message.id) === String(selectedMessageId)) || filteredMessages[0] || null,
+    () => {
+      const selected = filteredMessages.find((message) => String(message.id) === String(selectedMessageId));
+      if (selected) return selected;
+      return selectedMessageId ? null : filteredMessages[0] || null;
+    },
     [filteredMessages, selectedMessageId],
   );
   const pageError = profilesError?.message || statusError?.message || (configured ? messagesError?.message : '') || '';
   const isLoadingMessages = statusLoading || (messagesLoading && !inboxData);
   const totalMessages = configured ? profileMailboxStats.total : 0;
   const unreadCount = configured ? profileMailboxStats.unreadTotal : 0;
+  const stableUnreadCount = configured ? Math.max(Number(mailboxSummary?.unreadTotal || 0), 0) : 0;
+  const profileUnreadCountsById = useMemo(
+    () => new Map((mailboxSummary?.profiles || []).map((profile) => [String(profile.id), Math.max(Number(profile.unreadTotal || 0), 0)])),
+    [mailboxSummary],
+  );
   const declinedCount = profileMailboxStats.declinedTotal;
   const confirmationCount = profileMailboxStats.confirmationTotal;
   const autoAppliedCount = profileMailboxStats.autoAppliedTotal;
@@ -149,9 +164,12 @@ export default function InboxPage({ currentUser }) {
   useEffect(() => {
     const nextProfileId = searchParams.get('profileId') || '';
     const nextMailboxGroup = normalizedMailboxGroup(searchParams.get('group'));
+    const nextMessageId = searchParams.get('messageId') || '';
     const nextSearch = searchParams.get('search') || '';
     setActiveProfileId((currentProfileId) => (String(nextProfileId) !== String(currentProfileId) ? nextProfileId : currentProfileId));
     setActiveMailboxGroup((currentGroup) => (nextMailboxGroup !== currentGroup ? nextMailboxGroup : currentGroup));
+    setSelectedMessageId((currentMessageId) => (String(nextMessageId) !== String(currentMessageId) ? nextMessageId : currentMessageId));
+    setShouldPersistSelectedMessage(searchParams.has('messageId'));
     setSearch((currentSearch) => (nextSearch !== currentSearch ? nextSearch : currentSearch));
   }, [searchParams]);
 
@@ -159,20 +177,31 @@ export default function InboxPage({ currentUser }) {
     const nextParams = new URLSearchParams();
     if (activeProfileId) nextParams.set('profileId', activeProfileId);
     if (activeMailboxGroup !== MAILBOX_GROUPS.inbox) nextParams.set('group', activeMailboxGroup);
+    if (shouldPersistSelectedMessage && selectedMessageId) nextParams.set('messageId', selectedMessageId);
     if (search) nextParams.set('search', search);
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [activeMailboxGroup, activeProfileId, search, searchParams, setSearchParams]);
+  }, [activeMailboxGroup, activeProfileId, search, searchParams, selectedMessageId, setSearchParams, shouldPersistSelectedMessage]);
 
   useEffect(() => {
     if (!filteredMessages.length) {
+      if (selectedMessageId && (hasNextPage || isFetchingNextPage || messagesLoading)) return;
+      setShouldPersistSelectedMessage(false);
       setSelectedMessageId('');
       return;
     }
     const hasSelected = filteredMessages.some((message) => String(message.id) === String(selectedMessageId));
-    if (!hasSelected) setSelectedMessageId(filteredMessages[0].id);
-  }, [filteredMessages, selectedMessageId]);
+    if (hasSelected) return;
+    if (selectedMessageId && (hasNextPage || isFetchingNextPage || messagesLoading)) return;
+    setShouldPersistSelectedMessage(false);
+    setSelectedMessageId(filteredMessages[0].id);
+  }, [filteredMessages, hasNextPage, isFetchingNextPage, messagesLoading, selectedMessageId]);
+
+  useEffect(() => {
+    if (!selectedMessageId || selectedMessage || !hasNextPage || isFetchingNextPage || messagesLoading) return;
+    fetchNextPage?.();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, messagesLoading, selectedMessage, selectedMessageId]);
 
   useEffect(() => {
     setHeaderSearch({
@@ -188,12 +217,31 @@ export default function InboxPage({ currentUser }) {
   }, [setHeaderSearch]);
 
   const handleMessageSelect = useCallback((messageId) => {
+    setShouldPersistSelectedMessage(true);
     setSelectedMessageId(messageId);
     const message = messages.find((row) => String(row.id) === String(messageId));
     const messageProfileId = activeProfile?.id || message?.matchedProfile?.id;
     if (!messageProfileId || !message?.id || message.isRead) return;
     markMessageRead.mutate({ profileId: messageProfileId, messageId: message.id, wasUnread: !message.isRead });
   }, [activeProfile?.id, markMessageRead, messages]);
+
+  const handleAllProfilesSelect = useCallback(() => {
+    setActiveProfileId('');
+    setShouldPersistSelectedMessage(false);
+    setSelectedMessageId('');
+  }, []);
+
+  const handleGroupChange = useCallback((group) => {
+    setActiveMailboxGroup(group);
+    setShouldPersistSelectedMessage(false);
+    setSelectedMessageId('');
+  }, []);
+
+  const handleProfileChange = useCallback((profileId) => {
+    setActiveProfileId(String(profileId));
+    setShouldPersistSelectedMessage(false);
+    setSelectedMessageId('');
+  }, []);
 
   return (
     <Box sx={{ display: 'grid', gap: 1.25, alignContent: 'start' }}>
@@ -233,10 +281,12 @@ export default function InboxPage({ currentUser }) {
             confirmationCount={confirmationCount}
             declinedCount={declinedCount}
             messagesCount={totalMessages}
-            onAllProfilesSelect={() => setActiveProfileId('')}
-            onGroupChange={setActiveMailboxGroup}
-            onProfileChange={setActiveProfileId}
+            profileUnreadCountsById={profileUnreadCountsById}
+            onAllProfilesSelect={handleAllProfilesSelect}
+            onGroupChange={handleGroupChange}
+            onProfileChange={handleProfileChange}
             statusLoading={statusLoading}
+            unifiedUnreadCount={stableUnreadCount}
             unreadCount={unreadCount}
           />
 
@@ -253,9 +303,6 @@ export default function InboxPage({ currentUser }) {
             search={search}
             selectedMessage={selectedMessage}
             totalMessages={activeGroupTotal}
-            autoAppliedCount={autoAppliedCount}
-            confirmationCount={confirmationCount}
-            declinedCount={declinedCount}
             canRefresh={isAggregateInbox || Boolean(activeProfile?.id)}
             canLoadMore={Boolean(hasNextPage)}
             onMessageSelect={handleMessageSelect}
@@ -288,10 +335,12 @@ function MailboxSidebar({
   isLoading,
   mailboxEmail,
   messagesCount,
+  profileUnreadCountsById,
   onAllProfilesSelect,
   onGroupChange,
   onProfileChange,
   statusLoading,
+  unifiedUnreadCount,
   unreadCount,
 }) {
   return (
@@ -357,14 +406,32 @@ function MailboxSidebar({
           selected={activeMailboxGroup === MAILBOX_GROUPS.autoApplied}
           onClick={() => onGroupChange(MAILBOX_GROUPS.autoApplied)}
         />
-        <MailboxNavRow icon={<FolderOutlinedIcon fontSize="small" />} label="Profile folders" count={inboxProfiles.length} />
+        <MailboxNavRow icon={<FolderOutlinedIcon fontSize="small" />} label="Profile inboxes" count={inboxProfiles.length} />
       </Box>
 
       <Divider sx={{ my: 1 }} />
 
       <Box sx={{ px: 1.25, pb: 0.75 }}>
         <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ textTransform: 'uppercase' }}>
-          Profiles
+          Unified inbox
+        </Typography>
+      </Box>
+      <Box sx={{ px: 0.75, pb: 1, display: 'grid', gap: 0.25 }}>
+        {!isLoading ? (
+          <AllInboxesFolderRow
+            count={inboxProfiles.length}
+            isSelected={isAggregateInbox}
+            unreadCount={unifiedUnreadCount}
+            onClick={onAllProfilesSelect}
+          />
+        ) : null}
+      </Box>
+
+      <Divider sx={{ my: 0.5 }} />
+
+      <Box sx={{ px: 1.25, py: 0.75 }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ textTransform: 'uppercase' }}>
+          Profile email inboxes
         </Typography>
       </Box>
       <Box
@@ -377,14 +444,6 @@ function MailboxSidebar({
           minHeight: 0,
         }}
       >
-        {!isLoading ? (
-          <AllInboxesFolderRow
-            count={inboxProfiles.length}
-            isSelected={isAggregateInbox}
-            unreadCount={unreadCount}
-            onClick={onAllProfilesSelect}
-          />
-        ) : null}
         {isLoading ? <ProfileFolderSkeletons /> : null}
         {!isLoading
           ? inboxProfiles.map((profile) => (
@@ -393,6 +452,7 @@ function MailboxSidebar({
                 activeColor={activeColor}
                 isSelected={String(profile.id) === String(activeProfile?.id)}
                 profile={profile}
+                unreadCount={profileUnreadCountsById.get(String(profile.id)) || 0}
                 onClick={() => onProfileChange(String(profile.id))}
               />
             ))
@@ -411,34 +471,64 @@ function AllInboxesFolderRow({ count, isSelected, onClick, unreadCount }) {
       sx={{
         minHeight: 42,
         width: '100%',
-        border: 0,
+        border: 1,
+        borderColor: isSelected ? INBOX_MESSAGE_ACCENT.main : '#BFDBFE',
         borderRadius: 1,
-        px: 1,
-        bgcolor: isSelected ? INBOX_MESSAGE_ACCENT.soft : 'transparent',
+        px: 0.85,
+        py: 0.75,
+        bgcolor: isSelected ? '#DBEAFE' : '#EFF6FF',
         color: INBOX_MESSAGE_ACCENT.dark,
         cursor: 'pointer',
         display: 'grid',
-        gridTemplateColumns: '22px minmax(0, 1fr)',
+        gridTemplateColumns: '34px minmax(0, 1fr) auto',
         alignItems: 'center',
         gap: 0.75,
         textAlign: 'left',
-        '&:hover': { bgcolor: isSelected ? INBOX_MESSAGE_ACCENT.soft : 'rgba(15, 23, 42, 0.05)' },
+        boxShadow: isSelected ? '0 10px 22px rgba(37, 99, 235, 0.16)' : 'inset 0 0 0 1px rgba(37, 99, 235, 0.04)',
+        '&:hover': { bgcolor: isSelected ? '#DBEAFE' : '#E0ECFF' },
         '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 1 },
       }}
     >
-      {unreadCount > 0 ? (
-        <MuiBadge badgeContent={unreadCount} max={99} overlap="circular" sx={unreadIconBadgeSx}>
+      <Box
+        sx={{
+          width: 32,
+          height: 32,
+          borderRadius: 1,
+          display: 'grid',
+          placeItems: 'center',
+          bgcolor: '#ffffff',
+          border: 1,
+          borderColor: '#BFDBFE',
+          color: INBOX_MESSAGE_ACCENT.dark,
+        }}
+      >
+        {unreadCount > 0 ? (
+          <MuiBadge badgeContent={unreadCount} max={99} overlap="circular" sx={unreadIconBadgeSx}>
+            <InboxIcon fontSize="small" />
+          </MuiBadge>
+        ) : (
           <InboxIcon fontSize="small" />
-        </MuiBadge>
-      ) : (
-        <InboxIcon fontSize="small" />
-      )}
+        )}
+      </Box>
       <Box minWidth={0}>
         <Typography variant="body2" fontWeight={900} noWrap>All inboxes</Typography>
         <Typography variant="caption" color="text.secondary" noWrap>
           {count.toLocaleString()} profile emails
         </Typography>
       </Box>
+      <Chip
+        label="Unified"
+        size="small"
+        sx={{
+          height: 22,
+          fontSize: 10,
+          fontWeight: 900,
+          bgcolor: '#ffffff',
+          color: INBOX_MESSAGE_ACCENT.dark,
+          border: '1px solid #BFDBFE',
+          '& .MuiChip-label': { px: 0.75 },
+        }}
+      />
     </Box>
   );
 }
@@ -487,8 +577,9 @@ function MailboxNavRow({ badgeContent = 0, count, icon, label, onClick, selected
   );
 }
 
-function ProfileFolderRow({ activeColor, isSelected, onClick, profile }) {
+function ProfileFolderRow({ activeColor, isSelected, onClick, profile, unreadCount = 0 }) {
   const color = PROFILE_COLORS[profile.colorScheme] || activeColor;
+  const unreadBadgeCount = Math.max(Number(unreadCount || 0), 0);
   return (
     <Box
       component="button"
@@ -511,7 +602,13 @@ function ProfileFolderRow({ activeColor, isSelected, onClick, profile }) {
         '&:hover': { bgcolor: isSelected ? color.soft : 'rgba(15, 23, 42, 0.05)' },
       }}
     >
-      <FolderOutlinedIcon fontSize="small" />
+      {unreadBadgeCount > 0 ? (
+        <MuiBadge badgeContent={unreadBadgeCount} max={99} overlap="circular" sx={unreadIconBadgeSx}>
+          <FolderOutlinedIcon fontSize="small" />
+        </MuiBadge>
+      ) : (
+        <FolderOutlinedIcon fontSize="small" />
+      )}
       <Box minWidth={0}>
         <Typography variant="body2" fontWeight={900} noWrap>{profile.name}</Typography>
         <Typography variant="caption" color="text.secondary" noWrap>
@@ -523,12 +620,9 @@ function ProfileFolderRow({ activeColor, isSelected, onClick, profile }) {
 }
 
 function MessageListPane({
-  autoAppliedCount,
   canLoadMore,
   canRefresh,
-  confirmationCount,
   configured,
-  declinedCount,
   emptyMessagesDetail,
   groupLabel,
   hasMatcher,
@@ -561,13 +655,14 @@ function MessageListPane({
         sx={{
           px: 1.25,
           py: 1,
-          minHeight: 74,
+          minHeight: 62,
           borderBottom: 1,
           borderColor: 'divider',
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) auto',
           alignItems: 'center',
-          justifyContent: 'space-between',
           gap: 1,
+          minWidth: 0,
         }}
       >
         <Box minWidth={0}>
@@ -575,16 +670,18 @@ function MessageListPane({
           <Typography variant="caption" color="text.secondary" noWrap>
             {groupLabel} · {messages.length.toLocaleString()} of {totalMessages.toLocaleString()} messages
           </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {confirmationCount.toLocaleString()} confirmations · {declinedCount.toLocaleString()} declined · {autoAppliedCount.toLocaleString()} auto-applied
-          </Typography>
         </Box>
         <Tooltip title="Refresh inbox">
-          <span>
-            <IconButton size="small" disabled={!configured || !canRefresh} onClick={onRefresh}>
+          <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
+            <IconButton
+              size="small"
+              disabled={!configured || !canRefresh}
+              onClick={onRefresh}
+              sx={{ flexShrink: 0 }}
+            >
               {isRefreshing || isLoading ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
             </IconButton>
-          </span>
+          </Box>
         </Tooltip>
       </Box>
 
@@ -705,11 +802,10 @@ function MessageLoadingRow({ isLoading, style }) {
 }
 
 function MessageListItem({ isSelected, message, onClick, style }) {
-  const isDeclined = message.classification?.type === 'declined';
-  const isConfirmation = message.classification?.type === 'application_confirmation';
+  const hasListChips = !message.isRead || Boolean(message.mailboxPath);
   const selectedBg = INBOX_MESSAGE_ACCENT.soft;
-  const defaultBg = isDeclined ? DECLINED_ACCENT.soft : message.isRead ? '#ffffff' : '#F8FAFC';
-  const hoverBg = isSelected ? selectedBg : isDeclined ? '#FFE4E6' : '#F8FAFC';
+  const defaultBg = message.isRead ? '#ffffff' : '#F8FAFC';
+  const hoverBg = isSelected ? selectedBg : '#F8FAFC';
   return (
     <Box
       component="button"
@@ -730,11 +826,7 @@ function MessageListItem({ isSelected, message, onClick, style }) {
         display: 'grid',
         gap: 0.25,
         textAlign: 'left',
-        boxShadow: isSelected
-          ? `inset 3px 0 0 ${INBOX_MESSAGE_ACCENT.main}`
-          : isDeclined
-            ? `inset 3px 0 0 ${DECLINED_ACCENT.main}`
-            : 'none',
+        boxShadow: isSelected ? `inset 3px 0 0 ${INBOX_MESSAGE_ACCENT.main}` : 'none',
         '&:hover': { bgcolor: hoverBg },
       }}
     >
@@ -749,15 +841,15 @@ function MessageListItem({ isSelected, message, onClick, style }) {
       <Typography variant="body2" fontWeight={message.isRead ? 800 : 950} color="text.primary" noWrap>
         {message.subject || '(No subject)'}
       </Typography>
-      <Typography variant="caption" color={isDeclined ? DECLINED_ACCENT.dark : 'text.secondary'} noWrap>
+      <Typography variant="caption" color="text.secondary" noWrap>
         {message.bodyPreview || 'No preview available'}
       </Typography>
-      <Stack direction="row" spacing={0.5} alignItems="center" useFlexGap sx={{ flexWrap: 'nowrap', overflow: 'hidden', minWidth: 0 }}>
-        {!message.isRead ? <Chip label="Unread" size="small" sx={smallChipSx(INBOX_MESSAGE_ACCENT.soft, INBOX_MESSAGE_ACCENT.dark)} /> : null}
-        {isDeclined ? <Chip label="Declined" size="small" sx={smallChipSx(DECLINED_ACCENT.soft, DECLINED_ACCENT.dark)} /> : null}
-        {isConfirmation ? <Chip label={applicationChipLabel(message.application)} size="small" sx={smallChipSx(CONFIRMATION_ACCENT.soft, CONFIRMATION_ACCENT.dark)} /> : null}
-        {message.mailboxPath ? <Chip label={message.mailboxPath} size="small" variant="outlined" sx={smallOutlinedChipSx} /> : null}
-      </Stack>
+      {hasListChips ? (
+        <Stack direction="row" spacing={0.5} alignItems="center" useFlexGap sx={{ flexWrap: 'nowrap', overflow: 'hidden', minWidth: 0 }}>
+          {!message.isRead ? <Chip label="Unread" size="small" sx={smallChipSx(INBOX_MESSAGE_ACCENT.soft, INBOX_MESSAGE_ACCENT.dark)} /> : null}
+          {message.mailboxPath ? <Chip label={message.mailboxPath} size="small" variant="outlined" sx={smallOutlinedChipSx} /> : null}
+        </Stack>
+      ) : null}
     </Box>
   );
 }

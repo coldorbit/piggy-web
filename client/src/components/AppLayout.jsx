@@ -112,8 +112,11 @@ export default function AppLayout({ user }) {
   const drawerWidth = isDrawerCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH;
   const handleOpenMailboxNotification = useCallback((message) => {
     const profileId = message?.matchedProfile?.id;
-    const params = profileId ? `?profileId=${encodeURIComponent(profileId)}` : '';
-    navigate(`/inbox${params}`);
+    const params = new URLSearchParams();
+    if (profileId) params.set('profileId', String(profileId));
+    if (message?.id) params.set('messageId', String(message.id));
+    const query = params.toString();
+    navigate(`/inbox${query ? `?${query}` : ''}`);
   }, [navigate]);
   const mailboxNotifications = useMailboxNotifications({
     enabled: canAccessInbox,

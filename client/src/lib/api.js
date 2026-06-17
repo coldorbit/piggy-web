@@ -136,6 +136,17 @@ export function useMailboxNotificationMessages(queryOptions = {}) {
   });
 }
 
+export function useForwardedMailboxSummary(queryOptions = {}) {
+  return useQuery({
+    queryKey: ['bid', 'mailbox', 'summary'],
+    queryFn: () => api('/api/bid/mailbox/summary'),
+    staleTime: 15_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+    ...queryOptions,
+  });
+}
+
 export function useForwardedMailboxMessages(queryOptions = {}) {
   return useInfiniteQuery({
     queryKey: ['bid', 'mailbox', 'messages'],
@@ -174,24 +185,31 @@ export function useMarkProfileMailboxMessageRead() {
     onMutate: async ({ profileId, messageId, wasUnread = true }) => {
       const queryKey = ['bid', 'profiles', profileId, 'mailbox', 'messages'];
       const aggregateQueryKey = ['bid', 'mailbox', 'messages'];
+      const summaryQueryKey = ['bid', 'mailbox', 'summary'];
       await queryClient.cancelQueries({ queryKey });
       await queryClient.cancelQueries({ queryKey: aggregateQueryKey });
+      await queryClient.cancelQueries({ queryKey: summaryQueryKey });
       const previousData = queryClient.getQueryData(queryKey);
       const previousAggregateData = queryClient.getQueryData(aggregateQueryKey);
+      const previousSummaryData = queryClient.getQueryData(summaryQueryKey);
       queryClient.setQueryData(queryKey, (currentData) => updateMailboxMessageReadState(currentData, messageId, { isRead: true }));
       queryClient.setQueryData(aggregateQueryKey, (currentData) => updateMailboxMessageReadState(currentData, messageId, { isRead: true }));
+      queryClient.setQueryData(summaryQueryKey, (currentData) =>
+        updateMailboxSummaryReadState(currentData, profileId, { wasUnread }),
+      );
       const notificationsQueryKey = ['bid', 'mailbox', 'notifications'];
       await queryClient.cancelQueries({ queryKey: notificationsQueryKey });
       const previousNotificationsData = queryClient.getQueryData(notificationsQueryKey);
       queryClient.setQueryData(notificationsQueryKey, (currentData) =>
         updateMailboxNotificationReadState(currentData, messageId, { decrementMissing: true, wasUnread }),
       );
-      return { aggregateQueryKey, notificationsQueryKey, previousAggregateData, previousData, previousNotificationsData, queryKey };
+      return { aggregateQueryKey, notificationsQueryKey, previousAggregateData, previousData, previousNotificationsData, previousSummaryData, queryKey, summaryQueryKey };
     },
     onError: (_error, _variables, context) => {
       if (context?.aggregateQueryKey) queryClient.setQueryData(context.aggregateQueryKey, context.previousAggregateData);
       if (context?.queryKey) queryClient.setQueryData(context.queryKey, context.previousData);
       if (context?.notificationsQueryKey) queryClient.setQueryData(context.notificationsQueryKey, context.previousNotificationsData);
+      if (context?.summaryQueryKey) queryClient.setQueryData(context.summaryQueryKey, context.previousSummaryData);
     },
     onSuccess: (message, { profileId, messageId }) => {
       queryClient.setQueryData(['bid', 'profiles', profileId, 'mailbox', 'messages'], (currentData) =>
@@ -207,6 +225,7 @@ export function useMarkProfileMailboxMessageRead() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['bid', 'mailbox', 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'mailbox', 'notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'mailbox', 'summary'] });
     },
   });
 }
@@ -256,6 +275,19 @@ function updateMailboxNotificationReadState(currentData, messageId, { decrementM
     ...currentData,
     messages,
     unreadTotal: Math.max(Number(currentData.unreadTotal || 0) - unreadDelta, 0),
+  };
+}
+
+function updateMailboxSummaryReadState(currentData, profileId, { wasUnread = true } = {}) {
+  if (!currentData || !wasUnread) return currentData;
+  return {
+    ...currentData,
+    unreadTotal: Math.max(Number(currentData.unreadTotal || 0) - 1, 0),
+    profiles: (currentData.profiles || []).map((profile) => (
+      String(profile.id) === String(profileId)
+        ? { ...profile, unreadTotal: Math.max(Number(profile.unreadTotal || 0) - 1, 0) }
+        : profile
+    )),
   };
 }
 

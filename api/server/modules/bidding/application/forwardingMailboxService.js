@@ -222,6 +222,24 @@ export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_
   };
 }
 
+export async function listForwardedMailboxSummary(req) {
+  assertForwardingMailboxConfigured();
+  const user = await currentDbUser(req);
+  const profiles = await mailboxNotificationProfilesForUser(user);
+  const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
+  const unreadCountsByProfileId = await unreadMailboxCountsByProfileId(profileIds);
+  const unreadTotal = [...unreadCountsByProfileId.values()].reduce((sum, count) => sum + count, 0);
+
+  return {
+    mailbox: forwardingMailboxStatus(),
+    unreadTotal,
+    profiles: profiles.map((profile) => ({
+      id: profile.id,
+      unreadTotal: unreadCountsByProfileId.get(String(profile.id)) || 0,
+    })),
+  };
+}
+
 export async function listForwardedMailboxNotificationMessages(req, { limit = DEFAULT_NOTIFICATION_MESSAGE_LIMIT } = {}) {
   assertForwardingMailboxConfigured();
   const user = await currentDbUser(req);
@@ -469,6 +487,24 @@ async function storedForwardedMailboxMessagePageForProfileIds(profileIds, { limi
     };
   }
   return storedForwardedMailboxMessagePage({ profileId: { [Op.in]: profileIds } }, { limit, offset });
+}
+
+async function unreadMailboxCountsByProfileId(profileIds) {
+  if (!profileIds.length) return new Map();
+  const rows = await getForwardedMailboxMessageModel().findAll({
+    attributes: [
+      'profileId',
+      [getSequelize().fn('COUNT', getSequelize().col('id')), 'unreadTotal'],
+    ],
+    where: {
+      profileId: { [Op.in]: profileIds },
+      isRead: false,
+    },
+    group: ['profileId'],
+    raw: true,
+  });
+
+  return new Map(rows.map((row) => [String(row.profileId), Number(row.unreadTotal || 0)]));
 }
 
 async function storedForwardedMailboxMessagePage(where, { limit, offset }) {

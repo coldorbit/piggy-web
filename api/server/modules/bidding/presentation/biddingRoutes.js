@@ -28,6 +28,7 @@ import {
 } from './biddingController.js';
 import {
   getForwardingMailboxStatus,
+  getForwardingMailboxSummary,
   listForwardingMailboxMessages,
   listForwardingMailboxNotifications,
   listProfileForwardedMessages,
@@ -46,6 +47,7 @@ export function registerBidRoutes(app) {
   app.post('/api/bid/callers', requireAuth, createCaller);
   app.post('/api/bid/profiles', requireAuth, createProfile);
   app.get('/api/bid/mailbox/status', requireAuth, getForwardingMailboxStatus);
+  app.get('/api/bid/mailbox/summary', requireAuth, getForwardingMailboxSummary);
   app.get('/api/bid/mailbox/notifications', requireAuth, listForwardingMailboxNotifications);
   app.get('/api/bid/mailbox/messages', requireAuth, listForwardingMailboxMessages);
   app.get('/api/bid/profiles/:id/mailbox/messages', requireAuth, listProfileForwardedMessages);
