@@ -414,14 +414,17 @@ function AssessmentForm({
             <TextField
               {...params}
               label="Scraped job (optional)"
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    {jobsFetching ? <CircularProgress color="inherit" size={16} /> : null}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
+              slotProps={{
+                ...params.slotProps,
+                input: {
+                  ...params.slotProps.input,
+                  endAdornment: (
+                    <>
+                      {jobsFetching ? <CircularProgress color="inherit" size={16} /> : null}
+                      {params.slotProps.input.endAdornment}
+                    </>
+                  ),
+                },
               }}
             />
           )}
