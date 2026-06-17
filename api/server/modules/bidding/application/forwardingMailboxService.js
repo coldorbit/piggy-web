@@ -9,9 +9,14 @@ import { BIDDER_ROLES, isAdminRole } from '../../../utils/roles.js';
 import { currentDbUser } from './profilesService.js';
 
 const DEFAULT_PROFILE_MESSAGE_LIMIT = 10;
+const DEFAULT_MAILBOX_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const DEFAULT_MAILBOX_SYNC_MESSAGE_LIMIT = 100;
+const MIN_MAILBOX_SYNC_INTERVAL_MS = 30 * 1000;
 const MAX_MESSAGE_FETCH = 200;
 const SKIPPED_MAILBOX_SPECIAL_USE = new Set(['\\All', '\\Drafts', '\\Junk', '\\Sent', '\\Trash']);
 const APPLIED_STATUSES = new Set(['submitted', 'interviewing', 'won', 'lost']);
+let mailboxApplicationSyncTimer = null;
+let mailboxApplicationSyncRunning = false;
 
 export function forwardingMailboxConfigured() {
   return Boolean(
@@ -29,6 +34,86 @@ export function forwardingMailboxStatus() {
     port: mailboxPort(),
     secure: mailboxSecure(),
   };
+}
+
+export function forwardingMailboxApplicationSyncConfig(options = {}) {
+  const syncEnabled = booleanOption(options.enabled ?? ENV.MAILBOX_SYNC_ENABLED, true);
+  const mailboxConfigured = options.mailboxConfigured ?? forwardingMailboxConfigured();
+  const enabled = syncEnabled && mailboxConfigured;
+  return {
+    enabled,
+    reason: enabled ? 'enabled' : syncEnabled ? 'not_configured' : 'disabled',
+    intervalMs: integerOption(options.intervalMs ?? ENV.MAILBOX_SYNC_INTERVAL_MS, {
+      defaultValue: DEFAULT_MAILBOX_SYNC_INTERVAL_MS,
+      min: MIN_MAILBOX_SYNC_INTERVAL_MS,
+    }),
+    messageLimit: integerOption(options.messageLimit ?? ENV.MAILBOX_SYNC_MESSAGE_LIMIT, {
+      defaultValue: DEFAULT_MAILBOX_SYNC_MESSAGE_LIMIT,
+      min: 1,
+      max: MAX_MESSAGE_FETCH,
+    }),
+  };
+}
+
+export function startForwardingMailboxApplicationSync(options = {}) {
+  const config = forwardingMailboxApplicationSyncConfig(options);
+  if (!config.enabled) return { started: false, config };
+  if (mailboxApplicationSyncTimer) return { started: false, config: { ...config, reason: 'already_started' } };
+
+  const syncNow = () => {
+    void runForwardingMailboxApplicationSync(config);
+  };
+
+  syncNow();
+  mailboxApplicationSyncTimer = setInterval(syncNow, config.intervalMs);
+  mailboxApplicationSyncTimer.unref?.();
+  return { started: true, config };
+}
+
+export function stopForwardingMailboxApplicationSync() {
+  if (!mailboxApplicationSyncTimer) return;
+  clearInterval(mailboxApplicationSyncTimer);
+  mailboxApplicationSyncTimer = null;
+}
+
+export async function syncForwardingMailboxApplications({ messageLimit = DEFAULT_MAILBOX_SYNC_MESSAGE_LIMIT } = {}) {
+  assertForwardingMailboxConfigured();
+
+  const profiles = await getBidProfileModel().findAll({
+    attributes: ['id', 'userId', 'name', 'email', 'forwardingEmail'],
+    where: { profileStatus: ['active', 'closed', 'legacy'] },
+    order: [['name', 'ASC']],
+  });
+  if (!profiles.length) {
+    return emptyMailboxApplicationSyncStats({ scanned: 0, profiles: 0 });
+  }
+
+  const parsedMessages = await fetchRecentMailboxMessages(normalizedMessageLimit(messageLimit));
+  const stats = emptyMailboxApplicationSyncStats({
+    scanned: parsedMessages.length,
+    profiles: profiles.length,
+  });
+
+  for (const message of parsedMessages) {
+    const row = classifyForwardedMessage(message, profiles);
+    if (!row.profile) continue;
+    stats.matchedMessages += 1;
+
+    try {
+      const application = await applicationResultForMailboxMessage(row.message, row.profile);
+      if (!application) continue;
+
+      stats.confirmations += 1;
+      stats.results[application.status] = (stats.results[application.status] || 0) + 1;
+      if (application.status === 'applied') stats.applied += 1;
+      if (application.status === 'already_applied') stats.alreadyApplied += 1;
+    } catch (error) {
+      stats.errors += 1;
+      console.warn('Forwarding mailbox application sync skipped a message:', message.id || message.subject || '(unknown)', error.message);
+    }
+  }
+
+  return stats;
 }
 
 export async function mailboxProfileForRequest(req, profileId) {
@@ -509,6 +594,63 @@ function applicationResult(status, job, bid) {
     company: job.company || 'Unknown company',
     bidId: bid?.id || null,
   };
+}
+
+async function runForwardingMailboxApplicationSync(config) {
+  if (mailboxApplicationSyncRunning) return;
+  mailboxApplicationSyncRunning = true;
+  try {
+    const stats = await syncForwardingMailboxApplications({ messageLimit: config.messageLimit });
+    if (stats.applied || stats.errors) {
+      console.log(
+        'Forwarding mailbox application sync:',
+        `scanned=${stats.scanned}`,
+        `matched=${stats.matchedMessages}`,
+        `confirmations=${stats.confirmations}`,
+        `applied=${stats.applied}`,
+        `alreadyApplied=${stats.alreadyApplied}`,
+        `errors=${stats.errors}`,
+      );
+    }
+  } catch (error) {
+    console.error('Forwarding mailbox application sync failed:', error);
+  } finally {
+    mailboxApplicationSyncRunning = false;
+  }
+}
+
+function emptyMailboxApplicationSyncStats({ scanned = 0, profiles = 0 } = {}) {
+  return {
+    profiles,
+    scanned,
+    matchedMessages: 0,
+    confirmations: 0,
+    applied: 0,
+    alreadyApplied: 0,
+    errors: 0,
+    results: {},
+  };
+}
+
+function normalizedMessageLimit(value) {
+  return integerOption(value, {
+    defaultValue: DEFAULT_MAILBOX_SYNC_MESSAGE_LIMIT,
+    min: 1,
+    max: MAX_MESSAGE_FETCH,
+  });
+}
+
+function booleanOption(value, defaultValue) {
+  if (value === undefined || value === null || value === '') return Boolean(defaultValue);
+  const normalized = String(value).trim();
+  if (!normalized) return Boolean(defaultValue);
+  return !['0', 'false', 'no', 'off'].includes(normalized.toLowerCase());
+}
+
+function integerOption(value, { defaultValue, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER }) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return defaultValue;
+  return Math.min(Math.max(parsed, min), max);
 }
 
 async function matchingJobFromConfirmationMessage(message) {

@@ -3,6 +3,7 @@ import http from 'node:http';
 import { ensureWebModels } from './db.js';
 import { ENV } from './env.js';
 import { requestLogger } from './server/middleware/requestLogger.js';
+import { startForwardingMailboxApplicationSync } from './server/modules/bidding/application/forwardingMailboxService.js';
 import { registerApiRoutes } from './server/modules/index.js';
 
 const app = express();
@@ -38,10 +39,20 @@ app.use((error, _req, res, _next) => {
 });
 
 await ensureWebModels();
+const mailboxApplicationSync = startForwardingMailboxApplicationSync();
 
 const port = ENV.WEB_PORT;
 server.listen(port, '0.0.0.0', () => {
   console.log(`ApplyPilot API listening on http://0.0.0.0:${port}`);
+  if (mailboxApplicationSync.started) {
+    console.log(
+      'Forwarding mailbox application sync enabled:',
+      `intervalMs=${mailboxApplicationSync.config.intervalMs}`,
+      `messageLimit=${mailboxApplicationSync.config.messageLimit}`,
+    );
+  } else if (mailboxApplicationSync.config.reason !== 'not_configured') {
+    console.log(`Forwarding mailbox application sync not started: ${mailboxApplicationSync.config.reason}`);
+  }
 });
 
 function isAllowedOrigin(origin) {

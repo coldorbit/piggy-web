@@ -24,6 +24,9 @@ export const ENV = {
   MAILBOX_IMAP_HOST: process.env.MAILBOX_IMAP_HOST || 'mail.privateemail.com',
   MAILBOX_IMAP_PORT: process.env.MAILBOX_IMAP_PORT || '993',
   MAILBOX_IMAP_SECURE: process.env.MAILBOX_IMAP_SECURE || 'true',
+  MAILBOX_SYNC_ENABLED: process.env.MAILBOX_SYNC_ENABLED || 'true',
+  MAILBOX_SYNC_INTERVAL_MS: process.env.MAILBOX_SYNC_INTERVAL_MS || '300000',
+  MAILBOX_SYNC_MESSAGE_LIMIT: process.env.MAILBOX_SYNC_MESSAGE_LIMIT || '100',
 };
 
 export function isProduction() {

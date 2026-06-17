@@ -48,11 +48,15 @@ MAILBOX_PASSWORD=
 MAILBOX_IMAP_HOST=mail.privateemail.com
 MAILBOX_IMAP_PORT=993
 MAILBOX_IMAP_SECURE=true
+MAILBOX_SYNC_ENABLED=true
+MAILBOX_SYNC_INTERVAL_MS=300000
+MAILBOX_SYNC_MESSAGE_LIMIT=100
 ```
 
 For Docker Compose from the workspace root, put the shared values in the root `.env` instead. The client uses `client/.env` only for browser build-time values such as `VITE_API_BASE_URL`.
 
 Forwarded mail reads use one central IMAP inbox. Configure `MAILBOX_EMAIL` and `MAILBOX_PASSWORD`, then set each profile's forwarding alias so forwarded messages can be classified back to the profile.
+When mailbox sync is enabled, the API also scans recent forwarded email in the background and marks matching application confirmations as submitted without requiring anyone to open the Inbox page.
 
 - `WEB_PORT`: API port, defaults to `4000` in package scripts.
 - `CLIENT_ORIGIN`: default allowed browser origin.
@@ -74,3 +78,6 @@ Forwarded mail reads use one central IMAP inbox. Configure `MAILBOX_EMAIL` and `
 - `MAILBOX_IMAP_HOST`: IMAP server, defaults to Namecheap Private Email's `mail.privateemail.com`.
 - `MAILBOX_IMAP_PORT`: IMAP port, defaults to `993`.
 - `MAILBOX_IMAP_SECURE`: whether IMAP uses SSL, defaults to `true`.
+- `MAILBOX_SYNC_ENABLED`: whether the API should poll forwarded email for application confirmations, defaults to `true`.
+- `MAILBOX_SYNC_INTERVAL_MS`: background mailbox sync interval, defaults to `300000`.
+- `MAILBOX_SYNC_MESSAGE_LIMIT`: number of recent messages to scan per sync, capped at `200` and defaults to `100`.

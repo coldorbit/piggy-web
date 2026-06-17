@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   classifyMailboxMessageIntent,
   classifyForwardedMessage,
+  forwardingMailboxApplicationSyncConfig,
   formatMailboxMessage,
   parseAddressList,
 } from '../server/modules/bidding/application/forwardingMailboxService.js';
@@ -132,6 +133,32 @@ describe('forwarding mailbox helpers', () => {
     assert.deepEqual(classification, {
       type: 'application_confirmation',
       label: 'Application confirmation',
+    });
+  });
+
+  it('normalizes background application sync configuration', () => {
+    assert.deepEqual(forwardingMailboxApplicationSyncConfig({
+      enabled: false,
+      mailboxConfigured: true,
+      intervalMs: 1,
+      messageLimit: 500,
+    }), {
+      enabled: false,
+      reason: 'disabled',
+      intervalMs: 30000,
+      messageLimit: 200,
+    });
+
+    assert.deepEqual(forwardingMailboxApplicationSyncConfig({
+      enabled: 'true',
+      mailboxConfigured: false,
+      intervalMs: 60000,
+      messageLimit: 25,
+    }), {
+      enabled: false,
+      reason: 'not_configured',
+      intervalMs: 60000,
+      messageLimit: 25,
     });
   });
 });
