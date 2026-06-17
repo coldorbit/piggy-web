@@ -126,6 +126,16 @@ export function useForwardingMailboxStatus(queryOptions = {}) {
   });
 }
 
+export function useMailboxNotificationMessages(queryOptions = {}) {
+  return useQuery({
+    queryKey: ['bid', 'mailbox', 'notifications'],
+    queryFn: () => api('/api/bid/mailbox/notifications?limit=25'),
+    staleTime: 0,
+    retry: false,
+    ...queryOptions,
+  });
+}
+
 export function useForwardedProfileMessages(profileId, queryOptions = {}) {
   return useInfiniteQuery({
     queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages'],

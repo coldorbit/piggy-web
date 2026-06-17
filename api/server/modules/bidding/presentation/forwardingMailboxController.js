@@ -4,6 +4,7 @@ import {
   currentMailboxAdmin,
   forwardingMailboxStatus,
   listForwardedInboxMessages,
+  listForwardedMailboxNotificationMessages,
   listForwardedProfileMessages,
   markForwardedProfileMessageRead,
   mailboxProfileForRequest,
@@ -23,6 +24,15 @@ export async function listForwardingMailboxMessages(req, res, next) {
     await ensureWebModels();
     await currentMailboxAdmin(req);
     res.json(await listForwardedInboxMessages({ limit: req.query?.limit }));
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function listForwardingMailboxNotifications(req, res, next) {
+  try {
+    await ensureWebModels();
+    res.json(await listForwardedMailboxNotificationMessages(req, { limit: req.query?.limit }));
   } catch (error) {
     handleInputError(error, res, next);
   }

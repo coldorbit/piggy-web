@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
-import { formatDate, formatDateTime, formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
+import { formatDate, formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { authUrl } from '../../lib/api.js';
 
 const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="combobox"], .MuiSelect-select';
@@ -36,7 +36,6 @@ export default function InterviewCard({
   const currentStage = draft.interviewStage || INTERVIEW_STAGES[0].value;
   const stageNotes = draft.stageNotes || {};
   const stageMeetingLinks = draft.stageMeetingLinks || {};
-  const logs = draft.logs || [];
   const currentStageNote = stageNotes[currentStage] || draft.interviewNotes || '';
   const currentStageMeetingLink = externalUrl(stageMeetingLinks[currentStage] || draft.meetingLink);
   const jobUrl = externalUrl(job.rawJob?.originalUrl || job.url || job.sourceUrl);
@@ -114,18 +113,6 @@ export default function InterviewCard({
         <Typography variant="body2" color="text.secondary" sx={{ minHeight: 20 }} noWrap>
           {currentStageNote || 'No notes for this step'}
         </Typography>
-        {logs.length ? (
-          <Box sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={900}>
-              Journey
-            </Typography>
-            {logs.slice(-4).map((log) => (
-              <Typography key={log.id} variant="caption" color="text.secondary" noWrap>
-                {formatJourneyLog(log)}
-              </Typography>
-            ))}
-          </Box>
-        ) : null}
         <Box sx={chipRowSx}>
           <Chip
             icon={<CalendarMonthIcon />}
@@ -206,20 +193,6 @@ const chipSx = {
 
 function stageLabel(value) {
   return INTERVIEW_STAGES.find((stage) => stage.value === value)?.label || 'Stage';
-}
-
-function formatJourneyLog(log) {
-  const at = log.createdAt ? formatDateTime(log.createdAt) : '';
-  const stage = log.metadata?.stage ? stageLabel(log.metadata.stage) : '';
-  const action = {
-    created: 'Created',
-    first_scheduled: 'First scheduled',
-    schedule_changed: 'Schedule changed',
-    stage_changed: `Moved ${stageLabel(log.fromValue)} -> ${stageLabel(log.toValue)}`,
-    stage_note_changed: `${stage || 'Stage'} note updated`,
-    stage_meeting_link_changed: `${stage || 'Stage'} meeting link updated`,
-  }[log.eventType] || log.eventType;
-  return [action, at].filter(Boolean).join(' · ');
 }
 
 function externalUrl(value) {

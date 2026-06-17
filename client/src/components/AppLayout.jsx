@@ -12,6 +12,9 @@ import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import NotificationsOffIcon from '@mui/icons-material/NotificationsOff';
 import PaidIcon from '@mui/icons-material/Paid';
 import PeopleIcon from '@mui/icons-material/People';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
@@ -43,9 +46,10 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useUpdateMe } from '../lib/authApi.js';
+import { useMailboxNotifications } from '../lib/mailboxNotifications.js';
 import {
   CALLER_BLOCKED_ROLES,
   INTERVIEW_ROLES,
@@ -105,6 +109,16 @@ export default function AppLayout({ user }) {
   const isCaller = user.role === 'caller';
   const isDrawerCollapsed = isDesktop && isSidebarCollapsed;
   const drawerWidth = isDrawerCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH;
+  const handleOpenMailboxNotification = useCallback((message) => {
+    const profileId = message?.matchedProfile?.id;
+    const params = profileId ? `?profileId=${encodeURIComponent(profileId)}` : '';
+    navigate(`/inbox${params}`);
+  }, [navigate]);
+  const mailboxNotifications = useMailboxNotifications({
+    enabled: canAccessInbox,
+    onOpenMessage: handleOpenMailboxNotification,
+    user,
+  });
 
   async function handleLogout() {
     logout(undefined, {
@@ -472,6 +486,34 @@ export default function AppLayout({ user }) {
                   {user.username}
                 </Typography>
               </Box>
+              {canAccessInbox ? (
+                <Tooltip title={mailboxNotificationTooltip(mailboxNotifications)}>
+                  <span>
+                    <IconButton
+                      type="button"
+                      aria-label={mailboxNotificationTooltip(mailboxNotifications)}
+                      aria-pressed={mailboxNotifications.isEnabled}
+                      disabled={!mailboxNotifications.isSupported || mailboxNotifications.permission === 'denied'}
+                      onClick={mailboxNotifications.toggleNotifications}
+                      sx={{
+                        border: 1,
+                        borderColor: mailboxNotifications.isEnabled ? '#BFDBFE' : shellLine,
+                        bgcolor: mailboxNotifications.isEnabled ? '#EFF6FF' : 'rgba(255, 255, 255, 0.72)',
+                        color: mailboxNotifications.isEnabled ? 'primary.dark' : 'text.secondary',
+                        '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE', color: 'primary.dark' },
+                      }}
+                    >
+                      {mailboxNotifications.isEnabled ? (
+                        <NotificationsActiveIcon />
+                      ) : mailboxNotifications.permission === 'denied' || !mailboxNotifications.isSupported ? (
+                        <NotificationsOffIcon />
+                      ) : (
+                        <NotificationsIcon />
+                      )}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              ) : null}
               <IconButton
                 type="button"
                 onClick={handleLogout}
@@ -531,6 +573,13 @@ export default function AppLayout({ user }) {
       </Box>
     </HeaderSearchProvider>
   );
+}
+
+function mailboxNotificationTooltip(mailboxNotifications) {
+  if (!mailboxNotifications.isSupported) return 'Email notifications unavailable';
+  if (mailboxNotifications.permission === 'denied') return 'Email notifications blocked';
+  if (mailboxNotifications.isEnabled) return 'Disable email notifications';
+  return 'Enable email notifications';
 }
 
 function NavItem({ alwaysHighlighted = false, collapsed = false, icon, label, onNavigate, to }) {

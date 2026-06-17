@@ -2,13 +2,14 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { QueryTypes } from 'sequelize';
 import { ENV } from '../../../../env.js';
-import { getBidProfileModel, getJobBidModel, getSequelize } from '../../../../db.js';
+import { getBidProfileModel, getJobBidModel, getProfileShareRequestModel, getSequelize } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
-import { BIDDER_ROLES, isAdminRole } from '../../../utils/roles.js';
-import { currentDbUser } from './profilesService.js';
+import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, isAdminRole } from '../../../utils/roles.js';
+import { currentDbUser, profilesManagedByUser, profilesVisibleToUser } from './profilesService.js';
 
 const DEFAULT_PROFILE_MESSAGE_LIMIT = 10;
+const DEFAULT_NOTIFICATION_MESSAGE_LIMIT = 25;
 const DEFAULT_MAILBOX_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const DEFAULT_MAILBOX_SYNC_MESSAGE_LIMIT = 100;
 const MIN_MAILBOX_SYNC_INTERVAL_MS = 30 * 1000;
@@ -215,6 +216,27 @@ export async function listForwardedInboxMessages({ limit = 25 } = {}) {
   };
 }
 
+export async function listForwardedMailboxNotificationMessages(req, { limit = DEFAULT_NOTIFICATION_MESSAGE_LIMIT } = {}) {
+  assertForwardingMailboxConfigured();
+  const user = await currentDbUser(req);
+  const profiles = await mailboxNotificationProfilesForUser(user);
+  if (!profiles.length) {
+    return {
+      mailbox: forwardingMailboxStatus(),
+      messages: [],
+    };
+  }
+
+  const parsedMessages = await fetchRecentMailboxMessages(notificationMessageLimit(limit));
+  return {
+    mailbox: forwardingMailboxStatus(),
+    messages: parsedMessages
+      .map((message) => classifyForwardedMessage(message, profiles))
+      .filter((row) => row.profile && !row.message.isRead)
+      .map((row) => formatMailboxNotificationMessage(row.message, row.profile, row.match)),
+  };
+}
+
 export function formatMailboxMessage(message, profile = null, match = null, options = {}) {
   const classification = options.classification === undefined ? classifyMailboxMessageIntent(message) : options.classification;
   return {
@@ -242,6 +264,24 @@ export function formatMailboxMessage(message, profile = null, match = null, opti
       : null,
     classification,
     application: options.application || null,
+  };
+}
+
+export function formatMailboxNotificationMessage(message, profile = null, match = null) {
+  const formatted = formatMailboxMessage(message, profile, match, {
+    classification: classifyMailboxMessageIntent(message),
+  });
+  return {
+    id: formatted.id,
+    subject: formatted.subject,
+    from: formatted.from,
+    receivedAt: formatted.receivedAt,
+    bodyPreview: formatted.bodyPreview,
+    mailboxPath: formatted.mailboxPath,
+    isRead: formatted.isRead,
+    matchedProfile: formatted.matchedProfile,
+    match: formatted.match,
+    classification: formatted.classification,
   };
 }
 
@@ -331,9 +371,28 @@ async function mailboxProfileForUser(user, profileId) {
   return profile;
 }
 
+async function mailboxNotificationProfilesForUser(user) {
+  if (CALLER_BLOCKED_ROLES.includes(user?.role)) throw new InputError('This role cannot read profile inboxes');
+  const profiles = isAdminRole(user)
+    ? await profilesManagedByUser(user)
+    : await profilesVisibleToUser(user);
+
+  return profiles
+    .filter((profile) => ['active', 'closed', 'legacy'].includes(profile?.profileStatus || 'active'))
+    .filter((profile) => profileMailboxMatchers(profile).length);
+}
+
 async function ensureUserCanReadMailboxProfile(user, profile) {
   if (isAdminRole(user)) return;
   if (String(profile.userId) === String(user?.id)) return;
+  const share = await getProfileShareRequestModel().findOne({
+    where: {
+      profileId: profile.id,
+      recipientUserId: user?.id,
+      status: 'accepted',
+    },
+  });
+  if (share) return;
   throw new NotFoundError('Profile not found');
 }
 
@@ -635,6 +694,14 @@ function emptyMailboxApplicationSyncStats({ scanned = 0, profiles = 0 } = {}) {
 function normalizedMessageLimit(value) {
   return integerOption(value, {
     defaultValue: DEFAULT_MAILBOX_SYNC_MESSAGE_LIMIT,
+    min: 1,
+    max: MAX_MESSAGE_FETCH,
+  });
+}
+
+function notificationMessageLimit(value) {
+  return integerOption(value, {
+    defaultValue: DEFAULT_NOTIFICATION_MESSAGE_LIMIT,
     min: 1,
     max: MAX_MESSAGE_FETCH,
   });

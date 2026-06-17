@@ -5,6 +5,7 @@ import {
   classifyForwardedMessage,
   forwardingMailboxApplicationSyncConfig,
   formatMailboxMessage,
+  formatMailboxNotificationMessage,
   parseAddressList,
 } from '../server/modules/bidding/application/forwardingMailboxService.js';
 
@@ -109,6 +110,48 @@ describe('forwarding mailbox helpers', () => {
       match: null,
       classification: null,
       application: null,
+    });
+  });
+
+  it('formats notification messages without HTML payloads', () => {
+    const profile = {
+      id: '9',
+      name: 'Maya Patel',
+      email: 'maya@example.com',
+      forwardingEmail: 'service+maya@co-bounce.com',
+    };
+
+    assert.deepEqual(formatMailboxNotificationMessage({
+      id: 'INBOX:42',
+      subject: 'Next steps',
+      from: { name: 'Recruiter', address: 'recruiter@example.com' },
+      receivedAt: '2026-06-16T12:00:00Z',
+      bodyPreview: 'Can you talk tomorrow?',
+      bodyHtml: '<p>Can you talk tomorrow?</p>',
+      mailboxPath: 'INBOX',
+      isRead: false,
+    }, profile, {
+      value: 'service+maya@co-bounce.com',
+      source: 'forwardingEmail:address',
+    }), {
+      id: 'INBOX:42',
+      subject: 'Next steps',
+      from: { name: 'Recruiter', address: 'recruiter@example.com' },
+      receivedAt: '2026-06-16T12:00:00Z',
+      bodyPreview: 'Can you talk tomorrow?',
+      mailboxPath: 'INBOX',
+      isRead: false,
+      matchedProfile: {
+        id: '9',
+        name: 'Maya Patel',
+        email: 'maya@example.com',
+        forwardingEmail: 'service+maya@co-bounce.com',
+      },
+      match: {
+        value: 'service+maya@co-bounce.com',
+        source: 'forwardingEmail:address',
+      },
+      classification: null,
     });
   });
 

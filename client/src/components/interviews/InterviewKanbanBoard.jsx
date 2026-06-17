@@ -1,9 +1,15 @@
 import { closestCenter, DndContext, DragOverlay, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { Box } from '@mui/material';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { INTERVIEW_KANBAN_COLUMNS } from '../bids/bidConstants.js';
 import InterviewCard from './InterviewCard.jsx';
 import InterviewColumn from './InterviewColumn.jsx';
+
+const COLUMN_WIDTH = {
+  xs: 'minmax(280px, 82vw)',
+  sm: 'minmax(300px, 340px)',
+  lg: 'minmax(320px, 360px)',
+};
 
 export default function InterviewKanbanBoard({
   activeColor,
@@ -28,6 +34,14 @@ export default function InterviewKanbanBoard({
   const activeJob = activeJobId
     ? INTERVIEW_KANBAN_COLUMNS.flatMap((stage) => jobsByStage[stage.value] || []).find((job) => String(job.id) === String(activeJobId))
     : null;
+  const handleWheel = useCallback((event) => {
+    const hasHorizontalOverflow = event.currentTarget.scrollWidth > event.currentTarget.clientWidth;
+    const horizontalIntent = event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY);
+    if (!hasHorizontalOverflow || !horizontalIntent) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
 
   function handleDragEnd(event) {
     setActiveJobId('');
@@ -55,21 +69,25 @@ export default function InterviewKanbanBoard({
         sx={{
           alignItems: 'stretch',
           display: 'grid',
+          gridAutoFlow: 'column',
+          gridAutoRows: 'minmax(0, 1fr)',
           gridTemplateColumns: {
-            xs: 'minmax(0, 1fr)',
-            sm: 'repeat(2, minmax(0, 1fr))',
-            lg: 'repeat(3, minmax(0, 1fr))',
-            xl: 'repeat(5, minmax(0, 1fr))',
+            xs: `repeat(${INTERVIEW_KANBAN_COLUMNS.length}, ${COLUMN_WIDTH.xs})`,
+            sm: `repeat(${INTERVIEW_KANBAN_COLUMNS.length}, ${COLUMN_WIDTH.sm})`,
+            lg: `repeat(${INTERVIEW_KANBAN_COLUMNS.length}, ${COLUMN_WIDTH.lg})`,
           },
-          gridAutoRows: { xs: 'minmax(260px, auto)', md: 'minmax(300px, 1fr)' },
           gap: 1,
           height: { xs: 'calc(100vh - 176px)', md: '100%' },
           minHeight: 0,
           minWidth: 0,
-          overflowX: 'hidden',
-          overflowY: 'auto',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          overscrollBehaviorX: 'contain',
           p: { xs: 1, sm: 1.5 },
+          scrollbarGutter: 'stable',
+          WebkitOverflowScrolling: 'touch',
         }}
+        onWheel={handleWheel}
       >
         {INTERVIEW_KANBAN_COLUMNS.map((stage) => (
           <InterviewColumn
