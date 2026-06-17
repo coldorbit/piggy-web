@@ -223,6 +223,7 @@ export async function listForwardedMailboxNotificationMessages(req, { limit = DE
   if (!profiles.length) {
     return {
       mailbox: forwardingMailboxStatus(),
+      unreadTotal: 0,
       messages: [],
     };
   }
@@ -231,22 +232,28 @@ export async function listForwardedMailboxNotificationMessages(req, { limit = DE
   if (!profileIds.length) {
     return {
       mailbox: forwardingMailboxStatus(),
+      unreadTotal: 0,
       messages: [],
     };
   }
 
-  const rows = await getForwardedMailboxMessageModel().findAll({
-    where: {
-      profileId: { [Op.in]: profileIds },
-      isRead: false,
-    },
-    include: [storedMailboxProfileInclude()],
-    limit: notificationMessageLimit(limit),
-    order: storedMailboxMessageOrder(),
-  });
+  const where = {
+    profileId: { [Op.in]: profileIds },
+    isRead: false,
+  };
+  const [rows, unreadTotal] = await Promise.all([
+    getForwardedMailboxMessageModel().findAll({
+      where,
+      include: [storedMailboxProfileInclude()],
+      limit: notificationMessageLimit(limit),
+      order: storedMailboxMessageOrder(),
+    }),
+    getForwardedMailboxMessageModel().count({ where }),
+  ]);
 
   return {
     mailbox: forwardingMailboxStatus(),
+    unreadTotal,
     messages: rows.map(formatStoredMailboxNotificationMessage),
   };
 }

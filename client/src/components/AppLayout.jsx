@@ -26,6 +26,7 @@ import {
   AppBar,
   Avatar,
   Box,
+  Badge as MuiBadge,
   Button,
   Drawer,
   Chip,
@@ -276,7 +277,16 @@ export default function AppLayout({ user }) {
           {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
             <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {canAccessInbox ? <NavItem to="/inbox" icon={<InboxIcon />} label="Inbox" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
+          {canAccessInbox ? (
+            <NavItem
+              to="/inbox"
+              icon={<InboxIcon />}
+              label="Inbox"
+              badgeContent={mailboxNotifications.unreadCount}
+              collapsed={isDrawerCollapsed}
+              onNavigate={() => setMobileOpen(false)}
+            />
+          ) : null}
           {canAccessInterviews ? (
             <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
@@ -582,7 +592,10 @@ function mailboxNotificationTooltip(mailboxNotifications) {
   return 'Enable email notifications';
 }
 
-function NavItem({ alwaysHighlighted = false, collapsed = false, icon, label, onNavigate, to }) {
+function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = false, icon, label, onNavigate, to }) {
+  const badgeCount = Math.max(Number(badgeContent || 0), 0);
+  const hasBadge = badgeCount > 0;
+  const accessibleLabel = hasBadge ? `${label}, ${badgeCount.toLocaleString()} unread` : label;
   const highlightedStyles = {
     bgcolor: 'primary.main',
     borderColor: 'primary.main',
@@ -608,6 +621,7 @@ function NavItem({ alwaysHighlighted = false, collapsed = false, icon, label, on
       component={NavLink}
       to={to}
       onClick={onNavigate}
+      aria-label={accessibleLabel}
       sx={{
         minHeight: collapsed ? 42 : 38,
         width: collapsed ? 42 : '100%',
@@ -637,7 +651,16 @@ function NavItem({ alwaysHighlighted = false, collapsed = false, icon, label, on
           '& .MuiSvgIcon-root': { fontSize: 20 },
         }}
       >
-        {icon}
+        {hasBadge ? (
+          <MuiBadge
+            badgeContent={badgeCount}
+            max={99}
+            overlap="circular"
+            sx={unreadIconBadgeSx}
+          >
+            {icon}
+          </MuiBadge>
+        ) : icon}
       </ListItemIcon>
       {!collapsed ? <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 700, fontSize: 13 }} /> : null}
     </ListItemButton>
@@ -645,11 +668,25 @@ function NavItem({ alwaysHighlighted = false, collapsed = false, icon, label, on
 
   if (!collapsed) return button;
   return (
-    <Tooltip title={label} placement="right">
+    <Tooltip title={accessibleLabel} placement="right">
       {button}
     </Tooltip>
   );
 }
+
+const unreadIconBadgeSx = {
+  '& .MuiBadge-badge': {
+    minWidth: 16,
+    height: 16,
+    px: 0.45,
+    border: '2px solid #ffffff',
+    bgcolor: '#DC2626',
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 900,
+    lineHeight: 1,
+  },
+};
 
 function readSidebarCollapsedPreference() {
   if (typeof window === 'undefined') return false;

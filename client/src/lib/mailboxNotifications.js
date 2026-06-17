@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMailboxNotificationMessages } from './api.js';
+import { useForwardingMailboxStatus, useMailboxNotificationMessages } from './api.js';
 
 const MAILBOX_NOTIFICATION_POLL_MS = 60_000;
 const ENABLED_STORAGE_PREFIX = 'applypilot-mailbox-notifications-enabled:';
@@ -17,14 +17,19 @@ export function useMailboxNotifications({ enabled = true, onOpenMessage, user } 
   const seenMessageIdsRef = useRef(new Set(readSeenMessageIds(seenStorageKey)));
   const initializedRef = useRef(seenMessageIdsRef.current.size > 0);
   const isSupported = notificationSupported();
-  const canNotify = Boolean(enabled && isSupported && isOptedIn && permission === 'granted');
+  const mailboxStatusQuery = useForwardingMailboxStatus({
+    enabled,
+  });
+  const canFetchMailboxMessages = Boolean(enabled && mailboxStatusQuery.data?.configured);
+  const canNotify = Boolean(canFetchMailboxMessages && isSupported && isOptedIn && permission === 'granted');
   const notificationQuery = useMailboxNotificationMessages({
-    enabled: canNotify,
-    refetchInterval: canNotify ? MAILBOX_NOTIFICATION_POLL_MS : false,
+    enabled: canFetchMailboxMessages,
+    refetchInterval: canFetchMailboxMessages ? MAILBOX_NOTIFICATION_POLL_MS : false,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
   const messages = useMemo(() => notificationQuery.data?.messages || [], [notificationQuery.data]);
+  const unreadCount = Math.max(Number(notificationQuery.data?.unreadTotal || 0), 0);
 
   useEffect(() => {
     const seenMessageIds = new Set(readSeenMessageIds(seenStorageKey));
@@ -121,6 +126,7 @@ export function useMailboxNotifications({ enabled = true, onOpenMessage, user } 
     permission,
     requestNotifications,
     toggleNotifications,
+    unreadCount,
   };
 }
 

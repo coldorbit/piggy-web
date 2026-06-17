@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import InboxIcon from '@mui/icons-material/Inbox';
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
@@ -8,6 +9,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Alert,
   Avatar,
+  Badge as MuiBadge,
   Box,
   Chip,
   CircularProgress,
@@ -31,10 +33,19 @@ const INBOX_MESSAGE_ACCENT = { main: '#2563EB', soft: '#E0ECFF', dark: '#1D4ED8'
 const DECLINED_ACCENT = { main: '#E11D48', soft: '#FFF1F2', dark: '#BE123C' };
 const CONFIRMATION_ACCENT = { main: '#0F766E', soft: '#ECFDF5', dark: '#047857' };
 const COMPACT_MESSAGE_ROW_HEIGHT = 96;
+const MAILBOX_GROUPS = Object.freeze({
+  inbox: 'inbox',
+  unread: 'unread',
+  confirmations: 'confirmations',
+  declined: 'declined',
+  autoApplied: 'auto-applied',
+});
+const MAILBOX_GROUP_VALUES = new Set(Object.values(MAILBOX_GROUPS));
 
 export default function InboxPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
+  const [activeMailboxGroup, setActiveMailboxGroup] = useState(() => normalizedMailboxGroup(searchParams.get('group')));
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [selectedMessageId, setSelectedMessageId] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
@@ -80,7 +91,11 @@ export default function InboxPage({ currentUser }) {
     () => mailboxStatsFromPages(inboxData?.pages || [], messages),
     [inboxData, messages],
   );
-  const filteredMessages = useMemo(() => filterMessages(messages, search), [messages, search]);
+  const groupedMessages = useMemo(
+    () => filterMessagesByGroup(messages, activeMailboxGroup),
+    [activeMailboxGroup, messages],
+  );
+  const filteredMessages = useMemo(() => filterMessages(groupedMessages, search), [groupedMessages, search]);
   const selectedMessage = useMemo(
     () => filteredMessages.find((message) => String(message.id) === String(selectedMessageId)) || filteredMessages[0] || null,
     [filteredMessages, selectedMessageId],
@@ -92,6 +107,8 @@ export default function InboxPage({ currentUser }) {
   const declinedCount = profileMailboxStats.declinedTotal;
   const confirmationCount = profileMailboxStats.confirmationTotal;
   const autoAppliedCount = profileMailboxStats.autoAppliedTotal;
+  const activeGroupTotal = configured ? mailboxGroupTotal(profileMailboxStats, activeMailboxGroup) : 0;
+  const activeGroupLabel = mailboxGroupLabel(activeMailboxGroup);
   const hasMatcher = Boolean(activeProfile?.forwardingEmail || activeProfile?.email);
 
   useEffect(() => {
@@ -102,23 +119,26 @@ export default function InboxPage({ currentUser }) {
 
   useEffect(() => {
     const nextProfileId = searchParams.get('profileId') || '';
+    const nextMailboxGroup = normalizedMailboxGroup(searchParams.get('group'));
     const nextSearch = searchParams.get('search') || '';
     setActiveProfileId((currentProfileId) => (
       searchParams.has('profileId') && String(nextProfileId) !== String(currentProfileId)
         ? nextProfileId
         : currentProfileId
     ));
+    setActiveMailboxGroup((currentGroup) => (nextMailboxGroup !== currentGroup ? nextMailboxGroup : currentGroup));
     setSearch((currentSearch) => (nextSearch !== currentSearch ? nextSearch : currentSearch));
   }, [searchParams]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
     if (activeProfileId) nextParams.set('profileId', activeProfileId);
+    if (activeMailboxGroup !== MAILBOX_GROUPS.inbox) nextParams.set('group', activeMailboxGroup);
     if (search) nextParams.set('search', search);
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [activeProfileId, search, searchParams, setSearchParams]);
+  }, [activeMailboxGroup, activeProfileId, search, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!filteredMessages.length) {
@@ -146,7 +166,7 @@ export default function InboxPage({ currentUser }) {
     setSelectedMessageId(messageId);
     const message = messages.find((row) => String(row.id) === String(messageId));
     if (!activeProfile?.id || !message?.id || message.isRead) return;
-    markMessageRead.mutate({ profileId: activeProfile.id, messageId: message.id });
+    markMessageRead.mutate({ profileId: activeProfile.id, messageId: message.id, wasUnread: !message.isRead });
   }, [activeProfile?.id, markMessageRead, messages]);
 
   return (
@@ -177,13 +197,16 @@ export default function InboxPage({ currentUser }) {
         >
           <MailboxSidebar
             activeColor={activeColor}
+            activeMailboxGroup={activeMailboxGroup}
             activeProfile={activeProfile}
+            autoAppliedCount={autoAppliedCount}
             inboxProfiles={inboxProfiles}
             isLoading={profilesLoading}
             mailboxEmail={mailboxEmail}
             confirmationCount={confirmationCount}
             declinedCount={declinedCount}
             messagesCount={totalMessages}
+            onGroupChange={setActiveMailboxGroup}
             onProfileChange={setActiveProfileId}
             statusLoading={statusLoading}
             unreadCount={unreadCount}
@@ -197,9 +220,10 @@ export default function InboxPage({ currentUser }) {
             isRefreshing={messagesLoading && !isFetchingNextPage && Boolean(inboxData)}
             messages={filteredMessages}
             profile={activeProfile}
+            groupLabel={activeGroupLabel}
             search={search}
             selectedMessage={selectedMessage}
-            totalMessages={totalMessages}
+            totalMessages={activeGroupTotal}
             autoAppliedCount={autoAppliedCount}
             confirmationCount={confirmationCount}
             declinedCount={declinedCount}
@@ -224,13 +248,16 @@ export default function InboxPage({ currentUser }) {
 
 function MailboxSidebar({
   activeColor,
+  activeMailboxGroup,
   activeProfile,
+  autoAppliedCount,
   confirmationCount,
   declinedCount,
   inboxProfiles,
   isLoading,
   mailboxEmail,
   messagesCount,
+  onGroupChange,
   onProfileChange,
   statusLoading,
   unreadCount,
@@ -262,10 +289,42 @@ function MailboxSidebar({
       </Box>
 
       <Box sx={{ px: 0.75, display: 'grid', gap: 0.25 }}>
-        <MailboxNavRow icon={<InboxIcon fontSize="small" />} label="Inbox" count={messagesCount} selected />
-        <MailboxNavRow icon={<MarkEmailUnreadIcon fontSize="small" />} label="Unread" count={unreadCount} />
-        <MailboxNavRow icon={<MailOutlinedIcon fontSize="small" />} label="Confirmations" count={confirmationCount} />
-        <MailboxNavRow icon={<MailOutlinedIcon fontSize="small" />} label="Declined" count={declinedCount} />
+        <MailboxNavRow
+          icon={<InboxIcon fontSize="small" />}
+          label="Inbox"
+          count={messagesCount}
+          badgeContent={unreadCount}
+          selected={activeMailboxGroup === MAILBOX_GROUPS.inbox}
+          onClick={() => onGroupChange(MAILBOX_GROUPS.inbox)}
+        />
+        <MailboxNavRow
+          icon={<MarkEmailUnreadIcon fontSize="small" />}
+          label="Unread"
+          count={unreadCount}
+          selected={activeMailboxGroup === MAILBOX_GROUPS.unread}
+          onClick={() => onGroupChange(MAILBOX_GROUPS.unread)}
+        />
+        <MailboxNavRow
+          icon={<MailOutlinedIcon fontSize="small" />}
+          label="Confirmations"
+          count={confirmationCount}
+          selected={activeMailboxGroup === MAILBOX_GROUPS.confirmations}
+          onClick={() => onGroupChange(MAILBOX_GROUPS.confirmations)}
+        />
+        <MailboxNavRow
+          icon={<MailOutlinedIcon fontSize="small" />}
+          label="Declined"
+          count={declinedCount}
+          selected={activeMailboxGroup === MAILBOX_GROUPS.declined}
+          onClick={() => onGroupChange(MAILBOX_GROUPS.declined)}
+        />
+        <MailboxNavRow
+          icon={<AssignmentTurnedInOutlinedIcon fontSize="small" />}
+          label="Auto-applied"
+          count={autoAppliedCount}
+          selected={activeMailboxGroup === MAILBOX_GROUPS.autoApplied}
+          onClick={() => onGroupChange(MAILBOX_GROUPS.autoApplied)}
+        />
         <MailboxNavRow icon={<FolderOutlinedIcon fontSize="small" />} label="Profile folders" count={inboxProfiles.length} />
       </Box>
 
@@ -303,11 +362,19 @@ function MailboxSidebar({
   );
 }
 
-function MailboxNavRow({ count, icon, label, selected = false }) {
+function MailboxNavRow({ badgeContent = 0, count, icon, label, onClick, selected = false }) {
+  const isInteractive = Boolean(onClick);
+  const badgeCount = Math.max(Number(badgeContent || 0), 0);
   return (
     <Box
+      component={isInteractive ? 'button' : 'div'}
+      type={isInteractive ? 'button' : undefined}
+      aria-pressed={isInteractive ? selected : undefined}
+      onClick={onClick}
       sx={{
         minHeight: 34,
+        width: '100%',
+        border: 0,
         px: 1,
         borderRadius: 1,
         display: 'grid',
@@ -316,10 +383,23 @@ function MailboxNavRow({ count, icon, label, selected = false }) {
         gap: 0.75,
         color: selected ? 'primary.dark' : 'text.secondary',
         bgcolor: selected ? '#E0ECFF' : 'transparent',
+        cursor: isInteractive ? 'pointer' : 'default',
+        font: 'inherit',
         fontWeight: selected ? 900 : 800,
+        textAlign: 'left',
+        '&:hover': isInteractive
+          ? { bgcolor: selected ? '#E0ECFF' : 'rgba(15, 23, 42, 0.05)' }
+          : undefined,
+        '&:focus-visible': isInteractive
+          ? { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 1 }
+          : undefined,
       }}
     >
-      {icon}
+      {badgeCount > 0 ? (
+        <MuiBadge badgeContent={badgeCount} max={99} overlap="circular" sx={unreadIconBadgeSx}>
+          {icon}
+        </MuiBadge>
+      ) : icon}
       <Typography variant="body2" fontWeight="inherit" noWrap>{label}</Typography>
       <Typography variant="caption" color="text.secondary" fontWeight={900}>{count}</Typography>
     </Box>
@@ -367,6 +447,7 @@ function MessageListPane({
   confirmationCount,
   configured,
   declinedCount,
+  groupLabel,
   hasMatcher,
   isLoading,
   isLoadingMore,
@@ -409,7 +490,7 @@ function MessageListPane({
         <Box minWidth={0}>
           <Typography fontWeight={950} noWrap>{profile?.name || 'Inbox'}</Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
-            {messages.length.toLocaleString()} of {totalMessages.toLocaleString()} messages
+            {groupLabel} · {messages.length.toLocaleString()} of {totalMessages.toLocaleString()} messages
           </Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
             {confirmationCount.toLocaleString()} confirmations · {declinedCount.toLocaleString()} declined · {autoAppliedCount.toLocaleString()} auto-applied
@@ -442,7 +523,7 @@ function MessageListPane({
         {isLoading ? <InboxMessageSkeletonList /> : null}
         {!isLoading && !messages.length ? (
           <EmptyState
-            title={search && totalMessages ? 'No messages match your search' : 'No recent inbox messages'}
+            title={search && totalMessages ? 'No messages match your search' : `No ${groupLabel.toLowerCase()} messages`}
             detail={search && totalMessages ? 'Try a different sender, subject, or keyword.' : 'Forwarded messages for this profile will appear here.'}
             variant="plain"
             sx={{ py: 5, bgcolor: 'transparent' }}
@@ -786,6 +867,58 @@ function filterMessages(messages, search) {
   );
 }
 
+function filterMessagesByGroup(messages, group) {
+  switch (normalizedMailboxGroup(group)) {
+    case MAILBOX_GROUPS.unread:
+      return messages.filter((message) => !message.isRead);
+    case MAILBOX_GROUPS.confirmations:
+      return messages.filter((message) => message.classification?.type === 'application_confirmation');
+    case MAILBOX_GROUPS.declined:
+      return messages.filter((message) => message.classification?.type === 'declined');
+    case MAILBOX_GROUPS.autoApplied:
+      return messages.filter((message) => ['applied', 'already_applied'].includes(message.application?.status));
+    case MAILBOX_GROUPS.inbox:
+    default:
+      return messages;
+  }
+}
+
+function mailboxGroupTotal(stats, group) {
+  switch (normalizedMailboxGroup(group)) {
+    case MAILBOX_GROUPS.unread:
+      return stats.unreadTotal;
+    case MAILBOX_GROUPS.confirmations:
+      return stats.confirmationTotal;
+    case MAILBOX_GROUPS.declined:
+      return stats.declinedTotal;
+    case MAILBOX_GROUPS.autoApplied:
+      return stats.autoAppliedTotal;
+    case MAILBOX_GROUPS.inbox:
+    default:
+      return stats.total;
+  }
+}
+
+function mailboxGroupLabel(group) {
+  switch (normalizedMailboxGroup(group)) {
+    case MAILBOX_GROUPS.unread:
+      return 'Unread';
+    case MAILBOX_GROUPS.confirmations:
+      return 'Confirmations';
+    case MAILBOX_GROUPS.declined:
+      return 'Declined';
+    case MAILBOX_GROUPS.autoApplied:
+      return 'Auto-applied';
+    case MAILBOX_GROUPS.inbox:
+    default:
+      return 'Inbox';
+  }
+}
+
+function normalizedMailboxGroup(value) {
+  return MAILBOX_GROUP_VALUES.has(value) ? value : MAILBOX_GROUPS.inbox;
+}
+
 function dedupeMessagesById(messages) {
   const byId = new Map();
   for (const message of messages) {
@@ -917,4 +1050,18 @@ const smallOutlinedChipSx = {
   fontWeight: 800,
   bgcolor: '#ffffff',
   '& .MuiChip-label': { px: 0.75 },
+};
+
+const unreadIconBadgeSx = {
+  '& .MuiBadge-badge': {
+    minWidth: 16,
+    height: 16,
+    px: 0.45,
+    border: '2px solid #ffffff',
+    bgcolor: '#DC2626',
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 900,
+    lineHeight: 1,
+  },
 };

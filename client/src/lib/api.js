@@ -158,20 +158,33 @@ export function useMarkProfileMailboxMessageRead() {
         method: 'PATCH',
         body: JSON.stringify({ messageId }),
       }).then((data) => data.message),
-    onMutate: async ({ profileId, messageId }) => {
+    onMutate: async ({ profileId, messageId, wasUnread = true }) => {
       const queryKey = ['bid', 'profiles', profileId, 'mailbox', 'messages'];
       await queryClient.cancelQueries({ queryKey });
       const previousData = queryClient.getQueryData(queryKey);
       queryClient.setQueryData(queryKey, (currentData) => updateMailboxMessageReadState(currentData, messageId, { isRead: true }));
-      return { previousData, queryKey };
+      const notificationsQueryKey = ['bid', 'mailbox', 'notifications'];
+      await queryClient.cancelQueries({ queryKey: notificationsQueryKey });
+      const previousNotificationsData = queryClient.getQueryData(notificationsQueryKey);
+      queryClient.setQueryData(notificationsQueryKey, (currentData) =>
+        updateMailboxNotificationReadState(currentData, messageId, { decrementMissing: true, wasUnread }),
+      );
+      return { notificationsQueryKey, previousData, previousNotificationsData, queryKey };
     },
     onError: (_error, _variables, context) => {
       if (context?.queryKey) queryClient.setQueryData(context.queryKey, context.previousData);
+      if (context?.notificationsQueryKey) queryClient.setQueryData(context.notificationsQueryKey, context.previousNotificationsData);
     },
     onSuccess: (message, { profileId, messageId }) => {
       queryClient.setQueryData(['bid', 'profiles', profileId, 'mailbox', 'messages'], (currentData) =>
         updateMailboxMessageReadState(currentData, messageId, message),
       );
+      queryClient.setQueryData(['bid', 'mailbox', 'notifications'], (currentData) =>
+        updateMailboxNotificationReadState(currentData, messageId),
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'mailbox', 'notifications'] });
     },
   });
 }
@@ -204,6 +217,23 @@ function updateMailboxMessageReadState(currentData, messageId, updates = {}) {
           }
         : page.pagination,
     })),
+  };
+}
+
+function updateMailboxNotificationReadState(currentData, messageId, { decrementMissing = false, wasUnread = true } = {}) {
+  if (!currentData?.messages) return currentData;
+  let removedUnreadMessage = false;
+  const messages = currentData.messages.filter((message) => {
+    if (String(message.id) !== String(messageId)) return true;
+    if (!message.isRead) removedUnreadMessage = true;
+    return false;
+  });
+  const unreadDelta = removedUnreadMessage || (decrementMissing && wasUnread && messages.length === currentData.messages.length) ? 1 : 0;
+  if (!unreadDelta && messages.length === currentData.messages.length) return currentData;
+  return {
+    ...currentData,
+    messages,
+    unreadTotal: Math.max(Number(currentData.unreadTotal || 0) - unreadDelta, 0),
   };
 }
 
