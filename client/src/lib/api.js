@@ -136,6 +136,19 @@ export function useMailboxNotificationMessages(queryOptions = {}) {
   });
 }
 
+export function useForwardedMailboxMessages(queryOptions = {}) {
+  return useInfiniteQuery({
+    queryKey: ['bid', 'mailbox', 'messages'],
+    queryFn: ({ pageParam = 0 }) => api(`/api/bid/mailbox/messages?limit=10&offset=${pageParam}`),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => (
+      lastPage?.pagination?.hasMore ? lastPage.pagination.nextOffset : undefined
+    ),
+    staleTime: 15_000,
+    ...queryOptions,
+  });
+}
+
 export function useForwardedProfileMessages(profileId, queryOptions = {}) {
   return useInfiniteQuery({
     queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages'],
@@ -160,18 +173,23 @@ export function useMarkProfileMailboxMessageRead() {
       }).then((data) => data.message),
     onMutate: async ({ profileId, messageId, wasUnread = true }) => {
       const queryKey = ['bid', 'profiles', profileId, 'mailbox', 'messages'];
+      const aggregateQueryKey = ['bid', 'mailbox', 'messages'];
       await queryClient.cancelQueries({ queryKey });
+      await queryClient.cancelQueries({ queryKey: aggregateQueryKey });
       const previousData = queryClient.getQueryData(queryKey);
+      const previousAggregateData = queryClient.getQueryData(aggregateQueryKey);
       queryClient.setQueryData(queryKey, (currentData) => updateMailboxMessageReadState(currentData, messageId, { isRead: true }));
+      queryClient.setQueryData(aggregateQueryKey, (currentData) => updateMailboxMessageReadState(currentData, messageId, { isRead: true }));
       const notificationsQueryKey = ['bid', 'mailbox', 'notifications'];
       await queryClient.cancelQueries({ queryKey: notificationsQueryKey });
       const previousNotificationsData = queryClient.getQueryData(notificationsQueryKey);
       queryClient.setQueryData(notificationsQueryKey, (currentData) =>
         updateMailboxNotificationReadState(currentData, messageId, { decrementMissing: true, wasUnread }),
       );
-      return { notificationsQueryKey, previousData, previousNotificationsData, queryKey };
+      return { aggregateQueryKey, notificationsQueryKey, previousAggregateData, previousData, previousNotificationsData, queryKey };
     },
     onError: (_error, _variables, context) => {
+      if (context?.aggregateQueryKey) queryClient.setQueryData(context.aggregateQueryKey, context.previousAggregateData);
       if (context?.queryKey) queryClient.setQueryData(context.queryKey, context.previousData);
       if (context?.notificationsQueryKey) queryClient.setQueryData(context.notificationsQueryKey, context.previousNotificationsData);
     },
@@ -182,8 +200,12 @@ export function useMarkProfileMailboxMessageRead() {
       queryClient.setQueryData(['bid', 'mailbox', 'notifications'], (currentData) =>
         updateMailboxNotificationReadState(currentData, messageId),
       );
+      queryClient.setQueryData(['bid', 'mailbox', 'messages'], (currentData) =>
+        updateMailboxMessageReadState(currentData, messageId, message),
+      );
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'mailbox', 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'mailbox', 'notifications'] });
     },
   });

@@ -137,12 +137,6 @@ export async function mailboxProfileForRequest(req, profileId) {
   return { user, profile: await mailboxProfileForUser(user, profileId) };
 }
 
-export async function currentMailboxAdmin(req) {
-  const user = await currentDbUser(req);
-  ensureMailboxAdmin(user);
-  return user;
-}
-
 export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
   assertForwardingMailboxConfigured();
   const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
@@ -202,17 +196,29 @@ export async function markForwardedProfileMessageRead(profile, { messageId } = {
   return formatStoredMailboxMessage(savedMessage || stored.message);
 }
 
-export async function listForwardedInboxMessages({ limit = 25 } = {}) {
+export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
   assertForwardingMailboxConfigured();
-  const rows = await getForwardedMailboxMessageModel().findAll({
-    include: [storedMailboxProfileInclude()],
-    limit: notificationMessageLimit(limit),
-    order: storedMailboxMessageOrder(),
+  const user = await currentDbUser(req);
+  const profiles = await mailboxNotificationProfilesForUser(user);
+  const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
+  const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
+  const page = await storedForwardedMailboxMessagePageForProfileIds(profileIds, {
+    limit: messageLimit,
+    offset: messageOffset,
   });
+  const nextOffset = Math.min(messageOffset + page.messages.length, page.total);
 
   return {
     mailbox: forwardingMailboxStatus(),
-    messages: rows.map(formatStoredMailboxMessage),
+    messages: page.messages,
+    pagination: {
+      limit: messageLimit,
+      offset: messageOffset,
+      total: page.total,
+      unreadTotal: page.unreadTotal,
+      nextOffset,
+      hasMore: nextOffset < page.total,
+    },
   };
 }
 
@@ -449,13 +455,23 @@ async function ensureUserCanReadMailboxProfile(user, profile) {
   throw new NotFoundError('Profile not found');
 }
 
-function ensureMailboxAdmin(user) {
-  if (isAdminRole(user)) return;
-  throw new InputError('Only admins can read the forwarding inbox');
-}
-
 async function storedForwardedProfileMessagePage(profile, { limit, offset }) {
   const where = { profileId: profile.id };
+  return storedForwardedMailboxMessagePage(where, { limit, offset });
+}
+
+async function storedForwardedMailboxMessagePageForProfileIds(profileIds, { limit, offset }) {
+  if (!profileIds.length) {
+    return {
+      messages: [],
+      total: 0,
+      unreadTotal: 0,
+    };
+  }
+  return storedForwardedMailboxMessagePage({ profileId: { [Op.in]: profileIds } }, { limit, offset });
+}
+
+async function storedForwardedMailboxMessagePage(where, { limit, offset }) {
   const [messages, total, unreadTotal] = await Promise.all([
     getForwardedMailboxMessageModel().findAll({
       where,

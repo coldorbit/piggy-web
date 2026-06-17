@@ -26,7 +26,7 @@ import { useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { useBidProfiles, useForwardedProfileMessages, useForwardingMailboxStatus, useMarkProfileMailboxMessageRead } from '../lib/api.js';
+import { useBidProfiles, useForwardedMailboxMessages, useForwardedProfileMessages, useForwardingMailboxStatus, useMarkProfileMailboxMessageRead } from '../lib/api.js';
 import { isAdminRole } from '../lib/roles.js';
 
 const INBOX_MESSAGE_ACCENT = { main: '#2563EB', soft: '#E0ECFF', dark: '#1D4ED8' };
@@ -58,11 +58,14 @@ export default function InboxPage({ currentUser }) {
     () => profiles.filter((profile) => ['active', 'closed', 'legacy'].includes(profile.profileStatus || 'active')),
     [profiles],
   );
+  const isAggregateInbox = !activeProfileId;
   const activeProfile = useMemo(
-    () => inboxProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || inboxProfiles[0] || null,
+    () => (activeProfileId ? inboxProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || null : null),
     [activeProfileId, inboxProfiles],
   );
-  const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'] || PROFILE_COLORS.green;
+  const activeColor = activeProfile
+    ? PROFILE_COLORS[activeProfile.colorScheme || 'green'] || PROFILE_COLORS.green
+    : INBOX_MESSAGE_ACCENT;
   const {
     data: mailboxStatus,
     isLoading: statusLoading,
@@ -70,19 +73,38 @@ export default function InboxPage({ currentUser }) {
   } = useForwardingMailboxStatus();
   const configured = mailboxStatus?.configured !== false;
   const mailboxEmail = mailboxStatus?.email || 'service@co-bounce.com';
-  const canFetchMessages = Boolean(activeProfile?.id && mailboxStatus?.configured);
+  const canFetchAggregateMessages = Boolean(isAggregateInbox && mailboxStatus?.configured);
+  const canFetchProfileMessages = Boolean(!isAggregateInbox && activeProfile?.id && mailboxStatus?.configured);
   const {
-    data: inboxData,
-    fetchNextPage,
-    hasNextPage,
-    isFetching: messagesLoading,
-    isFetchingNextPage,
-    error: messagesError,
-    refetch: refetchMessages,
+    data: aggregateInboxData,
+    fetchNextPage: fetchNextAggregatePage,
+    hasNextPage: hasNextAggregatePage,
+    isFetching: aggregateMessagesLoading,
+    isFetchingNextPage: isFetchingNextAggregatePage,
+    error: aggregateMessagesError,
+    refetch: refetchAggregateMessages,
+  } = useForwardedMailboxMessages({
+    enabled: canFetchAggregateMessages,
+  });
+  const {
+    data: profileInboxData,
+    fetchNextPage: fetchNextProfilePage,
+    hasNextPage: hasNextProfilePage,
+    isFetching: profileMessagesLoading,
+    isFetchingNextPage: isFetchingNextProfilePage,
+    error: profileMessagesError,
+    refetch: refetchProfileMessages,
   } = useForwardedProfileMessages(activeProfile?.id, {
-    enabled: canFetchMessages,
+    enabled: canFetchProfileMessages,
   });
   const markMessageRead = useMarkProfileMailboxMessageRead();
+  const inboxData = isAggregateInbox ? aggregateInboxData : profileInboxData;
+  const fetchNextPage = isAggregateInbox ? fetchNextAggregatePage : fetchNextProfilePage;
+  const hasNextPage = isAggregateInbox ? hasNextAggregatePage : hasNextProfilePage;
+  const messagesLoading = isAggregateInbox ? aggregateMessagesLoading : profileMessagesLoading;
+  const isFetchingNextPage = isAggregateInbox ? isFetchingNextAggregatePage : isFetchingNextProfilePage;
+  const messagesError = isAggregateInbox ? aggregateMessagesError : profileMessagesError;
+  const refetchMessages = isAggregateInbox ? refetchAggregateMessages : refetchProfileMessages;
   const messages = useMemo(
     () => (configured ? dedupeMessagesById(inboxData?.pages?.flatMap((page) => page.messages || []) || []) : []),
     [configured, inboxData],
@@ -109,23 +131,26 @@ export default function InboxPage({ currentUser }) {
   const autoAppliedCount = profileMailboxStats.autoAppliedTotal;
   const activeGroupTotal = configured ? mailboxGroupTotal(profileMailboxStats, activeMailboxGroup) : 0;
   const activeGroupLabel = mailboxGroupLabel(activeMailboxGroup);
-  const hasMatcher = Boolean(activeProfile?.forwardingEmail || activeProfile?.email);
+  const hasMatcher = isAggregateInbox
+    ? inboxProfiles.some(profileHasMailboxMatcher)
+    : profileHasMailboxMatcher(activeProfile);
+  const readingProfile = activeProfile || selectedMessage?.matchedProfile || null;
+  const mailboxTitle = isAggregateInbox ? 'All inboxes' : activeProfile?.name || 'Inbox';
+  const emptyMessagesDetail = isAggregateInbox
+    ? 'Forwarded messages across all profile emails will appear here.'
+    : 'Forwarded messages for this profile will appear here.';
 
   useEffect(() => {
-    if (!inboxProfiles[0]) return;
+    if (!activeProfileId || profilesLoading) return;
     const hasActiveProfile = inboxProfiles.some((profile) => String(profile.id) === String(activeProfileId));
-    if (!activeProfileId || !hasActiveProfile) setActiveProfileId(inboxProfiles[0].id);
-  }, [activeProfileId, inboxProfiles]);
+    if (!hasActiveProfile) setActiveProfileId('');
+  }, [activeProfileId, inboxProfiles, profilesLoading]);
 
   useEffect(() => {
     const nextProfileId = searchParams.get('profileId') || '';
     const nextMailboxGroup = normalizedMailboxGroup(searchParams.get('group'));
     const nextSearch = searchParams.get('search') || '';
-    setActiveProfileId((currentProfileId) => (
-      searchParams.has('profileId') && String(nextProfileId) !== String(currentProfileId)
-        ? nextProfileId
-        : currentProfileId
-    ));
+    setActiveProfileId((currentProfileId) => (String(nextProfileId) !== String(currentProfileId) ? nextProfileId : currentProfileId));
     setActiveMailboxGroup((currentGroup) => (nextMailboxGroup !== currentGroup ? nextMailboxGroup : currentGroup));
     setSearch((currentSearch) => (nextSearch !== currentSearch ? nextSearch : currentSearch));
   }, [searchParams]);
@@ -165,8 +190,9 @@ export default function InboxPage({ currentUser }) {
   const handleMessageSelect = useCallback((messageId) => {
     setSelectedMessageId(messageId);
     const message = messages.find((row) => String(row.id) === String(messageId));
-    if (!activeProfile?.id || !message?.id || message.isRead) return;
-    markMessageRead.mutate({ profileId: activeProfile.id, messageId: message.id, wasUnread: !message.isRead });
+    const messageProfileId = activeProfile?.id || message?.matchedProfile?.id;
+    if (!messageProfileId || !message?.id || message.isRead) return;
+    markMessageRead.mutate({ profileId: messageProfileId, messageId: message.id, wasUnread: !message.isRead });
   }, [activeProfile?.id, markMessageRead, messages]);
 
   return (
@@ -200,12 +226,14 @@ export default function InboxPage({ currentUser }) {
             activeMailboxGroup={activeMailboxGroup}
             activeProfile={activeProfile}
             autoAppliedCount={autoAppliedCount}
+            isAggregateInbox={isAggregateInbox}
             inboxProfiles={inboxProfiles}
             isLoading={profilesLoading}
             mailboxEmail={mailboxEmail}
             confirmationCount={confirmationCount}
             declinedCount={declinedCount}
             messagesCount={totalMessages}
+            onAllProfilesSelect={() => setActiveProfileId('')}
             onGroupChange={setActiveMailboxGroup}
             onProfileChange={setActiveProfileId}
             statusLoading={statusLoading}
@@ -219,14 +247,16 @@ export default function InboxPage({ currentUser }) {
             isLoadingMore={isFetchingNextPage}
             isRefreshing={messagesLoading && !isFetchingNextPage && Boolean(inboxData)}
             messages={filteredMessages}
-            profile={activeProfile}
             groupLabel={activeGroupLabel}
+            title={mailboxTitle}
+            emptyMessagesDetail={emptyMessagesDetail}
             search={search}
             selectedMessage={selectedMessage}
             totalMessages={activeGroupTotal}
             autoAppliedCount={autoAppliedCount}
             confirmationCount={confirmationCount}
             declinedCount={declinedCount}
+            canRefresh={isAggregateInbox || Boolean(activeProfile?.id)}
             canLoadMore={Boolean(hasNextPage)}
             onMessageSelect={handleMessageSelect}
             onLoadMore={() => fetchNextPage()}
@@ -238,7 +268,7 @@ export default function InboxPage({ currentUser }) {
             configured={configured}
             isLoading={isLoadingMessages}
             message={selectedMessage}
-            profile={activeProfile}
+            profile={readingProfile}
           />
         </Paper>
       ) : null}
@@ -253,10 +283,12 @@ function MailboxSidebar({
   autoAppliedCount,
   confirmationCount,
   declinedCount,
+  isAggregateInbox,
   inboxProfiles,
   isLoading,
   mailboxEmail,
   messagesCount,
+  onAllProfilesSelect,
   onGroupChange,
   onProfileChange,
   statusLoading,
@@ -345,6 +377,14 @@ function MailboxSidebar({
           minHeight: 0,
         }}
       >
+        {!isLoading ? (
+          <AllInboxesFolderRow
+            count={inboxProfiles.length}
+            isSelected={isAggregateInbox}
+            unreadCount={unreadCount}
+            onClick={onAllProfilesSelect}
+          />
+        ) : null}
         {isLoading ? <ProfileFolderSkeletons /> : null}
         {!isLoading
           ? inboxProfiles.map((profile) => (
@@ -357,6 +397,47 @@ function MailboxSidebar({
               />
             ))
           : null}
+      </Box>
+    </Box>
+  );
+}
+
+function AllInboxesFolderRow({ count, isSelected, onClick, unreadCount }) {
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        minHeight: 42,
+        width: '100%',
+        border: 0,
+        borderRadius: 1,
+        px: 1,
+        bgcolor: isSelected ? INBOX_MESSAGE_ACCENT.soft : 'transparent',
+        color: INBOX_MESSAGE_ACCENT.dark,
+        cursor: 'pointer',
+        display: 'grid',
+        gridTemplateColumns: '22px minmax(0, 1fr)',
+        alignItems: 'center',
+        gap: 0.75,
+        textAlign: 'left',
+        '&:hover': { bgcolor: isSelected ? INBOX_MESSAGE_ACCENT.soft : 'rgba(15, 23, 42, 0.05)' },
+        '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 1 },
+      }}
+    >
+      {unreadCount > 0 ? (
+        <MuiBadge badgeContent={unreadCount} max={99} overlap="circular" sx={unreadIconBadgeSx}>
+          <InboxIcon fontSize="small" />
+        </MuiBadge>
+      ) : (
+        <InboxIcon fontSize="small" />
+      )}
+      <Box minWidth={0}>
+        <Typography variant="body2" fontWeight={900} noWrap>All inboxes</Typography>
+        <Typography variant="caption" color="text.secondary" noWrap>
+          {count.toLocaleString()} profile emails
+        </Typography>
       </Box>
     </Box>
   );
@@ -444,18 +525,20 @@ function ProfileFolderRow({ activeColor, isSelected, onClick, profile }) {
 function MessageListPane({
   autoAppliedCount,
   canLoadMore,
+  canRefresh,
   confirmationCount,
   configured,
   declinedCount,
+  emptyMessagesDetail,
   groupLabel,
   hasMatcher,
   isLoading,
   isLoadingMore,
   isRefreshing,
   messages,
-  profile,
   search,
   selectedMessage,
+  title,
   totalMessages,
   onLoadMore,
   onMessageSelect,
@@ -488,7 +571,7 @@ function MessageListPane({
         }}
       >
         <Box minWidth={0}>
-          <Typography fontWeight={950} noWrap>{profile?.name || 'Inbox'}</Typography>
+          <Typography fontWeight={950} noWrap>{title}</Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
             {groupLabel} · {messages.length.toLocaleString()} of {totalMessages.toLocaleString()} messages
           </Typography>
@@ -498,7 +581,7 @@ function MessageListPane({
         </Box>
         <Tooltip title="Refresh inbox">
           <span>
-            <IconButton size="small" disabled={!configured || !profile?.id} onClick={onRefresh}>
+            <IconButton size="small" disabled={!configured || !canRefresh} onClick={onRefresh}>
               {isRefreshing || isLoading ? <CircularProgress size={18} /> : <RefreshIcon fontSize="small" />}
             </IconButton>
           </span>
@@ -524,7 +607,7 @@ function MessageListPane({
         {!isLoading && !messages.length ? (
           <EmptyState
             title={search && totalMessages ? 'No messages match your search' : `No ${groupLabel.toLowerCase()} messages`}
-            detail={search && totalMessages ? 'Try a different sender, subject, or keyword.' : 'Forwarded messages for this profile will appear here.'}
+            detail={search && totalMessages ? 'Try a different sender, subject, or keyword.' : emptyMessagesDetail}
             variant="plain"
             sx={{ py: 5, bgcolor: 'transparent' }}
           />
@@ -865,6 +948,10 @@ function filterMessages(messages, search) {
       message.application?.company,
     ].some((value) => String(value || '').toLowerCase().includes(query)),
   );
+}
+
+function profileHasMailboxMatcher(profile) {
+  return Boolean(profile?.forwardingEmail || profile?.email);
 }
 
 function filterMessagesByGroup(messages, group) {

@@ -1,7 +1,6 @@
 import { ensureWebModels } from '../../../../db.js';
 import { handleInputError } from '../../../utils/errors.js';
 import {
-  currentMailboxAdmin,
   forwardingMailboxStatus,
   listForwardedInboxMessages,
   listForwardedMailboxNotificationMessages,
@@ -22,8 +21,7 @@ export async function getForwardingMailboxStatus(_req, res, next) {
 export async function listForwardingMailboxMessages(req, res, next) {
   try {
     await ensureWebModels();
-    await currentMailboxAdmin(req);
-    res.json(await listForwardedInboxMessages({ limit: req.query?.limit }));
+    res.json(await listForwardedInboxMessages(req, { limit: req.query?.limit, offset: req.query?.offset }));
   } catch (error) {
     handleInputError(error, res, next);
   }
