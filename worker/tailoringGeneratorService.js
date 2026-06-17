@@ -187,11 +187,11 @@ Hard truthfulness rules:
 - Treat each work_experience position/title as the strongest constraint on that entry's bullets. The bullets must sound like work performed by someone with that exact title, in that role's actual domain and seniority.
 - Do not attach JD keywords to a work_experience entry when they conflict with that entry's actual title or profile evidence. For example, do not write frontend UI/component bullets under "Senior Machine Learning Engineer" unless the profile explicitly says that role included frontend work.
 - If the target job is in a different discipline from a previous role, bridge only through credible transferable work such as APIs, platform integration, data pipelines, model serving, reliability, observability, collaboration, or user-impact framing that fits the actual title. Otherwise keep the JD keyword in Summary or Skills, not in that work_experience entry.
-- When a role title implies a specialty such as Machine Learning, Data Engineering, Frontend, Backend, DevOps, Security, Product, or Management, bullets and tech must primarily reflect that specialty unless the profile explicitly provides cross-functional evidence.
+- When a role title implies a specialty such as Machine Learning, Data Engineering, Frontend, Backend, DevOps, Security, Product, or Management, bullets must primarily reflect that specialty unless the profile explicitly provides cross-functional evidence.
 - You may tailor wording, achievements, metrics, and technology emphasis only when they remain plausible for the provided role/company and do not imply a different title or responsibility level.
 - You may slightly adjust technology emphasis or include adjacent technical stacks from the JD when they plausibly fit the candidate's role, dates, domain, and existing profile evidence. Do not invent business workflows, product ownership, teams, launches, customers, or responsibilities.
 - The top-level "role" field is the target resume headline. It must contain only the cleaned role name from the job posting, not team, squad, project, product, platform, department, org, or initiative names. It must not be used as a previous experience title unless the profile already has that title.
-- Do not backdate technologies. Before adding any technology, tool, framework, model, API, platform, or vendor to a work_experience bullet or "tech" field, verify it plausibly existed and was publicly usable during that role's start/end dates and fits that role's domain. If unsure, omit it from that work_experience entry.
+- Do not backdate technologies. Before adding any technology, tool, framework, model, API, platform, or vendor to a work_experience bullet, verify it plausibly existed and was publicly usable during that role's start/end dates and fits that role's domain. If unsure, omit it from that work_experience entry.
 - Newer target-job keywords may appear in Summary or Skills when they reflect current candidate positioning, but do not place them inside older work_experience entries unless the profile explicitly supports that usage.
 - Focus the strongest tailoring on the latest work_experience entry, usually the first or current role. Make that role read as the closest credible match to the JD by emphasizing overlapping systems, product surfaces, tools, scale, collaboration patterns, and domain themes already supported by the profile.
 - For the latest company, you may use public company/product context from web search or other verified source material when available to find common ground with the JD, such as product areas, platform capabilities, user workflows, or engineering domains. Use this context only to frame plausible overlap with the candidate's actual role; never claim the candidate worked on a specific product, team, launch, customer, metric, or initiative unless the profile explicitly says so.
@@ -199,7 +199,7 @@ Hard truthfulness rules:
 
 ATS optimization rules:
 - Use the cleaned target role name in the top-level "role" field for ATS visibility. Do not copy a noisy posting title verbatim when it includes team, squad, project, product, platform, department, org, or initiative names.
-- Weave in 25-35 relevant, role-specific keywords copied exactly from the job description across summary, bullets, tech, and categorized skills, while respecting historical validity for work_experience.
+- Weave in 25-35 relevant, role-specific keywords copied exactly from the job description across summary, bullets, and categorized skills, while respecting historical validity for work_experience.
 - Do not keyword-stuff, hide keywords, repeat unnatural keyword lists, or add irrelevant terms.
 - Prefer exact terms from the job description over synonyms or abbreviations unless the posting itself uses the abbreviation.
 - Use standard resume section concepts only: Summary, Work Experience, Education, Skills.
@@ -217,7 +217,7 @@ Instructions:
 - Never modify existing role titles/positions for companies in the profile; preserve provided titles exactly when available.
 - Use achievement bullets of 20-30 words each.
 - Use 9-11 bullets for the latest work_experience entry. Use 6-8 bullets for every other work_experience entry.
-- Each work_experience entry must include 1-2 key technical stacks or platforms that are aligned with both that entry's actual title/scope and the JD, and historically valid for that role. Put them naturally in bullets and in the "tech" field; avoid dumping every tool into every role.
+- Each work_experience entry may mention 2-3 key technical stacks or platforms only when they are aligned with both that entry's actual title/scope and the JD, and historically valid for that role. Put them naturally in bullets; avoid dumping every tool into every role.
 - The latest work_experience bullets should build the strongest truthful bridge between the JD's technical expertise/stacks and the latest role's actual title and scope. Prefer wording that highlights common engineering concerns, product-adjacent impact, customer/user workflows, platform quality, reliability, performance, data, integrations, collaboration, and delivery discipline only when those are plausible from the profile, the position title, and the JD.
 - Previous work_experience entries should be lightly tailored only where the profile clearly supports the skill or responsibility. Do not move new JD-specific work into older roles.
 - Before finalizing, perform a title-bullet consistency check for every work_experience entry: if a human reviewer would ask "why is a Senior Machine Learning Engineer doing frontend-only work?" or a similar title/scope mismatch, rewrite the bullet to fit the actual title or remove that claim.
@@ -226,7 +226,6 @@ Instructions:
 - For each work_experience entry, provide exactly 2 "projects" only when they are explicitly named in the profile or can be supported by verified public/company context such as a product, platform, or program area. If exact project names cannot be verified, use concise project-area names grounded in the profile and company context, not invented confidential initiatives.
 - Use metrics sparingly and only when plausible. Prefer concrete counts, scale, scope, latency, throughput, team size, systems, users, data volume, or time saved over percentage claims.
 - Do not overload work_experience bullets with percentages. Use at most one percentage-style metric per role unless the profile explicitly provides more, because unverifiable percentage claims can look fabricated.
-- Include a single-string "tech" field per work experience. Each work_experience "tech" field must contain only technologies valid for that role's dates and context.
 - Summary must be exactly 4 lines and 65 to 70 words.
 - Do not include a Core Skills section or a core_skills field.
 - Skills must be categorized and include more than 7 large area categories with 7-9 specific items each. Use categories such as Frameworks, Languages, Cloud Platforms, Messaging/Queueing, Orchestration, VCS/Project Management, Leadership & Collaboration, Core Competencies, Databases, Observability, Testing, Data/ML, Security, and Developer Tools as relevant to the profile and JD.
@@ -252,8 +251,7 @@ Instructions:
       "start_date": "",
       "end_date": "",
       "projects": ["", ""],
-      "bullets": ["", ""],
-      "tech": ""
+      "bullets": ["", ""]
     }
   ],
   "education": [
@@ -345,11 +343,7 @@ async function renderResumeDocx(data, profile) {
         }),
       );
     }
-    if (exp.tech) {
-      addText(children, `Tech stack: ${exp.tech}`, { italics: true, size: template.techSize, after: template.experienceAfter }, template);
-    } else {
-      addSpacer(children, template.experienceAfter);
-    }
+    addSpacer(children, template.experienceAfter);
   }
 
   addSection(children, 'Education', template);
@@ -572,7 +566,6 @@ function renderedResumeTextParts(data, profile) {
       workExperienceDateRange(exp),
       ...projectNames(exp),
       ...(exp.bullets || []),
-      exp.tech ? `Tech stack: ${exp.tech}` : '',
     );
   }
 
