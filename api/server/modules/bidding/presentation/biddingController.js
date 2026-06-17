@@ -2232,8 +2232,15 @@ async function interviewWriteProfileForUser(user, profileId, notFoundMessage = '
 
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError(notFoundMessage);
-  if (isAdminRole(user) || String(profile.userId) === String(user.id)) return profile;
+  if (canWriteInterviewForProfile(user, profile)) return profile;
   throw new NotFoundError(notFoundMessage);
+}
+
+export function canWriteInterviewForProfile(user, profile) {
+  if (!canAccessInterviews(user)) return false;
+  if (isAdminRole(user)) return true;
+  if (user?.role === 'caller') return false;
+  return String(profile?.userId || '') === String(user?.id || '');
 }
 
 function formatCallerAssignment(row) {

@@ -997,6 +997,7 @@ export function useCreateJobBid() {
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'bidders'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
     },
   });
 }
@@ -1026,6 +1027,7 @@ export function useUpdateJobBid() {
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'bidders'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
     },
   });
 }
@@ -1040,6 +1042,7 @@ export function useCreateManualInterview() {
       }).then((data) => data.job),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bid'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
     },
   });
 }
@@ -1056,6 +1059,7 @@ export function useDeleteInterview() {
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'bidders'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
     },
   });
 }

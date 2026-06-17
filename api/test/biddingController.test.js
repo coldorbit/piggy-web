@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { groupedBidJobs } from '../server/modules/bidding/presentation/biddingController.js';
+import { canWriteInterviewForProfile, groupedBidJobs } from '../server/modules/bidding/presentation/biddingController.js';
+import { ROLES } from '../server/utils/roles.js';
 
 describe('groupedBidJobs', () => {
   it('uses a stable group id while promoting the tailored representative', () => {
@@ -44,6 +45,40 @@ describe('groupedBidJobs', () => {
     assert.deepEqual(
       rows.map((row) => row.groupId),
       ['bid-job-group:builtin::software engineer::built in', 'bid-job-group:built in::software engineer::built in'],
+    );
+  });
+});
+
+describe('canWriteInterviewForProfile', () => {
+  it('allows user role owners to modify their interviews', () => {
+    assert.equal(
+      canWriteInterviewForProfile({ id: 7, role: ROLES.user }, { userId: 7 }),
+      true,
+    );
+  });
+
+  it('allows admins to modify interviews across profiles', () => {
+    assert.equal(
+      canWriteInterviewForProfile({ id: 1, role: ROLES.admin }, { userId: 7 }),
+      true,
+    );
+  });
+
+  it('blocks non-owner user role users', () => {
+    assert.equal(
+      canWriteInterviewForProfile({ id: 8, role: ROLES.user }, { userId: 7 }),
+      false,
+    );
+  });
+
+  it('blocks callers and bidder roles from direct interview writes', () => {
+    assert.equal(
+      canWriteInterviewForProfile({ id: 7, role: ROLES.caller }, { userId: 7 }),
+      false,
+    );
+    assert.equal(
+      canWriteInterviewForProfile({ id: 7, role: ROLES.editableBidder }, { userId: 7 }),
+      false,
     );
   });
 });
