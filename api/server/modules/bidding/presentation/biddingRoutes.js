@@ -32,9 +32,11 @@ import {
   listProfileForwardedMessages,
   markProfileForwardedMessageRead,
 } from './forwardingMailboxController.js';
+import { getPersonalDashboard } from './personalDashboardController.js';
 import { subscribeTailoredResumeEvents } from '../application/tailoringQueueService.js';
 
 export function registerBidRoutes(app) {
+  app.get('/api/bid/dashboard', requireAuth, getPersonalDashboard);
   app.get('/api/bid/profiles', requireAuth, listProfiles);
   app.get('/api/bid/profile-shares', requireAuth, listProfileShareRequests);
   app.get('/api/bid/profile-share-recipients', requireAuth, listProfileShareRecipients);

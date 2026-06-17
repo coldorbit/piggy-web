@@ -45,7 +45,16 @@ import { useTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useUpdateMe } from '../lib/authApi.js';
-import { CALLER_BLOCKED_ROLES, INTERVIEW_ROLES, MARKETPLACE_ACCESS_ROLES, ROLES, canAccessConsumption, isAdminRole, roleLabel } from '../lib/roles.js';
+import {
+  CALLER_BLOCKED_ROLES,
+  INTERVIEW_ROLES,
+  MARKETPLACE_ACCESS_ROLES,
+  ROLES,
+  canAccessConsumption,
+  canAccessPersonalDashboard,
+  isAdminRole,
+  roleLabel,
+} from '../lib/roles.js';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
@@ -66,6 +75,7 @@ export default function AppLayout({ user }) {
   const { mutate: logout } = useLogout();
   const { mutate: updateMe, isPending: isUpdatingMe } = useUpdateMe();
   const isAdminDashboardRoute = location.pathname.startsWith('/admin/dashboard');
+  const isPersonalDashboardRoute = location.pathname.startsWith('/dashboard');
   const isConsumptionRoute = location.pathname.startsWith('/admin/consumption');
   const isAdminRoute = location.pathname.startsWith('/admin/users');
   const isBidRoute = location.pathname.startsWith('/bids');
@@ -87,6 +97,7 @@ export default function AppLayout({ user }) {
   const canAccessMarketplace = MARKETPLACE_ACCESS_ROLES.includes(user.role);
   const canManageCallers = !CALLER_BLOCKED_ROLES.includes(user.role);
   const canAccessInbox = !CALLER_BLOCKED_ROLES.includes(user.role);
+  const canViewPersonalDashboard = canAccessPersonalDashboard(user);
   const isCaller = user.role === 'caller';
   const isDrawerCollapsed = isDesktop && isSidebarCollapsed;
   const drawerWidth = isDrawerCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH;
@@ -127,9 +138,11 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminDashboardRoute || isPersonalDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminDashboardRoute
     ? 'Monitor user and bidder performance'
+    : isPersonalDashboardRoute
+    ? 'Track your applications, interviews, and profile momentum'
     : isConsumptionRoute
     ? 'Track team spend across currencies and channels'
     : isAdminRoute
@@ -230,6 +243,9 @@ export default function AppLayout({ user }) {
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.35 }}>
           {isAdminRole(user) ? (
             <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
+          ) : null}
+          {canViewPersonalDashboard ? (
+            <NavItem to="/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canAccessConsumption(user) ? (
             <NavItem to="/admin/consumption" icon={<PaidIcon />} label="Consumption" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />

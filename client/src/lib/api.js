@@ -86,6 +86,16 @@ export function useBidProfiles(options = {}, queryOptions = {}) {
   });
 }
 
+export function usePersonalDashboard(queryOptions = {}) {
+  return useQuery({
+    queryKey: ['bid', 'dashboard'],
+    queryFn: () => api('/api/bid/dashboard').then((data) => data.dashboard),
+    staleTime: 30_000,
+    refetchInterval: localDayRolloverRefetchInterval,
+    ...queryOptions,
+  });
+}
+
 export function useForwardingMailboxStatus(queryOptions = {}) {
   return useQuery({
     queryKey: ['bid', 'mailbox', 'status'],

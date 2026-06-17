@@ -24,6 +24,7 @@ export const VALID_USER_ROLES = [
 
 export const ADMIN_ROLES = [ROLES.superadmin, ROLES.admin];
 export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
+export const PERSONAL_DASHBOARD_ROLES = [ROLES.user, ROLES.financeManager];
 export const MARKETPLACE_ACCESS_ROLES = ADMIN_ROLES;
 export const INTERVIEW_ACCESS_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal, ROLES.user, ROLES.financeManager, ROLES.caller];
 export const INTERNAL_DATA_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal];
@@ -42,6 +43,10 @@ export function isAdminRole(userOrRole) {
 
 export function canAccessConsumption(userOrRole) {
   return [ROLES.superadmin, ROLES.financeManager].includes(roleOf(userOrRole));
+}
+
+export function canAccessPersonalDashboard(userOrRole) {
+  return PERSONAL_DASHBOARD_ROLES.includes(roleOf(userOrRole));
 }
 
 export function canAssignAdminRole(userOrRole) {
