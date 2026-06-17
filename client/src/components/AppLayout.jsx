@@ -374,7 +374,23 @@ export default function AppLayout({ user }) {
         {drawerContent}
       </Drawer>
 
-      <Box component="main" sx={{ minWidth: 0, flex: 1, height: '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <Box
+        component="main"
+        sx={{
+          minWidth: 0,
+          flex: 1,
+          width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
+          height: '100vh',
+          minHeight: 0,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          transition: (theme) => theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.shorter,
+          }),
+        }}
+      >
         <AppBar
           position="sticky"
           color="inherit"
@@ -468,7 +484,7 @@ export default function AppLayout({ user }) {
         <Box
           sx={{
             width: '100%',
-            maxWidth: 1680,
+            maxWidth: isDrawerCollapsed ? 'none' : 1680,
             mx: 'auto',
             p: { xs: 1, sm: 1.5, xl: 2 },
             minWidth: 0,
