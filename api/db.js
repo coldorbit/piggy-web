@@ -6,6 +6,7 @@ export {
   getConsumptionLedgerEntryModel,
   getConsumptionTransactionModel,
   getFaqModel,
+  getForwardedMailboxMessageModel,
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,

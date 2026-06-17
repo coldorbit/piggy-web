@@ -7,6 +7,7 @@ import {
   getConsumptionLedgerEntryModel,
   getConsumptionTransactionModel,
   getFaqModel,
+  getForwardedMailboxMessageModel,
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
@@ -34,6 +35,7 @@ export async function ensureWebModels() {
       await getFaqModel().sync();
       await getBidProfileModel().sync();
       await getProfileShareRequestModel().sync();
+      await getForwardedMailboxMessageModel().sync();
       await getAssessmentModel().sync();
       await getJobBidModel().sync();
       await getInterviewModel().sync();
@@ -64,6 +66,7 @@ export async function ensureWebModels() {
       await ensureScrapedJobPublicIdColumn();
       await ensureBidPageIndexes();
       await ensureProfileShareIndexes();
+      await ensureForwardedMailboxMessageIndexes();
       await ensureJobBidProfileScopedUniqueness();
       await ensureInterviewIndexes();
       await ensureAssessmentIndexes();
@@ -207,6 +210,27 @@ async function ensureProfileShareIndexes() {
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS profile_share_requests_recipient_status_idx
     ON profile_share_requests (recipient_user_id, status)
+  `);
+}
+
+async function ensureForwardedMailboxMessageIndexes() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS forwarded_mailbox_messages_message_id_unique
+    ON forwarded_mailbox_messages (message_id)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS forwarded_mailbox_messages_profile_received_idx
+    ON forwarded_mailbox_messages (profile_id, received_at DESC NULLS LAST, id DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS forwarded_mailbox_messages_profile_unread_idx
+    ON forwarded_mailbox_messages (profile_id, is_read, received_at DESC NULLS LAST)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS forwarded_mailbox_messages_unread_received_idx
+    ON forwarded_mailbox_messages (is_read, received_at DESC NULLS LAST)
   `);
 }
 

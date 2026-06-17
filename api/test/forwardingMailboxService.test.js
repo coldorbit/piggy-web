@@ -6,7 +6,9 @@ import {
   forwardingMailboxApplicationSyncConfig,
   formatMailboxMessage,
   formatMailboxNotificationMessage,
+  formatStoredMailboxMessage,
   parseAddressList,
+  storedMailboxMessageAttributes,
 } from '../server/modules/bidding/application/forwardingMailboxService.js';
 
 describe('forwarding mailbox helpers', () => {
@@ -152,6 +154,91 @@ describe('forwarding mailbox helpers', () => {
         source: 'forwardingEmail:address',
       },
       classification: null,
+    });
+  });
+
+  it('maps parsed messages into stored mailbox attributes', () => {
+    const attrs = storedMailboxMessageAttributes({
+      id: 'INBOX:42',
+      subject: 'Next steps',
+      from: { name: 'Recruiter', address: 'Recruiter@Example.com' },
+      sender: { name: 'ATS', address: 'ATS@Example.com' },
+      to: [{ name: 'Maya', address: 'MAYA@example.com' }],
+      receivedAt: '2026-06-16T12:00:00Z',
+      bodyPreview: 'Can you talk tomorrow?',
+      bodyHtml: '<p>Can you talk tomorrow?</p>',
+      bodyText: 'Can you talk tomorrow?',
+      mailboxPath: 'INBOX',
+      isRead: false,
+      headers: new Map([['x-original-to', 'service+maya@co-bounce.com']]),
+    }, {
+      id: '9',
+    }, {
+      value: 'service+maya@co-bounce.com',
+      source: 'forwardingEmail:address',
+    }, {
+      classification: { type: 'application_confirmation', label: 'Application confirmation' },
+    });
+
+    assert.equal(attrs.messageId, 'INBOX:42');
+    assert.equal(attrs.mailboxPath, 'INBOX');
+    assert.equal(attrs.mailboxUid, 42);
+    assert.equal(attrs.profileId, '9');
+    assert.equal(attrs.fromAddress, 'Recruiter@Example.com');
+    assert.equal(attrs.senderAddress, 'ATS@Example.com');
+    assert.deepEqual(attrs.toAddresses, [{ name: 'Maya', address: 'maya@example.com' }]);
+    assert.deepEqual(attrs.headers, { 'x-original-to': 'service+maya@co-bounce.com' });
+    assert.deepEqual(attrs.classification, { type: 'application_confirmation', label: 'Application confirmation' });
+  });
+
+  it('formats stored mailbox messages for the inbox response shape', () => {
+    assert.deepEqual(formatStoredMailboxMessage({
+      messageId: 'INBOX:42',
+      subject: 'Next steps',
+      fromName: 'Recruiter',
+      fromAddress: 'recruiter@example.com',
+      senderName: 'Recruiter',
+      senderAddress: 'recruiter@example.com',
+      toAddresses: [{ name: 'Maya', address: 'maya@example.com' }],
+      ccAddresses: [],
+      bccAddresses: [],
+      receivedAt: new Date('2026-06-16T12:00:00Z'),
+      bodyPreview: 'Can you talk tomorrow?',
+      bodyHtml: '<p>Can you talk tomorrow?</p>',
+      bodyText: 'Can you talk tomorrow?',
+      mailboxPath: 'INBOX',
+      isRead: false,
+      matchValue: 'service+maya@co-bounce.com',
+      matchSource: 'forwardingEmail:address',
+      classification: { type: 'application_confirmation', label: 'Application confirmation' },
+      application: { status: 'applied' },
+      profile: {
+        id: '9',
+        name: 'Maya Patel',
+        email: 'maya@example.com',
+        forwardingEmail: 'service+maya@co-bounce.com',
+      },
+    }), {
+      id: 'INBOX:42',
+      subject: 'Next steps',
+      from: { name: 'Recruiter', address: 'recruiter@example.com' },
+      receivedAt: '2026-06-16T12:00:00.000Z',
+      bodyPreview: 'Can you talk tomorrow?',
+      bodyHtml: '<p>Can you talk tomorrow?</p>',
+      mailboxPath: 'INBOX',
+      isRead: false,
+      matchedProfile: {
+        id: '9',
+        name: 'Maya Patel',
+        email: 'maya@example.com',
+        forwardingEmail: 'service+maya@co-bounce.com',
+      },
+      match: {
+        value: 'service+maya@co-bounce.com',
+        source: 'forwardingEmail:address',
+      },
+      classification: { type: 'application_confirmation', label: 'Application confirmation' },
+      application: { status: 'applied' },
     });
   });
 

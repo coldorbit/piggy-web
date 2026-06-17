@@ -72,6 +72,9 @@ export function useMailboxNotifications({ enabled = true, onOpenMessage, user } 
     }
 
     queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+    for (const profileId of new Set(notificationMessages.map((message) => message?.matchedProfile?.id).filter(Boolean))) {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages'] });
+    }
   }, [
     canNotify,
     messages,

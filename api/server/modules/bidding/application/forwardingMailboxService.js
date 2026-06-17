@@ -1,8 +1,14 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import { QueryTypes } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { ENV } from '../../../../env.js';
-import { getBidProfileModel, getJobBidModel, getProfileShareRequestModel, getSequelize } from '../../../../db.js';
+import {
+  getBidProfileModel,
+  getForwardedMailboxMessageModel,
+  getJobBidModel,
+  getProfileShareRequestModel,
+  getSequelize,
+} from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, isAdminRole } from '../../../utils/roles.js';
@@ -85,10 +91,6 @@ export async function syncForwardingMailboxApplications({ messageLimit = DEFAULT
     where: { profileStatus: ['active', 'closed', 'legacy'] },
     order: [['name', 'ASC']],
   });
-  if (!profiles.length) {
-    return emptyMailboxApplicationSyncStats({ scanned: 0, profiles: 0 });
-  }
-
   const parsedMessages = await fetchRecentMailboxMessages(normalizedMessageLimit(messageLimit));
   const stats = emptyMailboxApplicationSyncStats({
     scanned: parsedMessages.length,
@@ -97,20 +99,33 @@ export async function syncForwardingMailboxApplications({ messageLimit = DEFAULT
 
   for (const message of parsedMessages) {
     const row = classifyForwardedMessage(message, profiles);
-    if (!row.profile) continue;
-    stats.matchedMessages += 1;
+    const classification = classifyMailboxMessageIntent(row.message);
+    let application = null;
+
+    if (row.profile) {
+      stats.matchedMessages += 1;
+
+      try {
+        application = await applicationResultForMailboxMessage(row.message, row.profile);
+        if (application) {
+          stats.confirmations += 1;
+          stats.results[application.status] = (stats.results[application.status] || 0) + 1;
+          if (application.status === 'applied') stats.applied += 1;
+          if (application.status === 'already_applied') stats.alreadyApplied += 1;
+        }
+      } catch (error) {
+        stats.errors += 1;
+        console.warn('Forwarding mailbox application sync skipped a message:', message.id || message.subject || '(unknown)', error.message);
+      }
+    }
 
     try {
-      const application = await applicationResultForMailboxMessage(row.message, row.profile);
-      if (!application) continue;
-
-      stats.confirmations += 1;
-      stats.results[application.status] = (stats.results[application.status] || 0) + 1;
-      if (application.status === 'applied') stats.applied += 1;
-      if (application.status === 'already_applied') stats.alreadyApplied += 1;
+      const stored = await upsertForwardedMailboxMessage(row.message, row.profile, row.match, { classification, application });
+      stats.storedMessages += 1;
+      if (stored.created) stats.newMessages += 1;
     } catch (error) {
       stats.errors += 1;
-      console.warn('Forwarding mailbox application sync skipped a message:', message.id || message.subject || '(unknown)', error.message);
+      console.warn('Forwarding mailbox sync could not store a message:', message.id || message.subject || '(unknown)', error.message);
     }
   }
 
@@ -131,11 +146,11 @@ export async function currentMailboxAdmin(req) {
 export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
   assertForwardingMailboxConfigured();
   const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
-  const page = await fetchForwardedProfileMessagePage(profile, {
+  const page = await storedForwardedProfileMessagePage(profile, {
     limit: messageLimit,
     offset: messageOffset,
   });
-  const nextOffset = Math.min(messageOffset + page.scannedCount, page.total);
+  const nextOffset = Math.min(messageOffset + page.messages.length, page.total);
 
   return {
     mailbox: forwardingMailboxStatus(),
@@ -153,66 +168,51 @@ export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PR
 
 export async function markForwardedProfileMessageRead(profile, { messageId } = {}) {
   assertForwardingMailboxConfigured();
-  const messageRef = mailboxMessageRefFromId(messageId);
-  if (!messageRef) throw new InputError('Message is required');
+  const id = clean(messageId);
+  if (!id) throw new InputError('Message is required');
 
-  const client = new ImapFlow({
-    host: clean(ENV.MAILBOX_IMAP_HOST),
-    port: mailboxPort(),
-    secure: mailboxSecure(),
-    auth: {
-      user: clean(ENV.MAILBOX_EMAIL),
-      pass: String(ENV.MAILBOX_PASSWORD || ''),
-    },
-    logger: false,
+  const storedMessage = await getForwardedMailboxMessageModel().findOne({
+    where: { messageId: id, profileId: profile.id },
+    include: [storedMailboxProfileInclude()],
   });
+  const messageRef = mailboxMessageRefFromId(id);
 
-  await client.connect();
-  try {
-    const lock = await client.getMailboxLock(messageRef.mailboxPath);
-    try {
-      const row = await client.fetchOne(String(messageRef.uid), {
-        envelope: true,
-        flags: true,
-        internalDate: true,
-        source: true,
-        uid: true,
-      }, { uid: true });
-      if (!row) throw new NotFoundError('Message not found');
-
-      const message = await parseImapMessage(row, messageRef.mailboxPath);
-      const classified = classifyForwardedMessage(message, [profile]);
-      if (!classified.profile) throw new NotFoundError('Message not found');
-
-      if (!message.isRead) {
-        await client.messageFlagsAdd(String(messageRef.uid), ['\\Seen'], { uid: true });
-        message.isRead = true;
-      }
-
-      const application = await applicationResultForMailboxMessage(message, profile);
-      return formatMailboxMessage(message, classified.profile, classified.match, { application });
-    } finally {
-      lock.release();
+  if (storedMessage) {
+    if (!storedMessage.isRead) {
+      await storedMessage.update({ isRead: true });
     }
-  } finally {
-    await client.logout().catch(() => {});
+    if (messageRef) {
+      await markImapMessageRefRead(messageRef).catch((error) => {
+        console.warn('Unable to mark IMAP mailbox message as read:', id, error.message);
+      });
+    }
+    return formatStoredMailboxMessage(storedMessage);
   }
+
+  if (!messageRef) throw new InputError('Message is required');
+  const { message, profile: matchedProfile, match } = await fetchMailboxMessageAndMarkRead(profile, messageRef);
+  const application = await applicationResultForMailboxMessage(message, profile);
+  const stored = await upsertForwardedMailboxMessage(message, matchedProfile, match, {
+    classification: classifyMailboxMessageIntent(message),
+    application,
+  });
+  const savedMessage = await getForwardedMailboxMessageModel().findByPk(stored.message.id, {
+    include: [storedMailboxProfileInclude()],
+  });
+  return formatStoredMailboxMessage(savedMessage || stored.message);
 }
 
 export async function listForwardedInboxMessages({ limit = 25 } = {}) {
   assertForwardingMailboxConfigured();
-  const profiles = await getBidProfileModel().findAll({
-    attributes: ['id', 'name', 'email', 'forwardingEmail'],
-    where: { profileStatus: ['active', 'closed', 'legacy'] },
-    order: [['name', 'ASC']],
+  const rows = await getForwardedMailboxMessageModel().findAll({
+    include: [storedMailboxProfileInclude()],
+    limit: notificationMessageLimit(limit),
+    order: storedMailboxMessageOrder(),
   });
-  const parsedMessages = await fetchRecentMailboxMessages(Math.min(Math.max(Number.parseInt(limit, 10) || 25, 1), MAX_MESSAGE_FETCH));
 
   return {
     mailbox: forwardingMailboxStatus(),
-    messages: parsedMessages
-      .map((message) => classifyForwardedMessage(message, profiles))
-      .map((row) => formatMailboxMessage(row.message, row.profile, row.match)),
+    messages: rows.map(formatStoredMailboxMessage),
   };
 }
 
@@ -227,13 +227,27 @@ export async function listForwardedMailboxNotificationMessages(req, { limit = DE
     };
   }
 
-  const parsedMessages = await fetchRecentMailboxMessages(notificationMessageLimit(limit));
+  const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
+  if (!profileIds.length) {
+    return {
+      mailbox: forwardingMailboxStatus(),
+      messages: [],
+    };
+  }
+
+  const rows = await getForwardedMailboxMessageModel().findAll({
+    where: {
+      profileId: { [Op.in]: profileIds },
+      isRead: false,
+    },
+    include: [storedMailboxProfileInclude()],
+    limit: notificationMessageLimit(limit),
+    order: storedMailboxMessageOrder(),
+  });
+
   return {
     mailbox: forwardingMailboxStatus(),
-    messages: parsedMessages
-      .map((message) => classifyForwardedMessage(message, profiles))
-      .filter((row) => row.profile && !row.message.isRead)
-      .map((row) => formatMailboxNotificationMessage(row.message, row.profile, row.match)),
+    messages: rows.map(formatStoredMailboxNotificationMessage),
   };
 }
 
@@ -271,6 +285,38 @@ export function formatMailboxNotificationMessage(message, profile = null, match 
   const formatted = formatMailboxMessage(message, profile, match, {
     classification: classifyMailboxMessageIntent(message),
   });
+  return {
+    id: formatted.id,
+    subject: formatted.subject,
+    from: formatted.from,
+    receivedAt: formatted.receivedAt,
+    bodyPreview: formatted.bodyPreview,
+    mailboxPath: formatted.mailboxPath,
+    isRead: formatted.isRead,
+    matchedProfile: formatted.matchedProfile,
+    match: formatted.match,
+    classification: formatted.classification,
+  };
+}
+
+export function formatStoredMailboxMessage(row) {
+  const profile = rowValue(row, 'profile');
+  const message = mailboxMessageFromStoredRow(row);
+  const match = rowValue(row, 'matchValue')
+    ? {
+        value: rowValue(row, 'matchValue'),
+        source: rowValue(row, 'matchSource') || '',
+      }
+    : null;
+
+  return formatMailboxMessage(message, profile, match, {
+    classification: rowValue(row, 'classification') || null,
+    application: rowValue(row, 'application') || null,
+  });
+}
+
+export function formatStoredMailboxNotificationMessage(row) {
+  const formatted = formatStoredMailboxMessage(row);
   return {
     id: formatted.id,
     subject: formatted.subject,
@@ -401,17 +447,171 @@ function ensureMailboxAdmin(user) {
   throw new InputError('Only admins can read the forwarding inbox');
 }
 
-async function fetchRecentMailboxMessages(limit) {
-  const client = new ImapFlow({
-    host: clean(ENV.MAILBOX_IMAP_HOST),
-    port: mailboxPort(),
-    secure: mailboxSecure(),
-    auth: {
-      user: clean(ENV.MAILBOX_EMAIL),
-      pass: String(ENV.MAILBOX_PASSWORD || ''),
-    },
-    logger: false,
+async function storedForwardedProfileMessagePage(profile, { limit, offset }) {
+  const where = { profileId: profile.id };
+  const [messages, total, unreadTotal] = await Promise.all([
+    getForwardedMailboxMessageModel().findAll({
+      where,
+      include: [storedMailboxProfileInclude()],
+      limit,
+      offset,
+      order: storedMailboxMessageOrder(),
+    }),
+    getForwardedMailboxMessageModel().count({ where }),
+    getForwardedMailboxMessageModel().count({ where: { ...where, isRead: false } }),
+  ]);
+
+  return {
+    messages: messages.map(formatStoredMailboxMessage),
+    total,
+    unreadTotal,
+  };
+}
+
+async function upsertForwardedMailboxMessage(message, profile = null, match = null, options = {}) {
+  const attrs = storedMailboxMessageAttributes(message, profile, match, options);
+  if (!attrs.messageId) throw new Error('Mailbox message id is required');
+
+  const existing = await getForwardedMailboxMessageModel().findOne({
+    where: { messageId: attrs.messageId },
   });
+  if (!existing) {
+    const created = await getForwardedMailboxMessageModel().create(attrs);
+    return { message: created, created: true };
+  }
+
+  await existing.update({
+    ...attrs,
+    firstSeenAt: existing.firstSeenAt || attrs.firstSeenAt,
+  });
+  return { message: existing, created: false };
+}
+
+export function storedMailboxMessageAttributes(message, profile = null, match = null, options = {}) {
+  const now = new Date();
+  const ref = mailboxMessageRefFromId(message.id);
+  const from = message.from || {};
+  const sender = message.sender || from;
+
+  return {
+    messageId: clean(message.id),
+    mailboxPath: clean(message.mailboxPath || ref?.mailboxPath || 'INBOX') || 'INBOX',
+    mailboxUid: ref?.uid || null,
+    profileId: profile?.id || null,
+    matchValue: match?.value || null,
+    matchSource: match?.source || null,
+    subject: message.subject || '',
+    fromName: from.name || '',
+    fromAddress: from.address || '',
+    senderName: sender.name || '',
+    senderAddress: sender.address || '',
+    toAddresses: addressObjects(message.to),
+    ccAddresses: addressObjects(message.cc),
+    bccAddresses: addressObjects(message.bcc),
+    receivedAt: dateOrNull(message.receivedAt),
+    bodyPreview: message.bodyPreview || '',
+    bodyHtml: message.bodyHtml || '',
+    bodyText: message.bodyText || '',
+    headers: serializableHeaders(message.headers),
+    isRead: Boolean(message.isRead),
+    classification: options.classification || null,
+    application: options.application || null,
+    firstSeenAt: now,
+    lastSeenAt: now,
+  };
+}
+
+function mailboxMessageFromStoredRow(row) {
+  return {
+    id: rowValue(row, 'messageId'),
+    subject: rowValue(row, 'subject') || '',
+    from: {
+      name: rowValue(row, 'fromName') || '',
+      address: rowValue(row, 'fromAddress') || '',
+    },
+    sender: {
+      name: rowValue(row, 'senderName') || '',
+      address: rowValue(row, 'senderAddress') || '',
+    },
+    to: rowValue(row, 'toAddresses') || [],
+    cc: rowValue(row, 'ccAddresses') || [],
+    bcc: rowValue(row, 'bccAddresses') || [],
+    receivedAt: dateToIso(rowValue(row, 'receivedAt')),
+    bodyPreview: rowValue(row, 'bodyPreview') || '',
+    bodyHtml: rowValue(row, 'bodyHtml') || '',
+    bodyText: rowValue(row, 'bodyText') || '',
+    mailboxPath: rowValue(row, 'mailboxPath') || null,
+    isRead: Boolean(rowValue(row, 'isRead')),
+    headers: rowValue(row, 'headers') || {},
+  };
+}
+
+function storedMailboxProfileInclude() {
+  return {
+    model: getBidProfileModel(),
+    as: 'profile',
+    required: false,
+    attributes: ['id', 'name', 'email', 'forwardingEmail'],
+  };
+}
+
+function storedMailboxMessageOrder() {
+  return [
+    ['receivedAt', 'DESC'],
+    ['id', 'DESC'],
+  ];
+}
+
+async function markImapMessageRefRead(messageRef) {
+  const client = mailboxClient();
+  await client.connect();
+  try {
+    const lock = await client.getMailboxLock(messageRef.mailboxPath);
+    try {
+      await client.messageFlagsAdd(String(messageRef.uid), ['\\Seen'], { uid: true });
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
+async function fetchMailboxMessageAndMarkRead(profile, messageRef) {
+  const client = mailboxClient();
+  await client.connect();
+  try {
+    const lock = await client.getMailboxLock(messageRef.mailboxPath);
+    try {
+      const row = await client.fetchOne(String(messageRef.uid), {
+        envelope: true,
+        flags: true,
+        internalDate: true,
+        source: true,
+        uid: true,
+      }, { uid: true });
+      if (!row) throw new NotFoundError('Message not found');
+
+      const message = await parseImapMessage(row, messageRef.mailboxPath);
+      const classified = classifyForwardedMessage(message, [profile]);
+      if (!classified.profile) throw new NotFoundError('Message not found');
+
+      if (!message.isRead) {
+        await client.messageFlagsAdd(String(messageRef.uid), ['\\Seen'], { uid: true });
+        message.isRead = true;
+      }
+
+      return { message, profile: classified.profile, match: classified.match };
+    } finally {
+      lock.release();
+    }
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
+async function fetchRecentMailboxMessages(limit) {
+  const client = mailboxClient();
 
   await client.connect();
   try {
@@ -427,145 +627,6 @@ async function fetchRecentMailboxMessages(limit) {
   } finally {
     await client.logout().catch(() => {});
   }
-}
-
-async function fetchForwardedProfileMessagePage(profile, { limit, offset }) {
-  const matchers = profileMailboxMatchers(profile);
-  if (!matchers.length) return { messages: [], total: 0, unreadTotal: 0, scannedCount: 0 };
-
-  const client = new ImapFlow({
-    host: clean(ENV.MAILBOX_IMAP_HOST),
-    port: mailboxPort(),
-    secure: mailboxSecure(),
-    auth: {
-      user: clean(ENV.MAILBOX_EMAIL),
-      pass: String(ENV.MAILBOX_PASSWORD || ''),
-    },
-    logger: false,
-  });
-
-  await client.connect();
-  try {
-    const mailboxPaths = await readableMailboxPaths(client);
-    const refs = [];
-    for (const mailboxPath of mailboxPaths) {
-      refs.push(...await searchForwardedProfileMessageRefs(client, mailboxPath, matchers));
-    }
-
-    const sortedRefs = dedupeMessages(refs).sort(compareMessagesByReceivedAtDesc);
-    const total = sortedRefs.length;
-    const unreadTotal = sortedRefs.filter((message) => !message.isRead).length;
-    const pageRefs = sortedRefs.slice(offset, offset + limit);
-    const messagesById = await fetchMailboxMessagesByRef(client, pageRefs);
-    const messages = [];
-
-    for (const pageRef of pageRefs) {
-      const message = messagesById.get(pageRef.id) || pageRef;
-      const row = classifyForwardedMessage(message, [profile]);
-      if (!row.profile) continue;
-      const application = await applicationResultForMailboxMessage(message, profile);
-      messages.push(formatMailboxMessage(message, row.profile, row.match, { application }));
-    }
-
-    return { messages, total, unreadTotal, scannedCount: pageRefs.length };
-  } finally {
-    await client.logout().catch(() => {});
-  }
-}
-
-async function searchForwardedProfileMessageRefs(client, mailboxPath, matchers) {
-  const lock = await client.getMailboxLock(mailboxPath);
-  try {
-    const uids = await client.search(profileMatcherSearchQuery(matchers), { uid: true }) || [];
-    if (!uids.length) return [];
-
-    const refs = [];
-    for await (const row of client.fetch(uids, {
-      envelope: true,
-      flags: true,
-      internalDate: true,
-      uid: true,
-    }, { uid: true })) {
-      refs.push(formatImapMessageRef(row, mailboxPath));
-    }
-    return refs;
-  } catch (error) {
-    console.warn('Skipping mailbox folder after profile search failure:', mailboxPath, error.message);
-    return [];
-  } finally {
-    lock.release();
-  }
-}
-
-async function fetchMailboxMessagesByRef(client, refs) {
-  const messagesById = new Map();
-  const refsByPath = refsByMailboxPath(refs);
-
-  for (const [mailboxPath, mailboxRefs] of refsByPath.entries()) {
-    const lock = await client.getMailboxLock(mailboxPath);
-    try {
-      const uids = mailboxRefs.map((ref) => ref.uid).filter(Boolean);
-      if (!uids.length) continue;
-
-      for await (const row of client.fetch(uids, {
-        envelope: true,
-        flags: true,
-        internalDate: true,
-        source: true,
-        uid: true,
-      }, { uid: true })) {
-        const message = await parseImapMessage(row, mailboxPath);
-        messagesById.set(message.id, message);
-      }
-    } catch (error) {
-      console.warn('Skipping mailbox folder after page fetch failure:', mailboxPath, error.message);
-    } finally {
-      lock.release();
-    }
-  }
-
-  return messagesById;
-}
-
-function profileMatcherSearchQuery(matchers) {
-  const terms = matchers
-    .map((matcher) => matcher.value)
-    .filter(Boolean)
-    .map((value) => ({ text: value }));
-
-  if (terms.length === 1) return terms[0];
-  return { or: terms };
-}
-
-function refsByMailboxPath(refs) {
-  const byPath = new Map();
-  for (const ref of refs) {
-    const mailboxPath = ref.mailboxPath || 'INBOX';
-    byPath.set(mailboxPath, [...(byPath.get(mailboxPath) || []), ref]);
-  }
-  return byPath;
-}
-
-function formatImapMessageRef(row, mailboxPath = '') {
-  const from = parseEnvelopeAddressList(row.envelope?.from)[0] || { name: '', address: '' };
-
-  return {
-    id: imapMessageId(row, mailboxPath),
-    uid: row.uid,
-    subject: row.envelope?.subject || '',
-    from,
-    sender: parseEnvelopeAddressList(row.envelope?.sender)[0] || from,
-    to: parseEnvelopeAddressList(row.envelope?.to),
-    cc: parseEnvelopeAddressList(row.envelope?.cc),
-    bcc: parseEnvelopeAddressList(row.envelope?.bcc),
-    receivedAt: (row.envelope?.date || row.internalDate || null)?.toISOString?.() || null,
-    bodyPreview: '',
-    bodyHtml: '',
-    bodyText: '',
-    mailboxPath,
-    isRead: Array.isArray(row.flags) ? row.flags.includes('\\Seen') : row.flags?.has?.('\\Seen'),
-    headers: new Map(),
-  };
 }
 
 async function applicationResultForMailboxMessage(message, profile) {
@@ -622,8 +683,8 @@ async function existingBidForJobIdentity(profile, job) {
     FROM job_bids
     JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
     WHERE job_bids.profile_id = :profileId
-      AND lower(regexp_replace(btrim(coalesce(scraped_jobs.company, '')), '\\s+', ' ', 'g')) = :company
-      AND lower(regexp_replace(btrim(coalesce(scraped_jobs.title, '')), '\\s+', ' ', 'g')) = :title
+      AND lower(regexp_replace(btrim(coalesce(scraped_jobs.company, '')), '\\s+', ' ', 'g')) = lower(:company)
+      AND lower(regexp_replace(btrim(coalesce(scraped_jobs.title, '')), '\\s+', ' ', 'g')) = lower(:title)
     ORDER BY
       CASE WHEN job_bids.job_id = :jobId THEN 0 ELSE 1 END,
       job_bids.updated_at DESC NULLS LAST,
@@ -664,6 +725,8 @@ async function runForwardingMailboxApplicationSync(config) {
       console.log(
         'Forwarding mailbox application sync:',
         `scanned=${stats.scanned}`,
+        `stored=${stats.storedMessages}`,
+        `new=${stats.newMessages}`,
         `matched=${stats.matchedMessages}`,
         `confirmations=${stats.confirmations}`,
         `applied=${stats.applied}`,
@@ -682,6 +745,8 @@ function emptyMailboxApplicationSyncStats({ scanned = 0, profiles = 0 } = {}) {
   return {
     profiles,
     scanned,
+    storedMessages: 0,
+    newMessages: 0,
     matchedMessages: 0,
     confirmations: 0,
     applied: 0,
@@ -730,8 +795,8 @@ async function matchingJobFromConfirmationMessage(message) {
     FROM scraped_jobs
     WHERE NULLIF(btrim(title), '') IS NOT NULL
       AND NULLIF(btrim(company), '') IS NOT NULL
-      AND position(lower(regexp_replace(btrim(company), '\\s+', ' ', 'g')) in :messageText) > 0
-      AND position(lower(regexp_replace(btrim(title), '\\s+', ' ', 'g')) in :messageText) > 0
+      AND position(lower(regexp_replace(btrim(company), '\\s+', ' ', 'g')) in lower(:messageText)) > 0
+      AND position(lower(regexp_replace(btrim(title), '\\s+', ' ', 'g')) in lower(:messageText)) > 0
     ORDER BY length(title) DESC, scraped_at DESC NULLS LAST, id DESC
     LIMIT 10
     `,
@@ -920,16 +985,6 @@ function mailboxMessageRefFromId(messageId) {
   return { mailboxPath, uid };
 }
 
-function parseEnvelopeAddressList(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((address) => ({
-      name: address.name || '',
-      address: normalizeEmail(address.address || [address.mailbox, address.host].filter(Boolean).join('@')),
-    }))
-    .filter((address) => address.address);
-}
-
 function assertForwardingMailboxConfigured() {
   if (!forwardingMailboxConfigured()) {
     throw new InputError('Forwarding mailbox is not configured');
@@ -943,6 +998,19 @@ function profileMessagePage(limit, offset) {
   };
 }
 
+function mailboxClient() {
+  return new ImapFlow({
+    host: clean(ENV.MAILBOX_IMAP_HOST),
+    port: mailboxPort(),
+    secure: mailboxSecure(),
+    auth: {
+      user: clean(ENV.MAILBOX_EMAIL),
+      pass: String(ENV.MAILBOX_PASSWORD || ''),
+    },
+    logger: false,
+  });
+}
+
 function mailboxPort() {
   const port = Number(ENV.MAILBOX_IMAP_PORT || 993);
   return Number.isFinite(port) && port > 0 ? port : 993;
@@ -954,6 +1022,17 @@ function mailboxSecure() {
 
 function addressList(value) {
   return Array.isArray(value) ? value.map((address) => address.address) : [];
+}
+
+function addressObjects(value) {
+  return Array.isArray(value)
+    ? value
+        .map((address) => ({
+          name: address?.name || '',
+          address: normalizeEmail(address?.address),
+        }))
+        .filter((address) => address.address)
+    : [];
 }
 
 function messageHeaderText(message) {
@@ -977,6 +1056,15 @@ function headerValueText(value) {
   if (value?.text) return value.text;
   if (typeof value === 'object' && value !== null) return JSON.stringify(value);
   return String(value || '');
+}
+
+function serializableHeaders(headers) {
+  if (!headers) return {};
+  if (headers instanceof Map) {
+    return Object.fromEntries([...headers.entries()].map(([name, value]) => [name, headerValueText(value)]));
+  }
+  if (typeof headers === 'object') return headers;
+  return {};
 }
 
 function messagePreview(parsed) {
@@ -1003,6 +1091,22 @@ function matcherWithSource(matcher, matchedFrom) {
 
 function compareMessagesByReceivedAtDesc(left, right) {
   return (Date.parse(right.receivedAt || 0) || 0) - (Date.parse(left.receivedAt || 0) || 0);
+}
+
+function dateOrNull(value) {
+  const date = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function dateToIso(value) {
+  const date = dateOrNull(value);
+  return date ? date.toISOString() : null;
+}
+
+function rowValue(row, key) {
+  if (!row) return undefined;
+  return row.get?.(key) ?? row[key];
 }
 
 function normalizeEmail(value) {

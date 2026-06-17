@@ -1,6 +1,7 @@
 export { getAssessmentModel } from './assessment.js';
 export { getBidProfileModel } from './bidProfile.js';
 export { getFaqModel } from './faq.js';
+export { getForwardedMailboxMessageModel } from './forwardedMailboxMessage.js';
 export { getConsumptionAccountModel } from './consumptionAccount.js';
 export { getConsumptionLedgerEntryModel } from './consumptionLedgerEntry.js';
 export { getConsumptionTransactionModel } from './consumptionTransaction.js';
@@ -20,6 +21,7 @@ export { getWebUserModel } from './webUser.js';
 import { getAssessmentModel } from './assessment.js';
 import { getBidProfileModel } from './bidProfile.js';
 import { getFaqModel } from './faq.js';
+import { getForwardedMailboxMessageModel } from './forwardedMailboxMessage.js';
 import { getConsumptionAccountModel } from './consumptionAccount.js';
 import { getConsumptionLedgerEntryModel } from './consumptionLedgerEntry.js';
 import { getConsumptionTransactionModel } from './consumptionTransaction.js';
@@ -42,6 +44,7 @@ export function setupWebAssociations() {
   const BidProfileModel = getBidProfileModel();
   const AssessmentModel = getAssessmentModel();
   const FaqModel = getFaqModel();
+  const ForwardedMailboxMessageModel = getForwardedMailboxMessageModel();
   const ConsumptionAccountModel = getConsumptionAccountModel();
   const ConsumptionLedgerEntryModel = getConsumptionLedgerEntryModel();
   const ConsumptionTransactionModel = getConsumptionTransactionModel();
@@ -102,6 +105,8 @@ export function setupWebAssociations() {
   TailoredResumeModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
   BidProfileModel.hasMany(ProfileShareRequestModel, { foreignKey: 'profileId', as: 'shareRequests' });
   ProfileShareRequestModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  BidProfileModel.hasMany(ForwardedMailboxMessageModel, { foreignKey: 'profileId', as: 'forwardedMailboxMessages' });
+  ForwardedMailboxMessageModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
   WebUserModel.hasMany(ProfileShareRequestModel, { foreignKey: 'ownerUserId', as: 'sentProfileShares' });
   WebUserModel.hasMany(ProfileShareRequestModel, { foreignKey: 'recipientUserId', as: 'receivedProfileShares' });
   ProfileShareRequestModel.belongsTo(WebUserModel, { foreignKey: 'ownerUserId', as: 'owner' });
