@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import InboxIcon from '@mui/icons-material/Inbox';
+import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import MailOutlinedIcon from '@mui/icons-material/MailOutlined';
 import MarkEmailUnreadIcon from '@mui/icons-material/MarkEmailUnread';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined';
 import {
   Alert,
   Avatar,
@@ -32,10 +35,12 @@ import { isAdminRole } from '../lib/roles.js';
 const INBOX_MESSAGE_ACCENT = { main: '#2563EB', soft: '#E0ECFF', dark: '#1D4ED8' };
 const DECLINED_ACCENT = { main: '#E11D48', soft: '#FFF1F2', dark: '#BE123C' };
 const CONFIRMATION_ACCENT = { main: '#0F766E', soft: '#ECFDF5', dark: '#047857' };
+const INTERVIEW_ACCENT = { main: '#7C3AED', soft: '#F3E8FF', dark: '#6D28D9' };
 const COMPACT_MESSAGE_ROW_HEIGHT = 96;
 const MAILBOX_GROUPS = Object.freeze({
   inbox: 'inbox',
   unread: 'unread',
+  interviews: 'interviews',
   confirmations: 'confirmations',
   declined: 'declined',
   autoApplied: 'auto-applied',
@@ -146,6 +151,7 @@ export default function InboxPage({ currentUser }) {
   );
   const declinedCount = profileMailboxStats.declinedTotal;
   const confirmationCount = profileMailboxStats.confirmationTotal;
+  const interviewCount = profileMailboxStats.interviewTotal;
   const autoAppliedCount = profileMailboxStats.autoAppliedTotal;
   const activeGroupTotal = configured ? mailboxGroupTotal(profileMailboxStats, activeMailboxGroup) : 0;
   const activeGroupLabel = mailboxGroupLabel(activeMailboxGroup);
@@ -283,6 +289,7 @@ export default function InboxPage({ currentUser }) {
             mailboxEmail={mailboxEmail}
             confirmationCount={confirmationCount}
             declinedCount={declinedCount}
+            interviewCount={interviewCount}
             messagesCount={totalMessages}
             profileUnreadCountsById={profileUnreadCountsById}
             onAllProfilesSelect={handleAllProfilesSelect}
@@ -333,6 +340,7 @@ function MailboxSidebar({
   autoAppliedCount,
   confirmationCount,
   declinedCount,
+  interviewCount,
   isAggregateInbox,
   inboxProfiles,
   isLoading,
@@ -387,6 +395,13 @@ function MailboxSidebar({
           count={unreadCount}
           selected={activeMailboxGroup === MAILBOX_GROUPS.unread}
           onClick={() => onGroupChange(MAILBOX_GROUPS.unread)}
+        />
+        <MailboxNavRow
+          icon={<CalendarMonthOutlinedIcon fontSize="small" />}
+          label="Interviews"
+          count={interviewCount}
+          selected={activeMailboxGroup === MAILBOX_GROUPS.interviews}
+          onClick={() => onGroupChange(MAILBOX_GROUPS.interviews)}
         />
         <MailboxNavRow
           icon={<MailOutlinedIcon fontSize="small" />}
@@ -892,6 +907,9 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
                 </Typography>
               </Box>
               <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', justifyContent: { sm: 'flex-end' } }}>
+                {message.classification?.type === 'interview_related' ? (
+                  <Chip label="Interview" size="small" sx={smallChipSx(INTERVIEW_ACCENT.soft, INTERVIEW_ACCENT.dark)} />
+                ) : null}
                 {message.classification?.type === 'declined' ? <Chip label="Declined" size="small" sx={smallChipSx(DECLINED_ACCENT.soft, DECLINED_ACCENT.dark)} /> : null}
                 {message.classification?.type === 'application_confirmation' ? (
                   <Chip label={applicationChipLabel(message.application)} size="small" sx={smallChipSx(CONFIRMATION_ACCENT.soft, CONFIRMATION_ACCENT.dark)} />
@@ -920,6 +938,7 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
           {message.classification?.type === 'application_confirmation' ? (
             <ApplicationConfirmationInfo application={message.application} />
           ) : null}
+          {message.calendarEvent ? <CalendarInviteInfo event={message.calendarEvent} /> : null}
 
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', bgcolor: '#ffffff' }}>
             {message.bodyHtml ? (
@@ -956,6 +975,111 @@ function ApplicationConfirmationInfo({ application }) {
       <Typography variant="caption" color="text.secondary">
         {detail}
       </Typography>
+    </Box>
+  );
+}
+
+function CalendarInviteInfo({ event }) {
+  const timeLabel = calendarEventTimeLabel(event);
+  const organizerLabel = event.organizer?.name || event.organizer?.email || '';
+  const attendeeCount = Array.isArray(event.attendees) ? event.attendees.length : 0;
+  const locationLabel = event.location || event.conferenceUrl || '';
+
+  return (
+    <Box sx={{ px: { xs: 1.5, md: 2 }, py: 1.25, borderBottom: 1, borderColor: 'divider', bgcolor: '#FAF5FF' }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: '56px minmax(0, 1fr) auto' },
+          gap: 1.25,
+          alignItems: 'center',
+        }}
+      >
+        <Box
+          sx={{
+            width: 56,
+            height: 56,
+            border: 1,
+            borderColor: '#DDD6FE',
+            borderRadius: 1,
+            bgcolor: '#ffffff',
+            overflow: 'hidden',
+            display: { xs: 'none', sm: 'grid' },
+            gridTemplateRows: '20px 1fr',
+            boxShadow: '0 8px 18px rgba(109, 40, 217, 0.12)',
+          }}
+        >
+          <Box sx={{ bgcolor: INTERVIEW_ACCENT.main, color: '#ffffff', display: 'grid', placeItems: 'center' }}>
+            <Typography variant="caption" fontWeight={950} sx={{ fontSize: 10 }}>
+              {calendarEventMonth(event)}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'grid', placeItems: 'center' }}>
+            <Typography fontWeight={950} sx={{ color: INTERVIEW_ACCENT.dark }}>
+              {calendarEventDay(event)}
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box minWidth={0}>
+          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: INTERVIEW_ACCENT.dark }}>
+            <CalendarMonthOutlinedIcon fontSize="small" />
+            <Typography variant="caption" fontWeight={950} sx={{ textTransform: 'uppercase' }}>
+              Calendar invite
+            </Typography>
+          </Stack>
+          <Typography fontWeight={950} sx={{ mt: 0.25 }} noWrap>
+            {event.summary || 'Interview'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+            {timeLabel}
+          </Typography>
+          {organizerLabel ? (
+            <Typography variant="caption" color="text.secondary" noWrap>
+              Organizer: {organizerLabel}
+            </Typography>
+          ) : null}
+        </Box>
+
+        <Stack spacing={0.5} alignItems={{ xs: 'stretch', sm: 'flex-end' }}>
+          {event.conferenceUrl ? (
+            <Box
+              component="a"
+              href={event.conferenceUrl}
+              target="_blank"
+              rel="noreferrer"
+              sx={{
+                minHeight: 32,
+                px: 1.25,
+                borderRadius: 1,
+                bgcolor: INTERVIEW_ACCENT.main,
+                color: '#ffffff',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.75,
+                fontSize: 13,
+                fontWeight: 900,
+                '&:hover': { bgcolor: INTERVIEW_ACCENT.dark },
+              }}
+            >
+              <VideocamOutlinedIcon fontSize="small" />
+              Join
+            </Box>
+          ) : null}
+          {locationLabel ? (
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary', maxWidth: { sm: 240 } }}>
+              <PlaceOutlinedIcon fontSize="small" />
+              <Typography variant="caption" noWrap>{locationLabel}</Typography>
+            </Stack>
+          ) : null}
+          {attendeeCount ? (
+            <Typography variant="caption" color="text.secondary">
+              {attendeeCount.toLocaleString()} attendee{attendeeCount === 1 ? '' : 's'}
+            </Typography>
+          ) : null}
+        </Stack>
+      </Box>
     </Box>
   );
 }
@@ -1041,6 +1165,10 @@ function filterMessages(messages, search) {
       message.application?.status,
       message.application?.jobTitle,
       message.application?.company,
+      message.calendarEvent?.summary,
+      message.calendarEvent?.location,
+      message.calendarEvent?.organizer?.name,
+      message.calendarEvent?.organizer?.email,
     ].some((value) => String(value || '').toLowerCase().includes(query)),
   );
 }
@@ -1057,6 +1185,8 @@ function filterMessagesByGroup(messages, group) {
   switch (normalizedMailboxGroup(group)) {
     case MAILBOX_GROUPS.unread:
       return messages.filter((message) => !message.isRead);
+    case MAILBOX_GROUPS.interviews:
+      return messages.filter((message) => message.classification?.type === 'interview_related' || Boolean(message.calendarEvent));
     case MAILBOX_GROUPS.confirmations:
       return messages.filter((message) => message.classification?.type === 'application_confirmation');
     case MAILBOX_GROUPS.declined:
@@ -1073,6 +1203,8 @@ function mailboxGroupTotal(stats, group) {
   switch (normalizedMailboxGroup(group)) {
     case MAILBOX_GROUPS.unread:
       return stats.unreadTotal;
+    case MAILBOX_GROUPS.interviews:
+      return stats.interviewTotal;
     case MAILBOX_GROUPS.confirmations:
       return stats.confirmationTotal;
     case MAILBOX_GROUPS.declined:
@@ -1089,6 +1221,8 @@ function mailboxGroupLabel(group) {
   switch (normalizedMailboxGroup(group)) {
     case MAILBOX_GROUPS.unread:
       return 'Unread';
+    case MAILBOX_GROUPS.interviews:
+      return 'Interviews';
     case MAILBOX_GROUPS.confirmations:
       return 'Confirmations';
     case MAILBOX_GROUPS.declined:
@@ -1117,6 +1251,7 @@ function dedupeMessagesById(messages) {
 function mailboxStatsFromPages(pages, messages) {
   const loadedTotal = messages.length;
   const loadedUnreadTotal = messages.filter((message) => !message.isRead).length;
+  const interviewTotal = messages.filter((message) => message.classification?.type === 'interview_related' || Boolean(message.calendarEvent)).length;
   const confirmationTotal = messages.filter((message) => message.classification?.type === 'application_confirmation').length;
   const declinedTotal = messages.filter((message) => message.classification?.type === 'declined').length;
   const autoAppliedTotal = messages.filter((message) => ['applied', 'already_applied'].includes(message.application?.status)).length;
@@ -1124,6 +1259,7 @@ function mailboxStatsFromPages(pages, messages) {
   return {
     total: Math.max(Number(firstPagination.total || 0), loadedTotal),
     unreadTotal: Math.max(Number(firstPagination.unreadTotal || 0), loadedUnreadTotal),
+    interviewTotal,
     confirmationTotal,
     declinedTotal,
     autoAppliedTotal,
@@ -1202,6 +1338,56 @@ function formatMessageDate(value) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function calendarEventTimeLabel(event) {
+  const start = calendarDateLabel(event?.start);
+  const end = calendarDateLabel(event?.end, { omitDateWhenSameDayAs: event?.start });
+  if (start && end) return `${start} - ${end}`;
+  return start || end || 'Time to be announced';
+}
+
+function calendarEventMonth(event) {
+  const date = calendarDateObject(event?.start || event?.end);
+  if (!date) return '';
+  return date.toLocaleString([], { month: 'short' }).toUpperCase();
+}
+
+function calendarEventDay(event) {
+  const date = calendarDateObject(event?.start || event?.end);
+  if (!date) return '';
+  return String(date.getDate());
+}
+
+function calendarDateLabel(value, options = {}) {
+  const date = calendarDateObject(value);
+  if (!date) return '';
+  const sameDay = options.omitDateWhenSameDayAs && calendarDateKey(value) === calendarDateKey(options.omitDateWhenSameDayAs);
+  const formatterOptions = value?.isDateOnly
+    ? { month: 'short', day: 'numeric', year: 'numeric' }
+    : sameDay
+      ? { hour: 'numeric', minute: '2-digit' }
+      : { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' };
+  const timezone = value?.timezone ? ` ${value.timezone}` : '';
+  return `${date.toLocaleString([], formatterOptions)}${timezone}`;
+}
+
+function calendarDateObject(value) {
+  if (!value) return null;
+  const local = String(value.local || '');
+  const match = local.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (match) {
+    const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+  }
+  const date = value.iso ? new Date(value.iso) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+function calendarDateKey(value) {
+  const date = calendarDateObject(value);
+  if (!date) return '';
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
 function formatMessageDateShort(value) {

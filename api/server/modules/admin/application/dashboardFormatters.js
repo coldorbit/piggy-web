@@ -1,6 +1,7 @@
 export function formatDashboardResponse({
   grain,
   grainOptions,
+  anchorDate,
   overall,
   trend,
   users,
@@ -25,6 +26,7 @@ export function formatDashboardResponse({
   return {
     grain,
     grainOptions,
+    anchorDate: anchorDate?.toISOString?.() || new Date().toISOString(),
     generatedAt: new Date().toISOString(),
     totals: formatTotals(overall),
     trend: trend.map(formatTrendRow),

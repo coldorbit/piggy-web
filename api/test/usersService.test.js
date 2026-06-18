@@ -39,6 +39,13 @@ describe('userAttributesFromBody daily bid goals', () => {
     assert.equal(attrs.dailyBidGoal, null);
   });
 
+  it('accepts guest users without bid goals', () => {
+    const attrs = userAttributesFromBody(validUserBody({ role: 'guest', dailyBidGoal: 75 }), { requirePassword: true });
+
+    assert.equal(attrs.role, 'guest');
+    assert.equal(attrs.dailyBidGoal, null);
+  });
+
   it('rejects invalid daily bid goals', () => {
     assert.throws(
       () => userAttributesFromBody(validUserBody({ role: 'user', dailyBidGoal: 0 }), { requirePassword: true }),

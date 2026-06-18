@@ -5,14 +5,16 @@ import {
   BlockCallers,
   RequireAssessmentAccess,
   RequireAdmin,
+  RequireBidWorkspaceAccess,
   RequireCallerManagement,
   RequireConsumptionAccess,
   RequireInboxAccess,
   RequireInterviewAccess,
+  RequireJobsAccess,
   RequireMarketplaceAccess,
   RequirePersonalDashboardAccess,
 } from './routeGuards.jsx';
-import { canAccessPersonalDashboard, isAdminRole } from '../lib/roles.js';
+import { ROLES, canAccessPersonalDashboard, isAdminRole } from '../lib/roles.js';
 
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
 const AdminConsumptionPage = lazy(() => import('../pages/AdminConsumptionPage.jsx'));
@@ -61,17 +63,19 @@ export function AuthenticatedRoutes({ user }) {
         <Route
           path="/jobs"
           element={
-            <BlockCallers user={user}>
+            <RequireJobsAccess user={user}>
               <JobsPage currentUser={user} />
-            </BlockCallers>
+            </RequireJobsAccess>
           }
         />
         <Route
           path="/bids"
           element={
-            <BlockCallers user={user}>
-              <BidPage currentUser={user} />
-            </BlockCallers>
+            <RequireBidWorkspaceAccess user={user}>
+              <BlockCallers user={user}>
+                <BidPage currentUser={user} />
+              </BlockCallers>
+            </RequireBidWorkspaceAccess>
           }
         />
         <Route
@@ -85,9 +89,11 @@ export function AuthenticatedRoutes({ user }) {
         <Route
           path="/bidders"
           element={
-            <BlockCallers user={user}>
-              <BiddersPage currentUser={user} />
-            </BlockCallers>
+            <RequireBidWorkspaceAccess user={user}>
+              <BlockCallers user={user}>
+                <BiddersPage currentUser={user} />
+              </BlockCallers>
+            </RequireBidWorkspaceAccess>
           }
         />
         <Route
@@ -133,9 +139,11 @@ export function AuthenticatedRoutes({ user }) {
         <Route
           path="/profiles"
           element={
-            <BlockCallers user={user}>
-              <ProfilesPage currentUser={user} />
-            </BlockCallers>
+            <RequireBidWorkspaceAccess user={user}>
+              <BlockCallers user={user}>
+                <ProfilesPage currentUser={user} />
+              </BlockCallers>
+            </RequireBidWorkspaceAccess>
           }
         />
         <Route path="/faqs" element={<FaqsPage currentUser={user} />} />
@@ -182,9 +190,11 @@ export function AuthenticatedRoutes({ user }) {
         <Route
           path="/tailoring-requests"
           element={
-            <BlockCallers user={user}>
-              <TailoringRequestsPage currentUser={user} />
-            </BlockCallers>
+            <RequireBidWorkspaceAccess user={user}>
+              <BlockCallers user={user}>
+                <TailoringRequestsPage currentUser={user} />
+              </BlockCallers>
+            </RequireBidWorkspaceAccess>
           }
         />
         <Route path="*" element={<Navigate to={defaultAuthenticatedPath(user)} replace />} />
@@ -194,7 +204,8 @@ export function AuthenticatedRoutes({ user }) {
 }
 
 function defaultAuthenticatedPath(user) {
-  if (user.role === 'caller') return '/interviews';
+  if (user.role === ROLES.guest) return '/faqs';
+  if (user.role === ROLES.caller) return '/interviews';
   if (isAdminRole(user)) return '/admin/dashboard';
   if (canAccessPersonalDashboard(user)) return '/dashboard';
   return '/jobs';

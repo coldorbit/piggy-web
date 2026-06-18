@@ -17,6 +17,18 @@ describe('dashboard queries', () => {
     assert.match(sql, /current_period AS \([\s\S]*EXTRACT\(DOW FROM timezone\('America\/Los_Angeles', now\(\)\)\)::int \* interval '1 day'/);
   });
 
+  it('anchors dashboard periods to a requested date when provided', () => {
+    const sql = dashboardQueries(grainConfigFor('daily'), {
+      anchorDate: new Date('2026-06-18T12:00:00.000Z'),
+      timeZone: 'America/Los_Angeles',
+    }).overall;
+
+    assert.match(sql, /date_trunc\('day', timezone\('America\/Los_Angeles', '2026-06-18T12:00:00\.000Z'::timestamptz\)\) - interval '29 days' AS starts_at/);
+    assert.match(sql, /date_trunc\('day', timezone\('America\/Los_Angeles', '2026-06-18T12:00:00\.000Z'::timestamptz\)\) AS ends_at/);
+    assert.match(sql, /current_period AS \([\s\S]*date_trunc\('day', timezone\('America\/Los_Angeles', '2026-06-18T12:00:00\.000Z'::timestamptz\)\) AS starts_at/);
+    assert.doesNotMatch(sql, /date_trunc\('day', timezone\('America\/Los_Angeles', now\(\)\)\) AS starts_at/);
+  });
+
   it('counts user interviews by creation date while keeping outcomes activity-based', () => {
     const sql = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles' }).users;
 

@@ -1,12 +1,14 @@
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import TodayIcon from '@mui/icons-material/Today';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WorkIcon from '@mui/icons-material/Work';
-import { Alert, Box, FormControl, Grid, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Typography } from '@mui/material';
-import { useState } from 'react';
+import { Alert, Box, Button, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import { useMemo, useState } from 'react';
 import BidderPerformanceTable from '../components/adminDashboard/BidderPerformanceTable.jsx';
 import CallerPerformanceTable from '../components/adminDashboard/CallerPerformanceTable.jsx';
 import { ActivityTrendChart, BreakdownChart, FunnelConversionChart, InterviewOutcomeChart } from '../components/adminDashboard/DashboardCharts.jsx';
@@ -19,16 +21,31 @@ import { useAdminDashboard } from '../lib/api.js';
 
 export default function AdminDashboardPage() {
   const [grain, setGrain] = useState('daily');
-  const { data: dashboard, isLoading, error } = useAdminDashboard({ grain });
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString() }), [anchorDate, grain]);
+  const { data: dashboard, isLoading, error } = useAdminDashboard(dashboardFilters);
   const totals = dashboard?.totals || {};
   const trend = dashboard?.trend || [];
+
+  function changeGrain(nextGrain) {
+    if (!nextGrain) return;
+    setGrain(nextGrain);
+  }
+
+  function movePeriod(direction) {
+    setAnchorDate((current) => addDashboardPeriod(current, grain, direction));
+  }
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       <DashboardHeader
         generatedAt={dashboard?.generatedAt}
         grain={grain}
-        onGrainChange={setGrain}
+        isLoading={isLoading}
+        periodLabel={labelForDashboardPeriod(grain, anchorDate)}
+        onGrainChange={changeGrain}
+        onMove={movePeriod}
+        onToday={() => setAnchorDate(new Date())}
       />
 
       {error ? <Alert severity="error">{error.message}</Alert> : null}
@@ -75,7 +92,7 @@ export default function AdminDashboardPage() {
   );
 }
 
-function DashboardHeader({ generatedAt, grain, onGrainChange }) {
+function DashboardHeader({ generatedAt, grain, isLoading, onGrainChange, onMove, onToday, periodLabel }) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) auto' }, gap: 1.25, alignItems: 'center' }}>
       <Box sx={{ minWidth: 0 }}>
@@ -88,16 +105,49 @@ function DashboardHeader({ generatedAt, grain, onGrainChange }) {
           </Typography>
         ) : null}
       </Box>
-      <FormControl size="small" sx={{ width: { xs: '100%', sm: 180 }, justifySelf: { xs: 'stretch', sm: 'end' } }}>
-        <InputLabel>Period</InputLabel>
-        <Select label="Period" value={grain} onChange={(event) => onGrainChange(event.target.value)}>
-          {GRAIN_OPTIONS.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <Stack direction="row" spacing={0.75} alignItems="center" justifyContent={{ xs: 'stretch', sm: 'flex-end' }} useFlexGap sx={{ flexWrap: 'wrap' }}>
+        <Tooltip title="Previous period">
+          <IconButton aria-label="Previous dashboard period" onClick={() => onMove(-1)} sx={periodIconButtonSx}>
+            <ChevronLeftIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Next period">
+          <IconButton aria-label="Next dashboard period" onClick={() => onMove(1)} sx={periodIconButtonSx}>
+            <ChevronRightIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+        <Box
+          sx={{
+            minHeight: 40,
+            minWidth: { xs: '100%', sm: 190 },
+            px: 1.25,
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 1,
+            display: 'grid',
+            alignContent: 'center',
+            bgcolor: '#ffffff',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ textTransform: 'uppercase' }}>
+            {isLoading ? 'Loading period' : 'Showing'}
+          </Typography>
+          <Typography variant="body2" fontWeight={950} noWrap>{periodLabel}</Typography>
+        </Box>
+        <Button onClick={onToday} startIcon={<TodayIcon fontSize="small" />} size="small" variant="outlined" sx={toolbarButtonSx}>
+          Today
+        </Button>
+        <FormControl size="small" sx={{ width: { xs: '100%', sm: 180 } }}>
+          <InputLabel>Period</InputLabel>
+          <Select label="Period" value={grain} onChange={(event) => onGrainChange(event.target.value)}>
+            {GRAIN_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
     </Box>
   );
 }
@@ -160,3 +210,62 @@ function DashboardTableSkeleton() {
     </Paper>
   );
 }
+
+function addDashboardPeriod(value, grain, amount) {
+  const date = new Date(value);
+  if (grain === 'weekly') return addDays(date, amount * 7);
+  if (grain === 'monthly') return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+  if (grain === 'quarterly') return new Date(date.getFullYear(), date.getMonth() + amount * 3, 1);
+  if (grain === 'annually') return new Date(date.getFullYear() + amount, 0, 1);
+  return addDays(date, amount);
+}
+
+function labelForDashboardPeriod(grain, anchor) {
+  const start = startForDashboardPeriod(grain, anchor);
+  if (grain === 'annually') return String(start.getFullYear());
+  if (grain === 'quarterly') return `Q${Math.floor(start.getMonth() / 3) + 1} ${start.getFullYear()}`;
+  if (grain === 'monthly') return start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  if (grain === 'weekly') return `${shortDate(start)} - ${shortDate(addDays(start, 6))}`;
+  return start.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function startForDashboardPeriod(grain, anchor) {
+  const date = new Date(anchor);
+  if (grain === 'weekly') return addDays(startOfDay(date), -date.getDay());
+  if (grain === 'monthly') return new Date(date.getFullYear(), date.getMonth(), 1);
+  if (grain === 'quarterly') return new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3, 1);
+  if (grain === 'annually') return new Date(date.getFullYear(), 0, 1);
+  return startOfDay(date);
+}
+
+function addDays(value, days) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+function startOfDay(value) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function shortDate(value) {
+  return value.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+const periodIconButtonSx = {
+  width: 36,
+  height: 36,
+  border: 1,
+  borderColor: 'divider',
+  bgcolor: '#ffffff',
+  '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE' },
+};
+
+const toolbarButtonSx = {
+  minHeight: 36,
+  fontWeight: 900,
+  textTransform: 'none',
+  whiteSpace: 'nowrap',
+};

@@ -1,5 +1,13 @@
 import { readValidSession } from '../../auth.js';
-import { MARKETPLACE_ACCESS_ROLES, canAccessAssessments, canAccessConsumption, isAdminRole, isSuperadmin } from '../utils/roles.js';
+import {
+  MARKETPLACE_ACCESS_ROLES,
+  canAccessAssessments,
+  canAccessBidWorkspace,
+  canAccessConsumption,
+  canAccessJobs,
+  isAdminRole,
+  isSuperadmin,
+} from '../utils/roles.js';
 
 export async function requireAuth(req, res, next) {
   try {
@@ -49,6 +57,26 @@ export function requireAssessmentAccess(req, res, next) {
   requireAuth(req, res, () => {
     if (!canAccessAssessments(req.user)) {
       res.status(403).json({ error: 'Assessment access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireJobAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canAccessJobs(req.user)) {
+      res.status(403).json({ error: 'Job access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireBidWorkspaceAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canAccessBidWorkspace(req.user)) {
+      res.status(403).json({ error: 'Application access required' });
       return;
     }
     next();

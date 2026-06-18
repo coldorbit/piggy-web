@@ -60,6 +60,7 @@ export async function ensureWebModels() {
       await ensureWebUserEmailColumn();
       await ensureWebUserDailyBidGoalColumn();
       await ensureWebUserTimezoneColumn();
+      await ensureForwardedMailboxMessageColumns();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
       await ensureSpamReviewColumns();
@@ -255,6 +256,16 @@ async function ensureForwardedMailboxMessageIndexes() {
     CREATE INDEX IF NOT EXISTS forwarded_mailbox_messages_unread_received_idx
     ON forwarded_mailbox_messages (is_read, received_at DESC NULLS LAST)
   `);
+}
+
+async function ensureForwardedMailboxMessageColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'forwarded_mailbox_messages';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    calendar_event: { type: DataTypes.JSONB, allowNull: true },
+  });
 }
 
 async function ensureJobBidProfileScopedUniqueness() {

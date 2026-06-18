@@ -56,8 +56,10 @@ import {
   INTERVIEW_ROLES,
   MARKETPLACE_ACCESS_ROLES,
   ROLES,
+  canAccessBidWorkspace,
   canAccessConsumption,
   canAccessAssessments,
+  canAccessJobs,
   canAccessPersonalDashboard,
   isAdminRole,
   roleLabel,
@@ -106,8 +108,10 @@ export default function AppLayout({ user }) {
   const canManageCallers = !CALLER_BLOCKED_ROLES.includes(user.role);
   const canAccessInbox = !CALLER_BLOCKED_ROLES.includes(user.role);
   const canViewAssessments = canAccessAssessments(user);
+  const canViewBidWorkspace = canAccessBidWorkspace(user);
+  const canViewJobs = canAccessJobs(user);
   const canViewPersonalDashboard = canAccessPersonalDashboard(user);
-  const isCaller = user.role === 'caller';
+  const isCaller = user.role === ROLES.caller;
   const isDrawerCollapsed = isDesktop && isSidebarCollapsed;
   const drawerWidth = isDrawerCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH;
   const handleOpenMailboxNotification = useCallback((message) => {
@@ -274,10 +278,12 @@ export default function AppLayout({ user }) {
           {canAccessConsumption(user) ? (
             <NavItem to="/admin/consumption" icon={<PaidIcon />} label="Consumption" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {!isCaller ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
-          {!isCaller ? <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
+          {canViewJobs ? <NavItem to="/jobs" icon={<WorkIcon />} label="Jobs" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
+          {canViewBidWorkspace && !isCaller ? (
+            <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
+          ) : null}
           {canViewAssessments ? <NavItem to="/assessments" icon={<QuizIcon />} label="Assessments" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
-          {!isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
+          {canViewBidWorkspace && !isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
             <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canAccessInbox ? (
@@ -302,8 +308,8 @@ export default function AppLayout({ user }) {
           {canManageCallers ? (
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {!isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
-          {!isCaller ? (
+          {canViewBidWorkspace && !isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
+          {canViewBidWorkspace && !isCaller ? (
             <NavItem to="/tailoring-requests" icon={<StyleIcon />} label="Tailoring" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />

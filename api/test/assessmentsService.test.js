@@ -62,6 +62,7 @@ describe('ensureAssessmentAccess', () => {
 
   it('rejects roles outside assessment access', () => {
     assert.throws(() => ensureAssessmentAccess({ role: ROLES.caller }), ForbiddenError);
+    assert.throws(() => ensureAssessmentAccess({ role: ROLES.guest }), ForbiddenError);
   });
 });
 

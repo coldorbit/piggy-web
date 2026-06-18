@@ -9,8 +9,9 @@ export async function getDashboardMetrics(query = {}, { user } = {}) {
 
   const requestedGrain = clean(query.grain);
   const grain = GRAIN_KEYS.includes(requestedGrain) ? requestedGrain : DEFAULT_GRAIN;
+  const anchorDate = dashboardAnchorDate(query.anchorDate || query.anchor);
   const sequelize = getSequelize();
-  const sql = dashboardQueries(grainConfigFor(grain), { timeZone: user?.timezone });
+  const sql = dashboardQueries(grainConfigFor(grain), { anchorDate, timeZone: user?.timezone });
 
   const [
     overall,
@@ -49,6 +50,7 @@ export async function getDashboardMetrics(query = {}, { user } = {}) {
   return formatDashboardResponse({
     grain,
     grainOptions: GRAIN_KEYS,
+    anchorDate,
     overall,
     trend,
     users,
@@ -65,6 +67,11 @@ export async function getDashboardMetrics(query = {}, { user } = {}) {
     interviewStages,
     interviewStatuses,
   });
+}
+
+function dashboardAnchorDate(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
 async function queryAll(sequelize, sql) {

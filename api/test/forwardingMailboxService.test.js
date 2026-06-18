@@ -4,10 +4,12 @@ import { Op } from 'sequelize';
 import {
   classifyMailboxMessageIntent,
   classifyForwardedMessage,
+  calendarEventFromAttachments,
   forwardingMailboxApplicationSyncConfig,
   formatMailboxMessage,
   formatMailboxNotificationMessage,
   formatStoredMailboxMessage,
+  parseIcsCalendarEvent,
   parseAddressList,
   profileMailboxMessageWhere,
   profileMailboxMatchers,
@@ -141,6 +143,7 @@ describe('forwarding mailbox helpers', () => {
       match: null,
       classification: null,
       application: null,
+      calendarEvent: null,
     });
   });
 
@@ -183,6 +186,7 @@ describe('forwarding mailbox helpers', () => {
         source: 'forwardingEmail:address',
       },
       classification: null,
+      calendarEvent: null,
     });
   });
 
@@ -218,6 +222,7 @@ describe('forwarding mailbox helpers', () => {
     assert.deepEqual(attrs.toAddresses, [{ name: 'Maya', address: 'maya@example.com' }]);
     assert.deepEqual(attrs.headers, { 'x-original-to': 'service+maya@co-bounce.com' });
     assert.deepEqual(attrs.classification, { type: 'application_confirmation', label: 'Application confirmation' });
+    assert.equal(attrs.calendarEvent, null);
   });
 
   it('formats stored mailbox messages for the inbox response shape', () => {
@@ -268,6 +273,7 @@ describe('forwarding mailbox helpers', () => {
       },
       classification: { type: 'application_confirmation', label: 'Application confirmation' },
       application: { status: 'applied' },
+      calendarEvent: null,
     });
   });
 
@@ -292,6 +298,63 @@ describe('forwarding mailbox helpers', () => {
     assert.deepEqual(classification, {
       type: 'application_confirmation',
       label: 'Application confirmation',
+    });
+  });
+
+  it('parses ICS calendar attachments into interview event metadata', () => {
+    const event = calendarEventFromAttachments([{
+      filename: 'invite.ics',
+      contentType: 'text/calendar; method=REQUEST',
+      content: Buffer.from([
+        'BEGIN:VCALENDAR',
+        'METHOD:REQUEST',
+        'BEGIN:VEVENT',
+        'UID:event-123',
+        'SUMMARY:Technical Interview',
+        'DTSTART;TZID=America/New_York:20260618T100000',
+        'DTEND;TZID=America/New_York:20260618T110000',
+        'LOCATION:https://meet.google.com/abc-defg-hij',
+        'ORGANIZER;CN=Hiring Team:mailto:recruiter@example.com',
+        'ATTENDEE;CN=Maya Patel;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION:mailto:maya@example.com',
+        'DESCRIPTION:Bring your portfolio\\\\nJoin: https://meet.google.com/abc-defg-hij',
+        'END:VEVENT',
+        'END:VCALENDAR',
+      ].join('\r\n')),
+    }]);
+
+    assert.equal(event.summary, 'Technical Interview');
+    assert.equal(event.method, 'REQUEST');
+    assert.equal(event.start.local, '2026-06-18T10:00:00');
+    assert.equal(event.start.timezone, 'America/New_York');
+    assert.equal(event.end.local, '2026-06-18T11:00:00');
+    assert.equal(event.conferenceUrl, 'https://meet.google.com/abc-defg-hij');
+    assert.deepEqual(event.organizer, {
+      name: 'Hiring Team',
+      email: 'recruiter@example.com',
+      role: null,
+      status: null,
+    });
+    assert.deepEqual(event.attendees[0], {
+      name: 'Maya Patel',
+      email: 'maya@example.com',
+      role: 'REQ-PARTICIPANT',
+      status: 'NEEDS-ACTION',
+    });
+  });
+
+  it('classifies ICS-backed emails as interview related', () => {
+    const calendarEvent = parseIcsCalendarEvent([
+      'BEGIN:VCALENDAR',
+      'BEGIN:VEVENT',
+      'SUMMARY:Recruiter screen',
+      'DTSTART:20260618T170000Z',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\n'));
+
+    assert.deepEqual(classifyMailboxMessageIntent({ calendarEvent }), {
+      type: 'interview_related',
+      label: 'Interview related',
     });
   });
 

@@ -4,11 +4,25 @@ export const ROLES = {
   user: 'user',
   financeManager: 'finance_manager',
   internal: 'internal',
+  guest: 'guest',
   caller: 'caller',
   bidder: 'bidder',
   readonlyBidder: 'readonly_bidder',
   editableBidder: 'editable_bidder',
 };
+
+export const VALID_USER_ROLES = [
+  ROLES.superadmin,
+  ROLES.admin,
+  ROLES.user,
+  ROLES.financeManager,
+  ROLES.internal,
+  ROLES.guest,
+  ROLES.caller,
+  ROLES.bidder,
+  ROLES.readonlyBidder,
+  ROLES.editableBidder,
+];
 
 export const ADMIN_ROLES = [ROLES.superadmin, ROLES.admin];
 export const ASSESSMENT_ACCESS_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
@@ -17,7 +31,9 @@ export const PERSONAL_DASHBOARD_ROLES = [ROLES.user, ROLES.financeManager];
 export const MARKETPLACE_ACCESS_ROLES = ADMIN_ROLES;
 export const INTERVIEW_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal, ROLES.user, ROLES.financeManager, ROLES.caller];
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
-export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller];
+export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller, ROLES.guest];
+export const JOB_ACCESS_ROLES = VALID_USER_ROLES.filter((role) => ![ROLES.caller, ROLES.guest].includes(role));
+export const BID_WORKSPACE_ACCESS_ROLES = VALID_USER_ROLES.filter((role) => role !== ROLES.guest);
 
 export const DAILY_BID_GOAL_DEFAULTS = {
   [ROLES.user]: 100,
@@ -30,6 +46,7 @@ export const BASE_ROLE_OPTIONS = [
   { value: ROLES.user, label: 'User' },
   { value: ROLES.financeManager, label: 'Finance manager' },
   { value: ROLES.internal, label: 'Internal' },
+  { value: ROLES.guest, label: 'Guest' },
   { value: ROLES.caller, label: 'Caller' },
   { value: ROLES.readonlyBidder, label: 'Readonly bidder' },
   { value: ROLES.editableBidder, label: 'Editable bidder' },
@@ -61,6 +78,18 @@ export function canAccessPersonalDashboard(userOrRole) {
   return PERSONAL_DASHBOARD_ROLES.includes(roleOf(userOrRole));
 }
 
+export function canAccessJobs(userOrRole) {
+  return JOB_ACCESS_ROLES.includes(roleOf(userOrRole));
+}
+
+export function canAccessBidWorkspace(userOrRole) {
+  return BID_WORKSPACE_ACCESS_ROLES.includes(roleOf(userOrRole));
+}
+
+export function isGuestRole(userOrRole) {
+  return roleOf(userOrRole) === ROLES.guest;
+}
+
 export function roleOptionsFor(currentUser) {
   return isSuperadmin(currentUser) ? ADMIN_ROLE_OPTIONS : BASE_ROLE_OPTIONS;
 }
@@ -68,6 +97,7 @@ export function roleOptionsFor(currentUser) {
 export function roleLabel(role) {
   if (role === ROLES.superadmin) return 'superadmin';
   if (role === ROLES.financeManager) return 'finance manager';
+  if (role === ROLES.guest) return 'guest';
   if (role === ROLES.readonlyBidder || role === ROLES.bidder) return 'readonly bidder';
   if (role === ROLES.editableBidder) return 'editable bidder';
   if (role === ROLES.internal) return 'internal';

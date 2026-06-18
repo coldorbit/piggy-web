@@ -15,23 +15,24 @@ export function grainConfigFor(value) {
   return GRAINS[value] || GRAINS[DEFAULT_GRAIN];
 }
 
-export function dashboardQueries(grainConfig, { timeZone = DEFAULT_TIME_ZONE } = {}) {
+export function dashboardQueries(grainConfig, { anchorDate, timeZone = DEFAULT_TIME_ZONE } = {}) {
+  const anchor = dashboardAnchorSql(anchorDate);
   return {
-    overall: overallSql(grainConfig, timeZone),
-    trend: trendSql(grainConfig, timeZone),
-    users: userPerformanceSql(grainConfig, timeZone),
-    bidders: bidderPerformanceSql(grainConfig, timeZone),
-    callers: callerPerformanceSql(grainConfig, timeZone),
-    profileFunnels: profileFunnelSql(grainConfig, timeZone),
-    roleFamilyFunnels: roleFamilyFunnelSql(grainConfig, timeZone),
-    userSources: userSourceMixSql(grainConfig, timeZone),
-    userCategories: userCategoryMixSql(grainConfig, timeZone),
-    userProfiles: userProfileMixSql(grainConfig, timeZone),
-    profileActivity: profileActivitySql(grainConfig, timeZone),
-    sources: sourceBreakdownSql(grainConfig, timeZone),
-    bidStatuses: bidStatusBreakdownSql(grainConfig, timeZone),
-    interviewStages: interviewStageBreakdownSql(grainConfig, timeZone),
-    interviewStatuses: interviewStatusBreakdownSql(grainConfig, timeZone),
+    overall: overallSql(grainConfig, timeZone, anchor),
+    trend: trendSql(grainConfig, timeZone, anchor),
+    users: userPerformanceSql(grainConfig, timeZone, anchor),
+    bidders: bidderPerformanceSql(grainConfig, timeZone, anchor),
+    callers: callerPerformanceSql(grainConfig, timeZone, anchor),
+    profileFunnels: profileFunnelSql(grainConfig, timeZone, anchor),
+    roleFamilyFunnels: roleFamilyFunnelSql(grainConfig, timeZone, anchor),
+    userSources: userSourceMixSql(grainConfig, timeZone, anchor),
+    userCategories: userCategoryMixSql(grainConfig, timeZone, anchor),
+    userProfiles: userProfileMixSql(grainConfig, timeZone, anchor),
+    profileActivity: profileActivitySql(grainConfig, timeZone, anchor),
+    sources: sourceBreakdownSql(grainConfig, timeZone, anchor),
+    bidStatuses: bidStatusBreakdownSql(grainConfig, timeZone, anchor),
+    interviewStages: interviewStageBreakdownSql(grainConfig, timeZone, anchor),
+    interviewStatuses: interviewStatusBreakdownSql(grainConfig, timeZone, anchor),
   };
 }
 
@@ -50,19 +51,20 @@ function funnelMetricsSelect() {
   `;
 }
 
-function rangeCte({ sql, step, lookback }, timeZone) {
+function rangeCte({ sql, step, lookback }, timeZone, anchor = 'now()') {
+  const bucket = anchorBucketSql(sql, timeZone, anchor);
   return `
     WITH range AS (
       SELECT
-        ${localNowBucketSql(sql, timeZone)} - interval '${lookback}' AS starts_at,
-        ${localNowBucketSql(sql, timeZone)} AS ends_at,
+        ${bucket} - interval '${lookback}' AS starts_at,
+        ${bucket} AS ends_at,
         interval '${step}' AS bucket_step
     )
   `;
 }
 
-function currentPeriodCte({ sql, step }, timeZone) {
-  const startsAt = currentPeriodStartSql(sql, timeZone);
+function currentPeriodCte({ sql, step }, timeZone, anchor = 'now()') {
+  const startsAt = currentPeriodStartSql(sql, timeZone, anchor);
   return `
     current_period AS (
       SELECT
@@ -72,11 +74,11 @@ function currentPeriodCte({ sql, step }, timeZone) {
   `;
 }
 
-function currentPeriodStartSql(grainSql, timeZone) {
-  if (grainSql !== 'week') return localNowBucketSql(grainSql, timeZone);
+function currentPeriodStartSql(grainSql, timeZone, anchor = 'now()') {
+  if (grainSql !== 'week') return anchorBucketSql(grainSql, timeZone, anchor);
 
-  const localNow = localTimestampSql('now()', timeZone);
-  return `(date_trunc('day', ${localNow}) - (EXTRACT(DOW FROM ${localNow})::int * interval '1 day'))`;
+  const localAnchor = localTimestampSql(anchor, timeZone);
+  return `(date_trunc('day', ${localAnchor}) - (EXTRACT(DOW FROM ${localAnchor})::int * interval '1 day'))`;
 }
 
 function bucketExpression(column, grainConfig, timeZone) {
@@ -88,24 +90,35 @@ function localTimestampSql(column, timeZone) {
   return `timezone('${normalizedTimeZone}', ${column})`;
 }
 
+function anchorBucketSql(grainSql, timeZone, anchor = 'now()') {
+  if (anchor === 'now()') return localNowBucketSql(grainSql, timeZone);
+  return localBucketSql(anchor, grainSql, timeZone);
+}
+
+function dashboardAnchorSql(value) {
+  const date = value instanceof Date ? value : value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return 'now()';
+  return `'${date.toISOString().replaceAll("'", "''")}'::timestamptz`;
+}
+
 function currentPeriodPredicate(column, timeZone, alias = 'current_period') {
   const localTimestamp = localTimestampSql(column, timeZone);
   return `${localTimestamp} >= ${alias}.starts_at AND ${localTimestamp} < ${alias}.ends_at`;
 }
 
-function overallSql(grainConfig, timeZone) {
+function overallSql(grainConfig, timeZone, anchor) {
   const normalizedTimeZone = normalizeTimeZone(timeZone);
   const jobBucket = bucketExpression('scraped_at', grainConfig, normalizedTimeZone);
   const bidBucket = bucketExpression('bid_at', grainConfig, normalizedTimeZone);
   const tailoringBucket = bucketExpression('created_at', grainConfig, normalizedTimeZone);
 
   return `
-    ${rangeCte(grainConfig, normalizedTimeZone)},
-    ${currentPeriodCte(grainConfig, normalizedTimeZone)},
+    ${rangeCte(grainConfig, normalizedTimeZone, anchor)},
+    ${currentPeriodCte(grainConfig, normalizedTimeZone, anchor)},
     local_day AS (
       SELECT
-        ${localNowBucketSql('day', normalizedTimeZone)} AT TIME ZONE '${normalizedTimeZone}' AS starts_at,
-        (${localNowBucketSql('day', normalizedTimeZone)} + interval '1 day') AT TIME ZONE '${normalizedTimeZone}' AS ends_at
+        ${anchorBucketSql('day', normalizedTimeZone, anchor)} AT TIME ZONE '${normalizedTimeZone}' AS starts_at,
+        (${anchorBucketSql('day', normalizedTimeZone, anchor)} + interval '1 day') AT TIME ZONE '${normalizedTimeZone}' AS ends_at
     ),
     job_totals AS (
       SELECT
@@ -176,14 +189,14 @@ function overallSql(grainConfig, timeZone) {
   `;
 }
 
-function trendSql(grainConfig, timeZone) {
+function trendSql(grainConfig, timeZone, anchor) {
   const jobBucket = bucketExpression('scraped_at', grainConfig, timeZone);
   const bidBucket = bucketExpression('bid_at', grainConfig, timeZone);
   const interviewCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
   const interviewUpdatedBucket = bucketExpression('updated_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)},
+    ${rangeCte(grainConfig, timeZone, anchor)},
     buckets AS (
       SELECT generate_series(starts_at, ends_at, bucket_step) AS bucket_start
       FROM range
@@ -252,14 +265,14 @@ function trendSql(grainConfig, timeZone) {
   `;
 }
 
-function userPerformanceSql(grainConfig, timeZone) {
+function userPerformanceSql(grainConfig, timeZone, anchor) {
   const bidBucket = bucketExpression('bid_at', grainConfig, timeZone);
   const interviewCreatedBucket = bucketExpression('interviews.created_at', grainConfig, timeZone);
   const interviewActivityBucket = bucketExpression('COALESCE(interviews.updated_at, interviews.created_at)', grainConfig, timeZone);
   const tailoringBucket = bucketExpression('created_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)},
+    ${rangeCte(grainConfig, timeZone, anchor)},
     bid_metrics AS (
       SELECT
         user_id,
@@ -394,12 +407,12 @@ function userPerformanceSql(grainConfig, timeZone) {
   `;
 }
 
-function callerPerformanceSql(grainConfig, timeZone) {
+function callerPerformanceSql(grainConfig, timeZone, anchor) {
   const callerCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
   const callerActivityBucket = bucketExpression('COALESCE(updated_at, created_at)', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)},
+    ${rangeCte(grainConfig, timeZone, anchor)},
     caller_created_metrics AS (
       SELECT
         caller_user_id AS user_id,
@@ -460,12 +473,12 @@ function callerPerformanceSql(grainConfig, timeZone) {
   `;
 }
 
-function bidderPerformanceSql(grainConfig, timeZone) {
+function bidderPerformanceSql(grainConfig, timeZone, anchor) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)},
-    ${currentPeriodCte(grainConfig, timeZone)},
+    ${rangeCte(grainConfig, timeZone, anchor)},
+    ${currentPeriodCte(grainConfig, timeZone, anchor)},
     bid_metrics AS (
       SELECT
         job_bids.user_id,
@@ -516,7 +529,7 @@ function bidderPerformanceSql(grainConfig, timeZone) {
   `;
 }
 
-function profileFunnelSql(grainConfig, timeZone) {
+function profileFunnelSql(grainConfig, timeZone, anchor) {
   return funnelByDimensionSql({
     grainConfig,
     dimension: "COALESCE(NULLIF(bid_profiles.name, ''), 'Unknown profile')",
@@ -524,11 +537,12 @@ function profileFunnelSql(grainConfig, timeZone) {
     alias: 'profile_name',
     joins: 'JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id',
     groupBy: 'bid_profiles.id, bid_profiles.name',
+    anchor,
     timeZone,
   });
 }
 
-function roleFamilyFunnelSql(grainConfig, timeZone) {
+function roleFamilyFunnelSql(grainConfig, timeZone, anchor) {
   return funnelByDimensionSql({
     grainConfig,
     dimension: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')",
@@ -536,15 +550,16 @@ function roleFamilyFunnelSql(grainConfig, timeZone) {
     alias: 'role_family',
     joins: 'JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id',
     groupBy: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')",
+    anchor,
     timeZone,
   });
 }
 
-function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, groupBy, timeZone }) {
+function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, groupBy, timeZone, anchor }) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)}
+    ${rangeCte(grainConfig, timeZone, anchor)}
     SELECT
       ${idColumn} AS id,
       ${dimension} AS ${alias},
@@ -560,29 +575,30 @@ function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, 
   `;
 }
 
-function userSourceMixSql(grainConfig, timeZone) {
-  return rankedMixSql({ grainConfig, dimension: "COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')", alias: 'source', timeZone });
+function userSourceMixSql(grainConfig, timeZone, anchor) {
+  return rankedMixSql({ grainConfig, dimension: "COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')", alias: 'source', timeZone, anchor });
 }
 
-function userCategoryMixSql(grainConfig, timeZone) {
-  return rankedMixSql({ grainConfig, dimension: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')", alias: 'category', timeZone });
+function userCategoryMixSql(grainConfig, timeZone, anchor) {
+  return rankedMixSql({ grainConfig, dimension: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')", alias: 'category', timeZone, anchor });
 }
 
-function userProfileMixSql(grainConfig, timeZone) {
+function userProfileMixSql(grainConfig, timeZone, anchor) {
   return rankedMixSql({
     grainConfig,
     dimension: "COALESCE(NULLIF(bid_profiles.name, ''), 'Unknown profile')",
     alias: 'profile_name',
     joinProfile: true,
+    anchor,
     timeZone,
   });
 }
 
-function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false, timeZone }) {
+function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false, timeZone, anchor }) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)},
+    ${rangeCte(grainConfig, timeZone, anchor)},
     ranked AS (
       SELECT
         job_bids.user_id,
@@ -606,11 +622,11 @@ function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false, time
   `;
 }
 
-function profileActivitySql(grainConfig, timeZone) {
+function profileActivitySql(grainConfig, timeZone, anchor) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)}
+    ${rangeCte(grainConfig, timeZone, anchor)}
     SELECT
       job_bids.id,
       job_bids.user_id,
@@ -636,11 +652,11 @@ function profileActivitySql(grainConfig, timeZone) {
   `;
 }
 
-function sourceBreakdownSql(grainConfig, timeZone) {
+function sourceBreakdownSql(grainConfig, timeZone, anchor) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)}
+    ${rangeCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source, COUNT(*)::int AS count
     FROM job_bids
     JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id, range
@@ -651,11 +667,11 @@ function sourceBreakdownSql(grainConfig, timeZone) {
   `;
 }
 
-function bidStatusBreakdownSql(grainConfig, timeZone) {
+function bidStatusBreakdownSql(grainConfig, timeZone, anchor) {
   const bidBucket = bucketExpression('bid_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)}
+    ${rangeCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
     FROM job_bids, range
     WHERE ${bidBucket} >= starts_at
@@ -664,11 +680,11 @@ function bidStatusBreakdownSql(grainConfig, timeZone) {
   `;
 }
 
-function interviewStageBreakdownSql(grainConfig, timeZone) {
+function interviewStageBreakdownSql(grainConfig, timeZone, anchor) {
   const interviewCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)}
+    ${rangeCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(interview_stage, ''), 'unknown') AS stage, COUNT(*)::int AS count
     FROM interviews, range
     WHERE ${interviewCreatedBucket} >= starts_at
@@ -677,11 +693,11 @@ function interviewStageBreakdownSql(grainConfig, timeZone) {
   `;
 }
 
-function interviewStatusBreakdownSql(grainConfig, timeZone) {
+function interviewStatusBreakdownSql(grainConfig, timeZone, anchor) {
   const interviewCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
 
   return `
-    ${rangeCte(grainConfig, timeZone)}
+    ${rangeCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
     FROM interviews, range
     WHERE ${interviewCreatedBucket} >= starts_at

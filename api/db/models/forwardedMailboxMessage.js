@@ -133,6 +133,11 @@ export function getForwardedMailboxMessageModel() {
         type: DataTypes.JSONB,
         allowNull: true,
       },
+      calendarEvent: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        field: 'calendar_event',
+      },
       firstSeenAt: {
         type: DataTypes.DATE,
         allowNull: false,
