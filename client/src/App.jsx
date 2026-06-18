@@ -11,7 +11,7 @@ export default function App() {
   if (isLocalMaintenanceModeEnabled()) return <MaintenancePage />;
   if (hasGrowthBookConfig()) {
     return (
-      <FeaturesReady fallback={<ShellLoading />}>
+      <FeaturesReady fallback={<MaintenancePage />}>
         <GrowthBookMaintenanceGate />
       </FeaturesReady>
     );
