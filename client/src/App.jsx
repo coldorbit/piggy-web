@@ -1,10 +1,33 @@
 import { Suspense, useEffect, useRef } from 'react';
+import { FeaturesReady, useFeatureIsOn } from '@growthbook/growthbook-react';
 import { AuthenticatedRoutes, PublicRoutes } from './app/AppRoutes.jsx';
 import { ShellLoading } from './components/AuthScreens.jsx';
 import { useMe, useUpdateMe } from './lib/authApi.js';
+import { FEATURE_FLAGS, hasGrowthBookConfig, isLocalMaintenanceModeEnabled } from './lib/featureFlags.js';
 import { DEFAULT_TIME_ZONE, FALLBACK_TIME_ZONE } from './lib/timezone.js';
+import MaintenancePage from './pages/MaintenancePage.jsx';
 
 export default function App() {
+  if (isLocalMaintenanceModeEnabled()) return <MaintenancePage />;
+  if (hasGrowthBookConfig()) {
+    return (
+      <FeaturesReady fallback={<ShellLoading />}>
+        <GrowthBookMaintenanceGate />
+      </FeaturesReady>
+    );
+  }
+
+  return <WorkspaceApp />;
+}
+
+function GrowthBookMaintenanceGate() {
+  const maintenanceModeEnabled = useFeatureIsOn(FEATURE_FLAGS.maintenanceMode.key);
+  if (maintenanceModeEnabled || isLocalMaintenanceModeEnabled()) return <MaintenancePage />;
+
+  return <WorkspaceApp />;
+}
+
+function WorkspaceApp() {
   const { data: user, isLoading: authChecked } = useMe();
   const { mutate: updateMe } = useUpdateMe();
   const timezoneSyncAttempted = useRef(false);

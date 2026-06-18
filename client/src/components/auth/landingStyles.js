@@ -229,6 +229,38 @@ export const featureIconSx = {
   color: 'primary.main',
 };
 
+export const portfolioGridSx = {
+  display: 'grid',
+  gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+  gap: 1.5,
+};
+
+export const portfolioCardSx = {
+  minHeight: 300,
+  p: { xs: 2.25, md: 2.75 },
+  borderRadius: 1,
+  borderColor: '#CBD5E1',
+  bgcolor: '#FFFFFF',
+  display: 'grid',
+  gap: 2,
+  alignContent: 'space-between',
+  boxShadow: '0 18px 54px rgba(15, 23, 42, 0.08)',
+};
+
+export const portfolioMetaSx = {
+  display: 'grid',
+  gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+  gap: 1,
+};
+
+export const portfolioMetaItemSx = {
+  p: 1.25,
+  borderRadius: 1,
+  border: '1px solid #E2E8F0',
+  bgcolor: '#F8FAFC',
+  minWidth: 0,
+};
+
 export const signinBandSx = {
   width: 'min(1180px, calc(100% - 32px))',
   mx: 'auto',

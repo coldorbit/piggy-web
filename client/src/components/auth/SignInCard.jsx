@@ -45,9 +45,9 @@ export default function SignInCard() {
           />
           <Box>
             <Typography variant="h5" fontWeight={950}>
-              Welcome back
+              Client portal
             </Typography>
-            <Typography color="text.secondary">Sign in to your workspace.</Typography>
+            <Typography color="text.secondary">Sign in to continue your build.</Typography>
           </Box>
         </Stack>
         <TextField

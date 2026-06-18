@@ -39,6 +39,13 @@ Use the root `.env` when running the full workspace with `pnpm dev` or Docker Co
 CLIENT_PORT=3000
 API_PORT=4000
 VITE_API_BASE_URL=http://localhost:4000
+VITE_GROWTHBOOK_API_HOST=https://cdn.growthbook.io
+VITE_GROWTHBOOK_CLIENT_KEY=
+VITE_GROWTHBOOK_ENVIRONMENT=development
+VITE_GROWTHBOOK_MAINTENANCE_FLAG=maintenance-mode
+VITE_GROWTHBOOK_INIT_TIMEOUT_MS=2000
+VITE_GROWTHBOOK_SUBSCRIBE_TO_CHANGES=false
+VITE_LOCAL_MAINTENANCE_MODE=false
 
 DATABASE_URL=postgres://applypilot:change-me@localhost:5433/applypilot
 DATABASE_SSL=false

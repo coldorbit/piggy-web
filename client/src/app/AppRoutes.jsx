@@ -31,7 +31,6 @@ const InboxPage = lazy(() => import('../pages/InboxPage.jsx'));
 const InterviewsPage = lazy(() => import('../pages/InterviewsPage.jsx'));
 const JobsPage = lazy(() => import('../pages/JobsPage.jsx'));
 const MarketplacePage = lazy(() => import('../pages/MarketplacePage.jsx'));
-const PricingPage = lazy(() => import('../components/auth/PricingPage.jsx'));
 const ProfilesPage = lazy(() => import('../pages/ProfilesPage.jsx'));
 const TailoringRequestsPage = lazy(() => import('../pages/TailoringRequestsPage.jsx'));
 const UserDashboardPage = lazy(() => import('../pages/UserDashboardPage.jsx'));
@@ -40,7 +39,6 @@ export function PublicRoutes() {
   return (
     <Routes>
       <Route index element={<LoginScreen />} />
-      <Route path="/pricing" element={<PricingPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -49,7 +47,6 @@ export function PublicRoutes() {
 export function AuthenticatedRoutes({ user }) {
   return (
     <Routes>
-      <Route path="/pricing" element={<PricingPage />} />
       <Route element={<AppLayout user={user} />}>
         <Route index element={<Navigate to={defaultAuthenticatedPath(user)} replace />} />
         <Route
