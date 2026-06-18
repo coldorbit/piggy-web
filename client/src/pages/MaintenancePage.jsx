@@ -3,7 +3,7 @@ import BuildIcon from '@mui/icons-material/Build';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import SecurityIcon from '@mui/icons-material/Security';
-import { Avatar, Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
+import { Avatar, Box, Chip, Paper, Stack, Typography } from '@mui/material';
 
 const maintenanceItems = [
   { icon: <BuildIcon />, label: 'Platform upgrades in progress' },
@@ -162,14 +162,9 @@ export default function MaintenancePage() {
                 )}
               </Box>
 
-              <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.14)' }} />
-
-              <Box>
-                <Typography fontWeight={950}>Feature flag</Typography>
-                <Typography variant="body2" sx={{ mt: 0.75, color: 'rgba(255, 255, 255, 0.68)' }}>
-                  Controlled by the maintenance-mode flag in GrowthBook.
-                </Typography>
-              </Box>
+              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.68)' }}>
+                Thank you for your patience while we complete the work.
+              </Typography>
             </Box>
           </Box>
         </Paper>
