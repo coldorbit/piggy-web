@@ -6,6 +6,7 @@ import {
   assessmentsForProfile,
   createAssessmentForUser,
   deleteAssessmentForUser,
+  markAssessmentDoneForUser,
 } from '../application/assessmentsService.js';
 
 export async function listAssessmentProfiles(req, res, next) {
@@ -47,6 +48,17 @@ export async function deleteAssessment(req, res, next) {
     const user = await currentDbUser(req);
     await deleteAssessmentForUser(user, req.params.id);
     res.json({ ok: true });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function markAssessmentDone(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const assessment = await markAssessmentDoneForUser(user, req.params.id);
+    res.json({ assessment });
   } catch (error) {
     handleInputError(error, res, next);
   }

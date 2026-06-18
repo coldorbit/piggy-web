@@ -1049,6 +1049,18 @@ export function useDeleteAssessment() {
   });
 }
 
+export function useMarkAssessmentDone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ assessmentId }) =>
+      api(`/api/assessments/${assessmentId}/done`, { method: 'PATCH' }).then((data) => data.assessment),
+    onSuccess: (assessment) => {
+      queryClient.invalidateQueries({ queryKey: ['assessments'] });
+      queryClient.invalidateQueries({ queryKey: ['assessments', assessment?.profileId] });
+    },
+  });
+}
+
 export function useUpdateBidProfile() {
   const queryClient = useQueryClient();
   return useMutation({

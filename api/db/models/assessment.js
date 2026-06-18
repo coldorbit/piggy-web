@@ -43,6 +43,11 @@ export function getAssessmentModel() {
         allowNull: true,
         field: 'expires_at',
       },
+      completedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'completed_at',
+      },
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,
@@ -64,6 +69,7 @@ export function getAssessmentModel() {
         { fields: ['user_id'] },
         { fields: ['job_id'] },
         { fields: ['expires_at'] },
+        { fields: ['completed_at'] },
       ],
     },
   );

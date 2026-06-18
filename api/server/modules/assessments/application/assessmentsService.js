@@ -140,8 +140,27 @@ export async function deleteAssessmentForUser(user, assessmentId) {
   return { ok: true };
 }
 
+export async function markAssessmentDoneForUser(user, assessmentId) {
+  ensureAssessmentAccess(user);
+  const assessment = await getAssessmentModel().findByPk(clean(assessmentId), {
+    include: [{ model: getBidProfileModel(), as: 'profile', required: false }],
+  });
+  if (!assessment) throw new NotFoundError('Assessment not found');
+
+  const profile = await assessmentProfileForUser(user, assessment.profileId);
+  if (!canCompleteAssessment(user, assessment, profile)) throw new ForbiddenError('You cannot mark this assessment done');
+
+  if (!assessment.completedAt) {
+    await assessment.update({ completedAt: new Date() });
+  }
+
+  const row = await getAssessmentModel().findByPk(assessment.id, { include: assessmentIncludes() });
+  return formatAssessment(row || assessment);
+}
+
 export function formatAssessment(row) {
   const expiresAt = row.expiresAt ? new Date(row.expiresAt).toISOString() : null;
+  const completedAt = row.completedAt ? new Date(row.completedAt).toISOString() : null;
   return {
     id: row.id,
     profileId: row.profileId,
@@ -151,7 +170,8 @@ export function formatAssessment(row) {
     categoryLabel: categoryLabel(row.category),
     assessmentLink: row.assessmentLink,
     expiresAt,
-    status: expiresAt && Date.parse(expiresAt) <= Date.now() ? 'expired' : 'active',
+    completedAt,
+    status: assessmentStatus({ completedAt, expiresAt }),
     job: row.job ? formatAssessmentJob(row.job) : null,
     createdBy: row.createdBy
       ? {
@@ -226,4 +246,15 @@ function categoryLabel(value) {
 function canDeleteAssessment(user, assessment, profile) {
   if (isAdminRole(user)) return true;
   return String(assessment.userId) === String(user.id) || String(profile.userId) === String(user.id);
+}
+
+export function canCompleteAssessment(user, assessment, profile) {
+  if (isAdminRole(user)) return true;
+  return String(assessment?.userId) === String(user?.id) || String(profile?.userId) === String(user?.id);
+}
+
+function assessmentStatus({ completedAt, expiresAt }) {
+  if (completedAt) return 'done';
+  if (expiresAt && Date.parse(expiresAt) <= Date.now()) return 'expired';
+  return 'active';
 }

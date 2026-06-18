@@ -37,6 +37,7 @@ export async function ensureWebModels() {
       await getProfileShareRequestModel().sync();
       await getForwardedMailboxMessageModel().sync();
       await getAssessmentModel().sync();
+      await ensureAssessmentColumns();
       await getJobBidModel().sync();
       await getInterviewModel().sync();
       await getInterviewLogModel().sync();
@@ -99,6 +100,20 @@ async function ensureAssessmentIndexes() {
     CREATE INDEX IF NOT EXISTS assessments_user_created_at_idx
     ON assessments (user_id, created_at DESC)
   `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS assessments_profile_completed_at_idx
+    ON assessments (profile_id, completed_at DESC NULLS LAST)
+  `);
+}
+
+async function ensureAssessmentColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'assessments';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    completed_at: { type: DataTypes.DATE, allowNull: true },
+  });
 }
 
 async function ensureMarketplaceIndexes() {

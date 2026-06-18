@@ -1,4 +1,5 @@
 import AddLinkIcon from '@mui/icons-material/AddLink';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DeleteIcon from '@mui/icons-material/Delete';
 import LinkIcon from '@mui/icons-material/Link';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -31,6 +32,7 @@ import {
   useAssessments,
   useCreateAssessment,
   useDeleteAssessment,
+  useMarkAssessmentDone,
   useJobs,
 } from '../lib/api.js';
 import { formatDateTime } from '../lib/formatters.js';
@@ -88,6 +90,7 @@ export default function AssessmentsPage({ currentUser }) {
   const { data: jobsData, isFetching: jobsFetching } = useJobs(jobFilters);
   const createAssessment = useCreateAssessment();
   const deleteAssessment = useDeleteAssessment();
+  const markAssessmentDone = useMarkAssessmentDone();
   const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'] || PROFILE_COLORS.green;
   const assessments = assessmentsData?.assessments || [];
   const stats = assessmentStats(assessments);
@@ -97,6 +100,7 @@ export default function AssessmentsPage({ currentUser }) {
     assessmentsError?.message ||
     createAssessment.error?.message ||
     deleteAssessment.error?.message ||
+    markAssessmentDone.error?.message ||
     '';
   const canRegister = Boolean(activeProfile?.id && form.assessmentLink.trim() && form.category && !createAssessment.isPending);
 
@@ -144,6 +148,15 @@ export default function AssessmentsPage({ currentUser }) {
     if (!window.confirm('Delete this assessment?')) return;
     setPageError('');
     deleteAssessment.mutate(
+      { assessmentId: assessment.id },
+      { onError: (error) => setPageError(error.message) },
+    );
+  }
+
+  function completeAssessment(assessment) {
+    if (!assessment?.id) return;
+    setPageError('');
+    markAssessmentDone.mutate(
       { assessmentId: assessment.id },
       { onError: (error) => setPageError(error.message) },
     );
@@ -202,10 +215,14 @@ export default function AssessmentsPage({ currentUser }) {
               onRefresh={refetchAssessments}
             />
             <AssessmentList
+              activeProfile={activeProfile}
               assessments={assessments}
+              currentUser={currentUser}
               isDeleting={deleteAssessment.isPending}
+              isMarkingDone={markAssessmentDone.isPending}
               isLoading={assessmentsLoading && !assessmentsData}
               onDelete={removeAssessment}
+              onMarkDone={completeAssessment}
             />
           </Box>
         </Box>
@@ -466,11 +483,12 @@ function AssessmentForm({
 
 function AssessmentStats({ isFetching, onRefresh, stats }) {
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, minmax(0, 1fr)) auto' }, gap: 1, alignItems: 'stretch' }}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(5, minmax(0, 1fr)) auto' }, gap: 1, alignItems: 'stretch' }}>
       <AssessmentStat label="Total" value={stats.total} tone="slate" />
       <AssessmentStat label="Active" value={stats.active} tone="green" />
       <AssessmentStat label="Due soon" value={stats.dueSoon} tone="amber" />
       <AssessmentStat label="Expired" value={stats.expired} tone="rose" />
+      <AssessmentStat label="Done" value={stats.done} tone="blue" />
       <Button
         type="button"
         variant="outlined"
@@ -487,6 +505,7 @@ function AssessmentStats({ isFetching, onRefresh, stats }) {
 function AssessmentStat({ label, tone, value }) {
   const styles = {
     amber: { bgcolor: '#FFFBEB', borderColor: '#FDE68A', color: '#92400E' },
+    blue: { bgcolor: '#EFF6FF', borderColor: '#BFDBFE', color: '#1D4ED8' },
     green: { bgcolor: '#F0FDF4', borderColor: '#BBF7D0', color: '#166534' },
     rose: { bgcolor: '#FFF1F2', borderColor: '#FECDD3', color: '#9F1239' },
     slate: { bgcolor: '#F8FAFC', borderColor: '#E2E8F0', color: '#334155' },
@@ -504,7 +523,7 @@ function AssessmentStat({ label, tone, value }) {
   );
 }
 
-function AssessmentList({ assessments, isDeleting, isLoading, onDelete }) {
+function AssessmentList({ activeProfile, assessments, currentUser, isDeleting, isLoading, isMarkingDone, onDelete, onMarkDone }) {
   if (isLoading) {
     return (
       <Box sx={{ display: 'grid', gap: 1, alignContent: 'start', overflow: 'auto', minHeight: 0 }}>
@@ -534,19 +553,25 @@ function AssessmentList({ assessments, isDeleting, isLoading, onDelete }) {
       {assessments.map((assessment) => (
         <AssessmentCard
           assessment={assessment}
+          activeProfile={activeProfile}
+          currentUser={currentUser}
           isDeleting={isDeleting}
+          isMarkingDone={isMarkingDone}
           key={assessment.id}
           onDelete={() => onDelete(assessment)}
+          onMarkDone={() => onMarkDone(assessment)}
         />
       ))}
     </Box>
   );
 }
 
-function AssessmentCard({ assessment, isDeleting, onDelete }) {
+function AssessmentCard({ activeProfile, assessment, currentUser, isDeleting, isMarkingDone, onDelete, onMarkDone }) {
   const deadline = assessmentDeadline(assessment);
   const job = assessment.job;
   const title = job ? jobOptionTitle(job) : assessment.categoryLabel || 'Assessment';
+  const isDone = assessment.status === 'done' || Boolean(assessment.completedAt);
+  const canMarkDone = !isDone && canMarkAssessmentDone(currentUser, assessment, activeProfile);
 
   return (
     <Paper
@@ -578,6 +603,22 @@ function AssessmentCard({ assessment, isDeleting, onDelete }) {
           </Stack>
         </Box>
         <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+          {canMarkDone ? (
+            <Tooltip title="Mark done">
+              <span>
+                <IconButton
+                  type="button"
+                  size="small"
+                  aria-label="Mark assessment done"
+                  disabled={isMarkingDone}
+                  onClick={onMarkDone}
+                  sx={{ border: 1, borderColor: 'divider' }}
+                >
+                  {isMarkingDone ? <CircularProgress size={16} /> : <CheckCircleIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
+          ) : null}
           <Tooltip title="Open assessment">
             <IconButton
               component="a"
@@ -609,6 +650,7 @@ function AssessmentCard({ assessment, isDeleting, onDelete }) {
       </Box>
       <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
         {assessment.expiresAt ? <DetailChip label={`Expires ${formatDateTime(assessment.expiresAt)}`} /> : <DetailChip label="No expiry" />}
+        {assessment.completedAt ? <DetailChip label={`Done ${formatDateTime(assessment.completedAt)}`} /> : null}
         <DetailChip label={`Added ${formatDateTime(assessment.createdAt)}`} />
         {assessment.createdBy?.username ? <DetailChip label={`By ${assessment.createdBy.username}`} /> : null}
         {job?.publicJobId ? <DetailChip label={job.publicJobId} /> : null}
@@ -634,7 +676,8 @@ function assessmentStats(assessments) {
     (stats, assessment) => {
       const deadline = assessmentDeadline(assessment);
       stats.total += 1;
-      if (deadline.state === 'expired') stats.expired += 1;
+      if (deadline.state === 'done') stats.done += 1;
+      else if (deadline.state === 'expired') stats.expired += 1;
       else if (deadline.state === 'dueSoon') {
         stats.active += 1;
         stats.dueSoon += 1;
@@ -643,11 +686,20 @@ function assessmentStats(assessments) {
       }
       return stats;
     },
-    { total: 0, active: 0, dueSoon: 0, expired: 0 },
+    { total: 0, active: 0, dueSoon: 0, expired: 0, done: 0 },
   );
 }
 
 function assessmentDeadline(assessment) {
+  if (assessment.completedAt || assessment.status === 'done') {
+    return {
+      state: 'done',
+      label: 'Done',
+      bgcolor: '#DBEAFE',
+      borderColor: '#93C5FD',
+      color: '#1D4ED8',
+    };
+  }
   if (!assessment.expiresAt) {
     return {
       state: 'none',
@@ -693,6 +745,16 @@ function assessmentDeadline(assessment) {
     borderColor: '#86EFAC',
     color: '#166534',
   };
+}
+
+function canMarkAssessmentDone(currentUser, assessment, activeProfile) {
+  if (!currentUser || !assessment) return false;
+  if (isAdminRole(currentUser)) return true;
+  return (
+    String(assessment.userId) === String(currentUser.id) ||
+    String(assessment.createdBy?.id) === String(currentUser.id) ||
+    String(activeProfile?.userId) === String(currentUser.id)
+  );
 }
 
 function jobOptionId(job) {
