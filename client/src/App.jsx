@@ -23,6 +23,7 @@ export default function App() {
 
 function GrowthBookMaintenanceGate() {
   const maintenanceModeEnabled = useFeatureIsOn(FEATURE_FLAGS.maintenanceMode.key);
+  console.log("Feature flag: ", maintenanceModeEnabled)
   if (maintenanceModeEnabled || isLocalMaintenanceModeEnabled()) return <MaintenanceRedirect />;
 
   return <WorkspaceApp />;
