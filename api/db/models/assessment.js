@@ -69,7 +69,6 @@ export function getAssessmentModel() {
         { fields: ['user_id'] },
         { fields: ['job_id'] },
         { fields: ['expires_at'] },
-        { fields: ['completed_at'] },
       ],
     },
   );
