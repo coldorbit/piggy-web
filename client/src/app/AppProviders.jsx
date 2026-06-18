@@ -14,7 +14,9 @@ export default function AppProviders({ children }) {
   useEffect(() => {
     if (!growthbook) return undefined;
 
-    growthbook.init(getGrowthBookInitOptions());
+    growthbook.init(getGrowthBookInitOptions()).catch((error) => {
+      console.error('Failed to load GrowthBook feature flags.', error);
+    });
     return () => growthbook.destroy();
   }, [growthbook]);
 

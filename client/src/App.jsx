@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef } from 'react';
-import { FeaturesReady, useFeatureIsOn } from '@growthbook/growthbook-react';
+import { useFeatureIsOn, useGrowthBook } from '@growthbook/growthbook-react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthenticatedRoutes, PublicRoutes } from './app/AppRoutes.jsx';
 import { ShellLoading } from './components/AuthScreens.jsx';
@@ -11,20 +11,16 @@ import MaintenancePage from './pages/MaintenancePage.jsx';
 export default function App() {
   if (isLocalMaintenanceModeEnabled()) return <MaintenanceRedirect />;
   if (hasGrowthBookConfig()) {
-    return (
-      <FeaturesReady fallback={<MaintenanceRedirect />}>
-        <GrowthBookMaintenanceGate />
-      </FeaturesReady>
-    );
+    return <GrowthBookMaintenanceGate />;
   }
 
   return <WorkspaceApp />;
 }
 
 function GrowthBookMaintenanceGate() {
+  const growthbook = useGrowthBook();
   const maintenanceModeEnabled = useFeatureIsOn(FEATURE_FLAGS.maintenanceMode.key);
-  console.log("Feature flag: ", maintenanceModeEnabled)
-  if (maintenanceModeEnabled || isLocalMaintenanceModeEnabled()) return <MaintenanceRedirect />;
+  if (!growthbook.ready || maintenanceModeEnabled || isLocalMaintenanceModeEnabled()) return <MaintenanceRedirect />;
 
   return <WorkspaceApp />;
 }
