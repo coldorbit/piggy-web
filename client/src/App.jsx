@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { FeaturesReady, useFeatureIsOn } from '@growthbook/growthbook-react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { AuthenticatedRoutes, PublicRoutes } from './app/AppRoutes.jsx';
 import { ShellLoading } from './components/AuthScreens.jsx';
 import { useMe, useUpdateMe } from './lib/authApi.js';
@@ -8,10 +9,10 @@ import { DEFAULT_TIME_ZONE, FALLBACK_TIME_ZONE } from './lib/timezone.js';
 import MaintenancePage from './pages/MaintenancePage.jsx';
 
 export default function App() {
-  if (isLocalMaintenanceModeEnabled()) return <MaintenancePage />;
+  if (isLocalMaintenanceModeEnabled()) return <MaintenanceRedirect />;
   if (hasGrowthBookConfig()) {
     return (
-      <FeaturesReady fallback={<MaintenancePage />}>
+      <FeaturesReady fallback={<MaintenanceRedirect />}>
         <GrowthBookMaintenanceGate />
       </FeaturesReady>
     );
@@ -22,9 +23,16 @@ export default function App() {
 
 function GrowthBookMaintenanceGate() {
   const maintenanceModeEnabled = useFeatureIsOn(FEATURE_FLAGS.maintenanceMode.key);
-  if (maintenanceModeEnabled || isLocalMaintenanceModeEnabled()) return <MaintenancePage />;
+  if (maintenanceModeEnabled || isLocalMaintenanceModeEnabled()) return <MaintenanceRedirect />;
 
   return <WorkspaceApp />;
+}
+
+function MaintenanceRedirect() {
+  const location = useLocation();
+
+  if (location.pathname === '/maintenance') return <MaintenancePage />;
+  return <Navigate to="/maintenance" replace />;
 }
 
 function WorkspaceApp() {
