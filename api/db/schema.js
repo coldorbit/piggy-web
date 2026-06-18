@@ -229,6 +229,14 @@ async function ensureForwardedMailboxMessageIndexes() {
     ON forwarded_mailbox_messages (profile_id, is_read, received_at DESC NULLS LAST)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS forwarded_mailbox_messages_match_received_idx
+    ON forwarded_mailbox_messages (match_value, received_at DESC NULLS LAST, id DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS forwarded_mailbox_messages_match_unread_idx
+    ON forwarded_mailbox_messages (match_value, is_read, received_at DESC NULLS LAST)
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS forwarded_mailbox_messages_unread_received_idx
     ON forwarded_mailbox_messages (is_read, received_at DESC NULLS LAST)
   `);

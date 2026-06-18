@@ -138,7 +138,6 @@ export async function mailboxProfileForRequest(req, profileId) {
 }
 
 export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
-  assertForwardingMailboxConfigured();
   const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
   const page = await storedForwardedProfileMessagePage(profile, {
     limit: messageLimit,
@@ -161,48 +160,45 @@ export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PR
 }
 
 export async function markForwardedProfileMessageRead(profile, { messageId } = {}) {
-  assertForwardingMailboxConfigured();
   const id = clean(messageId);
   if (!id) throw new InputError('Message is required');
 
   const storedMessage = await getForwardedMailboxMessageModel().findOne({
-    where: { messageId: id, profileId: profile.id },
+    where: {
+      messageId: id,
+      [Op.or]: profileMailboxMessageConditions(profile),
+    },
     include: [storedMailboxProfileInclude()],
   });
-  const messageRef = mailboxMessageRefFromId(id);
 
   if (storedMessage) {
+    const attrs = {};
     if (!storedMessage.isRead) {
-      await storedMessage.update({ isRead: true });
+      attrs.isRead = true;
     }
-    if (messageRef) {
+    if (storedMessage.profileId === null || storedMessage.profileId === undefined) {
+      attrs.profileId = profile.id;
+    }
+    if (Object.keys(attrs).length) {
+      await storedMessage.update(attrs);
+    }
+    const messageRef = mailboxMessageRefFromId(id);
+    if (messageRef && forwardingMailboxConfigured()) {
       await markImapMessageRefRead(messageRef).catch((error) => {
         console.warn('Unable to mark IMAP mailbox message as read:', id, error.message);
       });
     }
-    return formatStoredMailboxMessage(storedMessage);
+    return formatStoredMailboxMessage(storedMessage, profile);
   }
 
-  if (!messageRef) throw new InputError('Message is required');
-  const { message, profile: matchedProfile, match } = await fetchMailboxMessageAndMarkRead(profile, messageRef);
-  const application = await applicationResultForMailboxMessage(message, profile);
-  const stored = await upsertForwardedMailboxMessage(message, matchedProfile, match, {
-    classification: classifyMailboxMessageIntent(message),
-    application,
-  });
-  const savedMessage = await getForwardedMailboxMessageModel().findByPk(stored.message.id, {
-    include: [storedMailboxProfileInclude()],
-  });
-  return formatStoredMailboxMessage(savedMessage || stored.message);
+  throw new NotFoundError('Message not found');
 }
 
 export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
-  assertForwardingMailboxConfigured();
   const user = await currentDbUser(req);
   const profiles = await mailboxNotificationProfilesForUser(user);
-  const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
   const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
-  const page = await storedForwardedMailboxMessagePageForProfileIds(profileIds, {
+  const page = await storedForwardedMailboxMessagePageForProfiles(profiles, {
     limit: messageLimit,
     offset: messageOffset,
   });
@@ -223,12 +219,13 @@ export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_
 }
 
 export async function listForwardedMailboxSummary(req) {
-  assertForwardingMailboxConfigured();
   const user = await currentDbUser(req);
   const profiles = await mailboxNotificationProfilesForUser(user);
-  const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
-  const unreadCountsByProfileId = await unreadMailboxCountsByProfileId(profileIds);
-  const unreadTotal = [...unreadCountsByProfileId.values()].reduce((sum, count) => sum + count, 0);
+  const unreadWhere = mailboxProfilesMessageWhere(profiles, { isRead: false });
+  const [unreadCountsByProfileId, unreadTotal] = await Promise.all([
+    unreadMailboxCountsByProfile(profiles),
+    unreadWhere ? getForwardedMailboxMessageModel().count({ where: unreadWhere }) : 0,
+  ]);
 
   return {
     mailbox: forwardingMailboxStatus(),
@@ -241,7 +238,6 @@ export async function listForwardedMailboxSummary(req) {
 }
 
 export async function listForwardedMailboxNotificationMessages(req, { limit = DEFAULT_NOTIFICATION_MESSAGE_LIMIT } = {}) {
-  assertForwardingMailboxConfigured();
   const user = await currentDbUser(req);
   const profiles = await mailboxNotificationProfilesForUser(user);
   if (!profiles.length) {
@@ -252,19 +248,8 @@ export async function listForwardedMailboxNotificationMessages(req, { limit = DE
     };
   }
 
-  const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
-  if (!profileIds.length) {
-    return {
-      mailbox: forwardingMailboxStatus(),
-      unreadTotal: 0,
-      messages: [],
-    };
-  }
-
-  const where = {
-    profileId: { [Op.in]: profileIds },
-    isRead: false,
-  };
+  const where = mailboxProfilesMessageWhere(profiles, { isRead: false });
+  if (!where) return { mailbox: forwardingMailboxStatus(), unreadTotal: 0, messages: [] };
   const [rows, unreadTotal] = await Promise.all([
     getForwardedMailboxMessageModel().findAll({
       where,
@@ -278,7 +263,7 @@ export async function listForwardedMailboxNotificationMessages(req, { limit = DE
   return {
     mailbox: forwardingMailboxStatus(),
     unreadTotal,
-    messages: rows.map(formatStoredMailboxNotificationMessage),
+    messages: rows.map((row) => formatStoredMailboxNotificationMessage(row, mailboxProfileForStoredRow(row, profiles))),
   };
 }
 
@@ -330,8 +315,8 @@ export function formatMailboxNotificationMessage(message, profile = null, match 
   };
 }
 
-export function formatStoredMailboxMessage(row) {
-  const profile = rowValue(row, 'profile');
+export function formatStoredMailboxMessage(row, profileOverride = null) {
+  const profile = profileOverride || rowValue(row, 'profile');
   const message = mailboxMessageFromStoredRow(row);
   const match = rowValue(row, 'matchValue')
     ? {
@@ -346,8 +331,8 @@ export function formatStoredMailboxMessage(row) {
   });
 }
 
-export function formatStoredMailboxNotificationMessage(row) {
-  const formatted = formatStoredMailboxMessage(row);
+export function formatStoredMailboxNotificationMessage(row, profileOverride = null) {
+  const formatted = formatStoredMailboxMessage(row, profileOverride);
   return {
     id: formatted.id,
     subject: formatted.subject,
@@ -474,40 +459,139 @@ async function ensureUserCanReadMailboxProfile(user, profile) {
 }
 
 async function storedForwardedProfileMessagePage(profile, { limit, offset }) {
-  const where = { profileId: profile.id };
-  return storedForwardedMailboxMessagePage(where, { limit, offset });
+  const where = profileMailboxMessageWhere(profile);
+  return storedForwardedMailboxMessagePage(where, { limit, offset, profiles: [profile] });
 }
 
-async function storedForwardedMailboxMessagePageForProfileIds(profileIds, { limit, offset }) {
-  if (!profileIds.length) {
+async function storedForwardedMailboxMessagePageForProfiles(profiles, { limit, offset }) {
+  const where = mailboxProfilesMessageWhere(profiles);
+  if (!where) {
     return {
       messages: [],
       total: 0,
       unreadTotal: 0,
     };
   }
-  return storedForwardedMailboxMessagePage({ profileId: { [Op.in]: profileIds } }, { limit, offset });
+  return storedForwardedMailboxMessagePage(where, { limit, offset, profiles });
 }
 
-async function unreadMailboxCountsByProfileId(profileIds) {
-  if (!profileIds.length) return new Map();
-  const rows = await getForwardedMailboxMessageModel().findAll({
-    attributes: [
-      'profileId',
-      [getSequelize().fn('COUNT', getSequelize().col('id')), 'unreadTotal'],
-    ],
-    where: {
-      profileId: { [Op.in]: profileIds },
-      isRead: false,
-    },
-    group: ['profileId'],
-    raw: true,
-  });
+async function unreadMailboxCountsByProfile(profiles) {
+  const counts = new Map(profiles.map((profile) => [String(profile.id), 0]));
+  if (!profiles.length) return counts;
 
-  return new Map(rows.map((row) => [String(row.profileId), Number(row.unreadTotal || 0)]));
+  const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
+  const aliasProfileIds = new Map();
+  for (const profile of profiles) {
+    for (const matcher of profileMailboxMatchers(profile)) {
+      const profileIdsForAlias = aliasProfileIds.get(matcher.value) || [];
+      profileIdsForAlias.push(String(profile.id));
+      aliasProfileIds.set(matcher.value, profileIdsForAlias);
+    }
+  }
+  const aliases = [...aliasProfileIds.keys()];
+  const [aliasRows, legacyRows] = await Promise.all([
+    aliases.length
+      ? getForwardedMailboxMessageModel().findAll({
+          attributes: [
+            'matchValue',
+            [getSequelize().fn('COUNT', getSequelize().col('id')), 'unreadTotal'],
+          ],
+          where: {
+            matchValue: { [Op.in]: aliases },
+            isRead: false,
+          },
+          group: ['matchValue'],
+          raw: true,
+        })
+      : [],
+    profileIds.length
+      ? getForwardedMailboxMessageModel().findAll({
+          attributes: [
+            'profileId',
+            [getSequelize().fn('COUNT', getSequelize().col('id')), 'unreadTotal'],
+          ],
+          where: {
+            profileId: { [Op.in]: profileIds },
+            isRead: false,
+            [Op.or]: [
+              { matchValue: { [Op.is]: null } },
+              { matchValue: '' },
+            ],
+          },
+          group: ['profileId'],
+          raw: true,
+        })
+      : [],
+  ]);
+
+  for (const row of aliasRows) {
+    const unreadTotal = Number(row.unreadTotal || 0);
+    for (const profileId of aliasProfileIds.get(normalizeEmail(row.matchValue)) || []) {
+      counts.set(profileId, (counts.get(profileId) || 0) + unreadTotal);
+    }
+  }
+  for (const row of legacyRows) {
+    const profileId = String(row.profileId);
+    counts.set(profileId, (counts.get(profileId) || 0) + Number(row.unreadTotal || 0));
+  }
+
+  return counts;
 }
 
-async function storedForwardedMailboxMessagePage(where, { limit, offset }) {
+export function profileMailboxMessageWhere(profile, additionalWhere = {}) {
+  const conditions = profileMailboxMessageConditions(profile);
+  if (!conditions.length) return null;
+  return {
+    ...additionalWhere,
+    [Op.or]: conditions,
+  };
+}
+
+function mailboxProfilesMessageWhere(profiles, additionalWhere = {}) {
+  const conditions = profiles.flatMap(profileMailboxMessageConditions);
+  if (!conditions.length) return null;
+  return {
+    ...additionalWhere,
+    [Op.or]: conditions,
+  };
+}
+
+function profileMailboxMessageConditions(profile) {
+  const conditions = [];
+  const matchValues = profileMailboxMatchers(profile).map((matcher) => matcher.value);
+  if (matchValues.length) {
+    conditions.push({ matchValue: { [Op.in]: matchValues } });
+  }
+  if (profile?.id) {
+    conditions.push({
+      profileId: profile.id,
+      [Op.or]: [
+        { matchValue: { [Op.is]: null } },
+        { matchValue: '' },
+      ],
+    });
+  }
+  return conditions;
+}
+
+function mailboxProfileForStoredRow(row, profiles) {
+  const matchValue = normalizeEmail(rowValue(row, 'matchValue'));
+  if (matchValue) {
+    const matchedProfile = profiles.find((profile) =>
+      profileMailboxMatchers(profile).some((matcher) => matcher.value === matchValue),
+    );
+    if (matchedProfile) return matchedProfile;
+  }
+
+  const profileId = rowValue(row, 'profileId');
+  if (profileId !== null && profileId !== undefined) {
+    const matchedProfile = profiles.find((profile) => String(profile.id) === String(profileId));
+    if (matchedProfile) return matchedProfile;
+  }
+  return null;
+}
+
+async function storedForwardedMailboxMessagePage(where, { limit, offset, profiles = [] }) {
   const [messages, total, unreadTotal] = await Promise.all([
     getForwardedMailboxMessageModel().findAll({
       where,
@@ -521,7 +605,7 @@ async function storedForwardedMailboxMessagePage(where, { limit, offset }) {
   ]);
 
   return {
-    messages: messages.map(formatStoredMailboxMessage),
+    messages: messages.map((row) => formatStoredMailboxMessage(row, mailboxProfileForStoredRow(row, profiles))),
     total,
     unreadTotal,
   };
@@ -541,6 +625,7 @@ async function upsertForwardedMailboxMessage(message, profile = null, match = nu
 
   await existing.update({
     ...attrs,
+    isRead: Boolean(existing.isRead || attrs.isRead),
     firstSeenAt: existing.firstSeenAt || attrs.firstSeenAt,
   });
   return { message: existing, created: false };
@@ -628,39 +713,6 @@ async function markImapMessageRefRead(messageRef) {
     const lock = await client.getMailboxLock(messageRef.mailboxPath);
     try {
       await client.messageFlagsAdd(String(messageRef.uid), ['\\Seen'], { uid: true });
-    } finally {
-      lock.release();
-    }
-  } finally {
-    await client.logout().catch(() => {});
-  }
-}
-
-async function fetchMailboxMessageAndMarkRead(profile, messageRef) {
-  const client = mailboxClient();
-  await client.connect();
-  try {
-    const lock = await client.getMailboxLock(messageRef.mailboxPath);
-    try {
-      const row = await client.fetchOne(String(messageRef.uid), {
-        envelope: true,
-        flags: true,
-        internalDate: true,
-        source: true,
-        uid: true,
-      }, { uid: true });
-      if (!row) throw new NotFoundError('Message not found');
-
-      const message = await parseImapMessage(row, messageRef.mailboxPath);
-      const classified = classifyForwardedMessage(message, [profile]);
-      if (!classified.profile) throw new NotFoundError('Message not found');
-
-      if (!message.isRead) {
-        await client.messageFlagsAdd(String(messageRef.uid), ['\\Seen'], { uid: true });
-        message.isRead = true;
-      }
-
-      return { message, profile: classified.profile, match: classified.match };
     } finally {
       lock.release();
     }

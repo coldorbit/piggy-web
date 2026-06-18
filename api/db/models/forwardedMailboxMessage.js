@@ -161,6 +161,8 @@ export function getForwardedMailboxMessageModel() {
       updatedAt: 'updatedAt',
       indexes: [
         { unique: true, fields: ['message_id'] },
+        { fields: ['match_value', 'received_at'] },
+        { fields: ['match_value', 'is_read'] },
         { fields: ['profile_id', 'received_at'] },
         { fields: ['profile_id', 'is_read'] },
         { fields: ['received_at'] },

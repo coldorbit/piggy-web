@@ -56,7 +56,9 @@ export default function InboxPage({ currentUser }) {
     error: profilesError,
   } = useBidProfiles(isAdminRole(currentUser) ? { scope: 'manage' } : {});
   const inboxProfiles = useMemo(
-    () => profiles.filter((profile) => ['active', 'closed', 'legacy'].includes(profile.profileStatus || 'active')),
+    () => profiles
+      .filter((profile) => ['active', 'closed', 'legacy'].includes(profile.profileStatus || 'active'))
+      .filter(profileHasMailboxMatcher),
     [profiles],
   );
   const isAggregateInbox = !activeProfileId;
@@ -72,15 +74,16 @@ export default function InboxPage({ currentUser }) {
     isLoading: statusLoading,
     error: statusError,
   } = useForwardingMailboxStatus();
-  const configured = mailboxStatus?.configured !== false;
-  const mailboxEmail = mailboxStatus?.email || 'service@co-bounce.com';
+  const mailboxDataReady = !statusLoading && !statusError;
+  const configured = !statusError;
+  const mailboxEmail = mailboxStatus?.email || 'Stored mailbox';
   const {
     data: mailboxSummary,
   } = useForwardedMailboxSummary({
-    enabled: Boolean(mailboxStatus?.configured),
+    enabled: mailboxDataReady,
   });
-  const canFetchAggregateMessages = Boolean(isAggregateInbox && mailboxStatus?.configured);
-  const canFetchProfileMessages = Boolean(!isAggregateInbox && activeProfile?.id && mailboxStatus?.configured);
+  const canFetchAggregateMessages = Boolean(isAggregateInbox && mailboxDataReady);
+  const canFetchProfileMessages = Boolean(!isAggregateInbox && activeProfile?.id && mailboxDataReady);
   const {
     data: aggregateInboxData,
     fetchNextPage: fetchNextAggregatePage,
@@ -150,10 +153,10 @@ export default function InboxPage({ currentUser }) {
     ? inboxProfiles.some(profileHasMailboxMatcher)
     : profileHasMailboxMatcher(activeProfile);
   const readingProfile = activeProfile || selectedMessage?.matchedProfile || null;
-  const mailboxTitle = isAggregateInbox ? 'All inboxes' : activeProfile?.name || 'Inbox';
+  const mailboxTitle = isAggregateInbox ? 'All inboxes' : profileMailboxAddress(activeProfile) || 'Inbox';
   const emptyMessagesDetail = isAggregateInbox
-    ? 'Forwarded messages across all profile emails will appear here.'
-    : 'Forwarded messages for this profile will appear here.';
+    ? 'Stored messages across all profile emails will appear here.'
+    : 'Stored messages for this profile email will appear here.';
 
   useEffect(() => {
     if (!activeProfileId || profilesLoading) return;
@@ -248,8 +251,8 @@ export default function InboxPage({ currentUser }) {
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
       {!inboxProfiles.length && !profilesLoading ? (
         <EmptyState
-          title="No profiles available"
-          detail="Profiles with mailbox access will appear here."
+          title="No profile email inboxes"
+          detail="Profiles with a profile email or forwarding alias will appear here."
         />
       ) : null}
 
@@ -610,9 +613,9 @@ function ProfileFolderRow({ activeColor, isSelected, onClick, profile, unreadCou
         <FolderOutlinedIcon fontSize="small" />
       )}
       <Box minWidth={0}>
-        <Typography variant="body2" fontWeight={900} noWrap>{profile.name}</Typography>
+        <Typography variant="body2" fontWeight={900} noWrap>{profileMailboxAddress(profile)}</Typography>
         <Typography variant="caption" color="text.secondary" noWrap>
-          {profile.forwardingEmail || profile.email || 'No alias'}
+          {profile.name || 'Profile email'}
         </Typography>
       </Box>
     </Box>
@@ -1044,6 +1047,10 @@ function filterMessages(messages, search) {
 
 function profileHasMailboxMatcher(profile) {
   return Boolean(profile?.forwardingEmail || profile?.email);
+}
+
+function profileMailboxAddress(profile) {
+  return profile?.forwardingEmail || profile?.email || '';
 }
 
 function filterMessagesByGroup(messages, group) {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { Op } from 'sequelize';
 import {
   classifyMailboxMessageIntent,
   classifyForwardedMessage,
@@ -8,6 +9,8 @@ import {
   formatMailboxNotificationMessage,
   formatStoredMailboxMessage,
   parseAddressList,
+  profileMailboxMessageWhere,
+  profileMailboxMatchers,
   storedMailboxMessageAttributes,
 } from '../server/modules/bidding/application/forwardingMailboxService.js';
 
@@ -86,6 +89,32 @@ describe('forwarding mailbox helpers', () => {
     assert.deepEqual(row.match, {
       value: 'service+tiep@co-bounce.com',
       source: 'forwardingEmail:body',
+    });
+  });
+
+  it('builds profile email mailbox queries from stored match values', () => {
+    const profile = {
+      id: '9',
+      email: 'MAYA@Example.com',
+      forwardingEmail: 'service+maya@co-bounce.com',
+    };
+
+    assert.deepEqual(profileMailboxMatchers(profile), [
+      { value: 'service+maya@co-bounce.com', source: 'forwardingEmail' },
+      { value: 'maya@example.com', source: 'profileEmail' },
+    ]);
+
+    const where = profileMailboxMessageWhere(profile, { isRead: false });
+    assert.equal(where.isRead, false);
+    assert.deepEqual(where[Op.or][0], {
+      matchValue: { [Op.in]: ['service+maya@co-bounce.com', 'maya@example.com'] },
+    });
+    assert.deepEqual(where[Op.or][1], {
+      profileId: '9',
+      [Op.or]: [
+        { matchValue: { [Op.is]: null } },
+        { matchValue: '' },
+      ],
     });
   });
 
