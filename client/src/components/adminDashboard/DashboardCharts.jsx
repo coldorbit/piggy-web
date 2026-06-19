@@ -138,3 +138,105 @@ export function FunnelConversionChart({ data = [], title }) {
     </ChartPanel>
   );
 }
+
+export function PerformanceVolumeChart({ bars = [], data = [], title, xKey = 'name' }) {
+  return (
+    <ChartPanel title={title}>
+      {data.length ? (
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={data.slice(0, 12)} margin={{ top: 10, right: 12, bottom: 0, left: -18 }}>
+            <CartesianGrid stroke="#E2E8F0" vertical={false} />
+            <XAxis dataKey={xKey} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={76} />
+            <YAxis allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <Tooltip formatter={(value) => number(value)} />
+            <Legend />
+            {bars.map((bar, index) => (
+              <Bar
+                key={bar.key}
+                dataKey={bar.key}
+                name={bar.label}
+                fill={bar.color || CHART_COLORS[index % CHART_COLORS.length]}
+                maxBarSize={26}
+                minPointSize={bar.minPointSize}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      ) : (
+        <ChartEmptyState title="No performance data" detail="Metrics will appear once matching activity is recorded." height={320} />
+      )}
+    </ChartPanel>
+  );
+}
+
+export function PerformanceRateChart({ bars = [], data = [], title, xKey = 'name' }) {
+  return (
+    <ChartPanel title={title}>
+      {data.length ? (
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={data.slice(0, 12)} margin={{ top: 10, right: 12, bottom: 0, left: -18 }}>
+            <CartesianGrid stroke="#E2E8F0" vertical={false} />
+            <XAxis dataKey={xKey} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={76} />
+            <YAxis tickFormatter={(value) => percent(value)} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <Tooltip formatter={(value) => percent(value)} />
+            <Legend />
+            {bars.map((bar, index) => (
+              <Bar
+                key={bar.key}
+                dataKey={bar.key}
+                name={bar.label}
+                fill={bar.color || CHART_COLORS[index % CHART_COLORS.length]}
+                maxBarSize={26}
+                minPointSize={3}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      ) : (
+        <ChartEmptyState title="No conversion data" detail="Rates will appear once records move through the funnel." height={300} />
+      )}
+    </ChartPanel>
+  );
+}
+
+export function PerformanceShareChart({ data = [], dataKey, title, nameKey = 'name' }) {
+  const pieData = data.filter((item) => Number(item[dataKey] || 0) > 0).slice(0, 8);
+  const total = pieData.reduce((sum, item) => sum + Number(item[dataKey] || 0), 0);
+
+  return (
+    <ChartPanel title={title}>
+      {pieData.length ? (
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={pieData}
+              dataKey={dataKey}
+              nameKey={nameKey}
+              innerRadius={58}
+              outerRadius={92}
+              paddingAngle={2}
+              labelLine
+              label={(entry) => `${labelize(entry[nameKey])} ${percent(Number(entry[dataKey] || 0) / Math.max(total, 1))}`}
+            >
+              {pieData.map((entry, index) => (
+                <Cell key={`${entry[nameKey]}-${dataKey}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value) => number(value)} />
+            <Legend formatter={(value) => labelize(value)} />
+          </PieChart>
+        </ResponsiveContainer>
+      ) : (
+        <ChartEmptyState title="No share data" detail="The split will appear once records have measurable volume." height={300} />
+      )}
+    </ChartPanel>
+  );
+}
+
+function ChartEmptyState({ detail, height, title }) {
+  return (
+    <Box sx={{ height, display: 'grid', placeItems: 'center' }}>
+      <EmptyState title={title} detail={detail} variant="plain" sx={{ p: 2 }} />
+    </Box>
+  );
+}

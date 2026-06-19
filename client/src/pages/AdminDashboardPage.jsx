@@ -10,14 +10,19 @@ import WorkIcon from '@mui/icons-material/Work';
 import { Alert, Box, Button, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import BidderPerformanceTable from '../components/adminDashboard/BidderPerformanceTable.jsx';
-import CallerPerformanceTable from '../components/adminDashboard/CallerPerformanceTable.jsx';
-import { ActivityTrendChart, BreakdownChart, FunnelConversionChart, InterviewOutcomeChart } from '../components/adminDashboard/DashboardCharts.jsx';
+import {
+  ActivityTrendChart,
+  BreakdownChart,
+  FunnelConversionChart,
+  InterviewOutcomeChart,
+  PerformanceRateChart,
+  PerformanceShareChart,
+  PerformanceVolumeChart,
+} from '../components/adminDashboard/DashboardCharts.jsx';
 import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { GRAIN_OPTIONS, labelForGrain, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
 import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerformanceTable.jsx';
 import ProfileActivityTable from '../components/adminDashboard/ProfileActivityTable.jsx';
-import UserPerformanceTable from '../components/adminDashboard/UserPerformanceTable.jsx';
 import { useAdminDashboard } from '../lib/api.js';
 
 export default function AdminDashboardPage() {
@@ -97,19 +102,140 @@ export default function AdminDashboardPage() {
 }
 
 function DashboardSection({ dashboard, section }) {
-  if (section === 'users') return <UserPerformanceTable users={dashboard.users || []} />;
-  if (section === 'bidders') return <BidderPerformanceTable bidders={dashboard.bidders || []} />;
-  if (section === 'callers') return <CallerPerformanceTable callers={dashboard.callers || []} />;
-  if (section === 'profiles') {
-    return (
-      <Box sx={{ display: 'grid', gap: 1.5 }}>
-        <FunnelPerformanceTable title="Profile performance" rows={dashboard.funnels?.profiles || []} />
-        <ProfileActivityTable rows={dashboard.profileActivity || []} />
-      </Box>
-    );
-  }
+  if (section === 'users') return <UserPerformanceCharts users={dashboard.users || []} />;
+  if (section === 'bidders') return <BidderPerformanceCharts bidders={dashboard.bidders || []} />;
+  if (section === 'callers') return <CallerPerformanceCharts callers={dashboard.callers || []} />;
+  if (section === 'profiles') return <ProfilePerformanceCharts profiles={dashboard.funnels?.profiles || []} />;
   return null;
 }
+
+function UserPerformanceCharts({ users }) {
+  const rows = namedPerformanceRows(users);
+  return (
+    <PerformanceChartGrid>
+      <PerformanceVolumeChart title="User volume" data={rows} bars={USER_VOLUME_BARS} />
+      <PerformanceShareChart title="Application share by user" data={rows} dataKey="applications" />
+      <PerformanceRateChart title="User conversion rates" data={rows} bars={FUNNEL_RATE_BARS} />
+      <PerformanceVolumeChart title="User interview outcomes" data={rows} bars={USER_OUTCOME_BARS} />
+    </PerformanceChartGrid>
+  );
+}
+
+function BidderPerformanceCharts({ bidders }) {
+  const rows = namedPerformanceRows(bidders);
+  return (
+    <PerformanceChartGrid>
+      <PerformanceVolumeChart title="Bidder volume" data={rows} bars={BIDDER_VOLUME_BARS} />
+      <PerformanceShareChart title="Application share by bidder" data={rows} dataKey="applications" />
+      <PerformanceRateChart title="Bidder conversion rates" data={rows} bars={BIDDER_RATE_BARS} />
+      <PerformanceVolumeChart title="Bidder outcomes" data={rows} bars={BIDDER_OUTCOME_BARS} />
+    </PerformanceChartGrid>
+  );
+}
+
+function CallerPerformanceCharts({ callers }) {
+  const rows = namedPerformanceRows(callers);
+  return (
+    <PerformanceChartGrid>
+      <PerformanceVolumeChart title="Caller workload" data={rows} bars={CALLER_WORKLOAD_BARS} />
+      <PerformanceShareChart title="Assigned interview share" data={rows} dataKey="assignedInterviews" />
+      <PerformanceRateChart title="Caller coverage and outcomes" data={rows} bars={CALLER_RATE_BARS} />
+      <PerformanceVolumeChart title="Caller interview outcomes" data={rows} bars={CALLER_OUTCOME_BARS} />
+    </PerformanceChartGrid>
+  );
+}
+
+function ProfilePerformanceCharts({ profiles }) {
+  const rows = namedPerformanceRows(profiles);
+  return (
+    <PerformanceChartGrid>
+      <PerformanceVolumeChart title="Profile volume" data={rows} bars={PROFILE_VOLUME_BARS} />
+      <PerformanceShareChart title="Application share by profile" data={rows} dataKey="applications" />
+      <PerformanceRateChart title="Profile conversion rates" data={rows} bars={BIDDER_RATE_BARS} />
+      <PerformanceVolumeChart title="Profile outcomes" data={rows} bars={BIDDER_OUTCOME_BARS} />
+    </PerformanceChartGrid>
+  );
+}
+
+function PerformanceChartGrid({ children }) {
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 1.5 }}>
+      {children}
+    </Box>
+  );
+}
+
+function namedPerformanceRows(rows = []) {
+  return rows.map((row) => ({
+    ...row,
+    name: row.username || row.name || 'Unknown',
+  }));
+}
+
+const FUNNEL_RATE_BARS = [
+  { key: 'applicationToInterviewRate', label: 'App to interview', color: '#2563EB' },
+  { key: 'interviewToOfferRate', label: 'Interview to offer', color: '#0F766E' },
+  { key: 'applicationToOfferRate', label: 'App to offer', color: '#7C3AED' },
+];
+
+const USER_VOLUME_BARS = [
+  { key: 'applications', label: 'Applications', color: '#2563EB' },
+  { key: 'submitted', label: 'Submitted', color: '#0F766E' },
+  { key: 'interviews', label: 'Interviews', color: '#7C3AED' },
+  { key: 'offers', label: 'Offers', color: '#D97706' },
+];
+
+const USER_OUTCOME_BARS = [
+  { key: 'successfulTechnicalInterviews', label: 'Tech success', color: '#0F766E' },
+  { key: 'successfulFinalInterviews', label: 'Final success', color: '#2563EB' },
+  { key: 'offers', label: 'Offers', color: '#7C3AED' },
+  { key: 'lostInterviews', label: 'Lost', color: '#DC2626' },
+];
+
+const BIDDER_VOLUME_BARS = [
+  { key: 'applications', label: 'Applications', color: '#2563EB' },
+  { key: 'interviews', label: 'Interviews', color: '#0F766E' },
+  { key: 'offers', label: 'Offers', color: '#7C3AED' },
+];
+
+const BIDDER_OUTCOME_BARS = [
+  { key: 'interviews', label: 'Interviews', color: '#0F766E' },
+  { key: 'offers', label: 'Offers', color: '#7C3AED' },
+  { key: 'lost', label: 'Lost', color: '#DC2626' },
+];
+
+const BIDDER_RATE_BARS = [
+  ...FUNNEL_RATE_BARS,
+  { key: 'lossRate', label: 'Loss rate', color: '#DC2626' },
+];
+
+const CALLER_WORKLOAD_BARS = [
+  { key: 'assignedInterviews', label: 'Assigned', color: '#2563EB' },
+  { key: 'activeInterviews', label: 'Active', color: '#0F766E' },
+  { key: 'upcomingInterviews', label: 'Upcoming', color: '#7C3AED' },
+  { key: 'unscheduledActiveInterviews', label: 'Unscheduled', color: '#D97706' },
+];
+
+const CALLER_OUTCOME_BARS = [
+  { key: 'completedInterviews', label: 'Completed', color: '#2563EB' },
+  { key: 'wonInterviews', label: 'Won', color: '#0F766E' },
+  { key: 'lostInterviews', label: 'Lost', color: '#DC2626' },
+  { key: 'technicalInterviews', label: 'Technical', color: '#0891B2' },
+  { key: 'finalInterviews', label: 'Final', color: '#7C3AED' },
+];
+
+const CALLER_RATE_BARS = [
+  { key: 'meetingLinkCoverageRate', label: 'Meeting links', color: '#2563EB' },
+  { key: 'callerOfferRate', label: 'Win rate', color: '#0F766E' },
+  { key: 'callerLossRate', label: 'Loss rate', color: '#DC2626' },
+];
+
+const PROFILE_VOLUME_BARS = [
+  { key: 'applications', label: 'Applications', color: '#2563EB' },
+  { key: 'interviews', label: 'Interviews', color: '#0F766E' },
+  { key: 'offers', label: 'Offers', color: '#7C3AED' },
+  { key: 'lost', label: 'Lost', color: '#DC2626' },
+];
 
 function dashboardSectionFor(value) {
   if (['users', 'bidders', 'callers', 'profiles'].includes(value)) return value;
