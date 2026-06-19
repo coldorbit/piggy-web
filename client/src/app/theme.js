@@ -163,7 +163,7 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           '& > .MuiTextField-root:first-of-type, & > .MuiFormControl-root:first-of-type, & > .MuiBox-root:first-of-type > .MuiTextField-root:first-of-type, & > .MuiBox-root:first-of-type > .MuiFormControl-root:first-of-type': {
-            marginTop: 4,
+            marginTop: 8,
           },
           '& .MuiTextField-root, & .MuiFormControl-root': {
             overflow: 'visible',
