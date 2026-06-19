@@ -100,6 +100,10 @@ function currentPeriodPredicate(column, timeZone, alias = 'current_period') {
   return `${localTimestamp} >= ${alias}.starts_at AND ${localTimestamp} < ${alias}.ends_at`;
 }
 
+function rangePredicate(bucketSql, alias = 'range') {
+  return `${bucketSql} >= ${alias}.starts_at AND ${bucketSql} < (${alias}.ends_at + ${alias}.bucket_step)`;
+}
+
 function overallSql(grainConfig, timeZone, anchor) {
   const normalizedTimeZone = normalizeTimeZone(timeZone);
   const jobBucket = bucketExpression('scraped_at', grainConfig, normalizedTimeZone);
@@ -124,7 +128,7 @@ function overallSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE is_spam = false)::int AS reviewed_good_jobs,
         COUNT(*) FILTER (WHERE is_spam IS NULL)::int AS unreviewed_jobs
       FROM scraped_jobs, range
-      WHERE ${jobBucket} >= range.starts_at
+      WHERE ${rangePredicate(jobBucket)}
     ),
     bid_totals AS (
       SELECT
@@ -136,7 +140,7 @@ function overallSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications,
         COUNT(*) FILTER (WHERE status IN ('mismatching_bid', 'spam_job'))::int AS review_blocked_applications
       FROM job_bids, range
-      WHERE ${bidBucket} >= range.starts_at
+      WHERE ${rangePredicate(bidBucket)}
     ),
     daily_bid_totals AS (
       SELECT
@@ -172,7 +176,7 @@ function overallSql(grainConfig, timeZone, anchor) {
         COUNT(*)::int AS tailored_resume_requests,
         COUNT(*) FILTER (WHERE status = 'ready')::int AS ready_tailored_resumes
       FROM tailored_resumes, range
-      WHERE ${tailoringBucket} >= range.starts_at
+      WHERE ${rangePredicate(tailoringBucket)}
     )
     SELECT job_totals.*, bid_totals.*, daily_bid_totals.*, interview_totals.*, tailoring_totals.*
     FROM job_totals
@@ -198,7 +202,7 @@ function trendSql(grainConfig, timeZone, anchor) {
     jobs AS (
       SELECT ${jobBucket} AS bucket_start, COUNT(*)::int AS jobs
       FROM scraped_jobs, range
-      WHERE ${jobBucket} >= starts_at
+      WHERE ${rangePredicate(jobBucket)}
       GROUP BY 1
     ),
     bids AS (
@@ -210,13 +214,13 @@ function trendSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'won')::int AS won_applications,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications
       FROM job_bids, range
-      WHERE ${bidBucket} >= starts_at
+      WHERE ${rangePredicate(bidBucket)}
       GROUP BY 1
     ),
     interviews_created AS (
       SELECT ${interviewCreatedBucket} AS bucket_start, COUNT(*)::int AS interviews
       FROM interviews, range
-      WHERE ${interviewCreatedBucket} >= starts_at
+      WHERE ${rangePredicate(interviewCreatedBucket)}
       GROUP BY 1
     ),
     interview_outcomes AS (
@@ -230,7 +234,7 @@ function trendSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'won')::int AS offers,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_interviews
       FROM interviews, range
-      WHERE ${interviewUpdatedBucket} >= starts_at
+      WHERE ${rangePredicate(interviewUpdatedBucket)}
       GROUP BY 1
     )
     SELECT
@@ -267,6 +271,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
 
   return `
     ${rangeCte(grainConfig, timeZone, anchor)},
+    ${currentPeriodCte(grainConfig, timeZone, anchor)},
     bid_metrics AS (
       SELECT
         user_id,
@@ -280,7 +285,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
         MIN(bid_at) AS first_application_at,
         MAX(bid_at) AS last_application_at
       FROM job_bids, range
-      WHERE ${bidBucket} >= starts_at
+      WHERE ${rangePredicate(bidBucket)}
       GROUP BY user_id
     ),
     interview_created_metrics AS (
@@ -296,7 +301,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
       FROM interviews
       LEFT JOIN job_bids linked_bid ON linked_bid.id = interviews.job_bid_id
       CROSS JOIN range
-      WHERE ${interviewCreatedBucket} >= starts_at
+      WHERE ${rangePredicate(interviewCreatedBucket)}
       GROUP BY interviews.user_id
     ),
     interview_activity_metrics AS (
@@ -309,12 +314,16 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE interviews.status = 'won')::int AS successful_final_interviews,
         COUNT(*) FILTER (WHERE interviews.status = 'won')::int AS offers,
         COUNT(*) FILTER (WHERE interviews.status = 'lost')::int AS lost_interviews,
-        COUNT(*) FILTER (WHERE interviews.interview_next_at >= now())::int AS upcoming_interviews,
+        COUNT(*) FILTER (
+          WHERE interviews.interview_next_at IS NOT NULL
+            AND ${currentPeriodPredicate('interviews.interview_next_at', timeZone)}
+        )::int AS upcoming_interviews,
         COUNT(*) FILTER (WHERE interviews.interview_next_at IS NULL AND interviews.status = 'interviewing')::int AS unscheduled_active_interviews,
         MAX(interviews.updated_at) AS last_interview_activity_at
       FROM interviews
       CROSS JOIN range
-      WHERE ${interviewActivityBucket} >= starts_at
+      CROSS JOIN current_period
+      WHERE ${rangePredicate(interviewActivityBucket)}
       GROUP BY interviews.user_id
     ),
     profile_metrics AS (
@@ -340,7 +349,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'dead_letter')::int AS failed_tailored_resumes,
         COUNT(*) FILTER (WHERE downloaded_at IS NOT NULL)::int AS downloaded_tailored_resumes
       FROM tailored_resumes, range
-      WHERE ${tailoringBucket} >= starts_at
+      WHERE ${rangePredicate(tailoringBucket)}
       GROUP BY user_id
     )
     SELECT
@@ -407,6 +416,7 @@ function callerPerformanceSql(grainConfig, timeZone, anchor) {
 
   return `
     ${rangeCte(grainConfig, timeZone, anchor)},
+    ${currentPeriodCte(grainConfig, timeZone, anchor)},
     caller_created_metrics AS (
       SELECT
         caller_user_id AS user_id,
@@ -414,7 +424,7 @@ function callerPerformanceSql(grainConfig, timeZone, anchor) {
         MIN(created_at) AS first_assignment_at
       FROM interviews, range
       WHERE caller_user_id IS NOT NULL
-        AND ${callerCreatedBucket} >= starts_at
+        AND ${rangePredicate(callerCreatedBucket)}
       GROUP BY caller_user_id
     ),
     caller_activity_metrics AS (
@@ -424,7 +434,10 @@ function callerPerformanceSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status IN ('won', 'lost'))::int AS completed_interviews,
         COUNT(*) FILTER (WHERE status = 'won')::int AS won_interviews,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_interviews,
-        COUNT(*) FILTER (WHERE interview_next_at >= now())::int AS upcoming_interviews,
+        COUNT(*) FILTER (
+          WHERE interviews.interview_next_at IS NOT NULL
+            AND ${currentPeriodPredicate('interviews.interview_next_at', timeZone)}
+        )::int AS upcoming_interviews,
         COUNT(*) FILTER (WHERE interview_next_at IS NULL AND status = 'interviewing')::int AS unscheduled_active_interviews,
         COUNT(*) FILTER (WHERE stage_meeting_links IS NOT NULL AND stage_meeting_links <> '{}'::jsonb)::int AS interviews_with_meeting_links,
         COUNT(*) FILTER (WHERE interview_stage = 'screening')::int AS screening_interviews,
@@ -433,8 +446,9 @@ function callerPerformanceSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE interview_stage = 'final')::int AS final_interviews,
         MAX(updated_at) AS last_assignment_activity_at
       FROM interviews, range
+      CROSS JOIN current_period
       WHERE caller_user_id IS NOT NULL
-        AND ${callerActivityBucket} >= starts_at
+        AND ${rangePredicate(callerActivityBucket)}
       GROUP BY caller_user_id
     )
     SELECT
@@ -486,7 +500,7 @@ function bidderPerformanceSql(grainConfig, timeZone, anchor) {
       FROM job_bids
       LEFT JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
       CROSS JOIN range
-      WHERE ${bidBucket} >= starts_at
+      WHERE ${rangePredicate(bidBucket)}
       GROUP BY job_bids.user_id
     ),
     scheduled_interview_metrics AS (
@@ -562,7 +576,7 @@ function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, 
     ${joins}
     LEFT JOIN interviews ON interviews.job_bid_id = job_bids.id
     CROSS JOIN range
-    WHERE ${bidBucket} >= starts_at
+    WHERE ${rangePredicate(bidBucket)}
     GROUP BY ${groupBy}
     ORDER BY offers DESC, interviews DESC, applications DESC, ${alias} ASC
     LIMIT 24
@@ -606,7 +620,7 @@ function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false, time
       JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
       ${joinProfile ? 'JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id' : ''}
       CROSS JOIN range
-      WHERE ${bidBucket} >= starts_at
+      WHERE ${rangePredicate(bidBucket)}
       GROUP BY job_bids.user_id, ${dimension}
     )
     SELECT user_id, ${alias}, count
@@ -640,7 +654,7 @@ function profileActivitySql(grainConfig, timeZone, anchor) {
     JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id
     JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
     CROSS JOIN range
-    WHERE ${bidBucket} >= starts_at
+    WHERE ${rangePredicate(bidBucket)}
     ORDER BY job_bids.bid_at DESC, job_bids.id DESC
     LIMIT 200
   `;
@@ -654,7 +668,7 @@ function sourceBreakdownSql(grainConfig, timeZone, anchor) {
     SELECT COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source, COUNT(*)::int AS count
     FROM job_bids
     JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id, range
-    WHERE ${bidBucket} >= starts_at
+    WHERE ${rangePredicate(bidBucket)}
     GROUP BY 1
     ORDER BY count DESC, source ASC
     LIMIT 12
@@ -668,7 +682,7 @@ function bidStatusBreakdownSql(grainConfig, timeZone, anchor) {
     ${rangeCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
     FROM job_bids, range
-    WHERE ${bidBucket} >= starts_at
+    WHERE ${rangePredicate(bidBucket)}
     GROUP BY 1
     ORDER BY count DESC, status ASC
   `;
@@ -681,7 +695,7 @@ function interviewStageBreakdownSql(grainConfig, timeZone, anchor) {
     ${rangeCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(interview_stage, ''), 'unknown') AS stage, COUNT(*)::int AS count
     FROM interviews, range
-    WHERE ${interviewCreatedBucket} >= starts_at
+    WHERE ${rangePredicate(interviewCreatedBucket)}
     GROUP BY 1
     ORDER BY count DESC, stage ASC
   `;
@@ -694,7 +708,7 @@ function interviewStatusBreakdownSql(grainConfig, timeZone, anchor) {
     ${rangeCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
     FROM interviews, range
-    WHERE ${interviewCreatedBucket} >= starts_at
+    WHERE ${rangePredicate(interviewCreatedBucket)}
     GROUP BY 1
     ORDER BY count DESC, status ASC
   `;

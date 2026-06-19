@@ -8,8 +8,8 @@ import TodayIcon from '@mui/icons-material/Today';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WorkIcon from '@mui/icons-material/Work';
 import { Alert, Box, Button, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
-import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import {
   ActivityTrendChart,
   BreakdownChart,
@@ -28,8 +28,10 @@ import { formatFirstNameLastInitial } from '../lib/formatters.js';
 
 export default function AdminDashboardPage() {
   const { section } = useParams();
-  const [grain, setGrain] = useState('daily');
-  const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dashboardSearch = searchParams.toString();
+  const [grain, setGrain] = useState(() => dashboardGrainFrom(searchParams.get('grain')));
+  const [anchorDate, setAnchorDate] = useState(() => dashboardAnchorFrom(searchParams.get('anchorDate')));
   const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString() }), [anchorDate, grain]);
   const { data: dashboard, isLoading, error } = useAdminDashboard(dashboardFilters);
   const activeSection = dashboardSectionFor(section);
@@ -37,13 +39,40 @@ export default function AdminDashboardPage() {
   const trend = dashboard?.trend || [];
   const profileFunnels = displayProfileRows(dashboard?.funnels?.profiles || []);
 
+  useEffect(() => {
+    const nextSearchParams = new URLSearchParams(dashboardSearch);
+    const nextGrain = dashboardGrainFrom(nextSearchParams.get('grain'));
+    const nextAnchorDate = dashboardAnchorFrom(nextSearchParams.get('anchorDate'));
+    setGrain((current) => (current === nextGrain ? current : nextGrain));
+    setAnchorDate((current) => (sameDashboardDate(current, nextAnchorDate) ? current : nextAnchorDate));
+  }, [dashboardSearch]);
+
   function changeGrain(nextGrain) {
     if (!nextGrain) return;
-    setGrain(nextGrain);
+    updateDashboardFilters(nextGrain, anchorDate);
   }
 
   function movePeriod(direction) {
-    setAnchorDate((current) => addDashboardPeriod(current, grain, direction));
+    updateDashboardFilters(grain, addDashboardPeriod(anchorDate, grain, direction));
+  }
+
+  function resetToToday() {
+    updateDashboardFilters(grain, new Date());
+  }
+
+  function updateDashboardFilters(nextGrain, nextAnchorDate) {
+    setGrain(nextGrain);
+    setAnchorDate(nextAnchorDate);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (nextGrain === DEFAULT_DASHBOARD_GRAIN) {
+        next.delete('grain');
+      } else {
+        next.set('grain', nextGrain);
+      }
+      next.set('anchorDate', nextAnchorDate.toISOString());
+      return next;
+    }, { replace: true });
   }
 
   return (
@@ -55,7 +84,7 @@ export default function AdminDashboardPage() {
         periodLabel={labelForDashboardPeriod(grain, anchorDate)}
         onGrainChange={changeGrain}
         onMove={movePeriod}
-        onToday={() => setAnchorDate(new Date())}
+        onToday={resetToToday}
       />
 
       {error ? <Alert severity="error">{error.message}</Alert> : null}
@@ -249,6 +278,21 @@ const PROFILE_VOLUME_BARS = [
 function dashboardSectionFor(value) {
   if (['users', 'bidders', 'callers', 'profiles'].includes(value)) return value;
   return '';
+}
+
+const DEFAULT_DASHBOARD_GRAIN = 'daily';
+
+function dashboardGrainFrom(value) {
+  return GRAIN_OPTIONS.some((option) => option.value === value) ? value : DEFAULT_DASHBOARD_GRAIN;
+}
+
+function dashboardAnchorFrom(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function sameDashboardDate(left, right) {
+  return left instanceof Date && right instanceof Date && left.getTime() === right.getTime();
 }
 
 function DashboardHeader({ generatedAt, grain, isLoading, onGrainChange, onMove, onToday, periodLabel }) {

@@ -117,6 +117,7 @@ export default function AppLayout({ user }) {
   const isCaller = user.role === ROLES.caller;
   const isDrawerCollapsed = isDesktop && isSidebarCollapsed;
   const drawerWidth = isDrawerCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH;
+  const adminDashboardSearch = isAdminDashboardRoute ? location.search : '';
   const handleOpenMailboxNotification = useCallback((message) => {
     const profileId = message?.matchedProfile?.id;
     const params = new URLSearchParams();
@@ -274,8 +275,8 @@ export default function AppLayout({ user }) {
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.35 }}>
           {isAdminRole(user) ? (
             <>
-              <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
-              <DashboardSubNav collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
+              <NavItem to={dashboardNavTarget('/admin/dashboard', adminDashboardSearch)} icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
+              <DashboardSubNav collapsed={isDrawerCollapsed} search={adminDashboardSearch} onNavigate={() => setMobileOpen(false)} />
             </>
           ) : null}
           {canViewPersonalDashboard ? (
@@ -607,7 +608,7 @@ function mailboxNotificationTooltip(mailboxNotifications) {
   return 'Enable email notifications';
 }
 
-function DashboardSubNav({ collapsed = false, onNavigate }) {
+function DashboardSubNav({ collapsed = false, onNavigate, search = '' }) {
   const items = [
     { to: '/admin/dashboard/users', icon: <PeopleIcon />, label: 'User performance' },
     { to: '/admin/dashboard/bidders', icon: <LeaderboardIcon />, label: 'Bidder performance' },
@@ -620,7 +621,7 @@ function DashboardSubNav({ collapsed = false, onNavigate }) {
       {items.map((item) => (
         <NavItem
           key={item.to}
-          to={item.to}
+          to={dashboardNavTarget(item.to, search)}
           icon={item.icon}
           label={item.label}
           collapsed={collapsed}
@@ -630,6 +631,10 @@ function DashboardSubNav({ collapsed = false, onNavigate }) {
       ))}
     </Box>
   );
+}
+
+function dashboardNavTarget(pathname, search = '') {
+  return search ? { pathname, search } : pathname;
 }
 
 function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = false, icon, label, nested = false, onNavigate, to }) {
