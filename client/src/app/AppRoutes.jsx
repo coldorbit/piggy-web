@@ -170,6 +170,14 @@ export function AuthenticatedRoutes({ user }) {
           }
         />
         <Route
+          path="/admin/dashboard/:section"
+          element={
+            <RequireAdmin user={user}>
+              <AdminDashboardPage currentUser={user} />
+            </RequireAdmin>
+          }
+        />
+        <Route
           path="/admin/consumption"
           element={
             <RequireConsumptionAccess user={user}>

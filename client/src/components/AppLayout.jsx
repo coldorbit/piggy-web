@@ -273,7 +273,10 @@ export default function AppLayout({ user }) {
       <Box sx={{ px: isDrawerCollapsed ? 0.75 : 1, py: 1 }}>
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.35 }}>
           {isAdminRole(user) ? (
-            <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
+            <>
+              <NavItem to="/admin/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
+              <DashboardSubNav collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
+            </>
           ) : null}
           {canViewPersonalDashboard ? (
             <NavItem to="/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
@@ -604,7 +607,32 @@ function mailboxNotificationTooltip(mailboxNotifications) {
   return 'Enable email notifications';
 }
 
-function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = false, icon, label, onNavigate, to }) {
+function DashboardSubNav({ collapsed = false, onNavigate }) {
+  const items = [
+    { to: '/admin/dashboard/users', icon: <PeopleIcon />, label: 'User performance' },
+    { to: '/admin/dashboard/bidders', icon: <LeaderboardIcon />, label: 'Bidder performance' },
+    { to: '/admin/dashboard/callers', icon: <PhoneInTalkIcon />, label: 'Caller performance' },
+    { to: '/admin/dashboard/profiles', icon: <BadgeIcon />, label: 'Profile performance' },
+  ];
+
+  return (
+    <Box sx={{ display: 'grid', gap: 0.25, mt: 0.25, mb: 0.5, pl: collapsed ? 0 : 1 }}>
+      {items.map((item) => (
+        <NavItem
+          key={item.to}
+          to={item.to}
+          icon={item.icon}
+          label={item.label}
+          collapsed={collapsed}
+          nested={!collapsed}
+          onNavigate={onNavigate}
+        />
+      ))}
+    </Box>
+  );
+}
+
+function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = false, icon, label, nested = false, onNavigate, to }) {
   const badgeCount = Math.max(Number(badgeContent || 0), 0);
   const hasBadge = badgeCount > 0;
   const accessibleLabel = hasBadge ? `${label}, ${badgeCount.toLocaleString()} unread` : label;
@@ -635,13 +663,13 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
       onClick={onNavigate}
       aria-label={accessibleLabel}
       sx={{
-        minHeight: collapsed ? 42 : 38,
+        minHeight: collapsed ? 42 : nested ? 32 : 38,
         width: collapsed ? 42 : '100%',
         borderRadius: 1,
         border: 1,
         borderColor: 'transparent',
         mx: collapsed ? 'auto' : 0,
-        px: collapsed ? 0 : 1,
+        px: collapsed ? 0 : nested ? 0.75 : 1,
         justifyContent: collapsed ? 'center' : 'flex-start',
         color: alwaysHighlighted ? '#0F766E' : 'text.secondary',
         '& .MuiListItemIcon-root': { color: alwaysHighlighted ? '#0F766E' : 'text.secondary' },
@@ -660,7 +688,7 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
         sx={{
           minWidth: collapsed ? 0 : 32,
           justifyContent: 'center',
-          '& .MuiSvgIcon-root': { fontSize: 20 },
+          '& .MuiSvgIcon-root': { fontSize: nested ? 17 : 20 },
         }}
       >
         {hasBadge ? (
@@ -674,7 +702,7 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
           </MuiBadge>
         ) : icon}
       </ListItemIcon>
-      {!collapsed ? <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 700, fontSize: 13 }} /> : null}
+      {!collapsed ? <ListItemText primary={label} primaryTypographyProps={{ fontWeight: nested ? 650 : 700, fontSize: nested ? 12 : 13 }} /> : null}
     </ListItemButton>
   );
 
