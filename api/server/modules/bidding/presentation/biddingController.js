@@ -49,7 +49,15 @@ import { enqueueTailoredResumeRequest } from '../application/tailoringQueueServi
 import { userAttributesFromBody } from '../../admin/application/usersService.js';
 import { clean } from '../../../utils/index.js';
 import { handleInputError, handleUserWriteError, InputError, NotFoundError } from '../../../utils/errors.js';
-import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, INTERNAL_DATA_ROLES, INTERVIEW_ACCESS_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../../../utils/roles.js';
+import {
+  BIDDER_ROLES,
+  INTERNAL_DATA_ROLES,
+  INTERVIEW_ACCESS_ROLES,
+  PRIVILEGED_USER_ROLES,
+  canManageCallers as canManageCallersRole,
+  isAdminRole,
+  isSuperadmin,
+} from '../../../utils/roles.js';
 import {
   addLocalDays,
   localDateKeyDaysAgo,
@@ -1067,7 +1075,7 @@ function requireCallerManagementUser(user, res) {
 }
 
 function canManageCallers(user) {
-  return !CALLER_BLOCKED_ROLES.includes(user?.role);
+  return canManageCallersRole(user);
 }
 
 function ensureProfileBidEligible(profile, res) {

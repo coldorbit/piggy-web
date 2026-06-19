@@ -52,15 +52,17 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useUpdateMe } from '../lib/authApi.js';
 import { useMailboxNotifications } from '../lib/mailboxNotifications.js';
 import {
-  CALLER_BLOCKED_ROLES,
-  INTERVIEW_ROLES,
   MARKETPLACE_ACCESS_ROLES,
   ROLES,
+  canAccessBidderDirectory,
   canAccessBidWorkspace,
   canAccessConsumption,
   canAccessAssessments,
+  canAccessInbox,
+  canAccessInterviews,
   canAccessJobs,
   canAccessPersonalDashboard,
+  canManageCallers,
   isAdminRole,
   roleLabel,
 } from '../lib/roles.js';
@@ -103,10 +105,11 @@ export default function AppLayout({ user }) {
     () => ({ search: headerSearch, setSearch: setHeaderSearch }),
     [headerSearch],
   );
-  const canAccessInterviews = INTERVIEW_ROLES.includes(user.role);
+  const canViewInterviews = canAccessInterviews(user);
   const canAccessMarketplace = MARKETPLACE_ACCESS_ROLES.includes(user.role);
-  const canManageCallers = !CALLER_BLOCKED_ROLES.includes(user.role);
-  const canAccessInbox = !CALLER_BLOCKED_ROLES.includes(user.role);
+  const canViewCallers = canManageCallers(user);
+  const canViewInbox = canAccessInbox(user);
+  const canViewBidders = canAccessBidderDirectory(user);
   const canViewAssessments = canAccessAssessments(user);
   const canViewBidWorkspace = canAccessBidWorkspace(user);
   const canViewJobs = canAccessJobs(user);
@@ -123,7 +126,7 @@ export default function AppLayout({ user }) {
     navigate(`/inbox${query ? `?${query}` : ''}`);
   }, [navigate]);
   const mailboxNotifications = useMailboxNotifications({
-    enabled: canAccessInbox,
+    enabled: canViewInbox,
     onOpenMessage: handleOpenMailboxNotification,
     user,
   });
@@ -283,10 +286,10 @@ export default function AppLayout({ user }) {
             <NavItem to="/bids" icon={<AssignmentIcon />} label="Applications" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canViewAssessments ? <NavItem to="/assessments" icon={<QuizIcon />} label="Assessments" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
-          {canViewBidWorkspace && !isCaller && [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder].includes(user.role) ? (
+          {canViewBidders && !isCaller ? (
             <NavItem to="/bidders" icon={<LeaderboardIcon />} label="Bidders" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {canAccessInbox ? (
+          {canViewInbox ? (
             <NavItem
               to="/inbox"
               icon={<InboxIcon />}
@@ -296,16 +299,16 @@ export default function AppLayout({ user }) {
               onNavigate={() => setMobileOpen(false)}
             />
           ) : null}
-          {canAccessInterviews ? (
+          {canViewInterviews ? (
             <NavItem to="/interviews" icon={<EventNoteIcon />} label="Interviews" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {canAccessInterviews ? (
+          {canViewInterviews ? (
             <NavItem to="/calendar" icon={<CalendarMonthIcon />} label="Calendar" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canAccessMarketplace ? (
             <NavItem to="/marketplace" icon={<HandshakeIcon />} label="Marketplace" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {canManageCallers ? (
+          {canViewCallers ? (
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canViewBidWorkspace && !isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
@@ -505,7 +508,7 @@ export default function AppLayout({ user }) {
                   {user.username}
                 </Typography>
               </Box>
-              {canAccessInbox ? (
+              {canViewInbox ? (
                 <Tooltip title={mailboxNotificationTooltip(mailboxNotifications)}>
                   <span>
                     <IconButton

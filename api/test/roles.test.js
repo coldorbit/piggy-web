@@ -3,9 +3,12 @@ import { describe, it } from 'node:test';
 import {
   ROLES,
   VALID_USER_ROLES,
+  canAccessBidderDirectory,
   canAccessBidWorkspace,
+  canAccessInbox,
   canAccessJobs,
   canAccessPersonalDashboard,
+  canManageCallers,
 } from '../server/utils/roles.js';
 
 describe('role permissions', () => {
@@ -26,8 +29,18 @@ describe('role permissions', () => {
     assert.equal(canAccessBidWorkspace({ role: 'unknown' }), false);
   });
 
-  it('keeps callers out of jobs while preserving application workspace access', () => {
+  it('keeps callers in interview-only surfaces and out of jobs/applications', () => {
     assert.equal(canAccessJobs({ role: ROLES.caller }), false);
-    assert.equal(canAccessBidWorkspace({ role: ROLES.caller }), true);
+    assert.equal(canAccessBidWorkspace({ role: ROLES.caller }), false);
+    assert.equal(canAccessInbox({ role: ROLES.caller }), false);
+  });
+
+  it('separates bidder, inbox, and caller-management access by role family', () => {
+    assert.equal(canAccessBidderDirectory({ role: ROLES.user }), true);
+    assert.equal(canAccessBidderDirectory({ role: ROLES.editableBidder }), true);
+    assert.equal(canAccessInbox({ role: ROLES.financeManager }), true);
+    assert.equal(canAccessInbox({ role: ROLES.readonlyBidder }), false);
+    assert.equal(canManageCallers({ role: ROLES.admin }), true);
+    assert.equal(canManageCallers({ role: ROLES.user }), false);
   });
 });

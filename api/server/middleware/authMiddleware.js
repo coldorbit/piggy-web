@@ -1,10 +1,15 @@
 import { readValidSession } from '../../auth.js';
 import {
   MARKETPLACE_ACCESS_ROLES,
+  canAccessBidderDirectory,
   canAccessAssessments,
   canAccessBidWorkspace,
   canAccessConsumption,
+  canAccessInbox,
+  canAccessInterviews,
   canAccessJobs,
+  canAccessPersonalDashboard,
+  canManageCallers,
   isAdminRole,
   isSuperadmin,
 } from '../utils/roles.js';
@@ -77,6 +82,77 @@ export function requireBidWorkspaceAccess(req, res, next) {
   requireAuth(req, res, () => {
     if (!canAccessBidWorkspace(req.user)) {
       res.status(403).json({ error: 'Application access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requirePersonalDashboardAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canAccessPersonalDashboard(req.user)) {
+      res.status(403).json({ error: 'Dashboard access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireInterviewAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canAccessInterviews(req.user)) {
+      res.status(403).json({ error: 'Interview access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireBidJobsAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    const bidTab = String(req.query?.bidTab || '').toLowerCase();
+    if (bidTab === 'interviews' ? canAccessInterviews(req.user) : canAccessBidWorkspace(req.user)) {
+      next();
+      return;
+    }
+    res.status(403).json({ error: bidTab === 'interviews' ? 'Interview access required' : 'Application access required' });
+  });
+}
+
+export function requireBidOrInterviewAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (canAccessBidWorkspace(req.user) || canAccessInterviews(req.user)) {
+      next();
+      return;
+    }
+    res.status(403).json({ error: 'Application or interview access required' });
+  });
+}
+
+export function requireBidderDirectoryAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canAccessBidderDirectory(req.user)) {
+      res.status(403).json({ error: 'Bidder access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireInboxAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canAccessInbox(req.user)) {
+      res.status(403).json({ error: 'Inbox access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireCallerManagement(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canManageCallers(req.user)) {
+      res.status(403).json({ error: 'Caller management requires an admin role' });
       return;
     }
     next();

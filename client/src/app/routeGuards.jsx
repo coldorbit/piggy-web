@@ -1,14 +1,16 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import {
-  CALLER_BLOCKED_ROLES,
-  INTERVIEW_ROLES,
   MARKETPLACE_ACCESS_ROLES,
   ROLES,
   canAccessAssessments,
+  canAccessBidderDirectory,
   canAccessBidWorkspace,
   canAccessConsumption,
+  canAccessInbox,
+  canAccessInterviews,
   canAccessJobs,
   canAccessPersonalDashboard,
+  canManageCallers,
   isAdminRole,
   isSuperadmin,
 } from '../lib/roles.js';
@@ -59,7 +61,13 @@ export function RequireBidWorkspaceAccess({ user, children }) {
 
 export function RequireInterviewAccess({ user, children }) {
   const location = useLocation();
-  if (!INTERVIEW_ROLES.includes(user.role)) return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
+  if (!canAccessInterviews(user)) return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
+  return children;
+}
+
+export function RequireBidderDirectoryAccess({ user, children }) {
+  const location = useLocation();
+  if (!canAccessBidderDirectory(user)) return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
   return children;
 }
 
@@ -71,13 +79,13 @@ export function BlockCallers({ user, children }) {
 
 export function RequireCallerManagement({ user, children }) {
   const location = useLocation();
-  if (CALLER_BLOCKED_ROLES.includes(user.role)) return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
+  if (!canManageCallers(user)) return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
   return children;
 }
 
 export function RequireInboxAccess({ user, children }) {
   const location = useLocation();
-  if (CALLER_BLOCKED_ROLES.includes(user.role)) return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
+  if (!canAccessInbox(user)) return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
   return children;
 }
 

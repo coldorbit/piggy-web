@@ -39,15 +39,9 @@ export function dashboardQueries(grainConfig, { anchorDate, timeZone = DEFAULT_T
 function funnelMetricsSelect() {
   return `
     COUNT(DISTINCT job_bids.id)::int AS applications,
-    COUNT(DISTINCT job_bids.id) FILTER (
-      WHERE interviews.id IS NOT NULL OR job_bids.status IN ('interviewing', 'won', 'lost')
-    )::int AS interviews,
-    COUNT(DISTINCT job_bids.id) FILTER (
-      WHERE COALESCE(interviews.status, job_bids.status) = 'won'
-    )::int AS offers,
-    COUNT(DISTINCT job_bids.id) FILTER (
-      WHERE COALESCE(interviews.status, job_bids.status) = 'lost'
-    )::int AS lost
+    COUNT(DISTINCT interviews.id)::int AS interviews,
+    COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'won')::int AS offers,
+    COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'lost')::int AS lost
   `;
 }
 

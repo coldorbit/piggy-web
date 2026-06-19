@@ -61,4 +61,14 @@ describe('dashboard queries', () => {
     assert.match(queries.interviewStatuses, /timezone\('America\/Los_Angeles', created_at\)\) >= starts_at/);
     assert.doesNotMatch(queries.interviewStatuses, /COALESCE\(updated_at, created_at\)/);
   });
+
+  it('uses interviews table rows as the dashboard funnel source of truth', () => {
+    const sql = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles' }).profileFunnels;
+
+    assert.match(sql, /COUNT\(DISTINCT interviews\.id\)::int AS interviews/);
+    assert.match(sql, /COUNT\(DISTINCT interviews\.id\) FILTER \(WHERE interviews\.status = 'won'\)::int AS offers/);
+    assert.match(sql, /COUNT\(DISTINCT interviews\.id\) FILTER \(WHERE interviews\.status = 'lost'\)::int AS lost/);
+    assert.doesNotMatch(sql, /job_bids\.status IN \('interviewing', 'won', 'lost'\)/);
+    assert.doesNotMatch(sql, /COALESCE\(interviews\.status, job_bids\.status\)/);
+  });
 });

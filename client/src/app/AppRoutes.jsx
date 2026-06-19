@@ -5,6 +5,7 @@ import {
   BlockCallers,
   RequireAssessmentAccess,
   RequireAdmin,
+  RequireBidderDirectoryAccess,
   RequireBidWorkspaceAccess,
   RequireCallerManagement,
   RequireConsumptionAccess,
@@ -86,11 +87,11 @@ export function AuthenticatedRoutes({ user }) {
         <Route
           path="/bidders"
           element={
-            <RequireBidWorkspaceAccess user={user}>
+            <RequireBidderDirectoryAccess user={user}>
               <BlockCallers user={user}>
                 <BiddersPage currentUser={user} />
               </BlockCallers>
-            </RequireBidWorkspaceAccess>
+            </RequireBidderDirectoryAccess>
           }
         />
         <Route
