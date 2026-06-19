@@ -20,7 +20,8 @@ export default function App() {
 function GrowthBookMaintenanceGate() {
   const growthbook = useGrowthBook();
   const maintenanceModeEnabled = useFeatureIsOn(FEATURE_FLAGS.maintenanceMode.key);
-  if (!growthbook.ready || maintenanceModeEnabled || isLocalMaintenanceModeEnabled()) return <MaintenanceRedirect />;
+  if (!growthbook.ready) return <ShellLoading />;
+  if (maintenanceModeEnabled || isLocalMaintenanceModeEnabled()) return <MaintenanceRedirect />;
 
   return <WorkspaceApp />;
 }
