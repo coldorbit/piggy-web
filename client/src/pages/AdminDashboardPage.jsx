@@ -4,10 +4,13 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import LeaderboardIcon from '@mui/icons-material/Leaderboard';
+import PeopleIcon from '@mui/icons-material/People';
+import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import TodayIcon from '@mui/icons-material/Today';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WorkIcon from '@mui/icons-material/Work';
-import { Alert, Box, Button, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tab, Tabs, Tooltip, Typography } from '@mui/material';
 import { useMemo, useState } from 'react';
 import BidderPerformanceTable from '../components/adminDashboard/BidderPerformanceTable.jsx';
 import CallerPerformanceTable from '../components/adminDashboard/CallerPerformanceTable.jsx';
@@ -22,6 +25,7 @@ import { useAdminDashboard } from '../lib/api.js';
 export default function AdminDashboardPage() {
   const [grain, setGrain] = useState('daily');
   const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const [performanceView, setPerformanceView] = useState('users');
   const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString() }), [anchorDate, grain]);
   const { data: dashboard, isLoading, error } = useAdminDashboard(dashboardFilters);
   const totals = dashboard?.totals || {};
@@ -78,16 +82,86 @@ export default function AdminDashboardPage() {
             <FunnelConversionChart title="Role family success ratios" data={dashboard.funnels?.roleFamilies || []} />
           </Box>
 
-          <BidderPerformanceTable bidders={dashboard.bidders || []} />
-          <UserPerformanceTable users={dashboard.users || []} />
+          <PerformanceSubmenus
+            callers={dashboard.callers || []}
+            bidders={dashboard.bidders || []}
+            users={dashboard.users || []}
+            value={performanceView}
+            onChange={setPerformanceView}
+          />
           <ProfileActivityTable rows={dashboard.profileActivity || []} />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 1.5 }}>
             <FunnelPerformanceTable title="Profile funnel performance" rows={dashboard.funnels?.profiles || []} />
             <FunnelPerformanceTable title="Role family funnel performance" rows={dashboard.funnels?.roleFamilies || []} />
           </Box>
-          <CallerPerformanceTable callers={dashboard.callers || []} />
         </>
       ) : null}
+    </Box>
+  );
+}
+
+function PerformanceSubmenus({ bidders, callers, onChange, users, value }) {
+  const tabs = [
+    {
+      value: 'users',
+      label: 'User performance',
+      count: users.length,
+      icon: <PeopleIcon fontSize="small" />,
+      panel: <UserPerformanceTable users={users} />,
+    },
+    {
+      value: 'bidders',
+      label: 'Bidder performance',
+      count: bidders.length,
+      icon: <LeaderboardIcon fontSize="small" />,
+      panel: <BidderPerformanceTable bidders={bidders} />,
+    },
+    {
+      value: 'callers',
+      label: 'Caller performance',
+      count: callers.length,
+      icon: <PhoneInTalkIcon fontSize="small" />,
+      panel: <CallerPerformanceTable callers={callers} />,
+    },
+  ];
+  const activeTab = tabs.find((tab) => tab.value === value) || tabs[0];
+
+  return (
+    <Box sx={{ display: 'grid', gap: 1 }}>
+      <Paper variant="outlined" sx={{ px: 1, py: 0.75, boxShadow: 1, overflow: 'hidden' }}>
+        <Tabs
+          aria-label="Dashboard performance submenu"
+          value={activeTab.value}
+          onChange={(_event, nextValue) => onChange(nextValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            minHeight: 38,
+            '& .MuiTabs-indicator': { height: 3, borderRadius: 999 },
+            '& .MuiTab-root': {
+              minHeight: 38,
+              px: 1.25,
+              borderRadius: 1,
+              alignItems: 'center',
+              textTransform: 'none',
+              fontWeight: 900,
+              color: 'text.secondary',
+              '&.Mui-selected': { bgcolor: '#EFF6FF', color: 'primary.dark' },
+            },
+          }}
+        >
+          {tabs.map((tab) => (
+            <Tab
+              key={tab.value}
+              value={tab.value}
+              icon={tab.icon}
+              iconPosition="start"
+              label={`${tab.label} (${number(tab.count)})`}
+            />
+          ))}
+        </Tabs>
+      </Paper>
+      {activeTab.panel}
     </Box>
   );
 }
