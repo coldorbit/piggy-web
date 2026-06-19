@@ -41,10 +41,25 @@ export function formatDefaultTimezoneLabel(value) {
   return value ? defaultTimezoneAbbreviation(value) : DEFAULT_TIME_ZONE_LABEL;
 }
 
+export function formatFirstNameLastInitial(value, fallback = 'Unknown') {
+  const name = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!name) return fallback;
+  if (/^unknown(?:\s+\w+)?$/i.test(name)) return name;
+
+  const parts = name.split(' ');
+  if (parts.length < 2) return name;
+
+  return `${capitalizeNamePart(parts[0])} ${parts[parts.length - 1].charAt(0).toUpperCase()}`;
+}
+
 export function spamStatusLabel(job) {
   if (job.isSpam === true) return `Spam${job.spamReviewedAt ? ` on ${formatDateTime(job.spamReviewedAt)}` : ''}`;
   if (job.isSpam === false) return `Not spam${job.spamReviewedAt ? ` on ${formatDateTime(job.spamReviewedAt)}` : ''}`;
   return 'Unreviewed';
+}
+
+function capitalizeNamePart(value) {
+  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value;
 }
 
 function formatUtcDateParts(parts) {

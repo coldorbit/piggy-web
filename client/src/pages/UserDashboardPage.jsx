@@ -38,6 +38,7 @@ import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { labelize, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { usePersonalDashboard } from '../lib/api.js';
+import { formatFirstNameLastInitial } from '../lib/formatters.js';
 
 export default function UserDashboardPage() {
   const { data: dashboard, isLoading, error } = usePersonalDashboard();
@@ -185,7 +186,7 @@ function UpcomingInterviewsTable({ rows }) {
                     {[row.company, row.location].filter(Boolean).join(' · ')}
                   </Typography>
                 </TableCell>
-                <TableCell>{row.profileName}</TableCell>
+                <TableCell>{formatFirstNameLastInitial(row.profileName, 'Unknown profile')}</TableCell>
                 <TableCell><StatusChip value={row.interviewStage} /></TableCell>
                 <TableCell align="right">{formatDateTime(row.interviewNextAt)}</TableCell>
               </TableRow>
@@ -221,7 +222,7 @@ function RecentApplicationsTable({ rows }) {
                     {[row.company, row.location].filter(Boolean).join(' · ')}
                   </Typography>
                 </TableCell>
-                <TableCell>{row.profileName}</TableCell>
+                <TableCell>{formatFirstNameLastInitial(row.profileName, 'Unknown profile')}</TableCell>
                 <TableCell><StatusChip value={row.status} /></TableCell>
                 <TableCell align="right">{formatDateTime(row.bidAt)}</TableCell>
               </TableRow>
@@ -253,7 +254,7 @@ function ProfilesTable({ rows }) {
             {rows.map((row) => (
               <TableRow key={row.id} hover>
                 <TableCell>
-                  <Typography fontWeight={900}>{row.name}</Typography>
+                  <Typography fontWeight={900}>{formatFirstNameLastInitial(row.name, 'Unknown profile')}</Typography>
                   <Typography variant="caption" color="text.secondary">{row.profileBadge}</Typography>
                 </TableCell>
                 <TableCell><StatusChip value={row.profileStatus} /></TableCell>

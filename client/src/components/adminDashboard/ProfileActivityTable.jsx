@@ -1,4 +1,5 @@
 import { Box, Chip, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import { formatFirstNameLastInitial } from '../../lib/formatters.js';
 import EmptyState from '../common/EmptyState.jsx';
 import { labelize } from './dashboardFormatters.js';
 
@@ -31,7 +32,7 @@ export default function ProfileActivityTable({ rows = [] }) {
                   <Typography variant="caption" color="text.secondary">{labelize(row.role)}</Typography>
                 </TableCell>
                 <TableCell>
-                  <Typography fontWeight={800}>{row.profileName}</Typography>
+                  <Typography fontWeight={800}>{formatFirstNameLastInitial(row.profileName, 'Unknown profile')}</Typography>
                 </TableCell>
                 <TableCell sx={{ minWidth: 240 }}>
                   <Typography fontWeight={900}>{row.jobTitle}</Typography>

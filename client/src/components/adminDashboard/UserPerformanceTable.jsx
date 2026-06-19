@@ -1,4 +1,5 @@
 import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import { formatFirstNameLastInitial } from '../../lib/formatters.js';
 import EmptyState from '../common/EmptyState.jsx';
 import { decimal, labelize, number, percent } from './dashboardFormatters.js';
 
@@ -91,7 +92,11 @@ function MixSummary({ items = [], label }) {
   return (
     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
       <Box component="span" sx={{ color: 'text.primary', fontWeight: 900 }}>{label}:</Box>{' '}
-      {items.map((item) => `${labelize(item.name)} ${number(item.count)}`).join(', ')}
+      {items.map((item) => `${formatMixName(label, item.name)} ${number(item.count)}`).join(', ')}
     </Typography>
   );
+}
+
+function formatMixName(label, name) {
+  return label === 'Profiles' ? formatFirstNameLastInitial(name, 'Unknown profile') : labelize(name);
 }

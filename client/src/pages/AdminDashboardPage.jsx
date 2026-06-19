@@ -24,6 +24,7 @@ import { GRAIN_OPTIONS, labelForGrain, number, percent } from '../components/adm
 import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerformanceTable.jsx';
 import ProfileActivityTable from '../components/adminDashboard/ProfileActivityTable.jsx';
 import { useAdminDashboard } from '../lib/api.js';
+import { formatFirstNameLastInitial } from '../lib/formatters.js';
 
 export default function AdminDashboardPage() {
   const { section } = useParams();
@@ -34,6 +35,7 @@ export default function AdminDashboardPage() {
   const activeSection = dashboardSectionFor(section);
   const totals = dashboard?.totals || {};
   const trend = dashboard?.trend || [];
+  const profileFunnels = displayProfileRows(dashboard?.funnels?.profiles || []);
 
   function changeGrain(nextGrain) {
     if (!nextGrain) return;
@@ -85,13 +87,13 @@ export default function AdminDashboardPage() {
           </Box>
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 1.5 }}>
-            <FunnelConversionChart title="Profile success ratios" data={dashboard.funnels?.profiles || []} />
+            <FunnelConversionChart title="Profile success ratios" data={profileFunnels} />
             <FunnelConversionChart title="Role family success ratios" data={dashboard.funnels?.roleFamilies || []} />
           </Box>
 
           <ProfileActivityTable rows={dashboard.profileActivity || []} />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 1.5 }}>
-            <FunnelPerformanceTable title="Profile funnel performance" rows={dashboard.funnels?.profiles || []} />
+            <FunnelPerformanceTable title="Profile funnel performance" rows={profileFunnels} />
             <FunnelPerformanceTable title="Role family funnel performance" rows={dashboard.funnels?.roleFamilies || []} />
           </Box>
           </>
@@ -146,7 +148,7 @@ function CallerPerformanceCharts({ callers }) {
 }
 
 function ProfilePerformanceCharts({ profiles }) {
-  const rows = namedPerformanceRows(profiles);
+  const rows = namedPerformanceRows(displayProfileRows(profiles));
   return (
     <PerformanceChartGrid>
       <PerformanceVolumeChart title="Profile volume" data={rows} bars={PROFILE_VOLUME_BARS} />
@@ -169,6 +171,13 @@ function namedPerformanceRows(rows = []) {
   return rows.map((row) => ({
     ...row,
     name: row.username || row.name || 'Unknown',
+  }));
+}
+
+function displayProfileRows(rows = []) {
+  return rows.map((row) => ({
+    ...row,
+    name: formatFirstNameLastInitial(row.name, 'Unknown'),
   }));
 }
 
