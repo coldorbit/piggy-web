@@ -79,13 +79,19 @@ export async function bulkMarkJobsSpam(req, res, next) {
     const ScrapedJob = getScrapedJobModel();
     const rows = await ScrapedJob.findAll({ where: { id: { [Op.in]: jobIds } } });
     const now = new Date();
+    const sequelize = getSequelize();
 
-    await Promise.all(rows.map((job) =>
-      job.update({
-        isSpam,
-        spamReviewedAt: isSpam === null ? null : now,
-      }),
-    ));
+    await sequelize.transaction(async (transaction) => {
+      await Promise.all(rows.map((job) =>
+        job.update(
+          {
+            isSpam,
+            spamReviewedAt: isSpam === null ? null : now,
+          },
+          { transaction },
+        ),
+      ));
+    });
 
     res.json({
       updated: rows.length,
@@ -139,13 +145,19 @@ export async function bulkMarkJobsHidden(req, res, next) {
     const ScrapedJob = getScrapedJobModel();
     const rows = await ScrapedJob.findAll({ where: { id: { [Op.in]: jobIds } } });
     const now = new Date();
+    const sequelize = getSequelize();
 
-    await Promise.all(rows.map((job) =>
-      job.update({
-        isHidden,
-        hiddenAt: isHidden ? now : null,
-      }),
-    ));
+    await sequelize.transaction(async (transaction) => {
+      await Promise.all(rows.map((job) =>
+        job.update(
+          {
+            isHidden,
+            hiddenAt: isHidden ? now : null,
+          },
+          { transaction },
+        ),
+      ));
+    });
 
     res.json({
       updated: rows.length,
@@ -264,26 +276,35 @@ export async function importJobsCsv(req, res, next) {
       timeZone: req.user?.timezone,
     });
     const ScrapedJob = getScrapedJobModel();
-    const existingRows = await ScrapedJob.findAll({
-      attributes: ['id', 'url', 'duplicateKey', 'title', 'company', 'category', 'location'],
-      where: {
-        [Op.or]: [
-          { url: { [Op.in]: rows.map((row) => row.url) } },
-          { duplicateKey: { [Op.in]: rows.map((row) => row.duplicateKey).filter(Boolean) } },
-        ],
-      },
-    });
-    const { insertRows, duplicateCsvRows, duplicateExistingRows, categoryUpdates, locationUpdates } = planCsvJobImport(rows, existingRows);
+    const sequelize = getSequelize();
+    const { insertRows, duplicateCsvRows, duplicateExistingRows, categoryUpdates, locationUpdates } = await sequelize.transaction(async (transaction) => {
+      const existingRows = await ScrapedJob.findAll({
+        attributes: ['id', 'url', 'duplicateKey', 'title', 'company', 'category', 'location'],
+        where: {
+          [Op.or]: [
+            { url: { [Op.in]: rows.map((row) => row.url) } },
+            { duplicateKey: { [Op.in]: rows.map((row) => row.duplicateKey).filter(Boolean) } },
+          ],
+        },
+        transaction,
+      });
+      const plan = planCsvJobImport(rows, existingRows);
 
-    if (insertRows.length) await ScrapedJob.bulkCreate(insertRows, { ignoreDuplicates: true });
-    await Promise.all(
-      [
-        ...categoryUpdates.map((update) => ({ ...update, values: { category: update.category } })),
-        ...locationUpdates.map((update) => ({ ...update, values: { location: update.location } })),
-      ].map((update) =>
-        ScrapedJob.update(update.values, { where: update.id ? { id: update.id } : { url: update.url } }),
-      ),
-    );
+      if (plan.insertRows.length) await ScrapedJob.bulkCreate(plan.insertRows, { ignoreDuplicates: true, transaction });
+      await Promise.all(
+        [
+          ...plan.categoryUpdates.map((update) => ({ ...update, values: { category: update.category } })),
+          ...plan.locationUpdates.map((update) => ({ ...update, values: { location: update.location } })),
+        ].map((update) =>
+          ScrapedJob.update(update.values, {
+            where: update.id ? { id: update.id } : { url: update.url },
+            transaction,
+          }),
+        ),
+      );
+
+      return plan;
+    });
 
     const duplicateCount = duplicateCsvRows.length + duplicateExistingRows.length;
     res.status(201).json({
