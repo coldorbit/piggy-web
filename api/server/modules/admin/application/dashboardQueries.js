@@ -538,16 +538,47 @@ function bidderPerformanceSql(grainConfig, timeZone, anchor) {
 }
 
 function profileFunnelSql(grainConfig, timeZone, anchor) {
-  return funnelByDimensionSql({
-    grainConfig,
-    dimension: "COALESCE(NULLIF(bid_profiles.name, ''), 'Unknown profile')",
-    idColumn: 'bid_profiles.id',
-    alias: 'profile_name',
-    joins: 'JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id',
-    groupBy: 'bid_profiles.id, bid_profiles.name',
-    anchor,
-    timeZone,
-  });
+  const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
+  const interviewCreatedBucket = bucketExpression('interviews.created_at', grainConfig, timeZone);
+
+  return `
+    ${rangeCte(grainConfig, timeZone, anchor)},
+    application_metrics AS (
+      SELECT
+        bid_profiles.id,
+        COALESCE(NULLIF(bid_profiles.name, ''), 'Unknown profile') AS profile_name,
+        COUNT(DISTINCT job_bids.id)::int AS applications
+      FROM bid_profiles
+      JOIN job_bids ON job_bids.profile_id = bid_profiles.id
+      CROSS JOIN range
+      WHERE ${rangePredicate(bidBucket)}
+      GROUP BY bid_profiles.id, bid_profiles.name
+    ),
+    interview_metrics AS (
+      SELECT
+        bid_profiles.id,
+        COALESCE(NULLIF(bid_profiles.name, ''), 'Unknown profile') AS profile_name,
+        COUNT(DISTINCT interviews.id)::int AS interviews,
+        COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'won')::int AS offers,
+        COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'lost')::int AS lost
+      FROM bid_profiles
+      JOIN interviews ON interviews.profile_id = bid_profiles.id
+      CROSS JOIN range
+      WHERE ${rangePredicate(interviewCreatedBucket)}
+      GROUP BY bid_profiles.id, bid_profiles.name
+    )
+    SELECT
+      COALESCE(application_metrics.id, interview_metrics.id) AS id,
+      COALESCE(application_metrics.profile_name, interview_metrics.profile_name, 'Unknown profile') AS profile_name,
+      COALESCE(application_metrics.applications, 0)::int AS applications,
+      COALESCE(interview_metrics.interviews, 0)::int AS interviews,
+      COALESCE(interview_metrics.offers, 0)::int AS offers,
+      COALESCE(interview_metrics.lost, 0)::int AS lost
+    FROM application_metrics
+    FULL OUTER JOIN interview_metrics ON interview_metrics.id = application_metrics.id
+    ORDER BY offers DESC, interviews DESC, applications DESC, profile_name ASC
+    LIMIT 24
+  `;
 }
 
 function roleFamilyFunnelSql(grainConfig, timeZone, anchor) {

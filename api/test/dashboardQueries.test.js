@@ -84,6 +84,9 @@ describe('dashboard queries', () => {
     assert.match(sql, /COUNT\(DISTINCT interviews\.id\)::int AS interviews/);
     assert.match(sql, /COUNT\(DISTINCT interviews\.id\) FILTER \(WHERE interviews\.status = 'won'\)::int AS offers/);
     assert.match(sql, /COUNT\(DISTINCT interviews\.id\) FILTER \(WHERE interviews\.status = 'lost'\)::int AS lost/);
+    assert.match(sql, /JOIN interviews ON interviews\.profile_id = bid_profiles\.id/);
+    assert.match(sql, /timezone\('America\/Los_Angeles', interviews\.created_at\)\) >= range\.starts_at[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
+    assert.doesNotMatch(sql, /LEFT JOIN interviews ON interviews\.job_bid_id = job_bids\.id/);
     assert.doesNotMatch(sql, /job_bids\.status IN \('interviewing', 'won', 'lost'\)/);
     assert.doesNotMatch(sql, /COALESCE\(interviews\.status, job_bids\.status\)/);
   });
