@@ -19,6 +19,7 @@ const TRANSACTION_TYPES = [
   'card_deposit',
   'card_main_transfer',
   'card_internal_transfer',
+  'bank_transaction_fee',
   'swap',
   'eth_fee',
   'adjustment',
@@ -256,6 +257,8 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
       entryKind: 'internal_card_transfer',
       validateAccounts: validateIssuedCardTransferAccounts,
     });
+  } else if (attrs.type === 'bank_transaction_fee') {
+    add(CARD_MAIN_ACCOUNT_NAME, 'outflow', body.amount || body.cardFee, FIAT_CURRENCY, 'bank_transaction_fee');
   } else if (attrs.type === 'swap') {
     const fromCurrency = cryptoCurrency(body.fromCurrency || body.currency);
     add(`${fromCurrency} Wallet`, 'outflow', body.fromAmount || body.amount, fromCurrency, 'principal');

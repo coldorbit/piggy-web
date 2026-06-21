@@ -10,6 +10,7 @@ const HELP_ITEMS = [
   ['Top up main account', 'Use this when funding the card service main account from USDC/USDT. It subtracts crypto, subtracts ETH gas, and adds the received USD to Main Account USD.'],
   ['Main account to card', 'Use this when moving USD from the card main account onto a card. It subtracts Main Account USD, adds the selected card balance, and can record transfer fees.'],
   ['Internal card transfer', 'Use this when moving USD between card accounts. It subtracts the source account, adds the destination account, and can record transfer fees.'],
+  ['Bank transaction fee', 'Use this for bank fees charged to the main account. It only subtracts Main Account USD.'],
   ['Swap to ETH', 'Use this when swapping USDC/USDT into ETH for future gas. It subtracts the input token, adds ETH received, and subtracts ETH gas.'],
   ['ETH fee only', 'Use this for failed transactions or wallet actions where only gas was spent.'],
   ['Adjustment', 'Use this only when reconciling balances against the real wallet/card balance.'],

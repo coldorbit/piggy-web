@@ -8,6 +8,7 @@ export const TYPE_OPTIONS = [
   { value: 'card_deposit', label: 'Top up main account' },
   { value: 'card_main_transfer', label: 'Main account to card' },
   { value: 'card_internal_transfer', label: 'Internal card transfer' },
+  { value: 'bank_transaction_fee', label: 'Bank transaction fee' },
   { value: 'swap', label: 'Swap to ETH' },
   { value: 'eth_fee', label: 'ETH fee only' },
   { value: 'adjustment', label: 'Balance adjustment' },

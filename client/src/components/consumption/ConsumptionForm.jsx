@@ -129,6 +129,9 @@ function TransactionFields({ accountOptions, cardAccountOptions, fieldSize, form
       </>
     );
   }
+  if (form.type === 'bank_transaction_fee') {
+    return <AmountField label="Fee amount" value={form.amount} onChange={(amount) => onChange({ amount })} />;
+  }
   if (form.type === 'swap') {
     return (
       <>

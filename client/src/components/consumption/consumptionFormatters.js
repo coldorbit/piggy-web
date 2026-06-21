@@ -40,6 +40,7 @@ export function normalizeForm(form) {
   if (form.type === 'wallet_deposit') return { ...form, toCurrency: form.currency, spentBy: 'team' };
   if (form.type === 'card_pay') return { ...form, currency: 'USD', cardAccountName: form.cardAccountName || 'Card USD' };
   if (form.type === 'card_main_transfer') return { ...form, currency: 'USD', fromAccountName: 'Main Account USD' };
+  if (form.type === 'bank_transaction_fee') return { ...form, currency: 'USD', fromAccountName: 'Main Account USD' };
   if (form.type === 'card_internal_transfer') {
     return {
       ...form,

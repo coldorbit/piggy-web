@@ -140,6 +140,18 @@ describe('consumption card transfers', () => {
     ]);
   });
 
+  it('records bank transaction fees only against the main account', () => {
+    const entries = buildConsumptionLedgerEntries(
+      { type: 'bank_transaction_fee' },
+      { amount: 3.75 },
+      accounts,
+    );
+
+    assert.deepEqual(entries, [
+      { accountId: 1, direction: 'outflow', amount: 3.75, currency: 'USD', entryKind: 'bank_transaction_fee' },
+    ]);
+  });
+
   it('rejects card transfers to the same account', () => {
     assert.throws(
       () =>
