@@ -6,7 +6,7 @@ import CalendarProfileLegend from '../components/calendar/CalendarProfileLegend.
 import CalendarToolbar, { CALENDAR_VIEWS } from '../components/calendar/CalendarToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { CALENDAR_PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { api } from '../lib/api.js';
+import { api, downloadAuthenticatedFile } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
 import {
   addDaysToDateKey,
@@ -35,6 +35,7 @@ export default function CalendarPage() {
   });
   const profiles = calendarData?.profiles || [];
   const jobs = calendarData?.jobs || [];
+  const calendarMeta = calendarData?.calendar || {};
   const calendarProfiles = useMemo(
     () =>
       profiles.map((profile, index) => ({
@@ -72,8 +73,8 @@ export default function CalendarPage() {
   }, [calendarProfiles]);
 
   const events = useMemo(
-    () => calendarEvents(jobs, profileById, checkedProfileIds, search),
-    [jobs, profileById, checkedProfileIds, search],
+    () => calendarEvents(jobs, profileById, checkedProfileIds, search, calendarMeta.conflicts || []),
+    [jobs, profileById, checkedProfileIds, search, calendarMeta.conflicts],
   );
   const loading = calendarLoading;
   const pageError = calendarError?.message || '';
@@ -117,6 +118,8 @@ export default function CalendarPage() {
 
       <CalendarToolbar
         isLoading={loading}
+        conflictCount={calendarMeta.conflicts?.length || 0}
+        onExportIcs={() => downloadAuthenticatedFile(calendarMeta.icsUrl || '/api/bid/calendar.ics', 'applypilot-interviews.ics')}
         rangeLabel={rangeLabel}
         scheduledCount={scheduledCount}
         view={view}
@@ -149,15 +152,18 @@ export default function CalendarPage() {
   );
 }
 
-function calendarEvents(jobs, profileById, checkedProfileIds, search) {
+function calendarEvents(jobs, profileById, checkedProfileIds, search, conflicts = []) {
   const pattern = String(search || '').trim().toLowerCase();
   const checkedProfileIdSet = new Set(checkedProfileIds.map(String));
+  const conflictIdsByEventId = conflictEventIds(conflicts);
   return jobs
     .map((job) => {
       const startsAt = job.bid?.interviewNextAt ? new Date(job.bid.interviewNextAt) : null;
       const profile = profileById.get(String(job.bid?.profileId || ''));
+      const eventId = `${job.bid?.id || job.id}:${job.bid?.interviewNextAt || ''}`;
       return {
-        id: `${job.bid?.id || job.id}:${job.bid?.interviewNextAt || ''}`,
+        id: eventId,
+        sourceId: String(job.bid?.id || job.id || ''),
         title: job.title || 'Untitled role',
         company: job.company || 'Unknown company',
         location: job.location || '',
@@ -165,6 +171,7 @@ function calendarEvents(jobs, profileById, checkedProfileIds, search) {
         durationMinutes: job.bid?.interviewDurationMinutes || 60,
         profile,
         job,
+        hasConflict: conflictIdsByEventId.has(String(job.bid?.id || job.id || '')),
       };
     })
     .filter((event) => event.startsAt && !Number.isNaN(event.startsAt.getTime()))
@@ -176,6 +183,16 @@ function calendarEvents(jobs, profileById, checkedProfileIds, search) {
         .some((value) => String(value).toLowerCase().includes(pattern));
     })
     .sort((left, right) => left.startsAt - right.startsAt);
+}
+
+function conflictEventIds(conflicts) {
+  const ids = new Set();
+  for (const conflict of conflicts || []) {
+    for (const event of conflict.events || []) {
+      if (event.id) ids.add(String(event.id));
+    }
+  }
+  return ids;
 }
 
 function fetchCalendarInterviews() {

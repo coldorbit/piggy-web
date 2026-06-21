@@ -1,5 +1,6 @@
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import DownloadIcon from '@mui/icons-material/Download';
 import TodayIcon from '@mui/icons-material/Today';
 import {
   Box,
@@ -20,7 +21,7 @@ export const CALENDAR_VIEWS = {
   week: 'week',
 };
 
-export default function CalendarToolbar({ isLoading, rangeLabel, scheduledCount, view, onMove, onToday, onViewChange }) {
+export default function CalendarToolbar({ conflictCount = 0, isLoading, onExportIcs, rangeLabel, scheduledCount, view, onMove, onToday, onViewChange }) {
   return (
     <Paper
       variant="outlined"
@@ -62,6 +63,14 @@ export default function CalendarToolbar({ isLoading, rangeLabel, scheduledCount,
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
         {isLoading ? <CircularProgress size={22} /> : null}
+        {conflictCount ? (
+          <Typography variant="caption" color="error" fontWeight={900}>
+            {conflictCount.toLocaleString()} conflict{conflictCount === 1 ? '' : 's'}
+          </Typography>
+        ) : null}
+        <Button startIcon={<DownloadIcon />} onClick={onExportIcs} variant="outlined" sx={{ whiteSpace: 'nowrap' }}>
+          ICS
+        </Button>
         <ToggleButtonGroup
           exclusive
           size="small"

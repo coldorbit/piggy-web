@@ -1,5 +1,5 @@
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, Paper, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Link, Paper, Tooltip, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { downloadAuthenticatedFile } from '../../lib/api.js';
@@ -343,6 +343,11 @@ function WeekCalendarEvent({ event, isSelected, layout, onEventClick }) {
             <Typography variant="caption" noWrap sx={{ opacity: isSelected ? 1 : 0.9 }}>
               {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {compactEventLabel(event)}
             </Typography>
+            {event.hasConflict ? (
+              <Typography variant="caption" fontWeight={900} noWrap sx={{ opacity: isSelected ? 1 : 0.95 }}>
+                Conflict
+              </Typography>
+            ) : null}
           </>
         )}
       </Box>
@@ -476,9 +481,14 @@ function CalendarEvent({ event, isSelected, onEventClick }) {
         <Typography variant="caption" fontWeight={900} noWrap>
           {compactEventLabel(event)}
         </Typography>
-        <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
-          {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)}
-        </Typography>
+          <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
+            {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)}
+          </Typography>
+          {event.hasConflict ? (
+            <Typography variant="caption" fontWeight={900} noWrap>
+              Conflict
+            </Typography>
+          ) : null}
       </Box>
     </Tooltip>
   );
@@ -489,6 +499,8 @@ function CalendarEventDialog({ event, onClose }) {
   const meetingUrl = meetingLinkForEvent(event);
   const resumeUrl = resumeDownloadUrl(event?.job?.tailoredResume);
   const resumeStatus = event?.job?.tailoredResume?.status || '';
+  const googleUrl = event ? googleCalendarUrl(event, meetingUrl) : '';
+  const outlookUrl = event ? outlookCalendarUrl(event, meetingUrl) : '';
   return (
     <Dialog open={Boolean(event)} onClose={onClose} fullWidth maxWidth="sm">
       {event ? (
@@ -501,6 +513,9 @@ function CalendarEventDialog({ event, onClose }) {
               <Typography variant="body2" color="text.secondary" fontWeight={800} noWrap>
                 {compactEventLabel(event)}
               </Typography>
+              {event.hasConflict ? (
+                <Chip label="Schedule conflict" color="error" size="small" sx={{ justifySelf: 'start', borderRadius: 1, fontWeight: 900 }} />
+              ) : null}
             </Box>
           </DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 1.25, pt: 2 }}>
@@ -515,6 +530,12 @@ function CalendarEventDialog({ event, onClose }) {
             {event.job?.bid?.interviewNotes ? <DetailRow label="Notes" value={event.job.bid.interviewNotes} multiline /> : null}
           </DialogContent>
           <DialogActions>
+            <Button component="a" href={googleUrl} target="_blank" rel="noreferrer">
+              Google
+            </Button>
+            <Button component="a" href={outlookUrl} target="_blank" rel="noreferrer">
+              Outlook
+            </Button>
             {meetingUrl ? (
               <Button component="a" href={meetingUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="contained">
                 Join call
@@ -685,6 +706,50 @@ function meetingLinkForEvent(event) {
   const links = event?.job?.bid?.stageMeetingLinks || {};
   const url = links[stage] || event?.job?.bid?.meetingLink || '';
   return /^https?:\/\//i.test(String(url)) ? url : '';
+}
+
+function googleCalendarUrl(event, meetingUrl = '') {
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: calendarTitle(event),
+    dates: `${calendarUtcDate(event.startsAt)}/${calendarUtcDate(eventEndsAt(event))}`,
+    details: calendarDescription(event, meetingUrl),
+    location: meetingUrl || event.location || '',
+  });
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+function outlookCalendarUrl(event, meetingUrl = '') {
+  const params = new URLSearchParams({
+    path: '/calendar/action/compose',
+    rru: 'addevent',
+    subject: calendarTitle(event),
+    startdt: event.startsAt.toISOString(),
+    enddt: eventEndsAt(event).toISOString(),
+    body: calendarDescription(event, meetingUrl),
+    location: meetingUrl || event.location || '',
+  });
+  return `https://outlook.office.com/calendar/0/deeplink/compose?${params}`;
+}
+
+function calendarTitle(event) {
+  return [event.company, event.title].filter(Boolean).join(' - ') || 'Interview';
+}
+
+function calendarDescription(event, meetingUrl = '') {
+  return [
+    meetingUrl ? `Meeting link: ${meetingUrl}` : '',
+    event.job?.url ? `Job link: ${event.job.url}` : '',
+    event.job?.bid?.interviewNotes || '',
+  ].filter(Boolean).join('\n');
+}
+
+function eventEndsAt(event) {
+  return new Date(event.startsAt.getTime() + Number(event.durationMinutes || 60) * 60000);
+}
+
+function calendarUtcDate(value) {
+  return value.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 }
 
 function resumeDownloadUrl(resume) {

@@ -36,6 +36,7 @@ import {
   updateProfile,
   updateProfileStatus,
   cancelTailoredResume,
+  exportCalendarIcs,
 } from './biddingController.js';
 import {
   getForwardingMailboxStatus,
@@ -46,10 +47,12 @@ import {
   markProfileForwardedMessageRead,
 } from './forwardingMailboxController.js';
 import { getPersonalDashboard } from './personalDashboardController.js';
+import { listActionQueue } from './actionQueueController.js';
 import { subscribeTailoredResumeEvents } from '../application/tailoringQueueService.js';
 
 export function registerBidRoutes(app) {
   app.get('/api/bid/dashboard', requirePersonalDashboardAccess, getPersonalDashboard);
+  app.get('/api/bid/action-queue', requireBidWorkspaceAccess, listActionQueue);
   app.get('/api/bid/profiles', requireBidWorkspaceAccess, listProfiles);
   app.get('/api/bid/profile-shares', requireBidWorkspaceAccess, listProfileShareRequests);
   app.get('/api/bid/profile-share-recipients', requireBidWorkspaceAccess, listProfileShareRecipients);
@@ -70,6 +73,7 @@ export function registerBidRoutes(app) {
   app.patch('/api/bid/profile-shares/:id', requireBidWorkspaceAccess, respondToProfileShare);
   app.get('/api/bid/tailored-resume-events', requireBidWorkspaceAccess, subscribeTailoredResumeEvents);
   app.get('/api/bid/calendar', requireInterviewAccess, listCalendarInterviews);
+  app.get('/api/bid/calendar.ics', requireInterviewAccess, exportCalendarIcs);
   app.get('/api/bid/jobs', requireBidJobsAccess, listBidJobs);
   app.get('/api/bid/tailoring-requests', requireBidWorkspaceAccess, listTailoringRequests);
   app.get('/api/bid/tailored-resumes/download', requireBidOrInterviewAccess, downloadTailoredResumesZip);

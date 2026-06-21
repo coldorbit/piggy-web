@@ -185,7 +185,12 @@ describe('forwarding mailbox helpers', () => {
         value: 'service+maya@co-bounce.com',
         source: 'forwardingEmail:address',
       },
-      classification: null,
+      classification: {
+        type: 'recruiter_reply',
+        label: 'Recruiter reply',
+        suggestedAction: 'Review the reply and choose the next follow-up or scheduling step.',
+        confidence: 0.72,
+      },
       calendarEvent: null,
     });
   });
@@ -286,6 +291,8 @@ describe('forwarding mailbox helpers', () => {
     assert.deepEqual(classification, {
       type: 'declined',
       label: 'Declined email',
+      suggestedAction: 'Mark the application lost or stale and stop follow-ups.',
+      confidence: 0.9,
     });
   });
 
@@ -298,6 +305,8 @@ describe('forwarding mailbox helpers', () => {
     assert.deepEqual(classification, {
       type: 'application_confirmation',
       label: 'Application confirmation',
+      suggestedAction: 'Confirm the matching application is submitted.',
+      confidence: 0.88,
     });
   });
 
@@ -342,7 +351,7 @@ describe('forwarding mailbox helpers', () => {
     });
   });
 
-  it('classifies ICS-backed emails as interview related', () => {
+  it('classifies ICS-backed emails as interview invites', () => {
     const calendarEvent = parseIcsCalendarEvent([
       'BEGIN:VCALENDAR',
       'BEGIN:VEVENT',
@@ -353,8 +362,10 @@ describe('forwarding mailbox helpers', () => {
     ].join('\n'));
 
     assert.deepEqual(classifyMailboxMessageIntent({ calendarEvent }), {
-      type: 'interview_related',
-      label: 'Interview related',
+      type: 'interview_invite',
+      label: 'Interview invite',
+      suggestedAction: 'Add or confirm the interview time, meeting link, and caller assignment.',
+      confidence: 0.95,
     });
   });
 

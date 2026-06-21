@@ -42,11 +42,12 @@ import { ChartPanel } from '../components/adminDashboard/DashboardCharts.jsx';
 import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { labelize, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
 import EmptyState from '../components/common/EmptyState.jsx';
-import { usePersonalDashboard } from '../lib/api.js';
+import { useActionQueue, usePersonalDashboard } from '../lib/api.js';
 import { formatFirstNameLastInitial } from '../lib/formatters.js';
 
 export default function UserDashboardPage() {
   const { data: dashboard, isLoading, error } = usePersonalDashboard();
+  const { data: actionQueue } = useActionQueue();
   const totals = dashboard?.totals || {};
   const trend = dashboard?.trend || [];
 
@@ -67,6 +68,7 @@ export default function UserDashboardPage() {
             <DashboardMetric icon={<StyleIcon />} label="Tailoring" value={totals.readyTailoredResumes} detail={`${number(totals.tailoredResumeRequests)} active requests`} />
           </Grid>
 
+          <ActionQueuePanel queue={actionQueue} />
           <CommandCenterPanel commandCenter={dashboard.commandCenter || {}} />
 
           <JourneyTimeline rows={dashboard.journeys || []} />
@@ -86,6 +88,69 @@ export default function UserDashboardPage() {
       ) : null}
     </Box>
   );
+}
+
+function ActionQueuePanel({ queue }) {
+  const items = queue?.items || [];
+  const counts = queue?.counts || {};
+  return (
+    <Paper variant="outlined" sx={{ p: 1.25, minWidth: 0, boxShadow: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
+        <Box minWidth={0}>
+          <Typography fontWeight={950}>Action queue</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {number(counts.total || items.length)} deadline, follow-up, calendar, mailbox, and assignment item{Number(counts.total || items.length) === 1 ? '' : 's'}.
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={0.5}>
+          <Chip label={`${number(counts.byPriority?.critical || 0)} critical`} size="small" sx={{ borderRadius: 1, fontWeight: 900, bgcolor: '#FEF2F2', color: '#B91C1C' }} />
+          <Chip label={`${number(counts.byPriority?.high || 0)} high`} size="small" sx={{ borderRadius: 1, fontWeight: 900, bgcolor: '#FFF7ED', color: '#C2410C' }} />
+        </Stack>
+      </Box>
+      {items.length ? (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 0.85 }}>
+          {items.slice(0, 8).map((item) => (
+            <ActionQueueItem key={item.id} item={item} />
+          ))}
+        </Box>
+      ) : (
+        <EmptyState title="No open actions" detail="Deadlines, stale applications, missing links, and mailbox next steps will appear here." variant="plain" sx={{ p: 2 }} />
+      )}
+    </Paper>
+  );
+}
+
+function ActionQueueItem({ item }) {
+  return (
+    <Box sx={{ p: 1, border: 1, borderColor: '#E2E8F0', borderRadius: 1, bgcolor: '#FFFFFF', display: 'grid', gap: 0.35, minWidth: 0 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+        <PriorityChip value={item.priority} />
+        <Typography variant="body2" fontWeight={950} noWrap>{item.title || labelize(item.type)}</Typography>
+      </Box>
+      <Typography variant="caption" color="text.secondary" noWrap>
+        {[formatFirstNameLastInitial(item.profileName, 'Unknown profile'), item.company, formatDateTime(item.dueAt)].filter(Boolean).join(' · ')}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+        {item.suggestedAction || item.reason}
+      </Typography>
+      {item.href ? (
+        <Button href={item.href} size="small" sx={{ justifySelf: 'start', px: 0, fontWeight: 900 }}>
+          Open
+        </Button>
+      ) : null}
+    </Box>
+  );
+}
+
+function PriorityChip({ value }) {
+  const palette = value === 'critical'
+    ? { bg: '#FEF2F2', color: '#B91C1C' }
+    : value === 'high'
+    ? { bg: '#FFF7ED', color: '#C2410C' }
+    : value === 'medium'
+    ? { bg: '#EFF6FF', color: '#1D4ED8' }
+    : { bg: '#F8FAFC', color: '#475569' };
+  return <Chip size="small" label={labelize(value)} sx={{ borderRadius: 1, fontWeight: 900, bgcolor: palette.bg, color: palette.color }} />;
 }
 
 const COMMAND_CENTER_SECTIONS = [

@@ -820,7 +820,7 @@ function MessageLoadingRow({ isLoading, style }) {
 }
 
 function MessageListItem({ isSelected, message, onClick, style }) {
-  const hasListChips = !message.isRead || Boolean(message.mailboxPath);
+  const hasListChips = !message.isRead || Boolean(message.classification?.label) || Boolean(message.mailboxPath);
   const selectedBg = INBOX_MESSAGE_ACCENT.soft;
   const defaultBg = message.isRead ? '#ffffff' : '#F8FAFC';
   const hoverBg = isSelected ? selectedBg : '#F8FAFC';
@@ -865,6 +865,7 @@ function MessageListItem({ isSelected, message, onClick, style }) {
       {hasListChips ? (
         <Stack direction="row" spacing={0.5} alignItems="center" useFlexGap sx={{ flexWrap: 'nowrap', overflow: 'hidden', minWidth: 0 }}>
           {!message.isRead ? <Chip label="Unread" size="small" sx={smallChipSx(INBOX_MESSAGE_ACCENT.soft, INBOX_MESSAGE_ACCENT.dark)} /> : null}
+          {message.classification?.label ? <Chip label={message.classification.label} size="small" sx={smallChipSx(classificationAccent(message).soft, classificationAccent(message).dark)} /> : null}
           {message.mailboxPath ? <Chip label={message.mailboxPath} size="small" variant="outlined" sx={smallOutlinedChipSx} /> : null}
         </Stack>
       ) : null}
@@ -907,13 +908,15 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
                 </Typography>
               </Box>
               <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap', justifyContent: { sm: 'flex-end' } }}>
-                {message.classification?.type === 'interview_related' ? (
+                {isInterviewClassification(message) ? (
                   <Chip label="Interview" size="small" sx={smallChipSx(INTERVIEW_ACCENT.soft, INTERVIEW_ACCENT.dark)} />
                 ) : null}
                 {message.classification?.type === 'declined' ? <Chip label="Declined" size="small" sx={smallChipSx(DECLINED_ACCENT.soft, DECLINED_ACCENT.dark)} /> : null}
                 {message.classification?.type === 'application_confirmation' ? (
                   <Chip label={applicationChipLabel(message.application)} size="small" sx={smallChipSx(CONFIRMATION_ACCENT.soft, CONFIRMATION_ACCENT.dark)} />
                 ) : null}
+                {message.classification?.type === 'assessment_link' ? <Chip label="Assessment" size="small" sx={smallChipSx('#FEF3C7', '#92400E')} /> : null}
+                {message.classification?.type === 'recruiter_reply' ? <Chip label="Recruiter reply" size="small" sx={smallChipSx('#E0ECFF', '#1D4ED8')} /> : null}
                 {message.match?.source ? <Chip label={matchSourceLabel(message.match.source)} size="small" sx={smallChipSx(activeColor.soft, activeColor.dark)} /> : null}
                 {message.mailboxPath ? <Chip label={message.mailboxPath} size="small" variant="outlined" sx={smallOutlinedChipSx} /> : null}
               </Stack>
@@ -938,6 +941,7 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
           {message.classification?.type === 'application_confirmation' ? (
             <ApplicationConfirmationInfo application={message.application} />
           ) : null}
+          {message.classification?.suggestedAction ? <SuggestedActionInfo classification={message.classification} /> : null}
           {message.calendarEvent ? <CalendarInviteInfo event={message.calendarEvent} /> : null}
 
           <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', bgcolor: '#ffffff' }}>
@@ -1186,7 +1190,7 @@ function filterMessagesByGroup(messages, group) {
     case MAILBOX_GROUPS.unread:
       return messages.filter((message) => !message.isRead);
     case MAILBOX_GROUPS.interviews:
-      return messages.filter((message) => message.classification?.type === 'interview_related' || Boolean(message.calendarEvent));
+      return messages.filter((message) => isInterviewClassification(message) || Boolean(message.calendarEvent));
     case MAILBOX_GROUPS.confirmations:
       return messages.filter((message) => message.classification?.type === 'application_confirmation');
     case MAILBOX_GROUPS.declined:
@@ -1251,7 +1255,7 @@ function dedupeMessagesById(messages) {
 function mailboxStatsFromPages(pages, messages) {
   const loadedTotal = messages.length;
   const loadedUnreadTotal = messages.filter((message) => !message.isRead).length;
-  const interviewTotal = messages.filter((message) => message.classification?.type === 'interview_related' || Boolean(message.calendarEvent)).length;
+  const interviewTotal = messages.filter((message) => isInterviewClassification(message) || Boolean(message.calendarEvent)).length;
   const confirmationTotal = messages.filter((message) => message.classification?.type === 'application_confirmation').length;
   const declinedTotal = messages.filter((message) => message.classification?.type === 'declined').length;
   const autoAppliedTotal = messages.filter((message) => ['applied', 'already_applied'].includes(message.application?.status)).length;
@@ -1264,6 +1268,37 @@ function mailboxStatsFromPages(pages, messages) {
     declinedTotal,
     autoAppliedTotal,
   };
+}
+
+function SuggestedActionInfo({ classification }) {
+  return (
+    <Box sx={{ px: { xs: 1.5, md: 2 }, py: 1.25, borderBottom: 1, borderColor: 'divider', bgcolor: '#F8FAFC' }}>
+      <Typography variant="caption" color="text.secondary" fontWeight={900}>
+        Suggested next action
+      </Typography>
+      <Typography variant="body2" fontWeight={800} sx={{ mt: 0.25 }}>
+        {classification.suggestedAction}
+      </Typography>
+      {classification.confidence ? (
+        <Typography variant="caption" color="text.secondary">
+          Confidence {Math.round(Number(classification.confidence || 0) * 100)}%
+        </Typography>
+      ) : null}
+    </Box>
+  );
+}
+
+function isInterviewClassification(message) {
+  return ['interview_related', 'interview_invite'].includes(message?.classification?.type);
+}
+
+function classificationAccent(message) {
+  const type = message?.classification?.type;
+  if (type === 'declined') return DECLINED_ACCENT;
+  if (type === 'application_confirmation') return CONFIRMATION_ACCENT;
+  if (type === 'interview_invite' || type === 'interview_related') return INTERVIEW_ACCENT;
+  if (type === 'assessment_link') return { soft: '#FEF3C7', dark: '#92400E' };
+  return INBOX_MESSAGE_ACCENT;
 }
 
 function applicationChipLabel(application) {

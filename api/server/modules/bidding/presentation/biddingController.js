@@ -758,28 +758,7 @@ export async function listCalendarInterviews(req, res, next) {
     requireInterviewAccessUser(user, res);
     if (res.headersSent) return;
 
-    const Interview = getInterviewModel();
-    const BidProfile = getBidProfileModel();
-    const WebUser = getWebUserModel();
-    const where = {
-      interviewNextAt: { [Op.not]: null },
-      ...(user.role === 'caller' ? { callerUserId: user.id } : {}),
-    };
-    const interviews = await Interview.findAll({
-      where,
-      include: [
-        {
-          model: BidProfile,
-          as: 'profile',
-          required: true,
-          include: [{ model: WebUser, as: 'user', required: false }],
-        },
-      ],
-      order: [
-        ['interviewNextAt', 'ASC'],
-        ['updatedAt', 'DESC'],
-      ],
-    });
+    const interviews = await calendarInterviewsForUser(user);
 
     const profilesById = new Map();
     for (const interview of interviews) {
@@ -791,12 +770,202 @@ export async function listCalendarInterviews(req, res, next) {
     res.json({
       profiles: sortProfilesForDisplay([...profilesById.values()]).map(formatProfile),
       jobs: interviews.map((interview) => formatInterviewAsJob(interview)),
+      calendar: {
+        generatedAt: new Date().toISOString(),
+        icsUrl: '/api/bid/calendar.ics',
+        reminders: calendarReminders(interviews),
+        conflicts: calendarConflicts(interviews),
+        integrations: calendarIntegrationStatus(),
+      },
       currentUser: { id: user.id, username: user.username, role: user.role },
       total: interviews.length,
     });
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+export async function exportCalendarIcs(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    requireInterviewAccessUser(user, res);
+    if (res.headersSent) return;
+
+    const interviews = await calendarInterviewsForUser(user);
+    const ics = buildInterviewCalendarIcs(interviews);
+    res.setHeader('content-type', 'text/calendar; charset=utf-8');
+    res.setHeader('content-disposition', 'attachment; filename="applypilot-interviews.ics"');
+    res.send(ics);
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+async function calendarInterviewsForUser(user) {
+  const Interview = getInterviewModel();
+  const BidProfile = getBidProfileModel();
+  const WebUser = getWebUserModel();
+  const where = {
+    interviewNextAt: { [Op.not]: null },
+    ...(user.role === 'caller' ? { callerUserId: user.id } : {}),
+  };
+
+  return Interview.findAll({
+    where,
+    include: [
+      {
+        model: BidProfile,
+        as: 'profile',
+        required: true,
+        include: [{ model: WebUser, as: 'user', required: false }],
+      },
+    ],
+    order: [
+      ['interviewNextAt', 'ASC'],
+      ['updatedAt', 'DESC'],
+    ],
+  });
+}
+
+function calendarIntegrationStatus() {
+  return {
+    google: { supported: true, mode: 'event-link' },
+    outlook: { supported: true, mode: 'event-link' },
+    ics: { supported: true, mode: 'export' },
+    sync: { supported: false, reason: 'oauth_not_configured' },
+  };
+}
+
+function calendarReminders(interviews) {
+  const now = Date.now();
+  return interviews
+    .filter((interview) => interview.interviewNextAt)
+    .map((interview) => {
+      const startsAt = new Date(interview.interviewNextAt).getTime();
+      const minutesUntilStart = Math.round((startsAt - now) / 60000);
+      return {
+        id: String(interview.id),
+        profileId: interview.profileId ? String(interview.profileId) : null,
+        title: interview.title,
+        company: interview.company,
+        startsAt: new Date(interview.interviewNextAt).toISOString(),
+        reminderAt: new Date(startsAt - 30 * 60000).toISOString(),
+        minutesUntilStart,
+        missingMeetingLink: !meetingLinkForStage(interview.stageMeetingLinks, interview.interviewStage),
+      };
+    })
+    .filter((reminder) => reminder.minutesUntilStart >= 0 && reminder.minutesUntilStart <= 24 * 60)
+    .slice(0, 20);
+}
+
+function calendarConflicts(interviews) {
+  const events = interviews
+    .filter((interview) => interview.interviewNextAt)
+    .map((interview) => ({
+      id: String(interview.id),
+      profileId: interview.profileId ? String(interview.profileId) : null,
+      profileName: interview.profile?.name || '',
+      title: interview.title,
+      company: interview.company,
+      startsAt: new Date(interview.interviewNextAt),
+      endsAt: new Date(new Date(interview.interviewNextAt).getTime() + Number(interview.interviewDurationMinutes || 60) * 60000),
+    }))
+    .sort((left, right) => left.startsAt - right.startsAt);
+  const conflicts = [];
+
+  for (let index = 0; index < events.length; index += 1) {
+    for (let nextIndex = index + 1; nextIndex < events.length; nextIndex += 1) {
+      const left = events[index];
+      const right = events[nextIndex];
+      if (right.startsAt >= left.endsAt) break;
+      conflicts.push({
+        id: `${left.id}:${right.id}`,
+        startsAt: right.startsAt.toISOString(),
+        events: [left, right].map(formatCalendarConflictEvent),
+      });
+    }
+  }
+
+  return conflicts.slice(0, 50);
+}
+
+function formatCalendarConflictEvent(event) {
+  return {
+    id: event.id,
+    profileId: event.profileId,
+    profileName: event.profileName,
+    title: event.title,
+    company: event.company,
+    startsAt: event.startsAt.toISOString(),
+    endsAt: event.endsAt.toISOString(),
+  };
+}
+
+function buildInterviewCalendarIcs(interviews) {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//ApplyPilot//Interview Calendar//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+  ];
+
+  for (const interview of interviews) {
+    if (!interview.interviewNextAt) continue;
+    const start = new Date(interview.interviewNextAt);
+    const end = new Date(start.getTime() + Number(interview.interviewDurationMinutes || 60) * 60000);
+    const meetingLink = meetingLinkForStage(interview.stageMeetingLinks, interview.interviewStage);
+    const description = [
+      interview.interviewNotes,
+      meetingLink ? `Meeting link: ${meetingLink}` : '',
+      interview.jobUrl ? `Job link: ${interview.jobUrl}` : '',
+      interview.profile?.name ? `Profile: ${interview.profile.name}` : '',
+    ].filter(Boolean).join('\\n');
+
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:applypilot-interview-${interview.id}@applypilot`,
+      `DTSTAMP:${icsDate(new Date())}`,
+      `DTSTART:${icsDate(start)}`,
+      `DTEND:${icsDate(end)}`,
+      `SUMMARY:${icsEscape([interview.company, interview.title].filter(Boolean).join(' - ') || 'Interview')}`,
+      `DESCRIPTION:${icsEscape(description || 'ApplyPilot interview')}`,
+      `LOCATION:${icsEscape(meetingLink || interview.location || '')}`,
+      `URL:${icsEscape(meetingLink || interview.jobUrl || '')}`,
+      'BEGIN:VALARM',
+      'TRIGGER:-PT30M',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${icsEscape(`Upcoming interview: ${interview.title || 'Interview'}`)}`,
+      'END:VALARM',
+      'END:VEVENT',
+    );
+  }
+
+  lines.push('END:VCALENDAR');
+  return `${lines.map(foldIcsLine).join('\r\n')}\r\n`;
+}
+
+function icsDate(date) {
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+function icsEscape(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;');
+}
+
+function foldIcsLine(line) {
+  const value = String(line);
+  if (value.length <= 74) return value;
+  const parts = [];
+  for (let index = 0; index < value.length; index += 74) {
+    parts.push(`${index ? ' ' : ''}${value.slice(index, index + 74)}`);
+  }
+  return parts.join('\r\n');
 }
 
 function jobQueryForBidTab(query, tab) {
@@ -1595,6 +1764,7 @@ export async function listTailoringRequests(req, res, next) {
         tailored_resumes.updated_at,
         request_user.username AS requester_username,
         bid_profiles.name AS profile_name,
+        bid_profiles.resume_text AS profile_resume_text,
         bid_profiles.user_id AS profile_owner_user_id,
         owner_user.username AS profile_owner_username,
         scraped_jobs.id AS job_id,
@@ -1602,6 +1772,7 @@ export async function listTailoringRequests(req, res, next) {
         scraped_jobs.company,
         scraped_jobs.location,
         scraped_jobs.source,
+        scraped_jobs.listing_text,
         scraped_jobs.posted_at,
         scraped_jobs.scraped_at
       FROM tailored_resumes
@@ -2223,8 +2394,105 @@ function formatTailoringRequest(row) {
       scrapedAt: row.scraped_at,
       url: validHttpUrl(row.job_url) ? row.job_url : '',
     },
+    review: resumeTailoringReview(row),
   };
 }
+
+function resumeTailoringReview(row) {
+  const resumeText = clean(row.profile_resume_text);
+  const jobText = clean(row.listing_text || row.manual_job_description);
+  const keywords = extractReviewKeywords(jobText);
+  const resumeTextLower = resumeText.toLowerCase();
+  const covered = keywords.filter((keyword) => resumeTextLower.includes(keyword.toLowerCase()));
+  const missing = keywords.filter((keyword) => !resumeTextLower.includes(keyword.toLowerCase()));
+  const coverage = keywords.length ? covered.length / keywords.length : null;
+  const truthfulnessFlags = resumeTruthfulnessFlags({ resumeText, jobText, row });
+  const confidence = reviewConfidence({ status: row.status, coverage, truthfulnessFlags, hasResume: Boolean(resumeText), hasJobText: Boolean(jobText) });
+
+  return {
+    approval: {
+      status: row.status === 'ready' ? (truthfulnessFlags.length ? 'needs_review' : 'pending_approval') : 'not_ready',
+      downloadedAt: row.downloaded_at ? new Date(row.downloaded_at).toISOString() : null,
+      nextAction: row.status === 'ready' ? 'Review keyword coverage and truthfulness before approving download/use.' : 'Wait for the tailored resume to be ready.',
+    },
+    confidence,
+    atsKeywordCoverage: coverage === null
+      ? null
+      : {
+          score: Number(coverage.toFixed(2)),
+          covered,
+          missing,
+          total: keywords.length,
+        },
+    beforeAfterDiff: {
+      baseline: resumeText ? 'profile_resume' : 'missing_profile_resume',
+      target: jobText ? 'job_description' : 'missing_job_description',
+      likelyAddedKeywords: missing.slice(0, 12),
+      alreadyCoveredKeywords: covered.slice(0, 12),
+    },
+    truthfulness: {
+      status: truthfulnessFlags.length ? 'needs_review' : 'clear',
+      flags: truthfulnessFlags,
+    },
+  };
+}
+
+function extractReviewKeywords(value) {
+  const text = String(value || '').toLowerCase();
+  const phrases = [
+    'react', 'node', 'typescript', 'javascript', 'python', 'java', 'aws', 'gcp', 'azure',
+    'postgresql', 'mysql', 'mongodb', 'graphql', 'rest', 'kubernetes', 'docker',
+    'terraform', 'ci/cd', 'machine learning', 'data engineering', 'etl', 'spark',
+    'leadership', 'stakeholder', 'communication', 'agile', 'security', 'testing',
+  ];
+  const found = phrases.filter((phrase) => text.includes(phrase));
+  const repeatedTerms = [...text.matchAll(/\b[a-z][a-z0-9+#.-]{2,}\b/g)]
+    .map(([term]) => term)
+    .filter((term) => !COMMON_REVIEW_TERMS.has(term))
+    .reduce((counts, term) => counts.set(term, (counts.get(term) || 0) + 1), new Map());
+  const frequent = [...repeatedTerms.entries()]
+    .filter(([, count]) => count >= 2)
+    .sort((left, right) => right[1] - left[1])
+    .map(([term]) => term);
+  return [...new Set([...found, ...frequent])].slice(0, 24);
+}
+
+function resumeTruthfulnessFlags({ resumeText, jobText, row }) {
+  const flags = [];
+  if (!resumeText) flags.push({ type: 'missing_source_resume', message: 'Profile resume text is missing, so claims cannot be checked.' });
+  if (!jobText) flags.push({ type: 'missing_job_description', message: 'Job description text is missing, so ATS coverage is incomplete.' });
+  if (row.request_type === 'manual' && clean(row.manual_job_description).length < 400) {
+    flags.push({ type: 'short_manual_job_description', message: 'Manual job description is short; generated tailoring may lean on incomplete context.' });
+  }
+  if (resumeText && jobText) {
+    const jobSeniority = seniorityTerms(jobText);
+    const resumeSeniority = seniorityTerms(resumeText);
+    if (jobSeniority.has('manager') && !resumeSeniority.has('manager') && !resumeSeniority.has('lead')) {
+      flags.push({ type: 'seniority_gap', message: 'Job appears manager-level but profile resume does not show manager or lead experience.' });
+    }
+  }
+  return flags;
+}
+
+function reviewConfidence({ status, coverage, truthfulnessFlags, hasResume, hasJobText }) {
+  let score = status === 'ready' ? 0.72 : 0.45;
+  if (coverage !== null) score += Math.min(coverage, 1) * 0.18;
+  if (hasResume) score += 0.05;
+  if (hasJobText) score += 0.05;
+  score -= truthfulnessFlags.length * 0.08;
+  return Math.max(0.05, Math.min(0.98, Number(score.toFixed(2))));
+}
+
+function seniorityTerms(value) {
+  const text = String(value || '').toLowerCase();
+  return new Set(['lead', 'manager', 'principal', 'staff', 'senior'].filter((term) => text.includes(term)));
+}
+
+const COMMON_REVIEW_TERMS = new Set([
+  'and', 'the', 'for', 'with', 'you', 'our', 'are', 'will', 'this', 'that', 'from', 'have',
+  'has', 'your', 'job', 'role', 'team', 'work', 'who', 'can', 'all', 'not', 'but', 'about',
+  'experience', 'years', 'skills', 'using', 'build', 'building', 'develop', 'developing',
+]);
 
 function buildDailyApplications(rows, timeZone) {
   const emptySeries = buildEmptyDailyApplications(timeZone);

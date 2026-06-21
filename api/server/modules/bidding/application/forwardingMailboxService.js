@@ -353,19 +353,32 @@ export function formatStoredMailboxNotificationMessage(row, profileOverride = nu
 
 export function classifyMailboxMessageIntent(message) {
   if (message?.calendarEvent) {
-    return { type: 'interview_related', label: 'Interview related' };
+    return mailboxClassification('interview_invite', 'Interview invite', 'Add or confirm the interview time, meeting link, and caller assignment.', 0.95);
   }
 
   const text = searchableMessageText(message);
   if (!text) return null;
 
   if (isDeclinedMessageText(text)) {
-    return { type: 'declined', label: 'Declined email' };
+    return mailboxClassification('declined', 'Declined email', 'Mark the application lost or stale and stop follow-ups.', 0.9);
   }
   if (isApplicationConfirmationText(text)) {
-    return { type: 'application_confirmation', label: 'Application confirmation' };
+    return mailboxClassification('application_confirmation', 'Application confirmation', 'Confirm the matching application is submitted.', 0.88);
+  }
+  if (isAssessmentLinkText(text)) {
+    return mailboxClassification('assessment_link', 'Assessment link', 'Create an assessment item and complete it before expiration.', 0.86);
+  }
+  if (isInterviewInviteText(text)) {
+    return mailboxClassification('interview_invite', 'Interview invite', 'Add the interview to the calendar, capture the meeting link, and assign a caller.', 0.82);
+  }
+  if (isRecruiterReplyText(text)) {
+    return mailboxClassification('recruiter_reply', 'Recruiter reply', 'Review the reply and choose the next follow-up or scheduling step.', 0.72);
   }
   return null;
+}
+
+function mailboxClassification(type, label, suggestedAction, confidence) {
+  return { type, label, suggestedAction, confidence };
 }
 
 export function classifyForwardedMessage(message, profiles) {
@@ -983,6 +996,28 @@ function isApplicationConfirmationText(text) {
     /your application (has been|was) (received|submitted)/i,
     /you applied (to|for)/i,
   ].some((pattern) => pattern.test(text));
+}
+
+function isAssessmentLinkText(text) {
+  return [
+    /(assessment|test|coding challenge|take-home|take home|hackerrank|codility|codesignal|criteriacorp|testgorilla)/i,
+    /(complete|submit|finish)[\s\S]{0,120}(assessment|test|challenge)/i,
+    /(expires|deadline|due)[\s\S]{0,120}(assessment|test|challenge)/i,
+  ].some((pattern) => pattern.test(text));
+}
+
+function isInterviewInviteText(text) {
+  return [
+    /(interview|phone screen|recruiter screen|technical screen|onsite|final round)/i,
+    /(schedule|scheduled|invite|calendar|availability|available times|meet with|speak with|zoom|google meet|teams)/i,
+  ].every((pattern) => pattern.test(text));
+}
+
+function isRecruiterReplyText(text) {
+  return [
+    /(recruiter|talent acquisition|hiring team|hiring manager|people team)/i,
+    /(following up|next steps|availability|would like to|interested|learn more|connect|chat|call)/i,
+  ].every((pattern) => pattern.test(text));
 }
 
 function normalizedMatchingText(value) {

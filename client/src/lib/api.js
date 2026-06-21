@@ -117,6 +117,15 @@ export function usePersonalDashboard(queryOptions = {}) {
   });
 }
 
+export function useActionQueue(queryOptions = {}) {
+  return useQuery({
+    queryKey: ['bid', 'action-queue'],
+    queryFn: () => api('/api/bid/action-queue').then((data) => data.queue),
+    staleTime: 15_000,
+    ...queryOptions,
+  });
+}
+
 export function useForwardingMailboxStatus(queryOptions = {}) {
   return useQuery({
     queryKey: ['bid', 'mailbox', 'status'],

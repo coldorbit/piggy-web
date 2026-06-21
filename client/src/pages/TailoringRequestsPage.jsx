@@ -270,7 +270,7 @@ export default function TailoringRequestsPage() {
 
       <Paper variant="outlined" sx={{ borderRadius: 1, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateRows: 'minmax(0, 1fr) auto' }}>
         <TableContainer sx={{ minHeight: 0, overflow: 'auto' }}>
-          <Table stickyHeader size="small" sx={{ minWidth: 1120 }}>
+          <Table stickyHeader size="small" sx={{ minWidth: 1280 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Request</TableCell>
@@ -278,6 +278,7 @@ export default function TailoringRequestsPage() {
                 <TableCell>Profile</TableCell>
                 <TableCell>Requester</TableCell>
                 <TableCell>Attempts</TableCell>
+                <TableCell>Review</TableCell>
                 <TableCell>Updated</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
@@ -288,7 +289,7 @@ export default function TailoringRequestsPage() {
               ) : null}
               {!isLoading && !requests.length ? (
                 <TableRow>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={8}>
                     <EmptyState
                       title="No tailoring requests found"
                       detail="Adjust the filters or create a manual tailoring request above."
@@ -451,6 +452,10 @@ function TailoringRequestSkeletonRows() {
         <Skeleton width={126} />
         <Skeleton width={90} />
       </TableCell>
+      <TableCell>
+        <Skeleton width={126} />
+        <Skeleton width={90} />
+      </TableCell>
       <TableCell align="right"><Skeleton variant="rounded" width={88} height={30} sx={{ ml: 'auto' }} /></TableCell>
     </TableRow>
   ));
@@ -532,6 +537,9 @@ function TailoringRequestRow({ request }) {
         </Typography>
       </TableCell>
       <TableCell>
+        <ResumeReviewSummary review={request.review} />
+      </TableCell>
+      <TableCell>
         <Typography>{formatDateTime(request.updatedAt)}</Typography>
         {request.readyAt ? (
           <Typography variant="caption" color="text.secondary">
@@ -557,6 +565,49 @@ function TailoringRequestRow({ request }) {
       </TableCell>
     </TableRow>
   );
+}
+
+function ResumeReviewSummary({ review }) {
+  const coverage = review?.atsKeywordCoverage;
+  const confidence = review?.confidence;
+  const truthfulness = review?.truthfulness || {};
+  return (
+    <Stack spacing={0.5} sx={{ minWidth: 180, maxWidth: 260 }}>
+      <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
+        <Chip label={approvalLabel(review?.approval?.status)} size="small" sx={reviewChipSx(review?.approval?.status)} />
+        {confidence !== undefined && confidence !== null ? (
+          <Chip label={`${Math.round(Number(confidence) * 100)}% confidence`} size="small" variant="outlined" sx={{ fontWeight: 800 }} />
+        ) : null}
+      </Stack>
+      {coverage ? (
+        <Typography variant="caption" color="text.secondary">
+          ATS {Math.round(Number(coverage.score || 0) * 100)}% · {Number(coverage.covered?.length || 0)}/{Number(coverage.total || 0)} keywords
+        </Typography>
+      ) : (
+        <Typography variant="caption" color="text.secondary">ATS coverage unavailable</Typography>
+      )}
+      {truthfulness.flags?.length ? (
+        <Typography variant="caption" color="error" sx={{ overflowWrap: 'anywhere' }}>
+          {truthfulness.flags[0].message}
+        </Typography>
+      ) : (
+        <Typography variant="caption" color="success.main">Truthfulness checks clear</Typography>
+      )}
+    </Stack>
+  );
+}
+
+function approvalLabel(status) {
+  if (status === 'pending_approval') return 'Needs approval';
+  if (status === 'needs_review') return 'Review flags';
+  if (status === 'not_ready') return 'Not ready';
+  return status ? status.replace(/_/g, ' ') : 'Review';
+}
+
+function reviewChipSx(status) {
+  if (status === 'pending_approval') return { bgcolor: '#DBEAFE', color: '#1D4ED8', fontWeight: 800 };
+  if (status === 'needs_review') return { bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: 800 };
+  return { bgcolor: '#F8FAFC', color: '#475569', fontWeight: 800 };
 }
 
 function statusLabel(status) {
