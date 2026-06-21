@@ -278,8 +278,8 @@ export async function importJobsCsv(req, res, next) {
     if (insertRows.length) await ScrapedJob.bulkCreate(insertRows, { ignoreDuplicates: true });
     await Promise.all(
       [
-        ...categoryUpdates.map((update) => ({ url: update.url, values: { category: update.category } })),
-        ...locationUpdates.map((update) => ({ url: update.url, values: { location: update.location } })),
+        ...categoryUpdates.map((update) => ({ ...update, values: { category: update.category } })),
+        ...locationUpdates.map((update) => ({ ...update, values: { location: update.location } })),
       ].map((update) =>
         ScrapedJob.update(update.values, { where: update.id ? { id: update.id } : { url: update.url } }),
       ),

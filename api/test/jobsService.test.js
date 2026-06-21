@@ -433,6 +433,38 @@ describe('manual CSV job imports', () => {
     assert.equal(plan.duplicateExistingRows[0].matchType, 'normalized_job');
   });
 
+  it('plans category updates by id for existing normalized job fingerprint matches', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,location,category',
+        'https://jobs.example.com/acme/data-engineer?utm_source=test,Data Engineer,Acme Inc.,Remote,data',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+    const existingDuplicateKey = buildJobDuplicateKey({
+      url: 'https://other.example.com/roles/456',
+      title: 'data engineer',
+      company: 'ACME',
+      location: 'Remote',
+    });
+
+    const plan = planCsvJobImport([job], [
+      {
+        id: 456,
+        url: 'https://other.example.com/roles/456',
+        duplicateKey: existingDuplicateKey,
+        title: 'Data Engineer',
+        company: 'Acme',
+        category: 'software',
+        location: 'Remote',
+      },
+    ]);
+
+    assert.equal(plan.insertRows.length, 0);
+    assert.equal(plan.duplicateExistingRows.length, 1);
+    assert.deepEqual(plan.categoryUpdates, [{ id: 456, key: 'id:456', category: 'data' }]);
+  });
+
   it('does not update existing categories when the CSV category is blank', () => {
     const [job] = jobsFromCsv(
       [
