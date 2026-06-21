@@ -338,7 +338,7 @@ export default function ProfilesPage({ currentUser }) {
       <Dialog open={Boolean(sharingProfile)} onClose={closeShareDialog} fullWidth maxWidth="xs">
         <form onSubmit={submitShare}>
           <DialogTitle>Share profile</DialogTitle>
-          <DialogContent sx={{ pt: 1 }}>
+          <DialogContent sx={{ pt: 2 }}>
             <FormControl fullWidth>
               <InputLabel>Users</InputLabel>
               <Select
@@ -383,7 +383,7 @@ export default function ProfilesPage({ currentUser }) {
       <Dialog open={Boolean(legacyProfile)} onClose={closeLegacyDialog} fullWidth maxWidth="xs">
         <form onSubmit={submitLegacyStatus}>
           <DialogTitle>Mark profile as legacy</DialogTitle>
-          <DialogContent sx={{ pt: 1 }}>
+          <DialogContent sx={{ pt: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Users will not be able to bid or tailor with this profile, but interviews and calendar entries will remain available.
             </Typography>
@@ -403,7 +403,7 @@ export default function ProfilesPage({ currentUser }) {
       <Dialog open={Boolean(closingProfile)} onClose={closeCloseDialog} fullWidth maxWidth="xs">
         <form onSubmit={submitProfileStatus}>
           <DialogTitle>Close profile</DialogTitle>
-          <DialogContent sx={{ pt: 1 }}>
+          <DialogContent sx={{ pt: 2 }}>
             <TextField
               autoFocus
               fullWidth
@@ -466,7 +466,7 @@ function ProfileReadOnlyDialogContent({ profile, onClose }) {
   return (
     <Dialog open={Boolean(profile)} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>{profile.name || 'Profile'}</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent dividers sx={{ pt: 2 }}>
         <Box sx={{ display: 'grid', gap: 2 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
             <ReadOnlyField label="Location" value={profile.location} />

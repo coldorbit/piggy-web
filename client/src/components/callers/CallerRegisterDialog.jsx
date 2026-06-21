@@ -5,7 +5,7 @@ export default function CallerRegisterDialog({ callerForm, isOpen, isSaving, onC
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="xs">
       <form onSubmit={onSubmit}>
         <DialogTitle>Register caller</DialogTitle>
-        <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1 }}>
+        <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 2 }}>
           <TextField
             autoFocus
             label="Email"

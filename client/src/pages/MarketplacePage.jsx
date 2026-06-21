@@ -532,7 +532,7 @@ function ProfileDialog({ form, isOpen, isSaving, onChange, onClose, onSubmit }) 
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
       <Box component="form" onSubmit={onSubmit}>
         <DialogTitle>Marketplace profile</DialogTitle>
-        <DialogContent sx={{ display: 'grid', gap: 1, pt: 1 }}>
+        <DialogContent sx={{ display: 'grid', gap: 1, pt: 2 }}>
           <EnumSelect label="Role" value={form.participantRole} values={['interview_owner', 'caller_owner', 'both']} onChange={(value) => onChange({ ...form, participantRole: value })} />
           <TextField label="Display name" value={form.displayName} onChange={(event) => onChange({ ...form, displayName: event.target.value })} required />
           <TextField label="Timezone" value={form.timezone} onChange={(event) => onChange({ ...form, timezone: event.target.value })} />
@@ -549,7 +549,7 @@ function InterviewDialog({ form, isOpen, isSaving, onChange, onClose, onSubmit }
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="md">
       <Box component="form" onSubmit={onSubmit}>
         <DialogTitle>Submit interview opportunity</DialogTitle>
-        <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1, pt: 1 }}>
+        <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1, pt: 2 }}>
           <TextField label="Job title" value={form.title} onChange={(event) => onChange({ ...form, title: event.target.value })} required />
           <TextField label="Company" value={form.company} onChange={(event) => onChange({ ...form, company: event.target.value })} />
           <TextField label="Stage" value={form.stage} onChange={(event) => onChange({ ...form, stage: event.target.value })} />
@@ -572,7 +572,7 @@ function CallerDialog({ form, isOpen, isSaving, onChange, onClose, onSubmit }) {
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="md">
       <Box component="form" onSubmit={onSubmit}>
         <DialogTitle>Submit caller profile</DialogTitle>
-        <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1, pt: 1 }}>
+        <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1, pt: 2 }}>
           <TextField label="Caller name or label" value={form.callerName} onChange={(event) => onChange({ ...form, callerName: event.target.value })} required />
           <TextField label="Timezone" value={form.timezone} onChange={(event) => onChange({ ...form, timezone: event.target.value })} />
           <TextField label="Languages" value={form.languages} onChange={(event) => onChange({ ...form, languages: event.target.value })} />
@@ -594,7 +594,7 @@ function MatchDialog({ callers, form, interviews, isOpen, isSaving, onChange, on
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
       <Box component="form" onSubmit={onSubmit}>
         <DialogTitle>Create controlled match</DialogTitle>
-        <DialogContent sx={{ display: 'grid', gap: 1, pt: 1 }}>
+        <DialogContent sx={{ display: 'grid', gap: 1, pt: 2 }}>
           <FormControl fullWidth>
             <InputLabel>Interview</InputLabel>
             <Select label="Interview" value={form.interviewOpportunityId} onChange={(event) => onChange({ ...form, interviewOpportunityId: event.target.value })} required>

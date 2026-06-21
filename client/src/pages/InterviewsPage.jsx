@@ -470,7 +470,7 @@ export default function InterviewsPage({ currentUser }) {
       <Dialog open={isManualDialogOpen} onClose={closeManualDialog} fullWidth maxWidth="sm">
         <form onSubmit={submitManualInterview}>
           <DialogTitle>Register interview</DialogTitle>
-          <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1 }}>
+          <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 2 }}>
             <Autocomplete
               autoFocus
               clearOnBlur={false}

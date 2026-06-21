@@ -102,7 +102,6 @@ export default function AdminConsumptionPage() {
             onChange={updateForm}
             onSubmit={submitRecord}
             spenderOptions={spenderOptions}
-            surface="plain"
           />
         </DialogContent>
       </Dialog>

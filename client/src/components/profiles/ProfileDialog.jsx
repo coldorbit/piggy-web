@@ -27,7 +27,7 @@ export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpe
       <form onSubmit={onSubmit}>
         <DialogTitle>{mode === 'edit' ? 'Edit profile' : 'Add profile'}</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, pt: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2, pt: 2 }}>
             <TextField
               label="Profile name"
               value={form.name}

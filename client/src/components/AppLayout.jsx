@@ -581,7 +581,7 @@ export default function AppLayout({ user }) {
         <Dialog open={isAccountDialogOpen} onClose={closeAccountDialog} fullWidth maxWidth="xs">
           <Box component="form" onSubmit={submitAccount}>
             <DialogTitle>Set username</DialogTitle>
-            <DialogContent sx={{ pt: 1 }}>
+            <DialogContent sx={{ pt: 2 }}>
               <TextField
                 autoFocus
                 disabled={isUpdatingMe}

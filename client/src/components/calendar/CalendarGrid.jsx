@@ -503,7 +503,7 @@ function CalendarEventDialog({ event, onClose }) {
               </Typography>
             </Box>
           </DialogTitle>
-          <DialogContent sx={{ display: 'grid', gap: 1.25, pt: 1 }}>
+          <DialogContent sx={{ display: 'grid', gap: 1.25, pt: 2 }}>
             <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)}`} />
             <DetailRow label="Profile" value={event.profile?.name || 'Profile'} />
             <DetailRow label="Company" value={event.company || 'Unknown company'} />
