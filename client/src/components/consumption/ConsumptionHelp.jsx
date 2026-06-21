@@ -7,7 +7,7 @@ const HELP_ITEMS = [
   ['Crypto spend', 'Use this for vendor payments. It subtracts the token amount and the ETH gas fee.'],
   ['Team wallet deposit', 'Use this when depositing USDC, USDT, ETH, SOL, or TRX to the team wallet. It adds the selected asset to its wallet balance.'],
   ['Card pay', 'Use this for purchases from an issued card. It subtracts the selected card balance and has no ETH fee.'],
-  ['Top up main account', 'Use this when funding the card service main account from USDC/USDT. It subtracts crypto, subtracts ETH gas, adds received USD to Main Account USD, and can record top-up fees.'],
+  ['Top up main account', 'Use this when funding the card service main account from USDC/USDT. It subtracts crypto, subtracts ETH gas, and adds the received USD to Main Account USD.'],
   ['Main account to card', 'Use this when moving USD from the card main account onto a card. It subtracts Main Account USD, adds the selected card balance, and can record transfer fees.'],
   ['Internal card transfer', 'Use this when moving USD between card accounts. It subtracts the source account, adds the destination account, and can record transfer fees.'],
   ['Swap to ETH', 'Use this when swapping USDC/USDT into ETH for future gas. It subtracts the input token, adds ETH received, and subtracts ETH gas.'],

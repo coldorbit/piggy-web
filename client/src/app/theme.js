@@ -162,9 +162,7 @@ export const theme = createTheme({
     MuiDialogContent: {
       styleOverrides: {
         root: {
-          '& > .MuiTextField-root:first-of-type, & > .MuiFormControl-root:first-of-type, & > .MuiBox-root:first-of-type > .MuiTextField-root:first-of-type, & > .MuiBox-root:first-of-type > .MuiFormControl-root:first-of-type': {
-            marginTop: 8,
-          },
+          marginTop: 8,
           '& .MuiTextField-root, & .MuiFormControl-root': {
             overflow: 'visible',
           },

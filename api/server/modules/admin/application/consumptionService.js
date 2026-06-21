@@ -57,7 +57,7 @@ export async function listConsumptionRecords() {
       limit: 500,
     }),
   ]);
-  const balances = balancesForAccounts(accounts, transactions.flatMap((transaction) => transaction.entries || []));
+  const balances = balancesForAccounts(accounts, transactions);
   const spenderOptions = await consumptionSpenderOptions();
 
   return {
@@ -217,7 +217,6 @@ export function buildConsumptionLedgerEntries(attrs, body = {}, accountRows = []
     add(`${currency} Wallet`, 'outflow', body.amount, currency, 'principal');
     add('ETH Wallet', 'outflow', body.ethFee, 'ETH', 'eth_network_fee');
     add(CARD_MAIN_ACCOUNT_NAME, 'inflow', body.receivedUsd, FIAT_CURRENCY, 'principal');
-    add(CARD_MAIN_ACCOUNT_NAME, 'outflow', body.cardFee, FIAT_CURRENCY, 'card_fee');
   } else if (attrs.type === 'card_main_transfer') {
     transfer({
       fromAccountName: CARD_MAIN_ACCOUNT_NAME,
@@ -331,14 +330,24 @@ async function consumptionSpenderOptions() {
   ];
 }
 
-function balancesForAccounts(accounts, entries) {
+function balancesForAccounts(accounts, transactions) {
   const balances = new Map(accounts.map((account) => [String(account.id), 0]));
-  for (const entry of entries) {
-    const key = String(entry.accountId);
-    const signedAmount = entry.direction === 'inflow' ? Number(entry.amount || 0) : -Number(entry.amount || 0);
-    balances.set(key, Number(balances.get(key) || 0) + signedAmount);
+  for (const transaction of transactions) {
+    for (const entry of balanceEntriesForTransaction(transaction)) {
+      const key = String(entry.accountId);
+      const signedAmount = entry.direction === 'inflow' ? Number(entry.amount || 0) : -Number(entry.amount || 0);
+      balances.set(key, Number(balances.get(key) || 0) + signedAmount);
+    }
   }
   return balances;
+}
+
+function balanceEntriesForTransaction(transaction) {
+  return (transaction.entries || []).filter((entry) => !isLegacyCardDepositFeeEntry(transaction, entry));
+}
+
+function isLegacyCardDepositFeeEntry(transaction, entry) {
+  return transaction.type === 'card_deposit' && entry.entryKind === 'card_fee';
 }
 
 function formatAccount(account, balance = 0) {
@@ -362,7 +371,7 @@ function formatTransaction(transaction) {
     txHash: plain.txHash || '',
     spentBy: formatSpender(plain),
     createdBy: plain.createdBy ? { id: plain.createdBy.id, username: plain.createdBy.username } : null,
-    entries: (plain.entries || []).map((entry) => ({
+    entries: balanceEntriesForTransaction(plain).map((entry) => ({
       id: entry.id,
       accountId: entry.accountId,
       accountName: entry.account?.name || '',

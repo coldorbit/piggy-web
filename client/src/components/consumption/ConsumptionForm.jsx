@@ -96,7 +96,6 @@ function TransactionFields({ accountOptions, cardAccountOptions, fieldSize, form
         <AmountField fieldSize={fieldSize} label="Crypto amount" value={form.amount} onChange={(amount) => onChange({ amount })} />
         <AmountField fieldSize={fieldSize} label="ETH fee" optional value={form.ethFee} onChange={(ethFee) => onChange({ ethFee })} />
         <AmountField fieldSize={fieldSize} label="Received main USD" value={form.receivedUsd} onChange={(receivedUsd) => onChange({ receivedUsd })} />
-        <AmountField fieldSize={fieldSize} label="Top-up fee" optional value={form.cardFee} onChange={(cardFee) => onChange({ cardFee })} />
       </>
     );
   }

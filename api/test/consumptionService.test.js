@@ -59,7 +59,6 @@ describe('consumption card transfers', () => {
       { accountId: 4, direction: 'outflow', amount: 100, currency: 'USDC', entryKind: 'principal' },
       { accountId: 5, direction: 'outflow', amount: 0.002, currency: 'ETH', entryKind: 'eth_network_fee' },
       { accountId: 1, direction: 'inflow', amount: 98.5, currency: 'USD', entryKind: 'principal' },
-      { accountId: 1, direction: 'outflow', amount: 1.5, currency: 'USD', entryKind: 'card_fee' },
     ]);
   });
 
