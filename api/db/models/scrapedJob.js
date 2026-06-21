@@ -37,6 +37,10 @@ export function getScrapedJobModel() {
       },
       title: DataTypes.TEXT,
       company: DataTypes.TEXT,
+      normalizedCompany: {
+        type: DataTypes.TEXT,
+        field: 'normalized_company',
+      },
       location: DataTypes.TEXT,
       category: DataTypes.TEXT,
       postedAt: {

@@ -24,6 +24,7 @@ import {
   Typography,
 } from '@mui/material';
 import ProfileCard from '../components/profiles/ProfileCard.jsx';
+import CollaborationPanel from '../components/collaboration/CollaborationPanel.jsx';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_PROFILE } from '../components/profiles/profileConstants.js';
@@ -427,7 +428,11 @@ export default function ProfilesPage({ currentUser }) {
         </form>
       </Dialog>
 
-      <ProfileReadOnlyDialog profile={viewingProfile} onClose={() => setViewingProfile(null)} />
+      <ProfileReadOnlyDialog
+        assignableUsers={shareRecipientOptions}
+        profile={viewingProfile}
+        onClose={() => setViewingProfile(null)}
+      />
     </Box>
   );
 }
@@ -457,12 +462,12 @@ function ProfileSkeletonCards() {
   ));
 }
 
-function ProfileReadOnlyDialog({ profile, onClose }) {
+function ProfileReadOnlyDialog({ assignableUsers = [], profile, onClose }) {
   if (!profile) return null;
-  return <ProfileReadOnlyDialogContent profile={profile} onClose={onClose} />;
+  return <ProfileReadOnlyDialogContent assignableUsers={assignableUsers} profile={profile} onClose={onClose} />;
 }
 
-function ProfileReadOnlyDialogContent({ profile, onClose }) {
+function ProfileReadOnlyDialogContent({ assignableUsers, profile, onClose }) {
   return (
     <Dialog open={Boolean(profile)} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>{profile.name || 'Profile'}</DialogTitle>
@@ -482,6 +487,13 @@ function ProfileReadOnlyDialogContent({ profile, onClose }) {
 
           <Divider />
           <ReadOnlySection label="Resume text" value={profile.resumeText} preserveText />
+          <Divider />
+          <CollaborationPanel
+            entityType="profile"
+            entityId={profile.id}
+            profileId={profile.id}
+            assignableUsers={assignableUsers}
+          />
         </Box>
       </DialogContent>
       <DialogActions>

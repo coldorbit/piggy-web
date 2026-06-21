@@ -127,6 +127,15 @@ export default function InboxPage({ currentUser }) {
     () => mailboxStatsFromPages(inboxData?.pages || [], messages),
     [inboxData, messages],
   );
+  const stableMailboxStats = useMemo(
+    () => mailboxStatsFromSummary({
+      activeProfileId,
+      fallbackStats: profileMailboxStats,
+      isAggregateInbox,
+      mailboxSummary,
+    }),
+    [activeProfileId, isAggregateInbox, mailboxSummary, profileMailboxStats],
+  );
   const groupedMessages = useMemo(
     () => filterMessagesByGroup(messages, activeMailboxGroup),
     [activeMailboxGroup, messages],
@@ -142,18 +151,18 @@ export default function InboxPage({ currentUser }) {
   );
   const pageError = profilesError?.message || statusError?.message || (configured ? messagesError?.message : '') || '';
   const isLoadingMessages = statusLoading || (messagesLoading && !inboxData);
-  const totalMessages = configured ? profileMailboxStats.total : 0;
-  const unreadCount = configured ? profileMailboxStats.unreadTotal : 0;
-  const stableUnreadCount = configured ? Math.max(Number(mailboxSummary?.unreadTotal || 0), 0) : 0;
+  const totalMessages = configured ? stableMailboxStats.total : 0;
+  const unreadCount = configured ? stableMailboxStats.unreadTotal : 0;
+  const stableUnreadCount = configured ? Math.max(Number(mailboxSummary?.stats?.unreadTotal ?? mailboxSummary?.unreadTotal ?? 0), 0) : 0;
   const profileUnreadCountsById = useMemo(
-    () => new Map((mailboxSummary?.profiles || []).map((profile) => [String(profile.id), Math.max(Number(profile.unreadTotal || 0), 0)])),
+    () => new Map((mailboxSummary?.profiles || []).map((profile) => [String(profile.id), Math.max(Number(profile.stats?.unreadTotal ?? profile.unreadTotal ?? 0), 0)])),
     [mailboxSummary],
   );
-  const declinedCount = profileMailboxStats.declinedTotal;
-  const confirmationCount = profileMailboxStats.confirmationTotal;
-  const interviewCount = profileMailboxStats.interviewTotal;
-  const autoAppliedCount = profileMailboxStats.autoAppliedTotal;
-  const activeGroupTotal = configured ? mailboxGroupTotal(profileMailboxStats, activeMailboxGroup) : 0;
+  const declinedCount = stableMailboxStats.declinedTotal;
+  const confirmationCount = stableMailboxStats.confirmationTotal;
+  const interviewCount = stableMailboxStats.interviewTotal;
+  const autoAppliedCount = stableMailboxStats.autoAppliedTotal;
+  const activeGroupTotal = configured ? mailboxGroupTotal(stableMailboxStats, activeMailboxGroup) : 0;
   const activeGroupLabel = mailboxGroupLabel(activeMailboxGroup);
   const hasMatcher = isAggregateInbox
     ? inboxProfiles.some(profileHasMailboxMatcher)
@@ -1267,6 +1276,23 @@ function mailboxStatsFromPages(pages, messages) {
     confirmationTotal,
     declinedTotal,
     autoAppliedTotal,
+  };
+}
+
+function mailboxStatsFromSummary({ activeProfileId, fallbackStats, isAggregateInbox, mailboxSummary }) {
+  if (isAggregateInbox) return normalizeMailboxStats(mailboxSummary?.stats, fallbackStats);
+  const profileSummary = (mailboxSummary?.profiles || []).find((profile) => String(profile.id) === String(activeProfileId));
+  return normalizeMailboxStats(profileSummary?.stats, fallbackStats);
+}
+
+function normalizeMailboxStats(stats, fallbackStats = {}) {
+  return {
+    total: Math.max(Number(stats?.total || 0), Number(fallbackStats.total || 0)),
+    unreadTotal: Math.max(Number(stats?.unreadTotal || 0), Number(fallbackStats.unreadTotal || 0)),
+    interviewTotal: Math.max(Number(stats?.interviewTotal || 0), Number(fallbackStats.interviewTotal || 0)),
+    confirmationTotal: Math.max(Number(stats?.confirmationTotal || 0), Number(fallbackStats.confirmationTotal || 0)),
+    declinedTotal: Math.max(Number(stats?.declinedTotal || 0), Number(fallbackStats.declinedTotal || 0)),
+    autoAppliedTotal: Math.max(Number(stats?.autoAppliedTotal || 0), Number(fallbackStats.autoAppliedTotal || 0)),
   };
 }
 

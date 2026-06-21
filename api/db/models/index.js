@@ -1,5 +1,6 @@
 export { getAssessmentModel } from './assessment.js';
 export { getBidProfileModel } from './bidProfile.js';
+export { getCollaborationEventModel } from './collaborationEvent.js';
 export { getFaqModel } from './faq.js';
 export { getForwardedMailboxMessageModel } from './forwardedMailboxMessage.js';
 export { getConsumptionAccountModel } from './consumptionAccount.js';
@@ -20,6 +21,7 @@ export { getWebUserModel } from './webUser.js';
 
 import { getAssessmentModel } from './assessment.js';
 import { getBidProfileModel } from './bidProfile.js';
+import { getCollaborationEventModel } from './collaborationEvent.js';
 import { getFaqModel } from './faq.js';
 import { getForwardedMailboxMessageModel } from './forwardedMailboxMessage.js';
 import { getConsumptionAccountModel } from './consumptionAccount.js';
@@ -42,6 +44,7 @@ export function setupWebAssociations() {
   const WebUserModel = getWebUserModel();
   const ScrapedJobModel = getScrapedJobModel();
   const BidProfileModel = getBidProfileModel();
+  const CollaborationEventModel = getCollaborationEventModel();
   const AssessmentModel = getAssessmentModel();
   const FaqModel = getFaqModel();
   const ForwardedMailboxMessageModel = getForwardedMailboxMessageModel();
@@ -63,6 +66,10 @@ export function setupWebAssociations() {
 
   WebUserModel.hasMany(BidProfileModel, { foreignKey: 'userId', as: 'bidProfiles' });
   BidProfileModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'user' });
+  WebUserModel.hasMany(CollaborationEventModel, { foreignKey: 'authorUserId', as: 'authoredCollaborationEvents' });
+  WebUserModel.hasMany(CollaborationEventModel, { foreignKey: 'assignedToUserId', as: 'assignedCollaborationEvents' });
+  CollaborationEventModel.belongsTo(WebUserModel, { foreignKey: 'authorUserId', as: 'author' });
+  CollaborationEventModel.belongsTo(WebUserModel, { foreignKey: 'assignedToUserId', as: 'assignedTo' });
   WebUserModel.hasMany(FaqModel, { foreignKey: 'createdByUserId', as: 'faqs' });
   FaqModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
   WebUserModel.hasMany(TeamConsumptionModel, { foreignKey: 'createdByUserId', as: 'consumptionRecords' });

@@ -1,6 +1,6 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
-import { Op, QueryTypes } from 'sequelize';
+import { Op, QueryTypes, literal } from 'sequelize';
 import { ENV } from '../../../../env.js';
 import {
   getBidProfileModel,
@@ -222,17 +222,22 @@ export async function listForwardedMailboxSummary(req) {
   const user = await currentDbUser(req);
   const profiles = await mailboxNotificationProfilesForUser(user);
   const unreadWhere = mailboxProfilesMessageWhere(profiles, { isRead: false });
-  const [unreadCountsByProfileId, unreadTotal] = await Promise.all([
+  const aggregateWhere = mailboxProfilesMessageWhere(profiles);
+  const [unreadCountsByProfileId, unreadTotal, aggregateStats, profileStatsById] = await Promise.all([
     unreadMailboxCountsByProfile(profiles),
     unreadWhere ? getForwardedMailboxMessageModel().count({ where: unreadWhere }) : 0,
+    aggregateWhere ? mailboxStatsForWhere(aggregateWhere) : emptyMailboxStats(),
+    mailboxStatsByProfile(profiles),
   ]);
 
   return {
     mailbox: forwardingMailboxStatus(),
     unreadTotal,
+    stats: aggregateStats,
     profiles: profiles.map((profile) => ({
       id: profile.id,
       unreadTotal: unreadCountsByProfileId.get(String(profile.id)) || 0,
+      stats: profileStatsById.get(String(profile.id)) || emptyMailboxStats(),
     })),
   };
 }
@@ -557,6 +562,79 @@ async function unreadMailboxCountsByProfile(profiles) {
   }
 
   return counts;
+}
+
+async function mailboxStatsByProfile(profiles) {
+  const entries = await Promise.all(
+    profiles.map(async (profile) => [
+      String(profile.id),
+      await mailboxStatsForWhere(profileMailboxMessageWhere(profile)),
+    ]),
+  );
+  return new Map(entries);
+}
+
+async function mailboxStatsForWhere(where) {
+  if (!where) return emptyMailboxStats();
+
+  const Message = getForwardedMailboxMessageModel();
+  const [
+    total,
+    unreadTotal,
+    interviewTotal,
+    confirmationTotal,
+    declinedTotal,
+    autoAppliedTotal,
+  ] = await Promise.all([
+    Message.count({ where }),
+    Message.count({ where: { [Op.and]: [where, { isRead: false }] } }),
+    Message.count({ where: { [Op.and]: [where, interviewMailboxStatsCondition()] } }),
+    Message.count({ where: { [Op.and]: [where, jsonTextEqualsCondition('classification', 'type', 'application_confirmation')] } }),
+    Message.count({ where: { [Op.and]: [where, jsonTextEqualsCondition('classification', 'type', 'declined')] } }),
+    Message.count({ where: { [Op.and]: [where, jsonTextInCondition('application', 'status', ['applied', 'already_applied'])] } }),
+  ]);
+
+  return {
+    total,
+    unreadTotal,
+    interviewTotal,
+    confirmationTotal,
+    declinedTotal,
+    autoAppliedTotal,
+  };
+}
+
+function emptyMailboxStats() {
+  return {
+    total: 0,
+    unreadTotal: 0,
+    interviewTotal: 0,
+    confirmationTotal: 0,
+    declinedTotal: 0,
+    autoAppliedTotal: 0,
+  };
+}
+
+function interviewMailboxStatsCondition() {
+  return {
+    [Op.or]: [
+      jsonTextInCondition('classification', 'type', ['interview_invite', 'interview_related']),
+      literal('calendar_event IS NOT NULL'),
+    ],
+  };
+}
+
+function jsonTextEqualsCondition(column, key, value) {
+  return literal(`${jsonTextExpression(column, key)} = ${getSequelize().escape(value)}`);
+}
+
+function jsonTextInCondition(column, key, values) {
+  const escapedValues = values.map((value) => getSequelize().escape(value)).join(', ');
+  return literal(`${jsonTextExpression(column, key)} IN (${escapedValues})`);
+}
+
+function jsonTextExpression(column, key) {
+  return `${column}->>${getSequelize().escape(key)}`;
 }
 
 export function profileMailboxMessageWhere(profile, additionalWhere = {}) {

@@ -1,6 +1,7 @@
 import {
   ensureWebModels,
   getBidProfileModel,
+  getCollaborationEventModel,
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
@@ -28,7 +29,7 @@ import {
   shouldSetInterviewAtForStatus,
   tailoredResumesForJobs,
 } from '../application/biddingService.js';
-import { buildJobQuery, formatJob, jobDateFiltersForUser, normalizeJobSource } from '../../jobs/application/jobsService.js';
+import { buildJobQuery, formatJob, jobDateFiltersForUser, jobSourceLabel, normalizeJobSource } from '../../jobs/application/jobsService.js';
 import {
   accessibleProfile,
   accessibleAppliedProfile,
@@ -153,6 +154,228 @@ export async function listProfileShareRecipients(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+export async function listCollaborationEvents(req, res, next) {
+  try {
+    await ensureWebModels();
+    const context = await collaborationContextFromQuery(req);
+    const CollaborationEvent = getCollaborationEventModel();
+    const WebUser = getWebUserModel();
+    const limit = Math.min(Math.max(Number(req.query?.limit || 50), 1), 100);
+    const where = context.where;
+
+    const events = await CollaborationEvent.findAll({
+      where,
+      include: [
+        { model: WebUser, as: 'author', required: false },
+        { model: WebUser, as: 'assignedTo', required: false },
+      ],
+      order: [['createdAt', 'DESC'], ['id', 'DESC']],
+      limit,
+    });
+
+    res.json({ events: events.map(formatCollaborationEvent) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function createCollaborationEvent(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const attrs = await collaborationAttributesFromBody(req, user);
+    const event = await getCollaborationEventModel().create(attrs);
+    const hydrated = await collaborationEventById(event.id);
+    res.status(201).json({ event: formatCollaborationEvent(hydrated || event) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function updateCollaborationEvent(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const CollaborationEvent = getCollaborationEventModel();
+    const event = await CollaborationEvent.findByPk(req.params.id);
+    if (!event) throw new NotFoundError('Collaboration event not found');
+    await ensureCollaborationEventWritable(req, event);
+
+    const hasResolved = Object.prototype.hasOwnProperty.call(req.body || {}, 'resolved');
+    const body = Object.prototype.hasOwnProperty.call(req.body || {}, 'body') ? clean(req.body.body) : undefined;
+    const updates = {};
+    if (body !== undefined) {
+      if (!body) throw new InputError('Note is required');
+      updates.body = body;
+      updates.mentions = await mentionsForBody(req.body, body);
+    }
+    if (hasResolved) updates.resolvedAt = req.body.resolved ? new Date() : null;
+    updates.metadata = {
+      ...(event.metadata || {}),
+      lastEditedByUserId: user.id,
+      lastEditedAt: new Date().toISOString(),
+    };
+
+    await event.update(updates);
+    const hydrated = await collaborationEventById(event.id);
+    res.json({ event: formatCollaborationEvent(hydrated || event) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+async function collaborationContextFromQuery(req) {
+  const entityType = normalizeCollaborationEntityType(req.query?.entityType || req.query?.type);
+  const entityId = numericIdOrNull(req.query?.entityId || req.query?.id);
+  const profileId = numericIdOrNull(req.query?.profileId);
+
+  if (entityType && entityId) {
+    const context = await collaborationContextForEntity(req, entityType, entityId);
+    return { where: { entityType, entityId: context.entityId } };
+  }
+
+  if (profileId) {
+    const profile = await accessibleProfile(req, profileId);
+    return { where: { profileId: profile.id } };
+  }
+
+  throw new InputError('Choose a profile or collaboration entity');
+}
+
+async function collaborationAttributesFromBody(req, user) {
+  const entityType = normalizeCollaborationEntityType(req.body?.entityType || req.body?.type);
+  const entityId = numericIdOrNull(req.body?.entityId || req.body?.id);
+  if (!entityType || !entityId) throw new InputError('Choose a collaboration entity');
+  const context = await collaborationContextForEntity(req, entityType, entityId);
+  const eventType = normalizeCollaborationEventType(req.body?.eventType || req.body?.type || 'comment');
+  const body = clean(req.body?.body || req.body?.note || req.body?.comment);
+  if (!body) throw new InputError('Note is required');
+  const assignedToUserId = await assignedUserIdFromBody(req.body);
+
+  return {
+    entityType,
+    entityId: context.entityId,
+    profileId: context.profileId,
+    jobId: context.jobId,
+    bidId: context.bidId,
+    authorUserId: user.id,
+    assignedToUserId,
+    eventType,
+    body,
+    mentions: await mentionsForBody(req.body, body),
+    metadata: {
+      ...(req.body?.metadata && typeof req.body.metadata === 'object' && !Array.isArray(req.body.metadata) ? req.body.metadata : {}),
+      createdVia: 'api',
+    },
+  };
+}
+
+async function collaborationContextForEntity(req, entityType, entityId) {
+  if (entityType === 'profile') {
+    const profile = await accessibleProfile(req, entityId);
+    return { entityId: profile.id, profileId: profile.id, jobId: null, bidId: null };
+  }
+
+  if (entityType === 'bid') {
+    const bid = await getJobBidModel().findByPk(entityId);
+    if (!bid) throw new NotFoundError('Bid not found');
+    await accessibleProfile(req, bid.profileId);
+    return { entityId: bid.id, profileId: bid.profileId, jobId: bid.jobId, bidId: bid.id };
+  }
+
+  if (entityType === 'job') {
+    const job = await getScrapedJobModel().findByPk(entityId);
+    if (!job) throw new NotFoundError('Job not found');
+    const profileId = numericIdOrNull(req.body?.profileId || req.query?.profileId);
+    const profile = profileId ? await accessibleProfile(req, profileId) : null;
+    return { entityId: job.id, profileId: profile?.id || null, jobId: job.id, bidId: null };
+  }
+
+  throw new InputError('Choose a valid collaboration entity');
+}
+
+async function ensureCollaborationEventWritable(req, event) {
+  await collaborationContextForEntity(req, event.entityType, event.entityId);
+  if (isAdminRole(req.user) || String(event.authorUserId || '') === String(req.user?.id || '')) return;
+  if (event.assignedToUserId && String(event.assignedToUserId) === String(req.user?.id || '')) return;
+  throw new NotFoundError('Collaboration event not found');
+}
+
+function normalizeCollaborationEntityType(value) {
+  const type = clean(value).toLowerCase();
+  if (type === 'application') return 'bid';
+  if (['profile', 'job', 'bid'].includes(type)) return type;
+  return '';
+}
+
+function normalizeCollaborationEventType(value) {
+  const type = clean(value).toLowerCase();
+  if (['comment', 'task', 'handoff', 'change'].includes(type)) return type;
+  throw new InputError('Choose a valid collaboration event type');
+}
+
+function numericIdOrNull(value) {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+async function assignedUserIdFromBody(body = {}) {
+  const rawUserId = clean(body.assignedToUserId || body.assigneeUserId);
+  if (!rawUserId) return null;
+  const userId = Number(rawUserId);
+  if (!Number.isFinite(userId) || userId <= 0) throw new InputError('Choose a valid assignee');
+  const user = await getWebUserModel().findByPk(userId);
+  if (!user) throw new InputError('Choose a valid assignee');
+  return user.id;
+}
+
+async function mentionsForBody(body = {}, text = '') {
+  const explicitMentions = Array.isArray(body.mentions) ? body.mentions : [];
+  const mentionNames = [
+    ...explicitMentions.map((mention) => typeof mention === 'string' ? mention : mention?.username),
+    ...String(text).matchAll(/@([a-zA-Z0-9._-]+)/g),
+  ]
+    .map((mention) => clean(Array.isArray(mention) ? mention[1] : mention).toLowerCase())
+    .filter(Boolean);
+  const uniqueNames = [...new Set(mentionNames)];
+  if (!uniqueNames.length) return [];
+
+  const users = await getWebUserModel().findAll({
+    where: { username: { [Op.in]: uniqueNames } },
+    order: [['username', 'ASC']],
+  });
+  return users.map((mentionUser) => ({ id: mentionUser.id, username: mentionUser.username }));
+}
+
+async function collaborationEventById(id) {
+  return getCollaborationEventModel().findByPk(id, {
+    include: [
+      { model: getWebUserModel(), as: 'author', required: false },
+      { model: getWebUserModel(), as: 'assignedTo', required: false },
+    ],
+  });
+}
+
+function formatCollaborationEvent(event) {
+  return {
+    id: event.id,
+    entityType: event.entityType,
+    entityId: event.entityId,
+    profileId: event.profileId,
+    jobId: event.jobId,
+    bidId: event.bidId,
+    eventType: event.eventType,
+    body: event.body,
+    mentions: Array.isArray(event.mentions) ? event.mentions : [],
+    metadata: event.metadata || {},
+    resolvedAt: event.resolvedAt,
+    createdAt: event.createdAt,
+    updatedAt: event.updatedAt,
+    author: event.author ? { id: event.author.id, username: event.author.username } : null,
+    assignedTo: event.assignedTo ? { id: event.assignedTo.id, username: event.assignedTo.username } : null,
+  };
 }
 
 export async function listCallers(req, res, next) {
@@ -399,6 +622,158 @@ export async function listBidders(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+export async function listSourceRoi(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const sequelize = getSequelize();
+    const restrictedToCurrentBidder = !isAdminRole(user);
+    const bidderWhere = restrictedToCurrentBidder ? 'AND job_bids.user_id = :viewerUserId' : '';
+    const replacements = restrictedToCurrentBidder ? { viewerUserId: user.id } : {};
+    const statusWhere = "job_bids.status NOT IN ('mismatching_bid', 'spam_job')";
+    const applicationStatuses = "('submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost')";
+    const interviewStatuses = "('interviewing', 'won', 'lost')";
+
+    const [sourceRows, bidderRows, profileRows] = await Promise.all([
+      sequelize.query(
+        `
+          SELECT
+            COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source,
+            COUNT(*) FILTER (WHERE job_bids.status IN ${applicationStatuses})::int AS applications,
+            COUNT(*) FILTER (WHERE job_bids.status IN ${interviewStatuses})::int AS interviews,
+            COUNT(*) FILTER (WHERE job_bids.status = 'won')::int AS offers,
+            COUNT(DISTINCT job_bids.user_id) FILTER (WHERE job_bids.status IN ${applicationStatuses})::int AS bidders,
+            COUNT(DISTINCT job_bids.profile_id) FILTER (WHERE job_bids.status IN ${applicationStatuses})::int AS profiles
+          FROM job_bids
+          JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+          WHERE ${statusWhere}
+            ${bidderWhere}
+          GROUP BY COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')
+          ORDER BY applications DESC, interviews DESC, source ASC
+        `,
+        { replacements, type: QueryTypes.SELECT },
+      ),
+      sequelize.query(
+        `
+          SELECT
+            COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source,
+            web_users.id AS bidder_id,
+            web_users.username AS bidder_username,
+            COUNT(*) FILTER (WHERE job_bids.status IN ${applicationStatuses})::int AS applications,
+            COUNT(*) FILTER (WHERE job_bids.status IN ${interviewStatuses})::int AS interviews,
+            COUNT(*) FILTER (WHERE job_bids.status = 'won')::int AS offers
+          FROM job_bids
+          JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+          JOIN web_users ON web_users.id = job_bids.user_id
+          WHERE ${statusWhere}
+            ${bidderWhere}
+          GROUP BY COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown'), web_users.id, web_users.username
+          ORDER BY applications DESC, interviews DESC, bidder_username ASC
+        `,
+        { replacements, type: QueryTypes.SELECT },
+      ),
+      sequelize.query(
+        `
+          SELECT
+            COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source,
+            bid_profiles.id AS profile_id,
+            bid_profiles.name AS profile_name,
+            web_users.username AS owner_username,
+            COUNT(*) FILTER (WHERE job_bids.status IN ${applicationStatuses})::int AS applications,
+            COUNT(*) FILTER (WHERE job_bids.status IN ${interviewStatuses})::int AS interviews,
+            COUNT(*) FILTER (WHERE job_bids.status = 'won')::int AS offers
+          FROM job_bids
+          JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+          JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id
+          LEFT JOIN web_users ON web_users.id = bid_profiles.user_id
+          WHERE ${statusWhere}
+            ${bidderWhere}
+          GROUP BY COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown'), bid_profiles.id, bid_profiles.name, web_users.username
+          ORDER BY applications DESC, interviews DESC, profile_name ASC
+        `,
+        { replacements, type: QueryTypes.SELECT },
+      ),
+    ]);
+
+    const biddersBySource = groupSourceAttributionRows(bidderRows, formatSourceBidderRoi);
+    const profilesBySource = groupSourceAttributionRows(profileRows, formatSourceProfileRoi);
+
+    res.json({
+      roi: {
+        sources: sourceRows.map((row) => formatSourceRoi(row, {
+          bidders: biddersBySource.get(row.source) || [],
+          profiles: profilesBySource.get(row.source) || [],
+        })),
+        generatedAt: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+function groupSourceAttributionRows(rows, formatter) {
+  const groups = new Map();
+  for (const row of rows) {
+    const source = row.source || 'Unknown';
+    const items = groups.get(source) || [];
+    items.push(formatter(row));
+    groups.set(source, items);
+  }
+  return groups;
+}
+
+function formatSourceRoi(row, attribution) {
+  const applications = Number(row.applications || 0);
+  const interviews = Number(row.interviews || 0);
+  const offers = Number(row.offers || 0);
+
+  return {
+    source: jobSourceLabel(row.source),
+    sourceKey: normalizeJobSource(row.source || 'Unknown'),
+    applications,
+    interviews,
+    offers,
+    bidders: Number(row.bidders || 0),
+    profiles: Number(row.profiles || 0),
+    interviewRate: applications ? Number((interviews / applications).toFixed(4)) : 0,
+    offerRate: applications ? Number((offers / applications).toFixed(4)) : 0,
+    bidderAttribution: attribution.bidders,
+    profileAttribution: attribution.profiles,
+  };
+}
+
+function formatSourceBidderRoi(row) {
+  const applications = Number(row.applications || 0);
+  const interviews = Number(row.interviews || 0);
+  const offers = Number(row.offers || 0);
+  return {
+    bidderId: row.bidder_id,
+    bidderUsername: row.bidder_username || 'Unknown bidder',
+    applications,
+    interviews,
+    offers,
+    interviewRate: applications ? Number((interviews / applications).toFixed(4)) : 0,
+    offerRate: applications ? Number((offers / applications).toFixed(4)) : 0,
+  };
+}
+
+function formatSourceProfileRoi(row) {
+  const applications = Number(row.applications || 0);
+  const interviews = Number(row.interviews || 0);
+  const offers = Number(row.offers || 0);
+  return {
+    profileId: row.profile_id,
+    profileName: row.profile_name || 'Unknown profile',
+    ownerUsername: row.owner_username || null,
+    applications,
+    interviews,
+    offers,
+    interviewRate: applications ? Number((interviews / applications).toFixed(4)) : 0,
+    offerRate: applications ? Number((offers / applications).toFixed(4)) : 0,
+  };
 }
 
 export async function shareProfile(req, res, next) {
@@ -1975,6 +2350,13 @@ export async function createJobBid(req, res, next) {
     if (['interviewing', 'won', 'lost'].includes(attrs.status)) {
       await upsertInterviewForBid({ bid, job, attrs, userId: user.id });
     }
+    await recordBidChangeEvent({
+      bid,
+      job,
+      userId: user.id,
+      body: `Application created with status ${bid.status}.`,
+      metadata: { action: 'created', status: bid.status },
+    });
     res.status(201).json({ bid: formatBid(bid) });
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -2028,6 +2410,13 @@ export async function bulkUpdateJobBids(req, res, next) {
         if (['interviewing', 'won', 'lost'].includes(attrs.status)) {
           await upsertInterviewForBid({ bid, job, attrs, userId: bid.userId });
         }
+        await recordBidChangeEvent({
+          bid,
+          job,
+          userId: user.id,
+          body: `Application updated to ${bid.status}.`,
+          metadata: { action: item.bidId ? 'bulk_updated' : 'bulk_created', status: bid.status },
+        });
         results.push({ jobId: String(bid.jobId), bidId: String(bid.id), ok: true, bid: formatBid(bid) });
       } catch (error) {
         results.push({
@@ -2557,6 +2946,7 @@ export async function updateJobBid(req, res, next) {
       }
     }
     const now = new Date();
+    const previousBid = formatBid(bid);
     const updates = { ...bidUpdateValuesFromAttrs(attrs), updatedAt: now };
     if (shouldRefreshBidAtForStatus(attrs.status, bid.status)) {
       updates.bidAt = now;
@@ -2569,10 +2959,43 @@ export async function updateJobBid(req, res, next) {
       const job = await getScrapedJobModel().findByPk(bid.jobId);
       await upsertInterviewForBid({ bid, job, attrs, userId: bid.userId });
     }
+    await recordBidChangeEvent({
+      bid,
+      userId: user.id,
+      body: bidChangeSummary(previousBid, bid),
+      metadata: { action: 'updated', previous: previousBid, current: formatBid(bid) },
+    });
     res.json({ bid: formatBid(bid) });
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+async function recordBidChangeEvent({ bid, job = null, userId, body, metadata = {} }) {
+  if (!bid?.id) return;
+  await getCollaborationEventModel().create({
+    entityType: 'bid',
+    entityId: bid.id,
+    profileId: bid.profileId,
+    jobId: bid.jobId || job?.id || null,
+    bidId: bid.id,
+    authorUserId: userId || null,
+    eventType: 'change',
+    body: body || 'Application changed.',
+    mentions: [],
+    metadata,
+  });
+}
+
+function bidChangeSummary(previousBid, currentBid) {
+  const changes = [];
+  if (previousBid.status !== currentBid.status) changes.push(`status ${previousBid.status} -> ${currentBid.status}`);
+  if (String(previousBid.callerUserId || '') !== String(currentBid.callerUserId || '')) changes.push('caller assignment changed');
+  if ((previousBid.interviewStage || '') !== (currentBid.interviewStage || '')) changes.push(`stage ${previousBid.interviewStage || 'none'} -> ${currentBid.interviewStage || 'none'}`);
+  if (String(previousBid.interviewNextAt || '') !== String(currentBid.interviewNextAt || '')) changes.push('next interview time changed');
+  if ((previousBid.notes || '') !== (currentBid.notes || '')) changes.push('notes changed');
+  if ((previousBid.interviewNotes || '') !== (currentBid.interviewNotes || '')) changes.push('interview notes changed');
+  return changes.length ? `Application changed: ${changes.join(', ')}.` : 'Application updated.';
 }
 
 export async function updateInterview(req, res, next) {

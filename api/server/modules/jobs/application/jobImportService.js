@@ -49,14 +49,23 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
     const postedAt = dateFromCsvValue(csvValue(raw, 'postedAt'), rowNumber, errors) || importedAt;
     const listingText = csvValue(raw, 'listingText');
     const manualSource = manualImportSource(raw, url);
+    const titleValue = capitalizeJobTitle(title) || 'Untitled Role';
+    const companyValue = csvValue(raw, 'company') || null;
+    const normalizedCompany = normalizeCompanyName(companyValue);
 
     jobs.push({
       url,
-      duplicateKey: url,
+      duplicateKey: buildJobDuplicateKey({
+        url,
+        title: titleValue,
+        company: companyValue,
+        location: csvValue(raw, 'location') || null,
+      }),
       source: manualSource.source,
       sourceUrl: manualSource.sourceUrl,
-      title: capitalizeJobTitle(title) || 'Untitled Role',
-      company: csvValue(raw, 'company') || null,
+      title: titleValue,
+      company: companyValue,
+      normalizedCompany,
       location: csvValue(raw, 'location') || null,
       category,
       postedAt,
@@ -90,54 +99,69 @@ function validDateOrNow(value) {
 }
 
 export function planCsvJobImport(rows, existingRows = []) {
-  const existingJobsByUrl = new Map(existingRows.map((row) => [row.url, row]));
-  const existingUrls = new Set(existingJobsByUrl.keys());
-  const seenUrls = new Set();
-  const firstCsvRowByUrl = new Map();
+  const existingJobsByIdentity = new Map();
+  for (const row of existingRows) {
+    for (const key of jobIdentityKeys(row)) {
+      if (!existingJobsByIdentity.has(key)) existingJobsByIdentity.set(key, row);
+    }
+  }
+  const seenIdentities = new Set();
+  const firstCsvRowByIdentity = new Map();
   const duplicateCsvRows = [];
   const duplicateExistingRows = [];
   const categoryUpdates = [];
   const locationUpdates = [];
-  const categoryUpdateUrls = new Set();
-  const locationUpdateUrls = new Set();
+  const categoryUpdateTargets = new Set();
+  const locationUpdateTargets = new Set();
   const insertRows = rows.filter((row) => {
     const rowNumber = row.rawJob?.importRowNumber || null;
-    if (existingUrls.has(row.url)) {
-      const existingJob = existingJobsByUrl.get(row.url);
+    const identities = jobIdentityKeys(row);
+    const matchedIdentity = identities.find((identity) => existingJobsByIdentity.has(identity));
+    if (matchedIdentity) {
+      const existingJob = existingJobsByIdentity.get(matchedIdentity);
+      const updateTarget = updateTargetForExistingJob(existingJob);
       duplicateExistingRows.push({
         url: row.url,
+        duplicateKey: row.duplicateKey,
         rowNumber,
         title: row.title,
         company: row.company,
         existingTitle: existingJob?.title || null,
         existingCompany: existingJob?.company || null,
+        existingUrl: existingJob?.url || null,
+        matchType: matchedIdentity.startsWith('url::') ? 'url' : 'normalized_job',
       });
       if (
-        !categoryUpdateUrls.has(row.url) &&
+        !categoryUpdateTargets.has(updateTarget.key) &&
         row.rawJob?.importCategoryProvided &&
         shouldUpdateExistingJobCategory({ currentCategory: existingJob?.category, importedCategory: row.category })
       ) {
-        categoryUpdates.push({ url: row.url, category: row.category });
-        categoryUpdateUrls.add(row.url);
+        categoryUpdates.push({ ...updateTarget, category: row.category });
+        categoryUpdateTargets.add(updateTarget.key);
       }
-      if (!locationUpdateUrls.has(row.url) && clean(row.location) && clean(row.location) !== clean(existingJob?.location)) {
-        locationUpdates.push({ url: row.url, location: row.location });
-        locationUpdateUrls.add(row.url);
+      if (!locationUpdateTargets.has(updateTarget.key) && clean(row.location) && clean(row.location) !== clean(existingJob?.location)) {
+        locationUpdates.push({ ...updateTarget, location: row.location });
+        locationUpdateTargets.add(updateTarget.key);
       }
       return false;
     }
-    if (seenUrls.has(row.url)) {
+    const duplicateIdentity = identities.find((identity) => seenIdentities.has(identity));
+    if (duplicateIdentity) {
       duplicateCsvRows.push({
         url: row.url,
+        duplicateKey: row.duplicateKey,
         rowNumber,
-        firstRowNumber: firstCsvRowByUrl.get(row.url) || null,
+        firstRowNumber: firstCsvRowByIdentity.get(duplicateIdentity) || null,
         title: row.title,
         company: row.company,
+        matchType: duplicateIdentity.startsWith('url::') ? 'url' : 'normalized_job',
       });
       return false;
     }
-    seenUrls.add(row.url);
-    firstCsvRowByUrl.set(row.url, rowNumber);
+    identities.forEach((identity) => {
+      seenIdentities.add(identity);
+      firstCsvRowByIdentity.set(identity, rowNumber);
+    });
     return true;
   });
 
@@ -148,6 +172,23 @@ export function planCsvJobImport(rows, existingRows = []) {
     categoryUpdates,
     locationUpdates,
   };
+}
+
+function jobIdentityKeys(row) {
+  return [
+    canonicalJobUrlKey(row.url),
+    clean(row.duplicateKey),
+  ].filter(Boolean);
+}
+
+function canonicalJobUrlKey(url) {
+  const canonicalUrl = canonicalJobUrl(url);
+  return canonicalUrl ? `url::${canonicalUrl}` : '';
+}
+
+function updateTargetForExistingJob(row) {
+  if (row?.id) return { id: row.id, key: `id:${row.id}` };
+  return { url: row?.url, key: `url:${row?.url}` };
 }
 
 function shouldUpdateExistingJobCategory({ currentCategory, importedCategory }) {
@@ -166,6 +207,56 @@ function manualRawJob(raw) {
     }
   }
   return rawJob;
+}
+
+export function buildJobDuplicateKey({ url, title, company, location }) {
+  const normalizedCompany = normalizeCompanyName(company);
+  const normalizedTitle = normalizeJobIdentityText(title);
+  if (normalizedCompany && normalizedTitle) {
+    return ['job', normalizedCompany, normalizedTitle, normalizeJobIdentityText(location) || 'unknown location'].join('::');
+  }
+  const canonicalUrl = canonicalJobUrl(url);
+  return canonicalUrl ? `url::${canonicalUrl}` : clean(url);
+}
+
+export function normalizeCompanyName(value) {
+  return normalizeJobIdentityText(value)
+    .replace(/\b(incorporated|inc|llc|ltd|limited|corp|corporation|company|co)\b\.?$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeJobIdentityText(value) {
+  return clean(value)
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function canonicalJobUrl(value) {
+  try {
+    const url = new URL(clean(value));
+    url.hash = '';
+    const removableParams = [
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
+      'utm_term',
+      'utm_content',
+      'ref',
+      'source',
+      'trk',
+    ];
+    removableParams.forEach((param) => url.searchParams.delete(param));
+    url.searchParams.sort();
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return '';
+  }
 }
 
 export function capitalizeJobTitle(value) {

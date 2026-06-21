@@ -3,8 +3,17 @@ import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
 import { ROLES, isAdminRole } from '../../../utils/roles.js';
 import { addLocalDays, localDateRange, localPresetRange, normalizeTimeZone } from '../../../utils/localTime.js';
-import { normalizeJobCategory } from './jobImportService.js';
-export { capitalizeJobTitle, jobsFromCsv, normalizeJobCategory, planCsvJobImport, validJobUrl } from './jobImportService.js';
+import { normalizeCompanyName, normalizeJobCategory } from './jobImportService.js';
+export {
+  buildJobDuplicateKey,
+  canonicalJobUrl,
+  capitalizeJobTitle,
+  jobsFromCsv,
+  normalizeCompanyName,
+  normalizeJobCategory,
+  planCsvJobImport,
+  validJobUrl,
+} from './jobImportService.js';
 const PUBLIC_JOB_ID_PREFIX = 'J';
 const PUBLIC_JOB_ID_LENGTH = 8;
 const PUBLIC_JOB_ID_BODY_LENGTH = PUBLIC_JOB_ID_LENGTH - PUBLIC_JOB_ID_PREFIX.length;
@@ -284,9 +293,11 @@ export function formatJob(row, { includeRawJob = true } = {}) {
     publicJobId: publicJobIdFromId(row.publicJobId || row.id),
     title: clean(row.title),
     company: clean(row.company),
+    normalizedCompany: clean(row.normalizedCompany) || normalizeCompanyName(row.company),
     location: clean(row.location),
     category: row.category,
     url: row.url,
+    duplicateKey: row.duplicateKey,
     source: clean(row.source),
     sourceUrl: row.sourceUrl,
     postedAt: row.postedAt,
@@ -401,10 +412,10 @@ export function paginateGroupedJobs(rows, { limit, offset }, options = {}) {
 }
 
 function jobGroupKey(job) {
+  if (clean(job.duplicateKey)) return clean(job.duplicateKey);
   return [
-    normalizeJobSource(job.source || 'Unknown source') || 'unknown source',
     normalizeGroupValue(job.title || 'Untitled role'),
-    normalizeGroupValue(job.company || 'Unknown company'),
+    normalizeCompanyName(job.company || 'Unknown company') || normalizeGroupValue(job.company || 'Unknown company'),
   ].join('::');
 }
 

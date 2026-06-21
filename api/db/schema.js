@@ -3,6 +3,7 @@ import { getSequelize } from './connection.js';
 import {
   getAssessmentModel,
   getBidProfileModel,
+  getCollaborationEventModel,
   getConsumptionAccountModel,
   getConsumptionLedgerEntryModel,
   getConsumptionTransactionModel,
@@ -34,6 +35,7 @@ export async function ensureWebModels() {
       setupWebAssociations();
       await getFaqModel().sync();
       await getBidProfileModel().sync();
+      await getCollaborationEventModel().sync();
       await getProfileShareRequestModel().sync();
       await getForwardedMailboxMessageModel().sync();
       await getAssessmentModel().sync();
@@ -63,10 +65,12 @@ export async function ensureWebModels() {
       await ensureForwardedMailboxMessageColumns();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
+      await ensureScrapedJobNormalizationColumns();
       await ensureSpamReviewColumns();
       await ensureHiddenJobColumns();
       await ensureScrapedJobPublicIdColumn();
       await ensureBidPageIndexes();
+      await ensureCollaborationIndexes();
       await ensureProfileShareIndexes();
       await ensureForwardedMailboxMessageIndexes();
       await ensureJobBidProfileScopedUniqueness();
@@ -401,6 +405,16 @@ async function ensureBidPageIndexes() {
     ON scraped_jobs (source)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS scraped_jobs_duplicate_key_idx
+    ON scraped_jobs (duplicate_key)
+    WHERE duplicate_key IS NOT NULL
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS scraped_jobs_normalized_company_idx
+    ON scraped_jobs (normalized_company)
+    WHERE normalized_company IS NOT NULL
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS scraped_jobs_category_idx
     ON scraped_jobs (category)
   `);
@@ -463,6 +477,25 @@ async function ensureBidPageIndexes() {
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS tailored_resumes_profile_status_job_idx
     ON tailored_resumes (profile_id, status, job_url)
+  `);
+}
+
+async function ensureCollaborationIndexes() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS collaboration_events_entity_created_idx
+    ON collaboration_events (entity_type, entity_id, created_at DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS collaboration_events_profile_created_idx
+    ON collaboration_events (profile_id, created_at DESC)
+    WHERE profile_id IS NOT NULL
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS collaboration_events_assignee_open_idx
+    ON collaboration_events (assigned_to_user_id, resolved_at)
+    WHERE assigned_to_user_id IS NOT NULL
   `);
 }
 
@@ -559,6 +592,71 @@ async function ensureDuplicateKeyColumn() {
       allowNull: true,
     },
   });
+}
+
+async function ensureScrapedJobNormalizationColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'scraped_jobs';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    normalized_company: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+  });
+
+  await queryInterface.sequelize.query(`
+    UPDATE scraped_jobs
+    SET normalized_company = NULLIF(btrim(
+      regexp_replace(
+        regexp_replace(
+          lower(btrim(coalesce(company, ''))),
+          '\\m(incorporated|inc|llc|ltd|limited|corp|corporation|company|co)\\M\\.?$',
+          '',
+          'gi'
+        ),
+        '[^a-z0-9]+',
+        ' ',
+        'g'
+      )),
+      ''
+    )
+    WHERE normalized_company IS NULL
+      OR normalized_company = ''
+  `);
+
+  await queryInterface.sequelize.query(`
+    UPDATE scraped_jobs
+    SET duplicate_key = CASE
+      WHEN NULLIF(regexp_replace(lower(btrim(coalesce(company, ''))), '[^a-z0-9]+', ' ', 'g'), '') IS NOT NULL
+       AND NULLIF(regexp_replace(lower(btrim(coalesce(title, ''))), '[^a-z0-9]+', ' ', 'g'), '') IS NOT NULL
+      THEN concat_ws(
+        '::',
+        'job',
+        NULLIF(
+          btrim(regexp_replace(
+            regexp_replace(
+              lower(btrim(coalesce(company, ''))),
+              '\\m(incorporated|inc|llc|ltd|limited|corp|corporation|company|co)\\M\\.?$',
+              '',
+              'gi'
+            ),
+            '[^a-z0-9]+',
+            ' ',
+            'g'
+          )),
+          ''
+        ),
+        NULLIF(regexp_replace(lower(btrim(coalesce(title, ''))), '[^a-z0-9]+', ' ', 'g'), ''),
+        COALESCE(NULLIF(regexp_replace(lower(btrim(coalesce(location, ''))), '[^a-z0-9]+', ' ', 'g'), ''), 'unknown location')
+      )
+      ELSE concat('url::', lower(btrim(coalesce(url, ''))))
+    END
+    WHERE duplicate_key IS NULL
+      OR duplicate_key = ''
+      OR duplicate_key = url
+  `);
 }
 
 async function ensureSpamReviewColumns() {

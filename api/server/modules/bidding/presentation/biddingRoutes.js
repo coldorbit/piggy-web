@@ -13,6 +13,7 @@ import {
   bulkCreateTailoredResumes,
   bulkUpdateJobBids,
   createCaller,
+  createCollaborationEvent,
   createManualInterview,
   createManualTailoredResume,
   createProfile,
@@ -24,16 +25,19 @@ import {
   listBidders,
   listCallers,
   listCalendarInterviews,
+  listCollaborationEvents,
   listBidJobs,
   listProfileShareRequests,
   listProfileShareRecipients,
   listTailoringRequests,
   listProfiles,
+  listSourceRoi,
   respondToProfileShare,
   shareProfile,
   updateJobBid,
   updateInterview,
   updateProfile,
+  updateCollaborationEvent,
   updateProfileStatus,
   cancelTailoredResume,
   exportCalendarIcs,
@@ -56,7 +60,11 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/profiles', requireBidWorkspaceAccess, listProfiles);
   app.get('/api/bid/profile-shares', requireBidWorkspaceAccess, listProfileShareRequests);
   app.get('/api/bid/profile-share-recipients', requireBidWorkspaceAccess, listProfileShareRecipients);
+  app.get('/api/bid/collaboration', requireBidWorkspaceAccess, listCollaborationEvents);
+  app.post('/api/bid/collaboration', requireBidWorkspaceAccess, createCollaborationEvent);
+  app.patch('/api/bid/collaboration/:id', requireBidWorkspaceAccess, updateCollaborationEvent);
   app.get('/api/bid/bidders', requireBidderDirectoryAccess, listBidders);
+  app.get('/api/bid/source-roi', requireBidderDirectoryAccess, listSourceRoi);
   app.get('/api/bid/callers', requireCallerManagement, listCallers);
   app.post('/api/bid/callers', requireCallerManagement, createCaller);
   app.post('/api/bid/profiles', requireBidWorkspaceAccess, createProfile);

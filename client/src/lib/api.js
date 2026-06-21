@@ -292,11 +292,24 @@ function updateMailboxSummaryReadState(currentData, profileId, { wasUnread = tru
   return {
     ...currentData,
     unreadTotal: Math.max(Number(currentData.unreadTotal || 0) - 1, 0),
+    stats: decrementMailboxStatsUnread(currentData.stats),
     profiles: (currentData.profiles || []).map((profile) => (
       String(profile.id) === String(profileId)
-        ? { ...profile, unreadTotal: Math.max(Number(profile.unreadTotal || 0) - 1, 0) }
+        ? {
+            ...profile,
+            unreadTotal: Math.max(Number(profile.unreadTotal || 0) - 1, 0),
+            stats: decrementMailboxStatsUnread(profile.stats),
+          }
         : profile
     )),
+  };
+}
+
+function decrementMailboxStatsUnread(stats) {
+  if (!stats) return stats;
+  return {
+    ...stats,
+    unreadTotal: Math.max(Number(stats.unreadTotal || 0) - 1, 0),
   };
 }
 
@@ -357,6 +370,61 @@ export function useBidders() {
     queryKey: ['bid', 'bidders'],
     queryFn: () => api('/api/bid/bidders').then((data) => data.bidders),
   });
+}
+
+export function useSourceRoi() {
+  return useQuery({
+    queryKey: ['bid', 'source-roi'],
+    queryFn: () => api('/api/bid/source-roi').then((data) => data.roi),
+    staleTime: 30_000,
+  });
+}
+
+export function useCollaborationEvents(filters = {}, queryOptions = {}) {
+  const queryParams = new URLSearchParams(filters).toString();
+  return useQuery({
+    queryKey: ['bid', 'collaboration', filters],
+    queryFn: () => api(`/api/bid/collaboration${queryParams ? `?${queryParams}` : ''}`).then((data) => data.events),
+    enabled: Boolean(filters.entityType && filters.entityId) || Boolean(filters.profileId),
+    staleTime: 10_000,
+    ...queryOptions,
+  });
+}
+
+export function useCreateCollaborationEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (eventData) =>
+      api('/api/bid/collaboration', {
+        method: 'POST',
+        body: JSON.stringify(eventData),
+      }).then((data) => data.event),
+    onSuccess: (event) => {
+      invalidateCollaborationQueries(queryClient, event);
+    },
+  });
+}
+
+export function useUpdateCollaborationEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ eventId, updates }) =>
+      api(`/api/bid/collaboration/${eventId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      }).then((data) => data.event),
+    onSuccess: (event) => {
+      invalidateCollaborationQueries(queryClient, event);
+    },
+  });
+}
+
+function invalidateCollaborationQueries(queryClient, event) {
+  queryClient.invalidateQueries({ queryKey: ['bid', 'collaboration'] });
+  if (event?.profileId) queryClient.invalidateQueries({ queryKey: ['bid', 'collaboration', { profileId: event.profileId }] });
+  if (event?.entityType && event?.entityId) {
+    queryClient.invalidateQueries({ queryKey: ['bid', 'collaboration', { entityType: event.entityType, entityId: event.entityId }] });
+  }
 }
 
 export function useTailoringRequests(filters = {}, queryOptions = {}) {

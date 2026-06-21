@@ -2,6 +2,7 @@ import { ensureWebModels, getJobBidModel, getScrapedJobModel, getSequelize, getT
 import { Op } from 'sequelize';
 import {
   buildJobQuery,
+  buildJobDuplicateKey,
   canImportJobs,
   formatJob,
   groupedJobsFromRows,
@@ -213,7 +214,12 @@ export async function updateLinkedInExternalUrl(req, res, next) {
       await currentJob.update(
         {
           url: nextUrl,
-          duplicateKey: nextUrl,
+          duplicateKey: buildJobDuplicateKey({
+            url: nextUrl,
+            title: currentJob.title,
+            company: currentJob.company,
+            location: currentJob.location,
+          }),
           rawJob: {
             ...(currentJob.rawJob || {}),
             applyMode: 'External Link',
@@ -259,8 +265,13 @@ export async function importJobsCsv(req, res, next) {
     });
     const ScrapedJob = getScrapedJobModel();
     const existingRows = await ScrapedJob.findAll({
-      attributes: ['url', 'title', 'company', 'category', 'location'],
-      where: { url: { [Op.in]: rows.map((row) => row.url) } },
+      attributes: ['id', 'url', 'duplicateKey', 'title', 'company', 'category', 'location'],
+      where: {
+        [Op.or]: [
+          { url: { [Op.in]: rows.map((row) => row.url) } },
+          { duplicateKey: { [Op.in]: rows.map((row) => row.duplicateKey).filter(Boolean) } },
+        ],
+      },
     });
     const { insertRows, duplicateCsvRows, duplicateExistingRows, categoryUpdates, locationUpdates } = planCsvJobImport(rows, existingRows);
 
@@ -270,10 +281,7 @@ export async function importJobsCsv(req, res, next) {
         ...categoryUpdates.map((update) => ({ url: update.url, values: { category: update.category } })),
         ...locationUpdates.map((update) => ({ url: update.url, values: { location: update.location } })),
       ].map((update) =>
-        ScrapedJob.update(
-          update.values,
-          { where: { url: update.url } },
-        ),
+        ScrapedJob.update(update.values, { where: update.id ? { id: update.id } : { url: update.url } }),
       ),
     );
 
@@ -293,9 +301,11 @@ export async function importJobsCsv(req, res, next) {
       },
       duplicateLinks: [...duplicateCsvRows, ...duplicateExistingRows].map((row) => ({
         url: row.url,
+        duplicateKey: row.duplicateKey,
         rowNumber: row.rowNumber,
         firstRowNumber: row.firstRowNumber || null,
         reason: row.firstRowNumber ? 'duplicate_in_csv' : 'already_exists',
+        matchType: row.matchType || 'url',
       })),
       jobs: insertRows.map((row) => ({
         title: row.title,

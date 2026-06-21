@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
-import { buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobDateFiltersForUser, jobsFromCsv, mergedJobSourceOptions, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
+import { buildJobDuplicateKey, buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobDateFiltersForUser, jobsFromCsv, mergedJobSourceOptions, normalizeCompanyName, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
 import { addLocalDays, localDayStart } from '../server/utils/localTime.js';
 
 describe('job query filters', () => {
@@ -161,7 +161,7 @@ describe('grouped scraped jobs', () => {
 
     assert.equal(firstGroup.representativeJobId, 20);
     assert.equal(secondGroup.representativeJobId, 20);
-    assert.equal(firstGroup.id, 'job-group:builtin::software engineer::acme');
+    assert.equal(firstGroup.id, 'job-group:software engineer::acme');
     assert.equal(firstGroup.title, 'Software Engineer');
     assert.equal(secondGroup.title, 'Software Engineer');
     assert.equal(firstGroup.location, 'Austin, TX + 1 more');
@@ -172,17 +172,15 @@ describe('grouped scraped jobs', () => {
     );
   });
 
-  it('keeps compact and spaced source values in separate groups', () => {
+  it('groups cross-source rows by normalized job identity', () => {
     const groups = groupedJobsFromRows([
       jobRow({ id: 10, source: 'builtin', title: 'Software Engineer', company: 'Acme', location: 'Austin, TX' }),
       jobRow({ id: 20, source: 'Built In', title: 'Software Engineer', company: 'ACME', location: 'Remote' }),
     ]);
 
-    assert.equal(groups.length, 2);
-    assert.deepEqual(
-      groups.map((group) => group.id),
-      ['job-group:builtin::software engineer::acme', 'job-group:built in::software engineer::acme'],
-    );
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].id, 'job-group:software engineer::acme');
+    assert.equal(groups[0].locationOptions.length, 2);
   });
 
   it('reports pagination totals as grouped jobs', () => {
@@ -247,6 +245,20 @@ describe('job source options', () => {
 });
 
 describe('manual CSV job imports', () => {
+  it('normalizes company names for imported jobs', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company',
+        'https://example.com/jobs/company-normalization,Software Engineer,Acme Inc.',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(normalizeCompanyName('Acme, Inc.'), 'acme');
+    assert.equal(job.normalizedCompany, 'acme');
+    assert.equal(job.duplicateKey, 'job::acme::software engineer::unknown location');
+  });
+
   it('capitalizes imported job titles while preserving acronyms', () => {
     assert.equal(capitalizeJobTitle('senior ai/ml software engineer'), 'Senior AI/ML Software Engineer');
     assert.equal(capitalizeJobTitle('SENIOR API QA ENGINEER'), 'Senior API QA Engineer');
@@ -362,7 +374,7 @@ describe('manual CSV job imports', () => {
 
     assert.equal(plan.insertRows.length, 0);
     assert.equal(plan.duplicateExistingRows.length, 1);
-    assert.deepEqual(plan.categoryUpdates, [{ url: 'https://example.com/jobs/existing-1', category: 'data' }]);
+    assert.deepEqual(plan.categoryUpdates, [{ url: 'https://example.com/jobs/existing-1', key: 'url:https://example.com/jobs/existing-1', category: 'data' }]);
   });
 
   it('plans location updates for existing imported job URLs', () => {
@@ -386,7 +398,39 @@ describe('manual CSV job imports', () => {
 
     assert.equal(plan.insertRows.length, 0);
     assert.equal(plan.duplicateExistingRows.length, 1);
-    assert.deepEqual(plan.locationUpdates, [{ url: 'https://example.com/jobs/existing-location', location: 'Canada' }]);
+    assert.deepEqual(plan.locationUpdates, [{ url: 'https://example.com/jobs/existing-location', key: 'url:https://example.com/jobs/existing-location', location: 'Canada' }]);
+  });
+
+  it('deduplicates CSV imports against existing normalized job fingerprints', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,location,category',
+        'https://jobs.example.com/acme/software-engineer?utm_source=test,Software Engineer,Acme Inc.,Remote,software',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+    const existingDuplicateKey = buildJobDuplicateKey({
+      url: 'https://other.example.com/roles/123',
+      title: 'software engineer',
+      company: 'ACME',
+      location: 'Remote',
+    });
+
+    const plan = planCsvJobImport([job], [
+      {
+        id: 42,
+        url: 'https://other.example.com/roles/123',
+        duplicateKey: existingDuplicateKey,
+        title: 'Software Engineer',
+        company: 'Acme',
+        category: 'software',
+        location: 'Remote',
+      },
+    ]);
+
+    assert.equal(plan.insertRows.length, 0);
+    assert.equal(plan.duplicateExistingRows.length, 1);
+    assert.equal(plan.duplicateExistingRows[0].matchType, 'normalized_job');
   });
 
   it('does not update existing categories when the CSV category is blank', () => {
