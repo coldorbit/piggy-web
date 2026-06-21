@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { buildConsumptionLedgerEntries } from '../server/modules/admin/application/consumptionService.js';
+import { buildConsumptionLedgerEntries, transactionDateFromValue } from '../server/modules/admin/application/consumptionService.js';
 
 const accounts = [
   { id: 1, name: 'Main Account USD', currency: 'USD', type: 'card_main' },
@@ -14,6 +14,18 @@ const accounts = [
 ];
 
 describe('consumption card transfers', () => {
+  it('parses date-only transaction dates without shifting to the previous local day', () => {
+    const date = transactionDateFromValue('2026-06-21');
+
+    assert.equal(date.toISOString(), '2026-06-21T12:00:00.000Z');
+  });
+
+  it('rejects impossible date-only transaction dates', () => {
+    const date = transactionDateFromValue('2026-02-31');
+
+    assert.equal(Number.isNaN(date.getTime()), true);
+  });
+
   it('deposits supported assets to the team wallet', () => {
     const cases = [
       ['USDC', 4],

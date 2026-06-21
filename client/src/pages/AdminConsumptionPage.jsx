@@ -11,7 +11,7 @@ import ConsumptionForm from '../components/consumption/ConsumptionForm.jsx';
 import ConsumptionHelp from '../components/consumption/ConsumptionHelp.jsx';
 import TransactionLedger from '../components/consumption/TransactionLedger.jsx';
 import { CURRENCY_STYLES, EMPTY_CONSUMPTION_FORM } from '../components/consumption/consumptionConstants.js';
-import { formatAmount, normalizeForm } from '../components/consumption/consumptionFormatters.js';
+import { dateFromCalendarValue, formatAmount, normalizeForm } from '../components/consumption/consumptionFormatters.js';
 import { useAdminConsumption, useCreateConsumptionRecord, useDeleteConsumptionRecord } from '../lib/api.js';
 
 const PERIOD_OPTIONS = [
@@ -255,8 +255,8 @@ function PeriodMetricCard({ detail, emptyValue, label, value, values }) {
 }
 
 function transactionInRange(transaction, range) {
-  const occurredAt = new Date(transaction.occurredAt);
-  return Number.isFinite(occurredAt.getTime()) && occurredAt >= range.from && occurredAt < range.to;
+  const occurredAt = dateFromCalendarValue(transaction.occurredAt);
+  return occurredAt && occurredAt >= range.from && occurredAt < range.to;
 }
 
 function summarizeTransactions(transactions) {

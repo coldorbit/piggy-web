@@ -6,7 +6,23 @@ export function formatAmount(amount, currency) {
 }
 
 export function formatDate(value) {
-  return value ? new Date(value).toLocaleDateString() : '-';
+  const date = dateFromCalendarValue(value);
+  return date ? date.toLocaleDateString() : '-';
+}
+
+export function dateFromCalendarValue(value) {
+  if (!value) return null;
+
+  const dateText = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/)?.[0];
+  if (dateText) {
+    const [year, month, day] = dateText.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) return date;
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
 }
 
 export function typeLabel(value) {

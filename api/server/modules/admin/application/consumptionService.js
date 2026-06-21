@@ -133,7 +133,7 @@ async function ensureDefaultConsumptionAccounts() {
 
 async function transactionAttrsFromBody(body = {}) {
   const type = clean(body.type || 'crypto_spend');
-  const occurredAt = body.occurredAt || body.spentAt ? new Date(body.occurredAt || body.spentAt) : new Date();
+  const occurredAt = transactionDateFromValue(body.occurredAt || body.spentAt);
   const notes = clean(body.notes);
   const etherscanUrl = clean(body.etherscanUrl);
   const txHash = txHashFromValue(body.txHash || etherscanUrl);
@@ -147,6 +147,27 @@ async function transactionAttrsFromBody(body = {}) {
   }
 
   return { type, occurredAt, notes, etherscanUrl: etherscanUrl || null, txHash: txHash || null, spentByType, spentByUserId };
+}
+
+export function transactionDateFromValue(value) {
+  if (!value) return new Date();
+  if (value instanceof Date) return value;
+
+  const text = clean(value);
+  const dateOnlyMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, yearText, monthText, dayText] = dateOnlyMatch;
+    const year = Number(yearText);
+    const monthIndex = Number(monthText) - 1;
+    const day = Number(dayText);
+    const date = new Date(Date.UTC(year, monthIndex, day, 12));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== monthIndex || date.getUTCDate() !== day) {
+      return new Date(Number.NaN);
+    }
+    return date;
+  }
+
+  return new Date(text);
 }
 
 async function spenderAttrsFromBody(body = {}) {
