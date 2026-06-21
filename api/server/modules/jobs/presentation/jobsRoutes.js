@@ -1,5 +1,7 @@
 import { requireJobAccess } from '../../../middleware/authMiddleware.js';
 import {
+  bulkMarkJobsHidden,
+  bulkMarkJobsSpam,
   deleteJob,
   getMeta,
   importJobsCsv,
@@ -13,6 +15,8 @@ import {
 export function registerJobRoutes(app) {
   app.get('/api/jobs', requireJobAccess, listJobs);
   app.post('/api/jobs/import-csv', requireJobAccess, importJobsCsv);
+  app.patch('/api/jobs/bulk/spam', requireJobAccess, bulkMarkJobsSpam);
+  app.patch('/api/jobs/bulk/hidden', requireJobAccess, bulkMarkJobsHidden);
   app.delete('/api/jobs/:id', requireJobAccess, deleteJob);
   app.patch('/api/jobs/:id/spam', requireJobAccess, markJobSpam);
   app.patch('/api/jobs/:id/hidden', requireJobAccess, markJobHidden);

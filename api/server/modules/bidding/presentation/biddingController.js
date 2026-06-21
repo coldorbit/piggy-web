@@ -68,7 +68,8 @@ import {
 
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
-const DAILY_BID_GOAL_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
+const DAILY_BID_GOAL_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
+const BATCH_LIMIT = 100;
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -1326,28 +1327,88 @@ export async function createTailoredResume(req, res, next) {
       order: [['updatedAt', 'DESC']],
     });
 
-    const attrs = {
-      userId: user.id,
-      profileId: profile.id,
-      jobUrl: job.url,
-      requestType: 'job',
-      manualCompany: null,
-      manualRole: null,
-      manualJobDescription: null,
-      status: 'requested',
-      filePath: null,
-      readyAt: null,
-      attempts: 0,
-      maxAttempts: 3,
-      lastError: null,
-      deadLetterAt: null,
-      downloadedAt: null,
-    };
+    const attrs = tailoredResumeRequestAttrs({ userId: user.id, profileId: profile.id, jobUrl: job.url });
     const tailoredResume = existing ? await existing.update(attrs) : await TailoredResume.create(attrs);
     await enqueueTailoredResumeRequest({ tailoredResumeId: tailoredResume.id });
 
     res.status(202).json({
       tailoredResume: formatTailoredResume(tailoredResume),
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function bulkCreateTailoredResumes(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const profile = await accessibleProfile(req, req.body?.profileId);
+    if (!ensureProfileBidEligible(profile, res)) return;
+    const jobIds = numericBatchIds(req.body?.jobIds || req.body?.ids, 'jobIds');
+    const confirmSameCompany = req.body?.confirmSameCompany === true;
+    const sequelize = getSequelize();
+    const ScrapedJob = getScrapedJobModel();
+    const TailoredResume = getTailoredResumeModel();
+    const jobs = await ScrapedJob.findAll({ where: { id: { [Op.in]: jobIds } } });
+    const jobsById = new Map(jobs.map((job) => [String(job.id), job]));
+    const results = [];
+
+    for (const jobId of jobIds) {
+      const job = jobsById.get(String(jobId));
+      if (!job) {
+        results.push({ jobId: String(jobId), ok: false, error: 'Job not found' });
+        continue;
+      }
+
+      try {
+        const sameCompanyConflicts = await findSameCompanyTailoringConflicts({ sequelize, profileId: profile.id, job });
+        if (sameCompanyConflicts.length && !confirmSameCompany) {
+          const prior = sameCompanyConflicts[0];
+          results.push({
+            jobId: String(job.id),
+            ok: false,
+            code: 'same_company_tailoring_conflict',
+            error: `Different role at same company: ${prior.priorTitle} was tailored ${prior.daysSincePrior} day${prior.daysSincePrior === 1 ? '' : 's'} ago.`,
+            sameCompanyTailoring: prior,
+          });
+          continue;
+        }
+
+        if (sameCompanyConflicts.length) {
+          await TailoredResume.update(
+            {
+              status: 'invalid',
+              lastError: 'Invalidated by newer same-company tailoring request',
+              deadLetterAt: new Date(),
+            },
+            {
+              where: {
+                id: { [Op.in]: sameCompanyConflicts.map((conflict) => conflict.priorTailoredResumeId) },
+                profileId: profile.id,
+                status: { [Op.in]: ACTIVE_TAILORED_RESUME_STATUSES },
+              },
+            },
+          );
+        }
+
+        const existing = await TailoredResume.findOne({
+          where: { profileId: profile.id, jobUrl: job.url },
+          order: [['updatedAt', 'DESC']],
+        });
+        const attrs = tailoredResumeRequestAttrs({ userId: user.id, profileId: profile.id, jobUrl: job.url });
+        const tailoredResume = existing ? await existing.update(attrs) : await TailoredResume.create(attrs);
+        await enqueueTailoredResumeRequest({ tailoredResumeId: tailoredResume.id });
+        results.push({ jobId: String(job.id), ok: true, tailoredResume: formatTailoredResume(tailoredResume) });
+      } catch (error) {
+        results.push({ jobId: String(job.id), ok: false, error: error.message || 'Tailoring request failed' });
+      }
+    }
+
+    res.status(202).json({
+      requested: jobIds.length,
+      created: results.filter((result) => result.ok).length,
+      results,
     });
   } catch (error) {
     handleInputError(error, res, next);
@@ -1432,6 +1493,26 @@ function manualTailoringAttributesFromBody(body = {}) {
   if (!jobDescription) throw new InputError('Job description content is required');
 
   return { company, role, jobUrl, jobDescription };
+}
+
+function tailoredResumeRequestAttrs({ userId, profileId, jobUrl }) {
+  return {
+    userId,
+    profileId,
+    jobUrl,
+    requestType: 'job',
+    manualCompany: null,
+    manualRole: null,
+    manualJobDescription: null,
+    status: 'requested',
+    filePath: null,
+    readyAt: null,
+    attempts: 0,
+    maxAttempts: 3,
+    lastError: null,
+    deadLetterAt: null,
+    downloadedAt: null,
+  };
 }
 
 export async function listTailoringRequests(req, res, next) {
@@ -1729,6 +1810,70 @@ export async function createJobBid(req, res, next) {
       res.status(409).json({ error: 'This profile already has a bid for this job' });
       return;
     }
+    handleInputError(error, res, next);
+  }
+}
+
+export async function bulkUpdateJobBids(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const items = batchApplicationItems(req.body?.items);
+    const updatesBody = req.body?.updates || req.body || {};
+    const attrs = bidAttributesFromBody(updatesBody);
+    pruneAttrsForProvidedBidFields(attrs, updatesBody);
+    if (rejectReviewStatusForNonAdmin(req, res, attrs)) return;
+    if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
+    if (!isAdminRole(req.user)) delete attrs.callerUserId;
+
+    const profileId = clean(req.body?.profileId);
+    const profile = profileId ? await accessibleProfile(req, profileId) : null;
+    if (profile && !ensureProfileBidEligible(profile, res)) return;
+    const JobBid = getJobBidModel();
+    const ScrapedJob = getScrapedJobModel();
+    const results = [];
+
+    for (const item of items) {
+      try {
+        let bid = item.bidId ? await JobBid.findByPk(item.bidId) : null;
+        let job = item.jobId ? await ScrapedJob.findByPk(item.jobId) : null;
+
+        if (bid && !job) job = await ScrapedJob.findByPk(bid.jobId);
+        if (!bid && !job) {
+          results.push({ jobId: item.jobId ? String(item.jobId) : null, bidId: item.bidId ? String(item.bidId) : null, ok: false, error: 'Job or bid not found' });
+          continue;
+        }
+
+        if (bid) {
+          await ensureBidBatchWritable({ req, res, user, bid, attrs });
+          if (res.headersSent) return;
+          bid = await applyBidUpdates({ bid, attrs });
+        } else {
+          if (!profile) throw new InputError('profileId is required when creating applications');
+          if (attrs.callerUserId && !isAdminRole(req.user)) delete attrs.callerUserId;
+          bid = await createBidForBatch({ user, profile, job, attrs });
+        }
+
+        if (['interviewing', 'won', 'lost'].includes(attrs.status)) {
+          await upsertInterviewForBid({ bid, job, attrs, userId: bid.userId });
+        }
+        results.push({ jobId: String(bid.jobId), bidId: String(bid.id), ok: true, bid: formatBid(bid) });
+      } catch (error) {
+        results.push({
+          jobId: item.jobId ? String(item.jobId) : null,
+          bidId: item.bidId ? String(item.bidId) : null,
+          ok: false,
+          error: error.message || 'Application update failed',
+        });
+      }
+    }
+
+    res.json({
+      requested: items.length,
+      updated: results.filter((result) => result.ok).length,
+      results,
+    });
+  } catch (error) {
     handleInputError(error, res, next);
   }
 }
@@ -2234,6 +2379,86 @@ async function ensureCallerUser(callerUserId) {
   return caller;
 }
 
+function batchApplicationItems(value) {
+  const items = Array.isArray(value) ? value : [];
+  const normalized = items
+    .map((item) => ({
+      jobId: numericBatchId(item?.jobId || item?.id),
+      bidId: numericBatchId(item?.bidId),
+    }))
+    .filter((item) => item.jobId || item.bidId);
+  const deduped = [];
+  const seen = new Set();
+  for (const item of normalized) {
+    const key = `${item.bidId || ''}:${item.jobId || ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+  }
+  if (!deduped.length) throw new InputError('items must include at least one application or job');
+  if (deduped.length > BATCH_LIMIT) throw new InputError(`items cannot include more than ${BATCH_LIMIT} applications`);
+  return deduped;
+}
+
+function numericBatchIds(value, label) {
+  const ids = Array.isArray(value) ? value.map(numericBatchId).filter(Boolean) : [];
+  const deduped = [...new Set(ids)];
+  if (!deduped.length) throw new InputError(`${label} must include at least one job`);
+  if (deduped.length > BATCH_LIMIT) throw new InputError(`${label} cannot include more than ${BATCH_LIMIT} jobs`);
+  return deduped;
+}
+
+function numericBatchId(value) {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+async function ensureBidBatchWritable({ req, res, user, bid, attrs }) {
+  if (!isAdminRole(req.user)) {
+    const profile = await accessibleProfile(req, bid.profileId);
+    if (isLegacyProfile(profile) && !isInterviewBidStatus(attrs.status || bid.status)) {
+      res.status(403).json({ error: 'Legacy profiles can register interviews, but cannot be used for bidding' });
+      return;
+    }
+    if (!PRIVILEGED_USER_ROLES.includes(user.role) && String(bid.userId) !== String(user.id)) {
+      throw new NotFoundError('Bid not found');
+    }
+    return;
+  }
+
+  const profile = await getBidProfileModel().findByPk(bid.profileId);
+  if (isLegacyProfile(profile) && !isInterviewBidStatus(attrs.status || bid.status)) {
+    res.status(403).json({ error: 'Legacy profiles can register interviews, but cannot be used for bidding' });
+  }
+}
+
+async function createBidForBatch({ user, profile, job, attrs }) {
+  const now = new Date();
+  const createAttrs = { ...attrs, status: attrs.status || 'queued' };
+  return getJobBidModel().create({
+    ...bidUpdateValuesFromAttrs(createAttrs),
+    userId: user.id,
+    profileId: profile.id,
+    jobId: job.id,
+    bidAt: now,
+    ...(createAttrs.status === 'interviewing' ? { interviewAt: now } : {}),
+    updatedAt: now,
+  });
+}
+
+async function applyBidUpdates({ bid, attrs }) {
+  const now = new Date();
+  const updates = { ...bidUpdateValuesFromAttrs(attrs), updatedAt: now };
+  if (shouldRefreshBidAtForStatus(attrs.status, bid.status)) {
+    updates.bidAt = now;
+  }
+  if (shouldSetInterviewAtForStatus(attrs.status, bid.status, bid.interviewAt)) {
+    updates.interviewAt = now;
+  }
+  await bid.update(updates);
+  return bid;
+}
+
 async function interviewWriteProfileForUser(user, profileId, notFoundMessage = 'Profile not found') {
   const id = clean(profileId);
   if (!id) throw new InputError('Profile is required');
@@ -2311,21 +2536,43 @@ function rejectReviewStatusForNonAdmin(req, res, attrs) {
 
 function bidUpdateValuesFromAttrs(attrs) {
   return {
-    status: attrs.status,
-    bidAmount: attrs.bidAmount,
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'status') ? { status: attrs.status } : {}),
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'bidAmount') ? { bidAmount: attrs.bidAmount } : {}),
     ...(Object.prototype.hasOwnProperty.call(attrs, 'callerUserId') ? { callerUserId: attrs.callerUserId } : {}),
-    coverLetter: attrs.coverLetter,
-    notes: attrs.notes,
-    interviewStage: attrs.interviewStage,
-    interviewNextAt: attrs.interviewNextAt,
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'coverLetter') ? { coverLetter: attrs.coverLetter } : {}),
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'notes') ? { notes: attrs.notes } : {}),
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'interviewStage') ? { interviewStage: attrs.interviewStage } : {}),
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'interviewNextAt') ? { interviewNextAt: attrs.interviewNextAt } : {}),
     ...(Object.prototype.hasOwnProperty.call(attrs, 'interviewDurationMinutes')
       ? { interviewDurationMinutes: attrs.interviewDurationMinutes }
       : {}),
-    interviewNotes: attrs.interviewNotes,
+    ...(Object.prototype.hasOwnProperty.call(attrs, 'interviewNotes') ? { interviewNotes: attrs.interviewNotes } : {}),
     ...(Object.prototype.hasOwnProperty.call(attrs, 'stageMeetingLinks')
       ? { stageMeetingLinks: attrs.stageMeetingLinks }
       : {}),
   };
+}
+
+function pruneAttrsForProvidedBidFields(attrs, body = {}) {
+  const optionalFields = [
+    'status',
+    'bidAmount',
+    'coverLetter',
+    'notes',
+    'interviewStage',
+    'interviewNextAt',
+    'interviewNotes',
+  ];
+  optionalFields.forEach((field) => {
+    if (!Object.prototype.hasOwnProperty.call(body, field)) delete attrs[field];
+  });
+  if (
+    !Object.prototype.hasOwnProperty.call(body, 'interviewDurationMinutes') &&
+    !Object.prototype.hasOwnProperty.call(body, 'interviewDuration')
+  ) {
+    delete attrs.interviewDurationMinutes;
+  }
+  if (!Object.prototype.hasOwnProperty.call(body, 'stageMeetingLinks')) delete attrs.stageMeetingLinks;
 }
 
 async function upsertInterviewForBid({ bid, job, attrs, userId }) {

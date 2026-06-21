@@ -29,7 +29,7 @@ import { jobSourceImageUrl, sourceLabel } from '../../lib/jobSourceImage.js';
 import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../lib/roles.js';
 import JobIdBadge from '../jobs/JobIdBadge.jsx';
 import JobRegionBadge from '../jobs/JobRegionBadge.jsx';
-import { BID_TABS } from './bidConstants.js';
+import { APPLICATION_WORKFLOW_STATUSES, BID_TABS } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 
@@ -73,7 +73,7 @@ export default function BidJobCard({
   const canReviewTailoredJob = activeTab === BID_TABS.tailored && isAdmin && hasActiveTailoredResumeStatus(job.tailoredResume?.status);
   const showReviewControl = canReviewDoneJob || canReviewBadWorkJob || canReviewTailoredJob;
   const showBidStatusChip = activeTab !== BID_TABS.tailored || isInvalidReviewJob;
-  const showStatusControl = activeTab === BID_TABS.interviews;
+  const showStatusControl = activeTab === BID_TABS.interviews || activeTab === BID_TABS.done;
   const showAppliedAction = activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready';
   const bidChipLabel = reviewStatusLabel(bidStatus) || (job.bid
     ? `Bid ${formatDate(job.bid.bidAt)}`
@@ -367,8 +367,11 @@ export default function BidJobCard({
                       onChange={handleStatusChange}
                       disabled={isSaving}
                     >
-                      {statusDefault !== 'submitted' && statusDefault !== 'interviewing' ? <MenuItem value="planned">Planned</MenuItem> : null}
-                      <MenuItem value="submitted">Submitted</MenuItem>
+                      {APPLICATION_WORKFLOW_STATUSES.map((status) => (
+                        <MenuItem key={status.value} value={status.value}>
+                          {status.label}
+                        </MenuItem>
+                      ))}
                       <MenuItem value="interviewing">Interviewing</MenuItem>
                       <MenuItem value="won">Won</MenuItem>
                       <MenuItem value="lost">Lost</MenuItem>
@@ -544,6 +547,8 @@ const tailorButtonSx = {
 function statusLabel(status) {
   if (status === 'mismatching_bid') return 'Mismatching bid';
   if (status === 'spam_job') return 'Spam job';
+  const workflowStatus = APPLICATION_WORKFLOW_STATUSES.find((option) => option.value === status);
+  if (workflowStatus) return workflowStatus.label;
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
@@ -569,9 +574,9 @@ function hasActiveTailoredResumeStatus(status) {
 
 function tailoredStatusLabel(status) {
   if (status === 'ready') return 'Ready';
-  if (status === 'processing') return 'Tailoring now';
+  if (status === 'processing') return 'Tailoring';
   if (status === 'dead_letter') return 'Failed';
-  return 'Requested';
+  return 'Queued';
 }
 
 function tailoredStatusSx(status) {

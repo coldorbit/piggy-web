@@ -1,5 +1,5 @@
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { Avatar, Box, ButtonBase, Chip, CircularProgress, IconButton, List, ListItem, Paper, Skeleton, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, ButtonBase, Checkbox, Chip, CircularProgress, IconButton, List, ListItem, Paper, Skeleton, Tooltip, Typography } from '@mui/material';
 import Pagination from './Pagination.jsx';
 import SpamBadge from './SpamBadge.jsx';
 import JobRegionBadge from './JobRegionBadge.jsx';
@@ -23,7 +23,18 @@ const SOURCE_CHIP_STYLES = {
 
 const SOURCE_CHIP_FALLBACK = { bgcolor: '#f3f5f7', color: '#303942' };
 
-export default function JobList({ filters, jobs, loading, selectedJob, total, onPage, onPageSize, onSelectJob }) {
+export default function JobList({
+  filters,
+  jobs,
+  loading,
+  selectedJob,
+  selectedJobIds = new Set(),
+  total,
+  onPage,
+  onPageSize,
+  onSelectJob,
+  onSelectedChange = () => {},
+}) {
   return (
     <Paper
       variant="outlined"
@@ -52,20 +63,18 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
       <List disablePadding sx={{ overflowY: 'auto', overflowX: 'hidden', flex: '1 1 auto', minHeight: 0, minWidth: 0 }}>
         {jobs.map((job) => {
           const selected = String(selectedJob?.id) === String(job.id);
+          const checked = selectedJobIds.has(String(job.id));
           const isLinkedInJob = String(job.source || '').trim().toLowerCase() === 'linkedin';
           return (
             <ListItem key={job.id} disablePadding divider sx={{ minWidth: 0, borderColor: 'divider' }}>
-              <ButtonBase
-                component="div"
-                onClick={() => onSelectJob(job.id)}
+              <Box
                 sx={{
                   width: '100%',
                   minWidth: 0,
                   minHeight: 64,
-                  px: 1.1,
-                  py: 0.85,
-                  justifyContent: 'stretch',
-                  textAlign: 'left',
+                  display: 'grid',
+                  gridTemplateColumns: '34px minmax(0, 1fr)',
+                  alignItems: 'stretch',
                   borderLeft: 4,
                   borderColor: selected ? 'primary.main' : 'transparent',
                   bgcolor: selected ? '#EFF6FF' : 'transparent',
@@ -73,6 +82,29 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                   '&:hover': { bgcolor: selected ? '#DBEAFE' : '#F8FAFC' },
                 }}
               >
+                <Box sx={{ display: 'grid', placeItems: 'center' }}>
+                  <Checkbox
+                    checked={checked}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={() => onSelectedChange(job.id)}
+                    inputProps={{ 'aria-label': `Select ${job.title || 'job'}` }}
+                    size="small"
+                    sx={{ p: 0.5 }}
+                  />
+                </Box>
+                <ButtonBase
+                  component="div"
+                  onClick={() => onSelectJob(job.id)}
+                  sx={{
+                    width: '100%',
+                    minWidth: 0,
+                    minHeight: 64,
+                    px: 1.1,
+                    py: 0.85,
+                    justifyContent: 'stretch',
+                    textAlign: 'left',
+                  }}
+                >
                 <Box
                   sx={{
                     width: '100%',
@@ -143,7 +175,8 @@ export default function JobList({ filters, jobs, loading, selectedJob, total, on
                     </Box>
                   </Box>
                 </Box>
-              </ButtonBase>
+                </ButtonBase>
+              </Box>
             </ListItem>
           );
         })}

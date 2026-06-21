@@ -20,7 +20,7 @@ import {
 } from '../../../utils/roles.js';
 import { dailyGoalRangeForUserBidFilter } from './biddingService.js';
 
-const DAILY_BID_GOAL_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
+const DAILY_BID_GOAL_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
 const FORWARDING_ALIAS_LOCAL_PART = 'service';
 const FORWARDING_ALIAS_DOMAIN = 'co-bounce.com';
 
@@ -152,14 +152,14 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
         [
           getSequelize().fn(
             'SUM',
-            getSequelize().literal("CASE WHEN status = 'planned' THEN 1 ELSE 0 END"),
+            getSequelize().literal("CASE WHEN status IN ('planned', 'queued', 'tailoring', 'ready') THEN 1 ELSE 0 END"),
           ),
           'planned',
         ],
         [
           getSequelize().fn(
             'SUM',
-            getSequelize().literal("CASE WHEN status IN ('submitted', 'won', 'lost') THEN 1 ELSE 0 END"),
+            getSequelize().literal("CASE WHEN status IN ('submitted', 'needs_follow_up', 'stale', 'blocked', 'won', 'lost') THEN 1 ELSE 0 END"),
           ),
           'done',
         ],

@@ -28,8 +28,17 @@ export const BID_TABS = {
 };
 
 export const REVIEW_STATUSES = new Set(['mismatching_bid', 'spam_job']);
-export const DONE_STATUSES = new Set(['submitted', 'won', 'lost']);
+export const DONE_STATUSES = new Set(['submitted', 'needs_follow_up', 'stale', 'blocked', 'won', 'lost']);
 export const INTERVIEW_STATUSES = new Set(['interviewing']);
+export const APPLICATION_WORKFLOW_STATUSES = [
+  { value: 'queued', label: 'Queued' },
+  { value: 'tailoring', label: 'Tailoring' },
+  { value: 'ready', label: 'Ready' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'needs_follow_up', label: 'Needs follow-up' },
+  { value: 'stale', label: 'Stale' },
+  { value: 'blocked', label: 'Blocked' },
+];
 
 export const INTERVIEW_STAGES = [
   { value: 'todo', label: 'Todo' },

@@ -23,7 +23,7 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import { PAGE_SIZE_OPTIONS } from '../../lib/constants.js';
 import { downloadAuthenticatedFile, useMarkTailoredResumesDownloaded } from '../../lib/api.js';
 import EmptyState from '../common/EmptyState.jsx';
-import { BID_TABS, REVIEW_STATUSES } from './bidConstants.js';
+import { APPLICATION_WORKFLOW_STATUSES, BID_TABS, REVIEW_STATUSES } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
 import BidJobCard from './BidJobCard.jsx';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
@@ -33,6 +33,9 @@ export default function BidJobsPanel() {
     activeColor,
     activeProfileId,
     activeTab,
+    callerUsers = [],
+    currentUser,
+    isBulkUpdating = false,
     jobs,
     loading,
     page,
@@ -42,12 +45,17 @@ export default function BidJobsPanel() {
     onPageChange,
     onPageSizeChange,
     onHiddenChange,
+    onBulkCallerChange,
+    onBulkStatusChange,
+    onBulkTailorResumes,
     onTabChange,
     onTailorResume,
   } = useBidWorkspace();
   const markTailoredResumesDownloaded = useMarkTailoredResumesDownloaded();
   const jobsScrollRef = useRef(null);
   const [selectedJobIds, setSelectedJobIds] = useState(() => new Set());
+  const [batchStatus, setBatchStatus] = useState('submitted');
+  const [batchCallerUserId, setBatchCallerUserId] = useState('');
   const readyResumeIds = jobs
     .filter((job) => !isReviewBidStatus(job.bid?.status))
     .map((job) => job.tailoredResume)
@@ -99,17 +107,45 @@ export default function BidJobsPanel() {
     });
   }
 
+  function selectedBatchItems() {
+    return selectedVisibleJobs.map((job) => ({
+      jobId: job.representativeJobId || job.id,
+      bidId: job.bid?.id || null,
+    }));
+  }
+
+  function clearSelectedJobs(jobsToClear = selectedVisibleJobs) {
+    setSelectedJobIds((current) => {
+      const next = new Set(current);
+      jobsToClear.forEach((job) => next.delete(bidJobCardKey(job)));
+      return next;
+    });
+  }
+
   function tailorSelectedJobs() {
-    selectedVisibleJobs.forEach((job) => onTailorResume(job));
+    if (onBulkTailorResumes) {
+      onBulkTailorResumes(selectedVisibleJobs);
+    } else {
+      selectedVisibleJobs.forEach((job) => onTailorResume(job));
+    }
+    clearSelectedJobs();
   }
 
   function hideSelectedJobs() {
     selectedVisibleJobs.forEach((job) => onHiddenChange(job, true));
-    setSelectedJobIds((current) => {
-      const next = new Set(current);
-      selectedVisibleJobs.forEach((job) => next.delete(bidJobCardKey(job)));
-      return next;
-    });
+    clearSelectedJobs();
+  }
+
+  function updateSelectedStatus() {
+    if (!batchStatus || !selectedVisibleJobs.length) return;
+    onBulkStatusChange?.(selectedBatchItems(), batchStatus);
+    clearSelectedJobs();
+  }
+
+  function assignSelectedCaller() {
+    if (!selectedVisibleJobs.length) return;
+    onBulkCallerChange?.(selectedBatchItems(), batchCallerUserId || null);
+    clearSelectedJobs();
   }
 
   function exportActiveTabCsv() {
@@ -201,10 +237,68 @@ export default function BidJobsPanel() {
           >
             Export CSV
           </Button>
+          <FormControl size="small" sx={{ minWidth: 156, my: 0.75 }}>
+            <Select
+              value={batchStatus}
+              onChange={(event) => setBatchStatus(event.target.value)}
+              displayEmpty
+              sx={{ height: 34 }}
+            >
+              {APPLICATION_WORKFLOW_STATUSES.map((status) => (
+                <MenuItem key={status.value} value={status.value}>
+                  {status.label}
+                </MenuItem>
+              ))}
+              <MenuItem value="interviewing">Interviewing</MenuItem>
+              <MenuItem value="won">Won</MenuItem>
+              <MenuItem value="lost">Lost</MenuItem>
+              {currentUser?.role === 'admin' || currentUser?.role === 'superadmin' ? [
+                <MenuItem key="mismatching_bid" value="mismatching_bid">Mismatching</MenuItem>,
+                <MenuItem key="spam_job" value="spam_job">Spam work</MenuItem>,
+              ] : null}
+            </Select>
+          </FormControl>
+          <Button
+            disabled={!selectedVisibleJobs.length || isBulkUpdating}
+            onClick={updateSelectedStatus}
+            size="small"
+            variant="outlined"
+            sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+          >
+            Update status
+          </Button>
+          {callerUsers.length ? (
+            <>
+              <FormControl size="small" sx={{ minWidth: 154, my: 0.75 }}>
+                <Select
+                  value={batchCallerUserId}
+                  onChange={(event) => setBatchCallerUserId(event.target.value)}
+                  displayEmpty
+                  sx={{ height: 34 }}
+                >
+                  <MenuItem value="">Unassigned</MenuItem>
+                  {callerUsers.map((caller) => (
+                    <MenuItem key={caller.id} value={String(caller.id)}>
+                      {caller.username}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button
+                disabled={!selectedVisibleJobs.length || isBulkUpdating}
+                onClick={assignSelectedCaller}
+                size="small"
+                variant="outlined"
+                sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+              >
+                Assign caller
+              </Button>
+            </>
+          ) : null}
           {activeTab === BID_TABS.todo ? (
             <>
               <Button
-                disabled={!selectedVisibleJobs.length}
+                disabled={!selectedVisibleJobs.length || isBulkUpdating}
                 onClick={hideSelectedJobs}
                 size="small"
                 startIcon={<VisibilityOffIcon />}
@@ -214,7 +308,7 @@ export default function BidJobsPanel() {
                 Hide selected
               </Button>
               <Button
-                disabled={!selectedVisibleJobs.length}
+                disabled={!selectedVisibleJobs.length || isBulkUpdating}
                 onClick={tailorSelectedJobs}
                 size="small"
                 startIcon={<AutoAwesomeIcon />}

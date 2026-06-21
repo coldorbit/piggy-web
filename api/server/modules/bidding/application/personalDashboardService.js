@@ -2,7 +2,7 @@ import { QueryTypes } from 'sequelize';
 import { ensureWebModels, getSequelize } from '../../../../db.js';
 import { localDaySql, normalizeTimeZone } from '../../../utils/localTime.js';
 
-const APPLICATION_STATUSES = ['submitted', 'interviewing', 'won', 'lost'];
+const APPLICATION_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
 const ACTIVE_TAILORING_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const ACTIVE_PROFILE_STATUS = 'active';
 const ACTIVE_INTERVIEW_STATUS = 'interviewing';
@@ -91,7 +91,7 @@ function personalDashboardQueries(timeZone) {
       SELECT
         (SELECT COUNT(*) FROM owned_profiles)::int AS total_profiles,
         (SELECT COUNT(*) FROM owned_profiles WHERE profile_status = '${ACTIVE_PROFILE_STATUS}')::int AS active_profiles,
-        (SELECT COUNT(*) FROM owned_bids WHERE status = 'planned')::int AS planned_applications,
+        (SELECT COUNT(*) FROM owned_bids WHERE status IN ('planned', 'queued', 'tailoring', 'ready'))::int AS planned_applications,
         (SELECT COUNT(*) FROM owned_bids WHERE status IN (:applicationStatuses))::int AS total_applications,
         (SELECT COUNT(*) FROM owned_bids ob WHERE status IN (:applicationStatuses) AND ${overallBidDay} = ${today})::int AS today_applications,
         (SELECT COUNT(*) FROM owned_bids ob WHERE status IN (:applicationStatuses) AND ${overallBidDay} >= ${today} - interval '6 days')::int AS week_applications,

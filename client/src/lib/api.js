@@ -451,6 +451,36 @@ export function useMarkJobHidden() {
   });
 }
 
+export function useBulkMarkJobsSpam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobIds, isSpam }) =>
+      api('/api/jobs/bulk/spam', {
+        method: 'PATCH',
+        body: JSON.stringify({ jobIds, isSpam }),
+      }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+    },
+  });
+}
+
+export function useBulkMarkJobsHidden() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobIds, isHidden }) =>
+      api('/api/jobs/bulk/hidden', {
+        method: 'PATCH',
+        body: JSON.stringify({ jobIds, isHidden }),
+      }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+    },
+  });
+}
+
 export function useMarkLinkedInEasyApply() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -835,7 +865,7 @@ function bidTabsForJob(job) {
     tabs.add('bad_work');
     return tabs;
   }
-  if (['submitted', 'won', 'lost'].includes(status)) {
+  if (['submitted', 'needs_follow_up', 'stale', 'blocked', 'won', 'lost'].includes(status)) {
     tabs.add('done');
     return tabs;
   }
@@ -1194,6 +1224,24 @@ export function useUpdateJobBid() {
   });
 }
 
+export function useBulkUpdateJobBids() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ items, profileId, updates }) =>
+      api('/api/bid/applications/bulk', {
+        method: 'PATCH',
+        body: JSON.stringify({ items, profileId, updates }),
+      }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'bidders'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}
+
 export function useCreateManualInterview() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -1368,6 +1416,22 @@ export function useRequestTailoredResume() {
       updateCachedBidQueries(queryClient, jobId, { tailoredResume }, { jobKey });
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+    },
+  });
+}
+
+export function useBulkRequestTailoredResumes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobIds, profileId, confirmSameCompany = false }) =>
+      api('/api/bid/tailored-resumes/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ jobIds, profileId, confirmSameCompany }),
+      }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'tailoring-requests'] });
     },
   });
 }

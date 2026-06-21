@@ -74,7 +74,7 @@ describe('buildBidTabQuery', () => {
     });
 
     assert.equal(query.include[0].required, true);
-    assert.deepEqual(query.include[0].where.status[Op.in], ['submitted', 'won', 'lost']);
+    assert.deepEqual(query.include[0].where.status[Op.in], ['submitted', 'needs_follow_up', 'stale', 'blocked', 'won', 'lost']);
     assert.deepEqual(query.order[0], [{ model: JobBid, as: 'bids' }, 'bidAt', 'DESC']);
     assert.equal(query.where[Op.and], undefined);
   });
@@ -126,7 +126,7 @@ describe('buildBidTabQuery', () => {
         (sql) =>
           sql.includes('FROM job_bids applied_bid') &&
           sql.includes("applied_bid.profile_id = '99'") &&
-          sql.includes("'submitted', 'interviewing', 'won', 'lost'"),
+          sql.includes("'submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'"),
       ),
       true,
     );
@@ -222,7 +222,12 @@ function literalsFor(query) {
 function assertHasPlannedBidClause(query) {
   assert.equal(
     (query.where[Op.and] || []).some(
-      (clause) => clause?.[Op.or]?.some((condition) => condition?.['$bids.status$'] === 'planned'),
+      (clause) =>
+        clause?.[Op.or]?.some((condition) =>
+          ['planned', 'queued', 'tailoring', 'ready'].every((status) =>
+            condition?.['$bids.status$']?.[Op.in]?.includes(status),
+          ),
+        ),
     ),
     true,
   );

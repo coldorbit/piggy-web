@@ -2,16 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import ReportGmailerrorredIcon from '@mui/icons-material/ReportGmailerrorred';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import WorkIcon from '@mui/icons-material/Work';
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Paper, Stack, TextField, Typography } from '@mui/material';
 import JobDetail from '../components/jobs/JobDetail.jsx';
 import JobFiltersDrawer from '../components/jobs/JobFiltersDrawer.jsx';
 import JobList from '../components/jobs/JobList.jsx';
 import Metric from '../components/jobs/Metric.jsx';
 import SavedViewsToolbar from '../components/common/SavedViewsToolbar.jsx';
+import ContextualFaqPanel from '../components/faqs/ContextualFaqPanel.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
-import { useDeleteJob, useImportJobsCsv, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
+import { useBulkMarkJobsHidden, useBulkMarkJobsSpam, useDeleteJob, useImportJobsCsv, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
 import { PAGE_SIZE } from '../lib/constants.js';
 import { formatDateTime } from '../lib/formatters.js';
 import { matchesSpamFilter, matchesVisibilityFilter } from '../lib/jobFilters.js';
@@ -65,6 +69,7 @@ export default function JobsPage({ currentUser }) {
   const [selectedLocationByJobId, setSelectedLocationByJobId] = useState({});
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [selectedJobIds, setSelectedJobIds] = useState(() => new Set());
   const [csvText, setCsvText] = useState('');
   const [pastedJobRow, setPastedJobRow] = useState('');
   const [importMessage, setImportMessage] = useState('');
@@ -85,12 +90,23 @@ export default function JobsPage({ currentUser }) {
   const { mutateAsync: deleteJob, isPending: deletingJob } = useDeleteJob();
   const { mutateAsync: markSpam } = useMarkJobSpam();
   const { mutateAsync: markHidden } = useMarkJobHidden();
+  const { mutateAsync: bulkMarkSpam, isPending: bulkSpamPending } = useBulkMarkJobsSpam();
+  const { mutateAsync: bulkMarkHidden, isPending: bulkHiddenPending } = useBulkMarkJobsHidden();
   const { mutate: importJobsCsv, isPending: importingCsv } = useImportJobsCsv();
 
   const jobs = jobsData?.jobs || [];
   const total = jobsData?.total || 0;
   const meta = metaData || { total: 0, sources: [], latestScrapedAt: null };
   const canImportJobs = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.editableBidder].includes(currentUser?.role);
+  const selectedJobs = useMemo(
+    () => jobs.filter((job) => selectedJobIds.has(jobSelectionKey(job))),
+    [jobs, selectedJobIds],
+  );
+  const selectedRawJobIds = useMemo(
+    () => [...new Set(selectedJobs.flatMap(rawJobIdsForBatch))],
+    [selectedJobs],
+  );
+  const isBulkUpdating = bulkSpamPending || bulkHiddenPending;
 
   const selectedJob = useMemo(
     () => jobs.find((job) => String(job.id) === String(selectedId)) || jobs[0] || null,
@@ -105,6 +121,14 @@ export default function JobsPage({ currentUser }) {
   useEffect(() => {
     writePersistedFilters(JOB_FILTERS_STORAGE_KEY, filters, JOB_FILTER_KEYS);
   }, [filters]);
+
+  useEffect(() => {
+    setSelectedJobIds((current) => {
+      const visibleKeys = new Set(jobs.map(jobSelectionKey));
+      const next = new Set([...current].filter((jobId) => visibleKeys.has(jobId)));
+      return next.size === current.size ? current : next;
+    });
+  }, [jobs]);
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: key === 'page' ? value : 1 }));
@@ -160,6 +184,40 @@ export default function JobsPage({ currentUser }) {
     const job = jobs.find((item) => String(item.id) === String(jobId));
     if (!job?.locationOptions?.length || selectedLocationByJobId[job.id]) return;
     setSelectedLocationByJobId((current) => ({ ...current, [job.id]: job.locationOptions[0].id }));
+  }
+
+  function toggleJobSelection(jobId) {
+    setSelectedJobIds((current) => {
+      const next = new Set(current);
+      if (next.has(String(jobId))) {
+        next.delete(String(jobId));
+      } else {
+        next.add(String(jobId));
+      }
+      return next;
+    });
+  }
+
+  function toggleAllJobsSelected() {
+    setSelectedJobIds((current) => {
+      const visibleKeys = jobs.map(jobSelectionKey);
+      const allSelected = visibleKeys.length > 0 && visibleKeys.every((jobId) => current.has(jobId));
+      return allSelected ? new Set() : new Set(visibleKeys);
+    });
+  }
+
+  async function bulkUpdateSpam(isSpam) {
+    if (!selectedRawJobIds.length) return;
+    const result = await bulkMarkSpam({ jobIds: selectedRawJobIds, isSpam });
+    setSelectedJobIds(new Set());
+    return result;
+  }
+
+  async function bulkUpdateHidden(isHidden) {
+    if (!selectedRawJobIds.length) return;
+    const result = await bulkMarkHidden({ jobIds: selectedRawJobIds, isHidden });
+    setSelectedJobIds(new Set());
+    return result;
   }
 
   function selectJobLocation(locationJobId) {
@@ -262,6 +320,15 @@ export default function JobsPage({ currentUser }) {
       {error ? <Alert severity="error">{error}</Alert> : null}
       {importMessage ? <Alert severity={importMessage.startsWith('Imported') ? 'success' : 'error'}>{importMessage}</Alert> : null}
       {importResult ? <ImportCsvResultAlert result={importResult} /> : null}
+      <JobBulkActionsBar
+        allSelected={jobs.length > 0 && jobs.every((job) => selectedJobIds.has(jobSelectionKey(job)))}
+        disabled={isBulkUpdating || !jobs.length}
+        selectedCount={selectedRawJobIds.length}
+        onClear={() => setSelectedJobIds(new Set())}
+        onHiddenChange={bulkUpdateHidden}
+        onSelectAll={toggleAllJobsSelected}
+        onSpamChange={bulkUpdateSpam}
+      />
 
       <Box
         component="section"
@@ -282,11 +349,13 @@ export default function JobsPage({ currentUser }) {
           filters={filters}
           jobs={jobs}
           loading={loading}
+          selectedJobIds={selectedJobIds}
           selectedJob={selectedJob}
           total={total}
           onPage={(page) => updateFilter('page', page)}
           onPageSize={(limit) => updateFilter('limit', limit)}
           onSelectJob={selectJob}
+          onSelectedChange={toggleJobSelection}
         />
         <JobDetail
           canDelete={isAdminRole(currentUser)}
@@ -301,10 +370,15 @@ export default function JobsPage({ currentUser }) {
         />
       </Box>
 
+      <ContextualFaqPanel
+        keywords={['job', 'jobs', 'spam', 'hidden', 'import', 'visibility', 'review']}
+        title="Job workflow FAQs"
+      />
+
       <Dialog open={isImportOpen} onClose={() => setIsImportOpen(false)} fullWidth maxWidth="sm">
         <Box component="form" onSubmit={importCsv}>
           <DialogTitle>Import Jobs</DialogTitle>
-          <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 1 }}>
+          <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 2 }}>
             <TextField
               label="Paste one job row"
               value={pastedJobRow}
@@ -346,6 +420,61 @@ export default function JobsPage({ currentUser }) {
       </Dialog>
     </Box>
   );
+}
+
+function JobBulkActionsBar({
+  allSelected,
+  disabled,
+  selectedCount,
+  onClear,
+  onHiddenChange,
+  onSelectAll,
+  onSpamChange,
+}) {
+  const hasSelection = selectedCount > 0;
+  return (
+    <Paper variant="outlined" sx={{ px: 1.25, py: 0.85, borderRadius: 1 }}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between">
+        <Typography color="text.secondary" variant="body2" fontWeight={800}>
+          {hasSelection ? `${selectedCount.toLocaleString()} job${selectedCount === 1 ? '' : 's'} selected` : 'No jobs selected'}
+        </Typography>
+        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+          <Button size="small" variant="outlined" disabled={disabled} onClick={onSelectAll}>
+            {allSelected ? 'Clear page' : 'Select page'}
+          </Button>
+          <Button size="small" variant="outlined" disabled={!hasSelection || disabled} startIcon={<ReportGmailerrorredIcon />} onClick={() => onSpamChange(true)}>
+            Spam
+          </Button>
+          <Button size="small" variant="outlined" disabled={!hasSelection || disabled} onClick={() => onSpamChange(false)}>
+            Not spam
+          </Button>
+          <Button size="small" variant="outlined" disabled={!hasSelection || disabled} onClick={() => onSpamChange(null)}>
+            Clear review
+          </Button>
+          <Button size="small" variant="outlined" disabled={!hasSelection || disabled} startIcon={<VisibilityOffIcon />} onClick={() => onHiddenChange(true)}>
+            Hide
+          </Button>
+          <Button size="small" variant="outlined" disabled={!hasSelection || disabled} startIcon={<VisibilityIcon />} onClick={() => onHiddenChange(false)}>
+            Unhide
+          </Button>
+          <Button size="small" disabled={!hasSelection || disabled} onClick={onClear}>
+            Clear
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+}
+
+function jobSelectionKey(job) {
+  return String(job?.id || '');
+}
+
+function rawJobIdsForBatch(job) {
+  const ids = Array.isArray(job.locationOptions) && job.locationOptions.length
+    ? job.locationOptions.map((option) => option.id)
+    : [job.id];
+  return ids.map((id) => Number(id)).filter((id) => Number.isFinite(id));
 }
 
 function csvFromPastedJobRow(value) {

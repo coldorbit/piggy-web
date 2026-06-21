@@ -9,6 +9,7 @@ import { BidWorkspaceProvider } from '../components/bids/BidWorkspaceContext.jsx
 import SameCompanyTailoringDialog from '../components/bids/SameCompanyTailoringDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import SavedViewsToolbar from '../components/common/SavedViewsToolbar.jsx';
+import ContextualFaqPanel from '../components/faqs/ContextualFaqPanel.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { BID_TABS, EMPTY_BID } from '../components/bids/bidConstants.js';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
@@ -16,6 +17,8 @@ import { EMPTY_PROFILE, PROFILE_COLORS } from '../components/profiles/profileCon
 import {
   useBidJobs,
   useBidProfiles,
+  useBulkRequestTailoredResumes,
+  useBulkUpdateJobBids,
   useCreateBidProfile,
   useCreateJobBid,
   useJobsMeta,
@@ -124,9 +127,11 @@ export default function BidPage({ currentUser }) {
   const { mutate: createProfile, isPending: creatingProfile } = useCreateBidProfile();
   const { mutate: createBid, isPending: creatingBid } = useCreateJobBid();
   const { mutate: updateBid, isPending: updatingBid } = useUpdateJobBid();
+  const { mutate: bulkUpdateBids, isPending: bulkUpdatingBids } = useBulkUpdateJobBids();
   const { mutate: markHidden } = useMarkJobHidden();
   const { mutate: updateLinkedInExternalUrl, isPending: updatingLinkedInExternalUrl } = useUpdateLinkedInExternalUrl();
   const { mutate: requestTailoredResume } = useRequestTailoredResume();
+  const { mutate: bulkRequestTailoredResumes, isPending: bulkRequestingTailoredResumes } = useBulkRequestTailoredResumes();
   const { mutate: stopTailoredResume, isPending: stoppingTailoredResume } = useStopTailoredResume();
   useTailoredResumeEvents(activeProfile?.id);
   const dateFilteredProfile = bidJobsData?.profile;
@@ -325,6 +330,58 @@ export default function BidPage({ currentUser }) {
     );
   }
 
+  function batchUpdateStatus(items, status) {
+    if (!activeProfile || !items?.length) return;
+    setError('');
+    bulkUpdateBids(
+      {
+        items,
+        profileId: activeProfile.id,
+        updates: { status },
+      },
+      {
+        onError: (batchError) => setError(batchError.message),
+        onSuccess: (result) => setBatchResultError(result, 'application'),
+      },
+    );
+  }
+
+  function batchAssignCaller(items, callerUserId) {
+    if (!activeProfile || !items?.length) return;
+    setError('');
+    bulkUpdateBids(
+      {
+        items,
+        profileId: activeProfile.id,
+        updates: { callerUserId },
+      },
+      {
+        onError: (batchError) => setError(batchError.message),
+        onSuccess: (result) => setBatchResultError(result, 'caller assignment'),
+      },
+    );
+  }
+
+  function batchTailorResumes(selectedJobs) {
+    if (!activeProfile || !selectedJobs?.length) return;
+    const jobIds = selectedJobs.map((job) => bidJobActionId(job)).filter(Boolean);
+    setError('');
+    bulkRequestTailoredResumes(
+      { jobIds, profileId: activeProfile.id },
+      {
+        onError: (batchError) => setError(batchError.message),
+        onSuccess: (result) => setBatchResultError(result, 'tailoring request'),
+      },
+    );
+  }
+
+  function setBatchResultError(result, label) {
+    const failed = (result?.results || []).filter((item) => !item.ok);
+    if (!failed.length) return;
+    const firstError = failed[0]?.error || 'Some rows failed';
+    setError(`${failed.length} ${label}${failed.length === 1 ? '' : 's'} failed. ${firstError}`);
+  }
+
   const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'];
   const jobs = bidJobsData?.jobs || [];
   const visibleJobs = jobs.filter((job) => isJobVisibleForTab(job, activeBidTab, draftFor(job)));
@@ -340,8 +397,10 @@ export default function BidPage({ currentUser }) {
       activeColor,
       activeProfileId: activeProfile?.id || '',
       activeTab: activeBidTab,
+      callerUsers: bidJobsData?.callerUsers || [],
       currentUser: currentBidUser,
       draftsForJob: draftFor,
+      isBulkUpdating: bulkUpdatingBids || bulkRequestingTailoredResumes,
       isSaving: creatingBid || updatingBid,
       isStoppingTailoring: stoppingTailoredResume,
       isUpdatingLinkedInJob: updatingLinkedInExternalUrl,
@@ -354,6 +413,9 @@ export default function BidPage({ currentUser }) {
       tailoringByJobId: tailoringByProfileJobs(tailoringByProfileJobId, activeProfile?.id, visibleJobs),
       total,
       onDraftChange: updateDraft,
+      onBulkCallerChange: batchAssignCaller,
+      onBulkStatusChange: batchUpdateStatus,
+      onBulkTailorResumes: batchTailorResumes,
       onHiddenChange: updateHiddenState,
       onLinkedInExternalUrlChange: updateExternalJobLink,
       onPageChange: (page) => updateFilter('page', page),
@@ -368,7 +430,10 @@ export default function BidPage({ currentUser }) {
       activeColor,
       activeProfile?.id,
       bidJobsData?.currentUser,
+      bidJobsData?.callerUsers,
       bidJobsData?.tabCounts,
+      bulkRequestingTailoredResumes,
+      bulkUpdatingBids,
       creatingBid,
       currentUser,
       currentBidUser,
@@ -466,6 +531,10 @@ export default function BidPage({ currentUser }) {
                   <BidJobsPanel key={activeProfile.id} />
                 </BidWorkspaceProvider>
               </Box>
+              <ContextualFaqPanel
+                keywords={['application', 'applications', 'resume', 'tailor', 'tailoring', 'caller', 'status', 'follow-up', 'blocked', 'stale']}
+                title="Application workflow FAQs"
+              />
             </Box>
           ) : null}
         </Box>

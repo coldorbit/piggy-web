@@ -33,16 +33,17 @@ import {
   Typography,
 } from '@mui/material';
 import EmptyState from '../components/common/EmptyState.jsx';
+import ContextualFaqPanel from '../components/faqs/ContextualFaqPanel.jsx';
 import RefreshButton from '../components/common/RefreshButton.jsx';
 import { downloadAuthenticatedFile, useBidProfiles, useCreateManualTailoredResume, useTailoringRequests } from '../lib/api.js';
 import { formatDateTime } from '../lib/formatters.js';
 
 const statusOptions = [
   { value: 'all', label: 'All statuses' },
-  { value: 'requested', label: 'Requested' },
-  { value: 'processing', label: 'Processing' },
+  { value: 'requested', label: 'Queued' },
+  { value: 'processing', label: 'Tailoring' },
   { value: 'ready', label: 'Ready' },
-  { value: 'dead_letter', label: 'Dead letter' },
+  { value: 'dead_letter', label: 'Blocked' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'invalid', label: 'Invalid' },
 ];
@@ -163,7 +164,7 @@ export default function TailoringRequestsPage() {
     <Box
       sx={{
         display: 'grid',
-        gridTemplateRows: 'auto auto auto minmax(0, 1fr)',
+        gridTemplateRows: 'auto auto auto auto minmax(0, 1fr)',
         gap: 1.5,
         height: '100%',
         minHeight: 0,
@@ -261,6 +262,11 @@ export default function TailoringRequestsPage() {
           />
         ))}
       </Box>
+
+      <ContextualFaqPanel
+        keywords={['tailoring', 'tailor', 'resume', 'queued', 'ready', 'blocked', 'manual']}
+        title="Tailoring FAQs"
+      />
 
       <Paper variant="outlined" sx={{ borderRadius: 1, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateRows: 'minmax(0, 1fr) auto' }}>
         <TableContainer sx={{ minHeight: 0, overflow: 'auto' }}>
@@ -554,7 +560,9 @@ function TailoringRequestRow({ request }) {
 }
 
 function statusLabel(status) {
-  if (status === 'dead_letter') return 'Dead letter';
+  if (status === 'requested') return 'Queued';
+  if (status === 'processing') return 'Tailoring';
+  if (status === 'dead_letter') return 'Blocked';
   return status ? status.replace(/_/g, ' ') : 'Unknown';
 }
 

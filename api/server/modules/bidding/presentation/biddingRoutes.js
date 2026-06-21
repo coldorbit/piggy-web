@@ -10,6 +10,8 @@ import {
 } from '../../../middleware/authMiddleware.js';
 import {
   createJobBid,
+  bulkCreateTailoredResumes,
+  bulkUpdateJobBids,
   createCaller,
   createManualInterview,
   createManualTailoredResume,
@@ -73,11 +75,13 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/tailored-resumes/download', requireBidOrInterviewAccess, downloadTailoredResumesZip);
   app.get('/api/bid/tailored-resumes/:id/download', requireBidOrInterviewAccess, downloadTailoredResume);
   app.patch('/api/bid/tailored-resumes/:id/cancel', requireBidWorkspaceAccess, cancelTailoredResume);
+  app.post('/api/bid/tailored-resumes/bulk', requireBidWorkspaceAccess, bulkCreateTailoredResumes);
   app.post('/api/bid/tailored-resumes/manual', requireBidWorkspaceAccess, createManualTailoredResume);
   app.post('/api/bid/interviews/manual', requireInterviewAccess, createManualInterview);
   app.patch('/api/bid/interviews/:id', requireInterviewAccess, updateInterview);
   app.delete('/api/bid/interviews/:id', requireInterviewAccess, deleteInterview);
   app.post('/api/bid/jobs/:jobId/tailored-resume', requireBidWorkspaceAccess, createTailoredResume);
+  app.patch('/api/bid/applications/bulk', requireBidWorkspaceAccess, bulkUpdateJobBids);
   app.post('/api/bid/jobs/:jobId', requireBidWorkspaceAccess, createJobBid);
   app.patch('/api/bid/applications/:id', requireBidWorkspaceAccess, updateJobBid);
 }

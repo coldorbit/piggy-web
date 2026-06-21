@@ -70,6 +70,36 @@ export async function markJobSpam(req, res, next) {
   }
 }
 
+export async function bulkMarkJobsSpam(req, res, next) {
+  try {
+    await ensureWebModels();
+    const jobIds = numericIds(req.body?.jobIds || req.body?.ids, 'jobIds');
+    const isSpam = parseSpamReview(req.body?.isSpam);
+    const ScrapedJob = getScrapedJobModel();
+    const rows = await ScrapedJob.findAll({ where: { id: { [Op.in]: jobIds } } });
+    const now = new Date();
+
+    await Promise.all(rows.map((job) =>
+      job.update({
+        isSpam,
+        spamReviewedAt: isSpam === null ? null : now,
+      }),
+    ));
+
+    res.json({
+      updated: rows.length,
+      requested: jobIds.length,
+      jobs: rows.map(formatJob),
+    });
+  } catch (error) {
+    if (error instanceof InputError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    next(error);
+  }
+}
+
 export async function markJobHidden(req, res, next) {
   try {
     await ensureWebModels();
@@ -96,6 +126,36 @@ export async function markJobHidden(req, res, next) {
 
     res.json({ job: formatJob(job) });
   } catch (error) {
+    next(error);
+  }
+}
+
+export async function bulkMarkJobsHidden(req, res, next) {
+  try {
+    await ensureWebModels();
+    const jobIds = numericIds(req.body?.jobIds || req.body?.ids, 'jobIds');
+    const isHidden = parseHiddenState(req.body?.isHidden);
+    const ScrapedJob = getScrapedJobModel();
+    const rows = await ScrapedJob.findAll({ where: { id: { [Op.in]: jobIds } } });
+    const now = new Date();
+
+    await Promise.all(rows.map((job) =>
+      job.update({
+        isHidden,
+        hiddenAt: isHidden ? now : null,
+      }),
+    ));
+
+    res.json({
+      updated: rows.length,
+      requested: jobIds.length,
+      jobs: rows.map(formatJob),
+    });
+  } catch (error) {
+    if (error instanceof InputError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     next(error);
   }
 }
@@ -263,6 +323,14 @@ function isLinkedInUrl(value) {
   } catch {
     return false;
   }
+}
+
+function numericIds(value, label) {
+  const ids = Array.isArray(value) ? value : [];
+  const normalized = [...new Set(ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+  if (!normalized.length) throw new InputError(`${label} must include at least one job`);
+  if (normalized.length > 250) throw new InputError(`${label} cannot include more than 250 jobs`);
+  return normalized;
 }
 
 export async function deleteJob(req, res, next) {

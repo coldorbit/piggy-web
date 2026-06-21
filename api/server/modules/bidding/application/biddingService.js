@@ -10,11 +10,12 @@ import {
 } from '../../../utils/localTime.js';
 
 const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
-const DONE_BID_STATUSES = ['submitted', 'won', 'lost'];
+const DONE_BID_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'won', 'lost'];
 const INTERVIEW_BID_STATUSES = ['interviewing', 'won', 'lost'];
-const FINISHED_BID_AT_STATUSES = new Set(['submitted', 'interviewing', 'won', 'lost']);
+const FINISHED_BID_AT_STATUSES = new Set(['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost']);
 const APPLICATION_SUBMITTED_STATUS = 'submitted';
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
+const OPEN_BID_STATUSES = ['planned', 'queued', 'tailoring', 'ready'];
 export const REVIEW_BID_STATUSES = new Set(['mismatching_bid', 'spam_job']);
 
 export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', bidDateRange = null, JobBid, sequelize }) {
@@ -65,7 +66,7 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
       {
         [Op.or]: [
           { '$bids.id$': { [Op.is]: null } },
-          { '$bids.status$': 'planned' },
+          { '$bids.status$': { [Op.in]: OPEN_BID_STATUSES } },
         ],
       },
     ];
@@ -73,7 +74,7 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
     tabWhere[Op.and] = [
       ...(Array.isArray(tabWhere[Op.and]) ? tabWhere[Op.and] : []),
       {
-        [Op.or]: [{ '$bids.id$': { [Op.is]: null } }, { '$bids.status$': 'planned' }],
+        [Op.or]: [{ '$bids.id$': { [Op.is]: null } }, { '$bids.status$': { [Op.in]: OPEN_BID_STATUSES } }],
       },
     ];
   }
@@ -96,7 +97,7 @@ function appliedProfileExistsSql({ profileId, sequelize }) {
     FROM job_bids applied_bid
     WHERE applied_bid.job_id = "ScrapedJob"."id"
       AND applied_bid.profile_id = ${escapedProfileId}
-      AND applied_bid.status IN ('submitted', 'interviewing', 'won', 'lost')
+      AND applied_bid.status IN ('submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost')
   )`;
 }
 
@@ -349,7 +350,20 @@ export function bidAttributesFromBody(body) {
   const stageMeetingLinks = hasStageMeetingLinks ? normalizeStageMeetingLinks(body?.stageMeetingLinks) : {};
   const interviewMeetingLink = hasInterviewMeetingLink ? clean(body?.interviewMeetingLink || body?.meetingLink) : undefined;
   const allowedInterviewStages = new Set(['', 'todo', 'screening', 'hiring_manager', 'technical_interview', 'panel', 'behavioral', 'system_design', 'final']);
-  const allowedStatuses = new Set(['planned', 'submitted', 'interviewing', 'won', 'lost', ...REVIEW_BID_STATUSES]);
+  const allowedStatuses = new Set([
+    'planned',
+    'queued',
+    'tailoring',
+    'ready',
+    'submitted',
+    'needs_follow_up',
+    'stale',
+    'blocked',
+    'interviewing',
+    'won',
+    'lost',
+    ...REVIEW_BID_STATUSES,
+  ]);
   const normalizedInterviewStage = status === 'interviewing' && !interviewStage ? 'todo' : interviewStage;
 
   if (!allowedStatuses.has(status)) throw new InputError('Choose a valid bid status');

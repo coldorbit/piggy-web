@@ -133,8 +133,8 @@ function overallSql(grainConfig, timeZone, anchor) {
     bid_totals AS (
       SELECT
         COUNT(*)::int AS total_applications,
-        COUNT(*) FILTER (WHERE status = 'planned')::int AS planned_applications,
-        COUNT(*) FILTER (WHERE status = 'submitted')::int AS submitted_applications,
+        COUNT(*) FILTER (WHERE status IN ('planned', 'queued', 'tailoring', 'ready'))::int AS planned_applications,
+        COUNT(*) FILTER (WHERE status IN ('submitted', 'needs_follow_up', 'stale', 'blocked'))::int AS submitted_applications,
         COUNT(*) FILTER (WHERE status = 'interviewing')::int AS interviewing_applications,
         COUNT(*) FILTER (WHERE status = 'won')::int AS won_applications,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications,
@@ -152,7 +152,7 @@ function overallSql(grainConfig, timeZone, anchor) {
       FROM job_bids
       JOIN web_users ON web_users.id = job_bids.user_id
       CROSS JOIN local_day
-      WHERE job_bids.status IN ('submitted', 'interviewing', 'won', 'lost')
+      WHERE job_bids.status IN ('submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost')
         AND job_bids.bid_at >= local_day.starts_at
         AND job_bids.bid_at < local_day.ends_at
     ),
@@ -209,7 +209,7 @@ function trendSql(grainConfig, timeZone, anchor) {
       SELECT
         ${bidBucket} AS bucket_start,
         COUNT(*)::int AS applications,
-        COUNT(*) FILTER (WHERE status = 'submitted')::int AS submitted,
+        COUNT(*) FILTER (WHERE status IN ('submitted', 'needs_follow_up', 'stale', 'blocked'))::int AS submitted,
         COUNT(*) FILTER (WHERE status = 'interviewing')::int AS interviewing_applications,
         COUNT(*) FILTER (WHERE status = 'won')::int AS won_applications,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications
@@ -276,8 +276,8 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
       SELECT
         user_id,
         COUNT(*)::int AS applications,
-        COUNT(*) FILTER (WHERE status = 'planned')::int AS planned,
-        COUNT(*) FILTER (WHERE status = 'submitted')::int AS submitted,
+        COUNT(*) FILTER (WHERE status IN ('planned', 'queued', 'tailoring', 'ready'))::int AS planned,
+        COUNT(*) FILTER (WHERE status IN ('submitted', 'needs_follow_up', 'stale', 'blocked'))::int AS submitted,
         COUNT(*) FILTER (WHERE status = 'interviewing')::int AS interviewing_applications,
         COUNT(*) FILTER (WHERE status = 'won')::int AS won_applications,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications,
