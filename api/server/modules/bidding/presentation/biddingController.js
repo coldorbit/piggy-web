@@ -2129,6 +2129,7 @@ export async function listTailoringRequests(req, res, next) {
         tailored_resumes.manual_job_description,
         tailored_resumes.status,
         tailored_resumes.file_path,
+        tailored_resumes.cv_data,
         tailored_resumes.ready_at,
         tailored_resumes.attempts,
         tailored_resumes.max_attempts,
@@ -2788,7 +2789,10 @@ function formatTailoringRequest(row) {
 }
 
 function resumeTailoringReview(row) {
-  const resumeText = clean(row.profile_resume_text);
+  const cvText = clean(cvDataReviewText(row.cv_data));
+  const profileResumeText = clean(row.profile_resume_text);
+  const resumeText = cvText || profileResumeText;
+  const resumeSource = cvText ? 'generated_cv_json' : profileResumeText ? 'profile_resume' : 'missing_resume';
   const jobText = clean(row.listing_text || row.manual_job_description);
   const keywords = extractReviewKeywords(jobText);
   const resumeTextLower = resumeText.toLowerCase();
@@ -2814,7 +2818,7 @@ function resumeTailoringReview(row) {
           total: keywords.length,
         },
     beforeAfterDiff: {
-      baseline: resumeText ? 'profile_resume' : 'missing_profile_resume',
+      baseline: resumeSource,
       target: jobText ? 'job_description' : 'missing_job_description',
       likelyAddedKeywords: missing.slice(0, 12),
       alreadyCoveredKeywords: covered.slice(0, 12),
@@ -2824,6 +2828,44 @@ function resumeTailoringReview(row) {
       flags: truthfulnessFlags,
     },
   };
+}
+
+function cvDataReviewText(value) {
+  const parsed = parseCvData(value);
+  if (!parsed) return '';
+
+  const parts = [];
+  collectCvDataText(parsed, parts);
+  return parts.join('\n');
+}
+
+function parseCvData(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function collectCvDataText(value, parts) {
+  if (value === null || value === undefined) return;
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    const text = clean(value);
+    if (text) parts.push(text);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectCvDataText(item, parts);
+    return;
+  }
+  if (typeof value === 'object') {
+    for (const [key, item] of Object.entries(value)) {
+      if (key) parts.push(key.replace(/_/g, ' '));
+      collectCvDataText(item, parts);
+    }
+  }
 }
 
 function extractReviewKeywords(value) {

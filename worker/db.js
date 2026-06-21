@@ -27,6 +27,7 @@ async function ensureTailoredResumeManualColumns(sequelize) {
     manual_company: { type: DataTypes.TEXT, allowNull: true },
     manual_role: { type: DataTypes.TEXT, allowNull: true },
     manual_job_description: { type: DataTypes.TEXT, allowNull: true },
+    cv_data: { type: DataTypes.JSONB, allowNull: true },
   };
 
   for (const [column, definition] of Object.entries(columns)) {

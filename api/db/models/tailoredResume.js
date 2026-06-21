@@ -54,6 +54,10 @@ export function getTailoredResumeModel() {
         type: DataTypes.TEXT,
         field: 'file_path',
       },
+      cvData: {
+        type: DataTypes.JSONB,
+        field: 'cv_data',
+      },
       readyAt: {
         type: DataTypes.DATE,
         field: 'ready_at',

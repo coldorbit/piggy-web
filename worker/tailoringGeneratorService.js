@@ -119,6 +119,7 @@ export async function generateTailoredResume({ job, profile }) {
 
   return {
     generatedResume,
+    cvData: resumeFile.cvData,
     filename: resumeFile.filename,
     s3Key: resumeFile.s3Key,
     s3Bucket: ENV.AWS_S3_BUCKET,
@@ -304,7 +305,7 @@ async function generateDocxAndUpload({ generatedResume, profile }) {
   const uploadResult = await uploadResumeToS3(docxBuffer, s3Key, filename);
 
   console.info('resume_timing stage=docx_and_upload_total elapsed_ms=%s filename=%s', elapsedMs(startedAt), filename);
-  return { filename, s3Key, s3: uploadResult };
+  return { filename, s3Key, s3: uploadResult, cvData: data };
 }
 
 async function renderResumeDocx(data, profile) {

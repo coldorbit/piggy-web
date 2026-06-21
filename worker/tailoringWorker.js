@@ -154,6 +154,7 @@ async function processTailoredResume(tailoredResume) {
     await tailoredResume.update({
       status: 'ready',
       filePath: tailorResult.s3Key,
+      cvData: tailorResult.cvData,
       readyAt: new Date(),
       lastError: null,
       deadLetterAt: null,

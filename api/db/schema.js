@@ -58,6 +58,7 @@ export async function ensureWebModels() {
       await ensureInterviewJourneyColumns();
       await ensureTailoredResumeStatusColumns();
       await ensureTailoredResumeManualColumns();
+      await ensureTailoredResumeCvDataColumn();
       await ensureConsumptionTransactionSpenderColumns();
       await ensureWebUserEmailColumn();
       await ensureWebUserDailyBidGoalColumn();
@@ -366,6 +367,16 @@ async function ensureTailoredResumeManualColumns() {
     SET request_type = 'job'
     WHERE request_type IS NULL OR request_type = ''
   `);
+}
+
+async function ensureTailoredResumeCvDataColumn() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'tailored_resumes';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    cv_data: { type: DataTypes.JSONB, allowNull: true },
+  });
 }
 
 async function ensureConsumptionTransactionSpenderColumns() {
