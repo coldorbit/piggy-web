@@ -8,6 +8,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import InboxIcon from '@mui/icons-material/Inbox';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -28,6 +29,7 @@ import {
   Box,
   Badge as MuiBadge,
   Button,
+  Collapse,
   Drawer,
   Chip,
   Dialog,
@@ -80,6 +82,7 @@ export default function AppLayout({ user }) {
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => readSidebarCollapsedPreference());
+  const [isDashboardMenuOpen, setIsDashboardMenuOpen] = useState(false);
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [accountUsername, setAccountUsername] = useState(user.username || '');
   const [accountError, setAccountError] = useState('');
@@ -274,10 +277,13 @@ export default function AppLayout({ user }) {
       <Box sx={{ px: isDrawerCollapsed ? 0.75 : 1, py: 1 }}>
         <List component="nav" aria-label="Workspace navigation" sx={{ display: 'grid', gap: 0.35 }}>
           {isAdminRole(user) ? (
-            <>
-              <NavItem to={dashboardNavTarget('/admin/dashboard', adminDashboardSearch)} icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
-              <DashboardSubNav collapsed={isDrawerCollapsed} search={adminDashboardSearch} onNavigate={() => setMobileOpen(false)} />
-            </>
+            <DashboardNavGroup
+              collapsed={isDrawerCollapsed}
+              isOpen={isDashboardMenuOpen}
+              search={adminDashboardSearch}
+              onNavigate={() => setMobileOpen(false)}
+              onToggle={() => setIsDashboardMenuOpen((current) => !current)}
+            />
           ) : null}
           {canViewPersonalDashboard ? (
             <NavItem to="/dashboard" icon={<AnalyticsIcon />} label="Dashboard" alwaysHighlighted collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
@@ -608,7 +614,73 @@ function mailboxNotificationTooltip(mailboxNotifications) {
   return 'Enable email notifications';
 }
 
-function DashboardSubNav({ collapsed = false, onNavigate, search = '' }) {
+function DashboardNavGroup({ collapsed = false, isOpen = false, onNavigate, onToggle, search = '' }) {
+  if (collapsed) {
+    return (
+      <NavItem
+        to={dashboardNavTarget('/admin/dashboard', search)}
+        icon={<AnalyticsIcon />}
+        label="Dashboard"
+        alwaysHighlighted
+        collapsed
+        onNavigate={onNavigate}
+      />
+    );
+  }
+
+  return (
+    <Box sx={{ display: 'grid', gap: 0.25 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <NavItem
+            to={dashboardNavTarget('/admin/dashboard', search)}
+            icon={<AnalyticsIcon />}
+            label="Dashboard"
+            alwaysHighlighted
+            onNavigate={onNavigate}
+          />
+        </Box>
+        <Tooltip title={isOpen ? 'Collapse dashboard menu' : 'Expand dashboard menu'} placement="right">
+          <IconButton
+            type="button"
+            aria-label={isOpen ? 'Collapse dashboard menu' : 'Expand dashboard menu'}
+            aria-controls="admin-dashboard-subnav"
+            aria-expanded={isOpen}
+            onClick={onToggle}
+            sx={{
+              width: 34,
+              height: 34,
+              border: 1,
+              borderColor: isOpen ? '#0D9488' : shellLine,
+              borderRadius: 1,
+              color: isOpen ? '#0F766E' : 'text.secondary',
+              bgcolor: isOpen ? '#CCFBF1' : '#ffffff',
+              flexShrink: 0,
+              '&:hover': {
+                bgcolor: '#CCFBF1',
+                borderColor: '#0D9488',
+                color: '#115E59',
+              },
+              '& .MuiSvgIcon-root': {
+                transition: (theme) => theme.transitions.create('transform', {
+                  duration: theme.transitions.duration.shorter,
+                }),
+                transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+              },
+            }}
+          >
+            <KeyboardArrowDownIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <Collapse in={isOpen} timeout="auto" unmountOnExit>
+        <DashboardSubNav id="admin-dashboard-subnav" search={search} onNavigate={onNavigate} />
+      </Collapse>
+    </Box>
+  );
+}
+
+function DashboardSubNav({ collapsed = false, id, onNavigate, search = '' }) {
   const items = [
     { to: '/admin/dashboard/users', icon: <PeopleIcon />, label: 'User performance' },
     { to: '/admin/dashboard/bidders', icon: <LeaderboardIcon />, label: 'Bidder performance' },
@@ -617,7 +689,7 @@ function DashboardSubNav({ collapsed = false, onNavigate, search = '' }) {
   ];
 
   return (
-    <Box sx={{ display: 'grid', gap: 0.25, mt: 0.25, mb: 0.5, pl: collapsed ? 0 : 1 }}>
+    <Box id={id} sx={{ display: 'grid', gap: 0.25, mt: 0.25, mb: 0.5, pl: collapsed ? 0 : 1 }}>
       {items.map((item) => (
         <NavItem
           key={item.to}
