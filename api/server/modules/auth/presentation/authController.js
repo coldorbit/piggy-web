@@ -2,10 +2,14 @@ import {
   authenticateUser,
   clearActiveSession,
   createLoginSession,
+  expiredSessionCookieOptions,
   publicUser,
   readValidSession,
+  SESSION_COOKIE_NAME,
+  sessionCookieOptions,
 } from '../../../../auth.js';
 import { repositories } from '../../../../db.js';
+import { clearLoginFailures, recordLoginFailure } from '../../../middleware/loginRateLimit.js';
 import { clean } from '../../../utils/index.js';
 import { handleUserWriteError } from '../../../utils/errors.js';
 import { isValidTimeZone } from '../../../utils/localTime.js';
@@ -15,12 +19,15 @@ export async function login(req, res, next) {
     const { username, password } = req.body || {};
     const user = await authenticateUser(String(username || ''), String(password || ''));
     if (!user) {
+      recordLoginFailure(req);
       res.status(401).json({ error: 'Invalid username or password' });
       return;
     }
 
     const token = await createLoginSession(user);
-    res.json({ user, token });
+    clearLoginFailures(req);
+    res.cookie(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    res.json({ user });
   } catch (error) {
     next(error);
   }
@@ -29,6 +36,7 @@ export async function login(req, res, next) {
 export async function logout(req, res, next) {
   try {
     await clearActiveSession(req);
+    res.cookie(SESSION_COOKIE_NAME, '', expiredSessionCookieOptions());
     res.json({ ok: true });
   } catch (error) {
     next(error);
@@ -83,7 +91,8 @@ export async function updateMe(req, res, next) {
     await user.update(updates);
     const nextUser = publicUser(user);
     const token = await createLoginSession(nextUser);
-    res.json({ user: nextUser, token });
+    res.cookie(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    res.json({ user: nextUser });
   } catch (error) {
     handleUserWriteError(error, res, next);
   }

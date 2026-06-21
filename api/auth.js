@@ -7,6 +7,7 @@ const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
 const PASSWORD_ITERATIONS = 310000;
 const PASSWORD_KEY_LENGTH = 32;
 const PASSWORD_DIGEST = 'sha256';
+export const SESSION_COOKIE_NAME = 'applypilot_session';
 
 let defaultUsersSeeded = false;
 
@@ -102,8 +103,25 @@ export function createSessionToken(user) {
   return signJwt(payload);
 }
 
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    maxAge: SESSION_TTL_MS,
+    path: '/',
+    sameSite: 'strict',
+    secure: ENV.NODE_ENV === 'production',
+  };
+}
+
+export function expiredSessionCookieOptions() {
+  return {
+    ...sessionCookieOptions(),
+    maxAge: 0,
+  };
+}
+
 export function readSession(req) {
-  const token = bearerToken(req) || queryToken(req);
+  const token = bearerToken(req) || cookieToken(req);
   if (!token) return null;
 
   const payload = verifyJwt(token);
@@ -201,8 +219,19 @@ function bearerToken(req) {
   return scheme?.toLowerCase() === 'bearer' && token ? token : '';
 }
 
-function queryToken(req) {
-  return typeof req.query?.token === 'string' ? req.query.token : '';
+function cookieToken(req) {
+  const cookieHeader = String(req.headers.cookie || '');
+  if (!cookieHeader) return '';
+  for (const cookie of cookieHeader.split(';')) {
+    const [rawName, ...rawValue] = cookie.trim().split('=');
+    if (rawName !== SESSION_COOKIE_NAME) continue;
+    try {
+      return decodeURIComponent(rawValue.join('=') || '');
+    } catch {
+      return rawValue.join('=') || '';
+    }
+  }
+  return '';
 }
 
 function constantEqual(left, right) {

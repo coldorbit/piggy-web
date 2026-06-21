@@ -1,0 +1,59 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { SESSION_COOKIE_NAME, createSessionToken, readSession, sessionCookieOptions } from '../auth.js';
+
+describe('session auth', () => {
+  it('reads valid sessions from the HttpOnly cookie', () => {
+    const token = createSessionToken(sessionUser());
+    const session = readSession({
+      headers: { cookie: `${SESSION_COOKIE_NAME}=${encodeURIComponent(token)}` },
+      query: {},
+    });
+
+    assert.equal(session.username, 'admin');
+    assert.equal(session.role, 'admin');
+    assert.equal(session.activeSessionId, 'session-1');
+  });
+
+  it('keeps bearer token support for API clients', () => {
+    const token = createSessionToken(sessionUser());
+    const session = readSession({
+      headers: { authorization: `Bearer ${token}` },
+      query: {},
+    });
+
+    assert.equal(session.username, 'admin');
+    assert.equal(session.activeSessionId, 'session-1');
+  });
+
+  it('does not authenticate query-string tokens', () => {
+    const token = createSessionToken(sessionUser());
+    const session = readSession({
+      headers: {},
+      query: { token },
+    });
+
+    assert.equal(session, null);
+  });
+
+  it('marks browser session cookies HttpOnly and same-site strict', () => {
+    assert.deepEqual(
+      sessionCookieOptions(),
+      {
+        httpOnly: true,
+        maxAge: 604800000,
+        path: '/',
+        sameSite: 'strict',
+        secure: false,
+      },
+    );
+  });
+});
+
+function sessionUser() {
+  return {
+    username: 'admin',
+    role: 'admin',
+    activeSessionId: 'session-1',
+  };
+}

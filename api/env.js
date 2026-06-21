@@ -3,10 +3,17 @@ import 'dotenv/config';
 validateOptionalUrl('AWS_SQS_ENDPOINT', process.env.AWS_SQS_ENDPOINT);
 validateOptionalUrl('TAILORING_QUEUE_URL', process.env.TAILORING_QUEUE_URL);
 
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || 'dev-only-change-me';
+
+if (NODE_ENV === 'production' && (!process.env.WEB_SESSION_SECRET || WEB_SESSION_SECRET === 'dev-only-change-me')) {
+  throw new Error('WEB_SESSION_SECRET must be set to a strong unique value in production');
+}
+
 export const ENV = {
-  NODE_ENV: process.env.NODE_ENV || 'development',
+  NODE_ENV,
   WEB_PORT: Number(process.env.WEB_PORT || process.env.PORT || 3000),
-  WEB_SESSION_SECRET: process.env.WEB_SESSION_SECRET || 'dev-only-change-me',
+  WEB_SESSION_SECRET,
   WEB_USERS: process.env.WEB_USERS,
   WEB_USERNAME: process.env.WEB_USERNAME,
   WEB_PASSWORD: process.env.WEB_PASSWORD,

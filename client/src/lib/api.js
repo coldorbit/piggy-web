@@ -1412,7 +1412,7 @@ export function useTailoredResumeEvents(profileId) {
     if (!profileId) return undefined;
 
     const params = new URLSearchParams({ profileId: String(profileId) });
-    const source = new EventSource(authUrl(`/api/bid/tailored-resume-events?${params}`));
+    const source = new EventSource(authUrl(`/api/bid/tailored-resume-events?${params}`), { withCredentials: true });
     const refetchBidJobs = () => {
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });

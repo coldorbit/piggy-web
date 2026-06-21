@@ -10,6 +10,7 @@ export async function api(path, options = {}) {
     const response = await axios({
       url: apiUrl(path),
       method: options.method || 'GET',
+      withCredentials: true,
       headers: {
         'content-type': 'application/json',
         ...(token ? { authorization: `Bearer ${token}` } : {}),
@@ -28,12 +29,11 @@ export async function api(path, options = {}) {
 }
 
 export function authToken() {
-  return window.localStorage.getItem(AUTH_TOKEN_KEY) || '';
+  return '';
 }
 
-export function setAuthToken(token) {
-  if (token) window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-  else clearAuthToken();
+export function setAuthToken(_token) {
+  clearAuthToken();
 }
 
 export function clearAuthToken() {
@@ -41,11 +41,7 @@ export function clearAuthToken() {
 }
 
 export function authUrl(path) {
-  const token = authToken();
-  const url = apiUrl(path);
-  if (!token) return url;
-  const separator = path.includes('?') ? '&' : '?';
-  return `${url}${separator}token=${encodeURIComponent(token)}`;
+  return apiUrl(path);
 }
 
 function apiUrl(path) {
@@ -70,7 +66,7 @@ export function useLogin() {
         body: JSON.stringify(credentials),
       }),
     onSuccess: (data) => {
-      setAuthToken(data.token);
+      clearAuthToken();
       queryClient.setQueryData(['me'], data.user);
     },
   });
@@ -98,7 +94,7 @@ export function useUpdateMe() {
         body: JSON.stringify(userData),
       }),
     onSuccess: (data) => {
-      setAuthToken(data.token);
+      clearAuthToken();
       queryClient.setQueryData(['me'], data.user);
       queryClient.invalidateQueries();
     },
