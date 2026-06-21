@@ -18,6 +18,7 @@ app.use((req, res, next) => {
   if (origin && isAllowedOrigin(origin, allowedOrigins)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Expose-Headers', 'content-disposition, content-length, content-type');
     res.setHeader('Vary', 'Origin');
   }
   res.setHeader('Access-Control-Allow-Headers', 'content-type, authorization');

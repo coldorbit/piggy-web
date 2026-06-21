@@ -1,13 +1,18 @@
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import BadgeIcon from '@mui/icons-material/Badge';
+import DownloadIcon from '@mui/icons-material/Download';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
+import ContactMailIcon from '@mui/icons-material/ContactMail';
 import StyleIcon from '@mui/icons-material/Style';
 import TodayIcon from '@mui/icons-material/Today';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {
   Alert,
   Box,
+  Button,
   Chip,
   Grid,
   LinearProgress,
@@ -62,6 +67,10 @@ export default function UserDashboardPage() {
             <DashboardMetric icon={<StyleIcon />} label="Tailoring" value={totals.readyTailoredResumes} detail={`${number(totals.tailoredResumeRequests)} active requests`} />
           </Grid>
 
+          <CommandCenterPanel commandCenter={dashboard.commandCenter || {}} />
+
+          <JourneyTimeline rows={dashboard.journeys || []} />
+
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1.35fr 0.65fr' }, gap: 1.5 }}>
             <PersonalActivityTrend trend={trend} />
             <GoalProgressPanel totals={totals} />
@@ -77,6 +86,194 @@ export default function UserDashboardPage() {
       ) : null}
     </Box>
   );
+}
+
+const COMMAND_CENTER_SECTIONS = [
+  {
+    key: 'needsActionToday',
+    title: 'Needs action today',
+    empty: 'No same-day actions.',
+    icon: <TodayIcon fontSize="small" />,
+    color: '#2563EB',
+  },
+  {
+    key: 'overdueAssessments',
+    title: 'Overdue assessments',
+    empty: 'No overdue assessments.',
+    icon: <WarningAmberIcon fontSize="small" />,
+    color: '#DC2626',
+  },
+  {
+    key: 'readyResumes',
+    title: 'Resumes ready to download',
+    empty: 'No undownloaded ready resumes.',
+    icon: <DownloadIcon fontSize="small" />,
+    color: '#0F766E',
+  },
+  {
+    key: 'interviewsWithoutMeetingLinks',
+    title: 'Interviews without links',
+    empty: 'All active interviews have links.',
+    icon: <LinkOffIcon fontSize="small" />,
+    color: '#D97706',
+  },
+  {
+    key: 'mailboxMessagesNeedingReview',
+    title: 'Mailbox review',
+    empty: 'No unread mailbox messages.',
+    icon: <ContactMailIcon fontSize="small" />,
+    color: '#7C3AED',
+  },
+];
+
+function CommandCenterPanel({ commandCenter }) {
+  const totalActions = COMMAND_CENTER_SECTIONS.reduce(
+    (sum, section) => sum + (commandCenter[section.key]?.length || 0),
+    0,
+  );
+
+  return (
+    <Paper variant="outlined" sx={{ p: 1.25, minWidth: 0, boxShadow: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
+        <Box minWidth={0}>
+          <Typography fontWeight={950}>Command center</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {number(totalActions)} role-specific action{totalActions === 1 ? '' : 's'} queued across profiles.
+          </Typography>
+        </Box>
+        <Chip label="Today" size="small" sx={{ borderRadius: 1, fontWeight: 900, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
+      </Box>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
+        {COMMAND_CENTER_SECTIONS.map((section) => (
+          <CommandCenterColumn key={section.key} section={section} rows={commandCenter[section.key] || []} />
+        ))}
+      </Box>
+    </Paper>
+  );
+}
+
+function CommandCenterColumn({ rows, section }) {
+  return (
+    <Box sx={{ border: 1, borderColor: '#E2E8F0', borderRadius: 1, bgcolor: '#F8FAFC', minWidth: 0, overflow: 'hidden' }}>
+      <Box sx={{ px: 1, py: 0.85, display: 'flex', alignItems: 'center', gap: 0.75, borderBottom: 1, borderColor: '#E2E8F0', bgcolor: '#FFFFFF' }}>
+        <Box sx={{ width: 28, height: 28, display: 'grid', placeItems: 'center', borderRadius: 1, color: section.color, bgcolor: '#F8FAFC', flexShrink: 0 }}>
+          {section.icon}
+        </Box>
+        <Box minWidth={0}>
+          <Typography variant="body2" fontWeight={950} noWrap>{section.title}</Typography>
+          <Typography variant="caption" color="text.secondary">{number(rows.length)} open</Typography>
+        </Box>
+      </Box>
+      <Stack spacing={0.65} sx={{ p: 0.85 }}>
+        {rows.length ? rows.slice(0, 3).map((row) => <CommandCenterItem key={`${section.key}-${row.id}`} row={row} />) : (
+          <Typography variant="body2" color="text.secondary" sx={{ minHeight: 44, display: 'grid', alignContent: 'center' }}>
+            {section.empty}
+          </Typography>
+        )}
+        {rows.length > 3 ? (
+          <Typography variant="caption" color="text.secondary" fontWeight={800}>
+            +{number(rows.length - 3)} more
+          </Typography>
+        ) : null}
+      </Stack>
+    </Box>
+  );
+}
+
+function CommandCenterItem({ row }) {
+  const href = commandCenterHref(row);
+  return (
+    <Box sx={{ display: 'grid', gap: 0.35, p: 0.75, border: 1, borderColor: '#E2E8F0', borderRadius: 1, bgcolor: '#FFFFFF' }}>
+      <Typography variant="body2" fontWeight={900} noWrap>{row.title || 'Action item'}</Typography>
+      <Typography variant="caption" color="text.secondary" noWrap>
+        {[formatFirstNameLastInitial(row.profileName, 'Unknown profile'), row.company].filter(Boolean).join(' · ')}
+      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.75 }}>
+        <Typography variant="caption" color="text.secondary" noWrap>{formatDateTime(row.dueAt)}</Typography>
+        {href ? (
+          <Button href={href} size="small" variant="text" sx={{ minWidth: 0, px: 0.5, fontWeight: 900 }}>
+            Open
+          </Button>
+        ) : null}
+      </Box>
+    </Box>
+  );
+}
+
+function commandCenterHref(row) {
+  if (!row?.href) return '';
+  if (!row.secondaryId || !['mailbox_unread', 'mailbox_review'].includes(row.type)) return row.href;
+  const separator = row.href.includes('?') ? '&' : '?';
+  return `${row.href}${separator}messageId=${encodeURIComponent(row.secondaryId)}`;
+}
+
+function JourneyTimeline({ rows }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.25, minWidth: 0, boxShadow: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
+        <Box minWidth={0}>
+          <Typography fontWeight={950}>Profile/job timeline</Typography>
+          <Typography variant="body2" color="text.secondary">
+            One story from job found through application, resume, assessment, interview, and outcome.
+          </Typography>
+        </Box>
+      </Box>
+      {rows.length ? (
+        <Stack spacing={0.85}>
+          {rows.map((row) => (
+            <JourneyRow key={row.id} row={row} />
+          ))}
+        </Stack>
+      ) : (
+        <EmptyState title="No profile/job journeys yet" detail="Application journeys will appear after jobs are submitted." variant="plain" sx={{ p: 2 }} />
+      )}
+    </Paper>
+  );
+}
+
+function JourneyRow({ row }) {
+  return (
+    <Box sx={{ display: 'grid', gap: 0.75, p: 1, border: 1, borderColor: '#E2E8F0', borderRadius: 1, bgcolor: '#FFFFFF' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) auto' }, gap: 0.75, alignItems: 'center' }}>
+        <Box minWidth={0}>
+          <Typography component={row.url ? 'a' : 'span'} href={row.url || undefined} target={row.url ? '_blank' : undefined} rel={row.url ? 'noreferrer' : undefined} fontWeight={950} color="text.primary" sx={{ textDecoration: 'none', '&:hover': { color: 'primary.main', textDecoration: 'underline' } }} noWrap>
+            {row.title || 'Untitled role'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+            {[row.company, row.location, formatFirstNameLastInitial(row.profileName, 'Unknown profile')].filter(Boolean).join(' · ')}
+          </Typography>
+        </Box>
+        <StatusChip value={row.status} />
+      </Box>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: `repeat(${row.events.length}, minmax(0, 1fr))` }, gap: 0.65 }}>
+        {row.events.map((event) => (
+          <JourneyStep key={`${row.id}-${event.key}`} event={event} />
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
+function JourneyStep({ event }) {
+  const palette = journeyPalette(event.status);
+  return (
+    <Box sx={{ p: 0.75, border: 1, borderColor: palette.border, borderRadius: 1, bgcolor: palette.bg, minWidth: 0 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+        <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: palette.dot, flexShrink: 0 }} />
+        <Typography variant="caption" fontWeight={950} noWrap>{event.label}</Typography>
+      </Box>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+        {event.at ? formatDateTime(event.at) : labelize(event.detail || event.status)}
+      </Typography>
+    </Box>
+  );
+}
+
+function journeyPalette(status) {
+  if (status === 'done' || status === 'won') return { bg: '#ECFDF5', border: '#BBF7D0', dot: '#059669' };
+  if (status === 'active') return { bg: '#EFF6FF', border: '#BFDBFE', dot: '#2563EB' };
+  if (status === 'blocked' || status === 'lost') return { bg: '#FEF2F2', border: '#FECACA', dot: '#DC2626' };
+  return { bg: '#F8FAFC', border: '#E2E8F0', dot: '#94A3B8' };
 }
 
 function DashboardHeader({ dashboard }) {

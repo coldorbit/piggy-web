@@ -1,6 +1,6 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-export { api, authToken, authUrl, clearAuthToken, setAuthToken, useLogin, useLogout, useMe, useUpdateMe } from './authApi.js';
+export { api, authToken, authUrl, clearAuthToken, downloadAuthenticatedFile, setAuthToken, useLogin, useLogout, useMe, useUpdateMe } from './authApi.js';
 export {
   useAdminConsumption,
   useAdminDashboard,

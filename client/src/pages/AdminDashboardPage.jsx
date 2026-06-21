@@ -9,7 +9,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import WorkIcon from '@mui/icons-material/Work';
 import { Alert, Box, Button, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Stack, Tooltip, Typography } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ActivityTrendChart,
   BreakdownChart,
@@ -23,11 +23,37 @@ import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { GRAIN_OPTIONS, labelForGrain, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
 import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerformanceTable.jsx';
 import ProfileActivityTable from '../components/adminDashboard/ProfileActivityTable.jsx';
+import SavedViewsToolbar from '../components/common/SavedViewsToolbar.jsx';
 import { useAdminDashboard } from '../lib/api.js';
 import { formatFirstNameLastInitial } from '../lib/formatters.js';
 
+const ADMIN_DASHBOARD_SAVED_VIEWS_STORAGE_KEY = 'applypilot.adminDashboard.savedViews.v1';
+const ADMIN_DASHBOARD_DEFAULT_SAVED_VIEWS = [
+  {
+    id: 'daily-overview',
+    label: 'Daily overview',
+    payload: { section: '', grain: 'daily' },
+  },
+  {
+    id: 'weekly-bidders',
+    label: 'Weekly bidders',
+    payload: { section: 'bidders', grain: 'weekly' },
+  },
+  {
+    id: 'caller-coverage',
+    label: 'Caller coverage',
+    payload: { section: 'callers', grain: 'daily' },
+  },
+  {
+    id: 'profile-funnels',
+    label: 'Profile funnels',
+    payload: { section: 'profiles', grain: 'monthly' },
+  },
+];
+
 export default function AdminDashboardPage() {
   const { section } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const dashboardSearch = searchParams.toString();
   const [grain, setGrain] = useState(() => dashboardGrainFrom(searchParams.get('grain')));
@@ -75,6 +101,18 @@ export default function AdminDashboardPage() {
     }, { replace: true });
   }
 
+  function applySavedView(view) {
+    const nextGrain = dashboardGrainFrom(view?.grain);
+    const nextAnchorDate = view?.anchorDate ? dashboardAnchorFrom(view.anchorDate) : new Date();
+    const nextSection = dashboardSectionFor(view?.section);
+    const nextParams = new URLSearchParams();
+    if (nextGrain !== DEFAULT_DASHBOARD_GRAIN) nextParams.set('grain', nextGrain);
+    nextParams.set('anchorDate', nextAnchorDate.toISOString());
+    setGrain(nextGrain);
+    setAnchorDate(nextAnchorDate);
+    navigate(`/admin/dashboard${nextSection ? `/${nextSection}` : ''}?${nextParams.toString()}`, { replace: true });
+  }
+
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       <DashboardHeader
@@ -85,6 +123,15 @@ export default function AdminDashboardPage() {
         onGrainChange={changeGrain}
         onMove={movePeriod}
         onToday={resetToToday}
+      />
+
+      <SavedViewsToolbar
+        currentView={{ section: activeSection, grain, anchorDate: anchorDate.toISOString() }}
+        defaultViews={ADMIN_DASHBOARD_DEFAULT_SAVED_VIEWS}
+        helperText="Save dashboard period and section combinations for daily operating reviews."
+        onApplyView={applySavedView}
+        storageKey={ADMIN_DASHBOARD_SAVED_VIEWS_STORAGE_KEY}
+        title="Admin saved views"
       />
 
       {error ? <Alert severity="error">{error.message}</Alert> : null}

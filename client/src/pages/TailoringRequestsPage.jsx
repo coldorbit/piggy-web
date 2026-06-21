@@ -34,7 +34,7 @@ import {
 } from '@mui/material';
 import EmptyState from '../components/common/EmptyState.jsx';
 import RefreshButton from '../components/common/RefreshButton.jsx';
-import { authUrl, useBidProfiles, useCreateManualTailoredResume, useTailoringRequests } from '../lib/api.js';
+import { downloadAuthenticatedFile, useBidProfiles, useCreateManualTailoredResume, useTailoringRequests } from '../lib/api.js';
 import { formatDateTime } from '../lib/formatters.js';
 
 const statusOptions = [
@@ -481,7 +481,8 @@ function formatDateOnly(value) {
 }
 
 function TailoringRequestRow({ request }) {
-  const resumeUrl = request.status === 'ready' && request.filePath ? authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(request.id)}/download`) : '';
+  const resumeUrl = request.status === 'ready' && request.filePath ? `/api/bid/tailored-resumes/${encodeURIComponent(request.id)}/download` : '';
+  const resumeFilename = request.filePath ? String(request.filePath).split('/').pop() || 'tailored-resume.docx' : 'tailored-resume.docx';
 
   return (
     <TableRow hover>
@@ -542,7 +543,7 @@ function TailoringRequestRow({ request }) {
             </Tooltip>
           ) : null}
           {resumeUrl ? (
-            <Button component="a" href={resumeUrl} size="small" startIcon={<DownloadIcon />} download>
+            <Button onClick={() => downloadAuthenticatedFile(resumeUrl, resumeFilename)} size="small" startIcon={<DownloadIcon />}>
               Resume
             </Button>
           ) : null}

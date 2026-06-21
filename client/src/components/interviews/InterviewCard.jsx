@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
 import { formatDate, formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
-import { authUrl } from '../../lib/api.js';
+import { downloadAuthenticatedFile } from '../../lib/api.js';
 
 const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="combobox"], .MuiSelect-select';
 
@@ -153,9 +153,7 @@ export default function InterviewCard({
           ) : null}
           {resumeUrl ? (
             <Button
-              component="a"
-              href={resumeUrl}
-              download={resumeFileName(job.tailoredResume?.filePath)}
+              onClick={() => downloadAuthenticatedFile(resumeUrl, resumeFileName(job.tailoredResume?.filePath))}
               size="small"
               startIcon={<OpenInNewIcon fontSize="small" />}
               variant="outlined"
@@ -201,7 +199,7 @@ function externalUrl(value) {
 
 function resumeDownloadUrl(resume) {
   if (resume?.status !== 'ready' || !resume?.filePath || !resume?.id) return '';
-  return authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`);
+  return `/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`;
 }
 
 function resumeFileName(filePath) {

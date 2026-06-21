@@ -44,9 +44,65 @@ export function authUrl(path) {
   return apiUrl(path);
 }
 
+export async function downloadAuthenticatedFile(path, fallbackFilename = 'download') {
+  try {
+    const response = await axios({
+      url: apiUrl(path),
+      method: 'GET',
+      withCredentials: true,
+      responseType: 'blob',
+    });
+    const filename = filenameFromDisposition(response.headers?.['content-disposition']) || fallbackFilename;
+    triggerBrowserDownload(response.data, filename);
+    return { filename };
+  } catch (error) {
+    if (error.response?.status === 401) clearAuthToken();
+    const message = await downloadErrorMessage(error);
+    const downloadError = new Error(message || error.message);
+    downloadError.status = error.response?.status;
+    throw downloadError;
+  }
+}
+
 function apiUrl(path) {
   if (/^https?:\/\//i.test(path)) return path;
   return `${API_BASE_URL}${path}`;
+}
+
+function filenameFromDisposition(value) {
+  const disposition = String(value || '');
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) return decodeURIComponent(utf8Match[1]);
+  const quotedMatch = disposition.match(/filename="([^"]+)"/i);
+  if (quotedMatch?.[1]) return quotedMatch[1];
+  const bareMatch = disposition.match(/filename=([^;]+)/i);
+  return bareMatch?.[1]?.trim() || '';
+}
+
+function triggerBrowserDownload(data, filename) {
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+async function downloadErrorMessage(error) {
+  const data = error.response?.data;
+  if (!data) return '';
+  if (data instanceof Blob) {
+    const text = await data.text();
+    try {
+      return JSON.parse(text)?.error || text;
+    } catch {
+      return text;
+    }
+  }
+  return data?.error || '';
 }
 
 export function useMe() {

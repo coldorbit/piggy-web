@@ -21,7 +21,7 @@ import {
 } from '@mui/material';
 import ArchiveIcon from '@mui/icons-material/Archive';
 import { PAGE_SIZE_OPTIONS } from '../../lib/constants.js';
-import { authUrl, useMarkTailoredResumesDownloaded } from '../../lib/api.js';
+import { downloadAuthenticatedFile, useMarkTailoredResumesDownloaded } from '../../lib/api.js';
 import EmptyState from '../common/EmptyState.jsx';
 import { BID_TABS, REVIEW_STATUSES } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
@@ -53,7 +53,6 @@ export default function BidJobsPanel() {
     .map((job) => job.tailoredResume)
     .filter((resume) => resume?.status === 'ready' && resume.filePath)
     .map((resume) => resume.id);
-  const downloadAllUrl = authUrl(`/api/bid/tailored-resumes/download?ids=${readyResumeIds.map(encodeURIComponent).join(',')}`);
   const selectableJobs = jobs.filter((job) => !isJobSelectionDisabled(job, activeTab));
   const visibleJobKeys = selectableJobs.map((job) => bidJobCardKey(job));
   const visibleJobIdsKey = visibleJobKeys.join('|');
@@ -116,6 +115,15 @@ export default function BidJobsPanel() {
   function exportActiveTabCsv() {
     const csv = activeTab === BID_TABS.tailored ? tailoredJobsCsv(jobs) : jobsInfoCsv(jobs);
     downloadCsv(csv, `${tabLabel(activeTab)}-jobs.csv`);
+  }
+
+  async function downloadAllReadyResumes() {
+    if (!readyResumeIds.length) return;
+    await downloadAuthenticatedFile(
+      `/api/bid/tailored-resumes/download?ids=${readyResumeIds.map(encodeURIComponent).join(',')}`,
+      'tailored-resumes.zip',
+    );
+    markTailoredResumesDownloaded(readyResumeIds);
   }
 
   return (
@@ -228,13 +236,8 @@ export default function BidJobsPanel() {
             </>
           ) : (
             <Button
-              component="a"
               disabled={!readyResumeIds.length}
-              href={readyResumeIds.length ? downloadAllUrl : undefined}
-              onClick={() => markTailoredResumesDownloaded(readyResumeIds)}
-              download="tailored-resumes.zip"
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={downloadAllReadyResumes}
               size="small"
               startIcon={<ArchiveIcon />}
               variant="outlined"

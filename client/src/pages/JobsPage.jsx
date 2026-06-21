@@ -9,6 +9,7 @@ import JobDetail from '../components/jobs/JobDetail.jsx';
 import JobFiltersDrawer from '../components/jobs/JobFiltersDrawer.jsx';
 import JobList from '../components/jobs/JobList.jsx';
 import Metric from '../components/jobs/Metric.jsx';
+import SavedViewsToolbar from '../components/common/SavedViewsToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { useDeleteJob, useImportJobsCsv, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
 import { PAGE_SIZE } from '../lib/constants.js';
@@ -19,6 +20,7 @@ import { ROLES, isAdminRole } from '../lib/roles.js';
 
 const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'locationRegion', 'since', 'dateFrom', 'dateTo', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const JOB_FILTERS_STORAGE_KEY = 'applypilot.jobs.filters.v2';
+const JOB_SAVED_VIEWS_STORAGE_KEY = 'applypilot.jobs.savedViews.v1';
 const PASTED_JOB_HEADERS = ['title', 'company', 'url', 'location', 'category', 'postedAt', 'source', 'sourceUrl', 'listingText'];
 
 const DEFAULT_FILTERS = {
@@ -36,6 +38,24 @@ const DEFAULT_FILTERS = {
   page: 1,
   limit: PAGE_SIZE,
 };
+
+const JOB_DEFAULT_SAVED_VIEWS = [
+  {
+    id: 'fresh-visible',
+    label: 'Fresh visible jobs',
+    payload: { filters: { ...DEFAULT_FILTERS, since: 'today', visibility: 'visible', sort: 'scraped_desc', page: 1 } },
+  },
+  {
+    id: 'manual-jobs',
+    label: 'Manual jobs',
+    payload: { filters: { ...DEFAULT_FILTERS, origin: 'manual', since: 'all', page: 1 } },
+  },
+  {
+    id: 'spam-review',
+    label: 'Spam review',
+    payload: { filters: { ...DEFAULT_FILTERS, spam: 'unreviewed', visibility: 'all', since: 'all', page: 1 } },
+  },
+];
 
 export default function JobsPage({ currentUser }) {
   const [filters, setFilters] = useState(() =>
@@ -88,6 +108,10 @@ export default function JobsPage({ currentUser }) {
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: key === 'page' ? value : 1 }));
+  }
+
+  function applySavedView(view) {
+    if (view?.filters) setFilters({ ...DEFAULT_FILTERS, ...view.filters, page: 1 });
   }
 
   useEffect(() => {
@@ -225,6 +249,14 @@ export default function JobsPage({ currentUser }) {
           refetchMeta();
           refetchJobs();
         }}
+      />
+
+      <SavedViewsToolbar
+        currentView={{ filters }}
+        defaultViews={JOB_DEFAULT_SAVED_VIEWS}
+        onApplyView={applySavedView}
+        storageKey={JOB_SAVED_VIEWS_STORAGE_KEY}
+        title="Job saved views"
       />
 
       {error ? <Alert severity="error">{error}</Alert> : null}

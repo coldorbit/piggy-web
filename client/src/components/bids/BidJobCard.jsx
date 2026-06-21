@@ -24,7 +24,7 @@ import {
   Typography,
 } from '@mui/material';
 import { formatDate } from '../../lib/formatters.js';
-import { authUrl } from '../../lib/api.js';
+import { downloadAuthenticatedFile } from '../../lib/api.js';
 import { jobSourceImageUrl, sourceLabel } from '../../lib/jobSourceImage.js';
 import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../lib/roles.js';
 import JobIdBadge from '../jobs/JobIdBadge.jsx';
@@ -98,11 +98,17 @@ export default function BidJobCard({
   const isEasyApply = isEasyApplyMode(job.applyMode);
   const hasUpdatedJobLink = isLinkedInJob && isExternalLinkMode(job.applyMode);
   const hasDownloadableResume = tailoredStatus === 'ready' && job.tailoredResume?.filePath;
-  const downloadUrl =
-    hasDownloadableResume && !isInvalidReviewJob
-      ? authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(job.tailoredResume.id)}/download`)
-      : '';
   const downloadFilename = job.tailoredResume?.filePath ? String(job.tailoredResume.filePath).split('/').pop() : 'tailored-resume.docx';
+
+  async function downloadResume(event) {
+    event.stopPropagation();
+    if (isInvalidReviewJob || !hasDownloadableResume) return;
+    await downloadAuthenticatedFile(
+      `/api/bid/tailored-resumes/${encodeURIComponent(job.tailoredResume.id)}/download`,
+      downloadFilename,
+    );
+    onResumeDownload(job.tailoredResume.id);
+  }
 
   function handleStatusChange(event) {
     const status = event.target.value;
@@ -414,19 +420,10 @@ export default function BidJobCard({
                   <Tooltip title={isInvalidReviewJob ? 'Marked as not applicable' : isResumeDownloaded ? 'Download again' : 'Download resume'}>
                     <Box component="span" sx={{ display: 'inline-flex' }}>
                       <IconButton
-                        component={isInvalidReviewJob ? 'button' : 'a'}
-                        href={downloadUrl || undefined}
-                        download={downloadUrl ? downloadFilename : undefined}
-                        target={downloadUrl ? '_blank' : undefined}
-                        rel={downloadUrl ? 'noopener noreferrer' : undefined}
                         disabled={isInvalidReviewJob}
                         aria-label={isResumeDownloaded ? 'Download resume again' : 'Download resume'}
                         color={isResumeDownloaded ? 'success' : 'primary'}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (isInvalidReviewJob) return;
-                          onResumeDownload(job.tailoredResume.id);
-                        }}
+                        onClick={downloadResume}
                         sx={{
                           ...iconButtonSx,
                           bgcolor: isResumeDownloaded ? '#dcfce7' : 'background.paper',

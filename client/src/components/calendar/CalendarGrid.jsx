@@ -2,7 +2,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, Paper, Tooltip, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
-import { authUrl } from '../../lib/api.js';
+import { downloadAuthenticatedFile } from '../../lib/api.js';
 import {
   dateKeyDay,
   dateKeyDayOfWeek,
@@ -527,9 +527,7 @@ function CalendarEventDialog({ event, onClose }) {
             ) : null}
             {resumeUrl ? (
               <Button
-                component="a"
-                href={resumeUrl}
-                download={resumeFileName(event.job.tailoredResume.filePath)}
+                onClick={() => downloadAuthenticatedFile(resumeUrl, resumeFileName(event.job.tailoredResume.filePath))}
                 startIcon={<OpenInNewIcon />}
               >
                 Resume
@@ -691,7 +689,7 @@ function meetingLinkForEvent(event) {
 
 function resumeDownloadUrl(resume) {
   if (resume?.status !== 'ready' || !resume?.filePath || !resume?.id) return '';
-  return authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`);
+  return `/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`;
 }
 
 function resumeFileName(filePath) {

@@ -25,6 +25,7 @@ import { useSearchParams } from 'react-router-dom';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BID_TABS, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
 import EmptyState from '../components/common/EmptyState.jsx';
+import SavedViewsToolbar from '../components/common/SavedViewsToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.jsx';
 import InterviewLoadingState from '../components/interviews/InterviewLoadingState.jsx';
@@ -40,7 +41,7 @@ import {
   toDatetimeLocalValue,
 } from '../components/interviews/interviewUtils.js';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { authUrl, useBidJobs, useBidProfiles, useCreateManualInterview, useDeleteInterview, useUpdateJobBid } from '../lib/api.js';
+import { downloadAuthenticatedFile, useBidJobs, useBidProfiles, useCreateManualInterview, useDeleteInterview, useUpdateJobBid } from '../lib/api.js';
 import { isAdminRole } from '../lib/roles.js';
 import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
@@ -58,10 +59,25 @@ const EMPTY_MANUAL_INTERVIEW = {
   interviewNotes: '',
 };
 
+const INTERVIEW_SAVED_VIEWS_STORAGE_KEY = 'applypilot.interviews.savedViews.v1';
+const INTERVIEW_DEFAULT_SAVED_VIEWS = [
+  {
+    id: 'needs-links',
+    label: 'Missing meeting links',
+    payload: { search: '', needsLinksOnly: true },
+  },
+  {
+    id: 'all-active',
+    label: 'All active interviews',
+    payload: { search: '', needsLinksOnly: false },
+  },
+];
+
 export default function InterviewsPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
+  const [needsLinksOnly, setNeedsLinksOnly] = useState(() => searchParams.get('needsLinks') === '1');
   const [drafts, setDrafts] = useState({});
   const [activeDropStage, setActiveDropStage] = useState('');
   const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
@@ -122,10 +138,11 @@ export default function InterviewsPage({ currentUser }) {
     const nextParams = new URLSearchParams();
     if (activeProfileId) nextParams.set('profileId', String(activeProfileId));
     if (search) nextParams.set('search', search);
+    if (needsLinksOnly) nextParams.set('needsLinks', '1');
     if (nextParams.toString() !== searchParams.toString()) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [activeProfileId, search, searchParams, setSearchParams]);
+  }, [activeProfileId, needsLinksOnly, search, searchParams, setSearchParams]);
 
   useEffect(() => {
     setHeaderSearch({
@@ -162,6 +179,12 @@ export default function InterviewsPage({ currentUser }) {
         [key]: value,
       },
     }));
+  }
+
+  function applySavedView(view) {
+    if (view?.activeProfileId) setActiveProfileId(view.activeProfileId);
+    if (Object.prototype.hasOwnProperty.call(view || {}, 'search')) setSearch(view.search || '');
+    if (Object.prototype.hasOwnProperty.call(view || {}, 'needsLinksOnly')) setNeedsLinksOnly(Boolean(view.needsLinksOnly));
   }
 
   function saveInterview(job, overrides = {}) {
@@ -290,7 +313,8 @@ export default function InterviewsPage({ currentUser }) {
   }
 
   const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'];
-  const jobs = interviewsData?.jobs || [];
+  const allJobs = interviewsData?.jobs || [];
+  const jobs = needsLinksOnly ? allJobs.filter((job) => !hasMeetingLink(job, draftFor(job))) : allJobs;
   const selectedJob = selectedInterviewId
     ? jobs.find((job) => String(job.bid?.id) === String(selectedInterviewId)) || null
     : null;
@@ -314,6 +338,7 @@ export default function InterviewsPage({ currentUser }) {
   const effectiveCurrentUser = interviewsData?.currentUser || currentUser;
   const isActiveProfileOwner = String(activeProfile?.userId || '') === String(effectiveCurrentUser?.id || currentUser?.id || '');
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
+  const missingMeetingLinkCount = allJobs.filter((job) => !hasMeetingLink(job, draftFor(job))).length;
   const totalInterviewCount = Number(activeProfile?.progress?.totalInterviews || interviewsData?.total || 0);
   const canEditInterviews = currentUser?.role !== 'caller' && (isAdminRole(currentUser) || isActiveProfileOwner);
   const canDeleteSelectedInterview =
@@ -402,6 +427,17 @@ export default function InterviewsPage({ currentUser }) {
                   </Button>
                 ) : null}
               </Box>
+            </Box>
+
+            <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: '#F8FAFC' }}>
+              <SavedViewsToolbar
+                currentView={{ activeProfileId, search, needsLinksOnly }}
+                defaultViews={INTERVIEW_DEFAULT_SAVED_VIEWS}
+                helperText={`${missingMeetingLinkCount.toLocaleString()} interview${missingMeetingLinkCount === 1 ? '' : 's'} missing a stage meeting link.`}
+                onApplyView={applySavedView}
+                storageKey={INTERVIEW_SAVED_VIEWS_STORAGE_KEY}
+                title="Interview saved views"
+              />
             </Box>
 
             <Box sx={{ flex: 1, minHeight: { md: 0 }, minWidth: 0, overflow: 'hidden', bgcolor: 'background.paper' }}>
@@ -766,9 +802,7 @@ export default function InterviewsPage({ currentUser }) {
                 ) : null}
                 {selectedResumeUrl ? (
                   <Button
-                    component="a"
-                    href={selectedResumeUrl}
-                    download={resumeFileName(selectedJob?.tailoredResume?.filePath)}
+                    onClick={() => downloadAuthenticatedFile(selectedResumeUrl, resumeFileName(selectedJob?.tailoredResume?.filePath))}
                     startIcon={<OpenInNewIcon />}
                     variant="outlined"
                   >
@@ -821,11 +855,17 @@ function externalUrl(url) {
 
 function resumeDownloadUrl(resume) {
   if (resume?.status !== 'ready' || !resume?.filePath || !resume?.id) return '';
-  return authUrl(`/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`);
+  return `/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`;
 }
 
 function resumeFileName(filePath) {
   return filePath ? String(filePath).split('/').pop() || 'tailored-resume.docx' : 'tailored-resume.docx';
+}
+
+function hasMeetingLink(job, draft) {
+  const stage = canonicalInterviewStage(draft?.interviewStage || job?.bid?.interviewStage);
+  const stageLinks = draft?.stageMeetingLinks || job?.bid?.stageMeetingLinks || {};
+  return Boolean(String(stageLinks[stage] || draft?.meetingLink || job?.bid?.meetingLink || '').trim());
 }
 
 function applicationOptionLabel(option) {
