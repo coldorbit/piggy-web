@@ -1265,7 +1265,7 @@ function compareInterviewCallsForCalendar(left, right) {
 }
 
 function interviewCallSourcePriority(sourceType) {
-  if (['current_schedule', 'schedule_update', 'created'].includes(sourceType)) return 3;
+  if (['current_schedule', 'stage_changed', 'schedule_update', 'created'].includes(sourceType)) return 3;
   if (sourceType === 'schedule_changed') return 2;
   if (sourceType === 'first_scheduled') return 1;
   return 0;
@@ -3277,6 +3277,44 @@ export async function deleteInterview(req, res, next) {
   }
 }
 
+export async function deleteInterviewCall(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    if (!isSuperadmin(user)) {
+      res.status(403).json({ error: 'Only superadmins can delete interview calls' });
+      return;
+    }
+
+    const call = await getInterviewCallModel().findByPk(req.params.id);
+    if (!call) {
+      res.status(404).json({ error: 'Interview call not found' });
+      return;
+    }
+
+    const interview = await getInterviewModel().findByPk(call.interviewId);
+    const clearsCurrentSchedule = interview && callMatchesCurrentInterviewSchedule(call, interview);
+    await call.destroy();
+
+    if (clearsCurrentSchedule) {
+      await interview.update({ interviewNextAt: null, updatedAt: new Date() });
+      if (interview.jobBidId) {
+        const bid = await getJobBidModel().findByPk(interview.jobBidId);
+        if (bid) await bid.update({ interviewNextAt: null, updatedAt: new Date() });
+      }
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+function callMatchesCurrentInterviewSchedule(call, interview) {
+  return dateValue(call.scheduledAt) === dateValue(interview.interviewNextAt)
+    && String(call.interviewStage || '') === String(interview.interviewStage || '');
+}
+
 async function ensureCallerUser(callerUserId) {
   const caller = await getWebUserModel().findOne({ where: { id: callerUserId, role: 'caller' } });
   if (!caller) throw new NotFoundError('Caller not found');
@@ -3663,7 +3701,6 @@ function interviewSnapshot(interview) {
 }
 
 async function logInterviewCreated(interview, userId) {
-  await ensureInterviewCallForCurrentSchedule(interview, { sourceType: 'created' });
   await getInterviewLogModel().create({
     interviewId: interview.id,
     userId,
@@ -3683,9 +3720,9 @@ async function logInterviewCreated(interview, userId) {
 }
 
 async function logInterviewChanges({ interview, previous, attrs, userId }) {
-  await ensureInterviewCallForCurrentSchedule(interview, { sourceType: 'schedule_update' });
   const logs = [];
   if (previous.interviewStage !== interview.interviewStage) {
+    await ensureInterviewCallForCurrentSchedule(interview, { sourceType: 'stage_changed' });
     const occurrenceLog = interviewOccurrenceLogFromSnapshot(previous, interview);
     if (occurrenceLog) logs.push(occurrenceLog);
     logs.push({

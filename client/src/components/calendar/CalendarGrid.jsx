@@ -1,8 +1,10 @@
+import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Link, Paper, Tooltip, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
-import { downloadAuthenticatedFile } from '../../lib/api.js';
+import { downloadAuthenticatedFile, useDeleteInterviewCall } from '../../lib/api.js';
+import { isSuperadmin } from '../../lib/roles.js';
 import {
   dateKeyDay,
   dateKeyDayOfWeek,
@@ -18,7 +20,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_item, hour) => hour);
 const HOUR_HEIGHT = 64;
 
-export default function CalendarGrid({ cursorDate, eventsByDay, visibleDays, view }) {
+export default function CalendarGrid({ currentUser = {}, cursorDate, eventsByDay, visibleDays, view }) {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const selectedEventId = selectedEvent?.id || '';
 
@@ -47,7 +49,7 @@ export default function CalendarGrid({ cursorDate, eventsByDay, visibleDays, vie
           />
         )}
       </Paper>
-      <CalendarEventDialog event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      <CalendarEventDialog currentUser={currentUser} event={selectedEvent} onClose={() => setSelectedEvent(null)} />
     </>
   );
 }
@@ -494,13 +496,23 @@ function CalendarEvent({ event, isSelected, onEventClick }) {
   );
 }
 
-function CalendarEventDialog({ event, onClose }) {
+function CalendarEventDialog({ currentUser = {}, event, onClose }) {
+  const { mutate: deleteInterviewCall, isPending: deletingInterviewCall } = useDeleteInterviewCall();
   const jobUrl = externalJobUrl(event);
   const meetingUrl = meetingLinkForEvent(event);
   const resumeUrl = resumeDownloadUrl(event?.job?.tailoredResume);
   const resumeStatus = event?.job?.tailoredResume?.status || '';
   const googleUrl = event ? googleCalendarUrl(event, meetingUrl) : '';
   const outlookUrl = event ? outlookCalendarUrl(event, meetingUrl) : '';
+  const canDeleteCall = isSuperadmin(currentUser) && event?.interviewCallId;
+
+  function handleDeleteCall() {
+    if (!event?.interviewCallId) return;
+    const label = [event.company, event.title].filter(Boolean).join(' - ') || 'this call';
+    if (!window.confirm(`Delete ${label} from the calendar?`)) return;
+    deleteInterviewCall(event.interviewCallId, { onSuccess: onClose });
+  }
+
   return (
     <Dialog open={Boolean(event)} onClose={onClose} fullWidth maxWidth="sm">
       {event ? (
@@ -529,34 +541,43 @@ function CalendarEventDialog({ event, onClose }) {
             {resumeStatus ? <DetailRow label="Resume" value={resumeUrl ? resumeFileName(event.job.tailoredResume.filePath) : resumeStatus} /> : null}
             {event.job?.bid?.interviewNotes ? <DetailRow label="Notes" value={event.job.bid.interviewNotes} multiline /> : null}
           </DialogContent>
-          <DialogActions>
-            <Button component="a" href={googleUrl} target="_blank" rel="noreferrer">
-              Google
-            </Button>
-            <Button component="a" href={outlookUrl} target="_blank" rel="noreferrer">
-              Outlook
-            </Button>
-            {meetingUrl ? (
-              <Button component="a" href={meetingUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="contained">
-                Join call
+          <DialogActions sx={{ justifyContent: 'space-between' }}>
+            <Box>
+              {canDeleteCall ? (
+                <Button color="error" disabled={deletingInterviewCall} onClick={handleDeleteCall} startIcon={<DeleteIcon />}>
+                  Delete call
+                </Button>
+              ) : null}
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 1 }}>
+              <Button component="a" href={googleUrl} target="_blank" rel="noreferrer">
+                Google
               </Button>
-            ) : null}
-            {jobUrl ? (
-              <Button component="a" href={jobUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />}>
-                Job link
+              <Button component="a" href={outlookUrl} target="_blank" rel="noreferrer">
+                Outlook
               </Button>
-            ) : null}
-            {resumeUrl ? (
-              <Button
-                onClick={() => downloadAuthenticatedFile(resumeUrl, resumeFileName(event.job.tailoredResume.filePath))}
-                startIcon={<OpenInNewIcon />}
-              >
-                Resume
+              {meetingUrl ? (
+                <Button component="a" href={meetingUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="contained">
+                  Join call
+                </Button>
+              ) : null}
+              {jobUrl ? (
+                <Button component="a" href={jobUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />}>
+                  Job link
+                </Button>
+              ) : null}
+              {resumeUrl ? (
+                <Button
+                  onClick={() => downloadAuthenticatedFile(resumeUrl, resumeFileName(event.job.tailoredResume.filePath))}
+                  startIcon={<OpenInNewIcon />}
+                >
+                  Resume
+                </Button>
+              ) : null}
+              <Button onClick={onClose} variant="contained">
+                Close
               </Button>
-            ) : null}
-            <Button onClick={onClose} variant="contained">
-              Close
-            </Button>
+            </Box>
           </DialogActions>
         </>
       ) : null}

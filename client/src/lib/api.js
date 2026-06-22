@@ -1351,6 +1351,23 @@ export function useDeleteInterview() {
   });
 }
 
+export function useDeleteInterviewCall() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (interviewCallId) =>
+      api(`/api/bid/interview-calls/${interviewCallId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'bidders'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}
+
 export function useMarketplace() {
   return useQuery({
     queryKey: ['marketplace'],

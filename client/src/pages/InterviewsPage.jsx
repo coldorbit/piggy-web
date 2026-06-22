@@ -86,6 +86,7 @@ export default function InterviewsPage({ currentUser }) {
   const [selectedApplicationJob, setSelectedApplicationJob] = useState(null);
   const [applicationSearch, setApplicationSearch] = useState('');
   const [manualInterview, setManualInterview] = useState(EMPTY_MANUAL_INTERVIEW);
+  const [pendingStepChangeSave, setPendingStepChangeSave] = useState(null);
   const [error, setError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
@@ -188,14 +189,24 @@ export default function InterviewsPage({ currentUser }) {
     if (Object.prototype.hasOwnProperty.call(view || {}, 'needsLinksOnly')) setNeedsLinksOnly(Boolean(view.needsLinksOnly));
   }
 
-  function saveInterview(job, overrides = {}) {
+  function saveInterview(job, overrides = {}, options = {}) {
     if (!job.bid) return;
+    const draft = draftFor(job);
     const bidData = {
-      ...draftFor(job),
+      ...draft,
       ...overrides,
-      interviewStage: canonicalInterviewStage(overrides.interviewStage || draftFor(job).interviewStage),
+      interviewStage: canonicalInterviewStage(overrides.interviewStage || draft.interviewStage),
       profileId: activeProfile?.id,
     };
+    const stepChange = interviewStepChange(job, bidData);
+    if (stepChange && !options.confirmStepChange) {
+      setPendingStepChangeSave({ job, bidData, ...stepChange });
+      return;
+    }
+    submitInterviewSave(job, bidData);
+  }
+
+  function submitInterviewSave(job, bidData) {
     setError('');
     updateBid(
       { bidId: job.bid.id, jobId: job.id, bidData },
@@ -219,10 +230,17 @@ export default function InterviewsPage({ currentUser }) {
     if (interviewColumnValue(job, draftFor) === stage) return;
     const status = interviewStatusForColumn(stage);
     const interviewStage = interviewStageForColumn(stage, draftFor(job).interviewStage);
-    updateDraft(job, 'interviewStage', interviewStage);
-    updateDraft(job, 'status', status);
-    updateDraft(job, 'interviewNextAt', null);
     saveInterview(job, { interviewStage, status, interviewNextAt: null });
+  }
+
+  function confirmPendingStepChange() {
+    if (!pendingStepChangeSave) return;
+    submitInterviewSave(pendingStepChangeSave.job, pendingStepChangeSave.bidData);
+    setPendingStepChangeSave(null);
+  }
+
+  function closePendingStepChangeDialog() {
+    setPendingStepChangeSave(null);
   }
 
   function openManualDialog() {
@@ -844,6 +862,25 @@ export default function InterviewsPage({ currentUser }) {
           </>
         ) : null}
       </Dialog>
+      <Dialog open={Boolean(pendingStepChangeSave)} onClose={closePendingStepChangeDialog} fullWidth maxWidth="xs">
+        <DialogTitle>Confirm step change</DialogTitle>
+        <DialogContent sx={{ display: 'grid', gap: 1, pt: 2 }}>
+          <Typography variant="body2">
+            Move this interview from {pendingStepChangeSave?.fromLabel || 'the current step'} to {pendingStepChangeSave?.toLabel || 'the next step'}?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {pendingStepChangeSave?.bidData?.interviewNextAt
+              ? 'A calendar call will be registered for the new step using the next interview time.'
+              : 'No calendar call will be registered for this move because no next interview time is set.'}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closePendingStepChangeDialog}>Keep editing</Button>
+          <Button disabled={updatingBid} onClick={confirmPendingStepChange} variant="contained">
+            Confirm move
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
@@ -870,6 +907,18 @@ function hasMeetingLink(job, draft) {
   const stage = canonicalInterviewStage(draft?.interviewStage || job?.bid?.interviewStage);
   const stageLinks = draft?.stageMeetingLinks || job?.bid?.stageMeetingLinks || {};
   return Boolean(String(stageLinks[stage] || draft?.meetingLink || job?.bid?.meetingLink || '').trim());
+}
+
+function interviewStepChange(job, bidData) {
+  const fromStage = canonicalInterviewStage(job?.bid?.interviewStage || 'todo');
+  const toStage = canonicalInterviewStage(bidData?.interviewStage || fromStage);
+  if (fromStage === toStage) return null;
+  return {
+    fromStage,
+    toStage,
+    fromLabel: stageLabel(fromStage),
+    toLabel: stageLabel(toStage),
+  };
 }
 
 function applicationOptionLabel(option) {

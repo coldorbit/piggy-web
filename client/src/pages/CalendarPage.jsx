@@ -36,6 +36,7 @@ export default function CalendarPage() {
   const profiles = calendarData?.profiles || [];
   const jobs = calendarData?.jobs || [];
   const calendarMeta = calendarData?.calendar || {};
+  const currentUser = calendarData?.currentUser || {};
   const calendarProfiles = useMemo(
     () =>
       profiles.map((profile, index) => ({
@@ -146,7 +147,7 @@ export default function CalendarPage() {
           onSelectNone={() => setCheckedProfileIds([])}
         />
 
-        <CalendarGrid cursorDate={cursorDate} eventsByDay={eventsByDay} visibleDays={visibleDays} view={view} />
+        <CalendarGrid currentUser={currentUser} cursorDate={cursorDate} eventsByDay={eventsByDay} visibleDays={visibleDays} view={view} />
       </Box>
     </Box>
   );
@@ -164,6 +165,7 @@ function calendarEvents(jobs, profileById, checkedProfileIds, search, conflicts 
       return {
         id: eventId,
         sourceId: String(job.bid?.id || job.id || ''),
+        interviewCallId: job.interviewCallId || job.bid?.interviewCallId || null,
         title: job.title || 'Untitled role',
         company: job.company || 'Unknown company',
         location: job.location || '',

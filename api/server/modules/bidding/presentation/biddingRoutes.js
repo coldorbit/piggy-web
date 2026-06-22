@@ -20,6 +20,7 @@ import {
   createTailoredResume,
   deleteProfile,
   deleteInterview,
+  deleteInterviewCall,
   downloadTailoredResume,
   downloadTailoredResumesZip,
   listBidders,
@@ -92,6 +93,7 @@ export function registerBidRoutes(app) {
   app.post('/api/bid/interviews/manual', requireInterviewAccess, createManualInterview);
   app.patch('/api/bid/interviews/:id', requireInterviewAccess, updateInterview);
   app.delete('/api/bid/interviews/:id', requireInterviewAccess, deleteInterview);
+  app.delete('/api/bid/interview-calls/:id', requireInterviewAccess, deleteInterviewCall);
   app.post('/api/bid/jobs/:jobId/tailored-resume', requireBidWorkspaceAccess, createTailoredResume);
   app.patch('/api/bid/applications/bulk', requireBidWorkspaceAccess, bulkUpdateJobBids);
   app.post('/api/bid/jobs/:jobId', requireBidWorkspaceAccess, createJobBid);
