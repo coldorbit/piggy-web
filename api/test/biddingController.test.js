@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { canWriteInterviewForProfile, groupedBidJobs } from '../server/modules/bidding/presentation/biddingController.js';
+import {
+  calendarEventsForInterviews,
+  canWriteInterviewForProfile,
+  groupedBidJobs,
+  interviewOccurrenceLogFromSnapshot,
+} from '../server/modules/bidding/presentation/biddingController.js';
 import { ROLES } from '../server/utils/roles.js';
 
 describe('groupedBidJobs', () => {
@@ -83,6 +88,92 @@ describe('canWriteInterviewForProfile', () => {
   });
 });
 
+describe('interview scheduled occurrences', () => {
+  it('captures the previous scheduled stage when an interview progresses', () => {
+    const log = interviewOccurrenceLogFromSnapshot(
+      {
+        interviewStage: 'screening',
+        interviewNextAt: new Date('2026-06-20T17:00:00.000Z'),
+        interviewDurationMinutes: 30,
+        interviewNotes: 'Screening notes',
+        stageNotes: { screening: 'Recruiter screen went well' },
+        stageMeetingLinks: { screening: 'https://meet.example.com/screen' },
+      },
+      { interviewStage: 'technical_interview' },
+    );
+
+    assert.equal(log.eventType, 'interview_occurrence');
+    assert.equal(log.toValue, '2026-06-20T17:00:00.000Z');
+    assert.deepEqual(log.metadata, {
+      stage: 'screening',
+      scheduledAt: '2026-06-20T17:00:00.000Z',
+      durationMinutes: 30,
+      progressedToStage: 'technical_interview',
+      notes: 'Recruiter screen went well',
+      meetingLink: 'https://meet.example.com/screen',
+    });
+  });
+
+  it('flattens historical occurrences and the active step for calendar counting', () => {
+    const interview = interviewRow({
+      id: 77,
+      interviewStage: 'technical_interview',
+      interviewNextAt: new Date('2026-06-25T18:00:00.000Z'),
+      logs: [
+        {
+          id: 501,
+          eventType: 'interview_occurrence',
+          toValue: '2026-06-20T17:00:00.000Z',
+          metadata: {
+            stage: 'screening',
+            scheduledAt: '2026-06-20T17:00:00.000Z',
+            durationMinutes: 30,
+            meetingLink: 'https://meet.example.com/screen',
+          },
+          createdAt: new Date('2026-06-21T12:00:00.000Z'),
+        },
+      ],
+    });
+
+    const events = calendarEventsForInterviews([interview]);
+
+    assert.equal(events.length, 2);
+    assert.deepEqual(
+      events.map((event) => [event.calendarEventId, event.parentInterviewId, event.interviewStage, event.interviewNextAt.toISOString()]),
+      [
+        ['interview-77-occurrence-501', 77, 'screening', '2026-06-20T17:00:00.000Z'],
+        ['interview-77-current', 77, 'technical_interview', '2026-06-25T18:00:00.000Z'],
+      ],
+    );
+  });
+
+  it('keeps historical occurrences when the current progressed step is unscheduled', () => {
+    const interview = interviewRow({
+      id: 88,
+      interviewStage: 'technical_interview',
+      interviewNextAt: null,
+      logs: [
+        {
+          id: 601,
+          eventType: 'interview_occurrence',
+          toValue: '2026-06-20T17:00:00.000Z',
+          metadata: {
+            stage: 'screening',
+            scheduledAt: '2026-06-20T17:00:00.000Z',
+          },
+          createdAt: new Date('2026-06-21T12:00:00.000Z'),
+        },
+      ],
+    });
+
+    const events = calendarEventsForInterviews([interview]);
+
+    assert.equal(events.length, 1);
+    assert.equal(events[0].calendarEventId, 'interview-88-occurrence-601');
+    assert.equal(events[0].interviewStage, 'screening');
+  });
+});
+
 function bidJob(overrides = {}) {
   return {
     id: 1,
@@ -94,6 +185,32 @@ function bidJob(overrides = {}) {
     url: `https://builtin.com/jobs/${overrides.id || 1}`,
     source: 'builtin',
     tailoredResume: null,
+    ...overrides,
+  };
+}
+
+function interviewRow(overrides = {}) {
+  return {
+    id: 1,
+    profileId: 10,
+    userId: 20,
+    callerUserId: null,
+    jobId: 30,
+    jobBidId: 40,
+    title: 'Senior Data Engineer',
+    company: 'ReefPoint Group',
+    location: 'Remote',
+    jobUrl: 'https://example.com/jobs/30',
+    status: 'interviewing',
+    interviewStage: 'screening',
+    interviewNextAt: new Date('2026-06-20T17:00:00.000Z'),
+    interviewDurationMinutes: 60,
+    interviewNotes: '',
+    stageNotes: {},
+    stageMeetingLinks: {},
+    logs: [],
+    createdAt: new Date('2026-06-18T12:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T12:00:00.000Z'),
     ...overrides,
   };
 }

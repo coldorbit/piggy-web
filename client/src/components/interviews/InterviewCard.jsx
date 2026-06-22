@@ -40,6 +40,7 @@ export default function InterviewCard({
   const currentStageMeetingLink = externalUrl(stageMeetingLinks[currentStage] || draft.meetingLink);
   const jobUrl = externalUrl(job.rawJob?.originalUrl || job.url || job.sourceUrl);
   const resumeUrl = resumeDownloadUrl(job.tailoredResume);
+  const scheduledStepCount = interviewStepCount(job.bid);
 
   function handlePointerDown(event) {
     if (event.target.closest(INTERACTIVE_SELECTOR)) {
@@ -122,6 +123,7 @@ export default function InterviewCard({
           />
           {owner ? <Chip label={owner} size="small" sx={{ ...chipSx, bgcolor: '#edf0ff', color: '#343f91' }} /> : null}
           <Chip label={stageLabel(currentStage)} size="small" sx={{ ...chipSx, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
+          {scheduledStepCount > 1 ? <Chip label={`${scheduledStepCount} interviews`} size="small" sx={{ ...chipSx, bgcolor: '#F5F3FF', color: '#6D28D9' }} /> : null}
           <Chip label={formatDate(job.bid?.updatedAt)} size="small" sx={{ ...chipSx, bgcolor: '#f7ead1', color: '#70400d' }} />
           {currentStageMeetingLink ? (
             <Button
@@ -200,6 +202,11 @@ function externalUrl(value) {
 function resumeDownloadUrl(resume) {
   if (resume?.status !== 'ready' || !resume?.filePath || !resume?.id) return '';
   return `/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`;
+}
+
+function interviewStepCount(bid) {
+  const completedSteps = (bid?.logs || []).filter((log) => log.eventType === 'interview_occurrence').length;
+  return completedSteps + (bid?.interviewNextAt ? 1 : 0);
 }
 
 function resumeFileName(filePath) {

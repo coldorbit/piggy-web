@@ -1133,7 +1133,7 @@ export async function listCalendarInterviews(req, res, next) {
     requireInterviewAccessUser(user, res);
     if (res.headersSent) return;
 
-    const interviews = await calendarInterviewsForUser(user);
+    const interviews = calendarEventsForInterviews(await calendarInterviewsForUser(user));
 
     const profilesById = new Map();
     for (const interview of interviews) {
@@ -1167,7 +1167,7 @@ export async function exportCalendarIcs(req, res, next) {
     requireInterviewAccessUser(user, res);
     if (res.headersSent) return;
 
-    const interviews = await calendarInterviewsForUser(user);
+    const interviews = calendarEventsForInterviews(await calendarInterviewsForUser(user));
     const ics = buildInterviewCalendarIcs(interviews);
     res.setHeader('content-type', 'text/calendar; charset=utf-8');
     res.setHeader('content-disposition', 'attachment; filename="applypilot-interviews.ics"');
@@ -1182,11 +1182,10 @@ async function calendarInterviewsForUser(user) {
   const BidProfile = getBidProfileModel();
   const WebUser = getWebUserModel();
   const where = {
-    interviewNextAt: { [Op.not]: null },
     ...(user.role === 'caller' ? { callerUserId: user.id } : {}),
   };
 
-  return Interview.findAll({
+  const interviews = await Interview.findAll({
     where,
     include: [
       {
@@ -1201,6 +1200,89 @@ async function calendarInterviewsForUser(user) {
       ['updatedAt', 'DESC'],
     ],
   });
+  const logsByInterviewId = await interviewLogsByInterviewId(interviews);
+  for (const interview of interviews) {
+    interview.setDataValue('logs', logsByInterviewId.get(String(interview.id)) || []);
+  }
+  return interviews;
+}
+
+export function calendarEventsForInterviews(interviews = []) {
+  return interviews
+    .flatMap((interview) => [
+      ...interviewOccurrenceEvents(interview),
+      ...(interview.interviewNextAt ? [currentInterviewCalendarEvent(interview)] : []),
+    ])
+    .sort((left, right) => new Date(left.interviewNextAt || 0) - new Date(right.interviewNextAt || 0));
+}
+
+function currentInterviewCalendarEvent(interview) {
+  return {
+    calendarEventId: `interview-${interview.id}-current`,
+    parentInterviewId: interview.id,
+    profile: interview.profile,
+    profileId: interview.profileId,
+    userId: interview.userId,
+    callerUserId: interview.callerUserId,
+    jobId: interview.jobId,
+    jobBidId: interview.jobBidId,
+    title: interview.title,
+    company: interview.company,
+    location: interview.location,
+    jobUrl: interview.jobUrl,
+    status: interview.status,
+    interviewStage: interview.interviewStage,
+    interviewNextAt: interview.interviewNextAt,
+    interviewDurationMinutes: interview.interviewDurationMinutes || 60,
+    interviewNotes: interview.interviewNotes,
+    stageNotes: interview.stageNotes || {},
+    stageMeetingLinks: interview.stageMeetingLinks || {},
+    createdAt: interview.createdAt,
+    updatedAt: interview.updatedAt,
+    isHistoricalOccurrence: false,
+  };
+}
+
+function interviewOccurrenceEvents(interview) {
+  const logs = interview.logs || interview.get?.('logs') || [];
+  return logs
+    .filter((log) => log.eventType === 'interview_occurrence')
+    .map((log) => interviewOccurrenceEvent(interview, log))
+    .filter(Boolean);
+}
+
+function interviewOccurrenceEvent(interview, log) {
+  const metadata = log.metadata || {};
+  const scheduledAt = dateValue(metadata.scheduledAt || log.toValue);
+  if (!scheduledAt) return null;
+  const stage = metadata.stage || interview.interviewStage;
+  const meetingLink = clean(metadata.meetingLink);
+
+  return {
+    calendarEventId: `interview-${interview.id}-occurrence-${log.id}`,
+    parentInterviewId: interview.id,
+    occurrenceLogId: log.id,
+    profile: interview.profile,
+    profileId: interview.profileId,
+    userId: interview.userId,
+    callerUserId: interview.callerUserId,
+    jobId: interview.jobId,
+    jobBidId: interview.jobBidId,
+    title: interview.title,
+    company: interview.company,
+    location: interview.location,
+    jobUrl: interview.jobUrl,
+    status: interview.status,
+    interviewStage: stage,
+    interviewNextAt: new Date(scheduledAt),
+    interviewDurationMinutes: Number(metadata.durationMinutes || interview.interviewDurationMinutes || 60),
+    interviewNotes: clean(metadata.notes) || null,
+    stageNotes: metadata.notes ? { [stage]: metadata.notes } : {},
+    stageMeetingLinks: meetingLink ? { [stage]: meetingLink } : {},
+    createdAt: log.createdAt || interview.createdAt,
+    updatedAt: log.createdAt || interview.updatedAt,
+    isHistoricalOccurrence: true,
+  };
 }
 
 function calendarIntegrationStatus() {
@@ -1220,7 +1302,7 @@ function calendarReminders(interviews) {
       const startsAt = new Date(interview.interviewNextAt).getTime();
       const minutesUntilStart = Math.round((startsAt - now) / 60000);
       return {
-        id: String(interview.id),
+        id: String(interview.calendarEventId || interview.id),
         profileId: interview.profileId ? String(interview.profileId) : null,
         title: interview.title,
         company: interview.company,
@@ -1238,7 +1320,7 @@ function calendarConflicts(interviews) {
   const events = interviews
     .filter((interview) => interview.interviewNextAt)
     .map((interview) => ({
-      id: String(interview.id),
+      id: String(interview.calendarEventId || interview.id),
       profileId: interview.profileId ? String(interview.profileId) : null,
       profileName: interview.profile?.name || '',
       title: interview.title,
@@ -1300,7 +1382,7 @@ function buildInterviewCalendarIcs(interviews) {
 
     lines.push(
       'BEGIN:VEVENT',
-      `UID:applypilot-interview-${interview.id}@applypilot`,
+      `UID:applypilot-interview-${interview.calendarEventId || interview.id}@applypilot`,
       `DTSTAMP:${icsDate(new Date())}`,
       `DTSTART:${icsDate(start)}`,
       `DTEND:${icsDate(end)}`,
@@ -3334,9 +3416,11 @@ async function upsertInterviewForBid({ bid, job, attrs, userId }) {
 }
 
 function formatInterviewAsJob(interview, bidUsersById = new Map(), callerUsersById = new Map(), tailoredResume = null) {
+  const formattedId = interview.calendarEventId || interview.id;
   return {
-    id: `interview-${interview.id}`,
-    interviewId: interview.id,
+    id: `interview-${formattedId}`,
+    interviewId: interview.parentInterviewId || interview.id,
+    occurrenceLogId: interview.occurrenceLogId || null,
     title: interview.title,
     company: interview.company,
     location: interview.location,
@@ -3356,8 +3440,11 @@ function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById
   const bidUser = bidUsersById.get?.(String(interview.userId));
   const callerUser = callerUsersById.get?.(String(interview.callerUserId));
   return {
-    id: interview.id,
+    id: interview.calendarEventId || interview.id,
     isInterview: true,
+    parentInterviewId: interview.parentInterviewId || interview.id,
+    occurrenceLogId: interview.occurrenceLogId || null,
+    isHistoricalOccurrence: Boolean(interview.isHistoricalOccurrence),
     userId: interview.userId,
     callerUserId: interview.callerUserId,
     profileId: interview.profileId,
@@ -3436,12 +3523,18 @@ function normalizeInterviewStageMeetingLinks({ currentStage, currentLink, existi
 }
 
 function interviewSnapshot(interview) {
+  const stage = interview.interviewStage;
+  const stageNotes = { ...((interview.stageNotes && typeof interview.stageNotes === 'object') ? interview.stageNotes : {}) };
+  const stageMeetingLinks = { ...((interview.stageMeetingLinks && typeof interview.stageMeetingLinks === 'object') ? interview.stageMeetingLinks : {}) };
   return {
-    interviewStage: interview.interviewStage,
+    interviewStage: stage,
     interviewNextAt: interview.interviewNextAt,
+    interviewDurationMinutes: interview.interviewDurationMinutes || 60,
+    interviewNotes: interview.interviewNotes,
     firstInterviewScheduledAt: interview.firstInterviewScheduledAt,
-    stageNotes: { ...((interview.stageNotes && typeof interview.stageNotes === 'object') ? interview.stageNotes : {}) },
-    stageMeetingLinks: { ...((interview.stageMeetingLinks && typeof interview.stageMeetingLinks === 'object') ? interview.stageMeetingLinks : {}) },
+    stageNotes,
+    stageMeetingLinks,
+    meetingLink: meetingLinkForStage(stageMeetingLinks, stage),
   };
 }
 
@@ -3467,6 +3560,8 @@ async function logInterviewCreated(interview, userId) {
 async function logInterviewChanges({ interview, previous, attrs, userId }) {
   const logs = [];
   if (previous.interviewStage !== interview.interviewStage) {
+    const occurrenceLog = interviewOccurrenceLogFromSnapshot(previous, interview);
+    if (occurrenceLog) logs.push(occurrenceLog);
     logs.push({
       eventType: 'stage_changed',
       fromValue: previous.interviewStage,
@@ -3517,6 +3612,27 @@ async function logInterviewChanges({ interview, previous, attrs, userId }) {
       metadata: { ...(log.metadata || {}), source: attrs.status || interview.status },
     })),
   );
+}
+
+export function interviewOccurrenceLogFromSnapshot(previous, interview) {
+  const scheduledAt = dateValue(previous.interviewNextAt);
+  if (!scheduledAt) return null;
+  const stage = previous.interviewStage || 'todo';
+  const notes = clean(previous.stageNotes?.[stage] || previous.interviewNotes);
+  const meetingLink = clean(previous.meetingLink || meetingLinkForStage(previous.stageMeetingLinks, stage));
+  return {
+    eventType: 'interview_occurrence',
+    fromValue: null,
+    toValue: scheduledAt,
+    metadata: {
+      stage,
+      scheduledAt,
+      durationMinutes: Number(previous.interviewDurationMinutes || 60),
+      progressedToStage: interview.interviewStage || null,
+      ...(notes ? { notes } : {}),
+      ...(meetingLink ? { meetingLink } : {}),
+    },
+  };
 }
 
 function meetingLinkForStage(stageMeetingLinks, stage) {

@@ -42,6 +42,7 @@ import {
 } from '../components/interviews/interviewUtils.js';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { downloadAuthenticatedFile, useBidJobs, useBidProfiles, useCreateManualInterview, useDeleteInterview, useUpdateJobBid } from '../lib/api.js';
+import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
 import { isAdminRole } from '../lib/roles.js';
 import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
@@ -220,7 +221,8 @@ export default function InterviewsPage({ currentUser }) {
     const interviewStage = interviewStageForColumn(stage, draftFor(job).interviewStage);
     updateDraft(job, 'interviewStage', interviewStage);
     updateDraft(job, 'status', status);
-    saveInterview(job, { interviewStage, status });
+    updateDraft(job, 'interviewNextAt', null);
+    saveInterview(job, { interviewStage, status, interviewNextAt: null });
   }
 
   function openManualDialog() {
@@ -726,10 +728,12 @@ export default function InterviewsPage({ currentUser }) {
                       const nextColumn = event.target.value;
                       const nextStage = interviewStageForColumn(nextColumn, selectedStage);
                       const nextStatus = interviewStatusForColumn(nextColumn);
+                      const stageChanged = nextStage !== selectedStage;
                       updateDraft(selectedJob, 'interviewStage', nextStage);
                       updateDraft(selectedJob, 'status', nextStatus);
                       updateDraft(selectedJob, 'interviewNotes', selectedStageNotes[nextStage] || '');
                       updateDraft(selectedJob, 'meetingLink', selectedStageMeetingLinks[nextStage] || '');
+                      if (stageChanged) updateDraft(selectedJob, 'interviewNextAt', null);
                     }}
                     disabled={updatingBid || !canEditInterviews}
                   >
@@ -890,9 +894,11 @@ function interviewColumnLabel(value) {
 
 function formatJourneyLog(log) {
   const stage = log.metadata?.stage ? stageLabel(log.metadata.stage) : '';
+  const scheduledAt = log.metadata?.scheduledAt ? formatDateTimeInDefaultTimezone(log.metadata.scheduledAt) : '';
   return {
     created: 'Created',
     first_scheduled: 'First interview scheduled',
+    interview_occurrence: `${stage || 'Interview'} kept as completed${scheduledAt ? ` (${scheduledAt})` : ''}`,
     schedule_changed: 'Schedule changed',
     stage_changed: `Moved ${stageLabel(log.fromValue)} -> ${stageLabel(log.toValue)}`,
     stage_note_changed: `${stage || 'Stage'} note updated`,
