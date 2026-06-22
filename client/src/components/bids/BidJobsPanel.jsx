@@ -22,6 +22,7 @@ import {
 import ArchiveIcon from '@mui/icons-material/Archive';
 import { PAGE_SIZE_OPTIONS } from '../../lib/constants.js';
 import { downloadAuthenticatedFile, useMarkTailoredResumesDownloaded } from '../../lib/api.js';
+import { isSuperadmin } from '../../lib/roles.js';
 import EmptyState from '../common/EmptyState.jsx';
 import { APPLICATION_WORKFLOW_STATUSES, BID_TABS, REVIEW_STATUSES } from './bidConstants.js';
 import { isTodoTailoringLocked } from './bidJobState.js';
@@ -61,7 +62,7 @@ export default function BidJobsPanel() {
     .map((job) => job.tailoredResume)
     .filter((resume) => resume?.status === 'ready' && resume.filePath)
     .map((resume) => resume.id);
-  const selectableJobs = jobs.filter((job) => !isJobSelectionDisabled(job, activeTab));
+  const selectableJobs = jobs.filter((job) => !isJobSelectionDisabled(job, activeTab, currentUser));
   const visibleJobKeys = selectableJobs.map((job) => bidJobCardKey(job));
   const visibleJobIdsKey = visibleJobKeys.join('|');
   const selectedVisibleJobs = selectableJobs.filter((job) => selectedJobIds.has(bidJobCardKey(job)));
@@ -373,7 +374,7 @@ export default function BidJobsPanel() {
               selectionId={bidJobCardKey(job)}
               job={job}
               isSelected={selectedJobIds.has(bidJobCardKey(job))}
-              isSelectionDisabled={isJobSelectionDisabled(job, activeTab)}
+              isSelectionDisabled={isJobSelectionDisabled(job, activeTab, currentUser)}
               onSelectedChange={toggleJobSelected}
               onResumeDownload={markTailoredResumesDownloaded}
             />
@@ -436,8 +437,9 @@ export default function BidJobsPanel() {
   );
 }
 
-function isJobSelectionDisabled(job, activeTab) {
-  return isReviewBidStatus(job.bid?.status) || (activeTab === BID_TABS.todo && isTodoTailoringLocked(job));
+function isJobSelectionDisabled(job, activeTab, currentUser) {
+  const canRecoverReviewedBid = activeTab === BID_TABS.badWork && isSuperadmin(currentUser);
+  return (isReviewBidStatus(job.bid?.status) && !canRecoverReviewedBid) || (activeTab === BID_TABS.todo && isTodoTailoringLocked(job));
 }
 
 function bidJobCardKey(job) {

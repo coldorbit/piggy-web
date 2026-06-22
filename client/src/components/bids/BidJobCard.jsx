@@ -26,7 +26,7 @@ import {
 import { formatDate } from '../../lib/formatters.js';
 import { downloadAuthenticatedFile } from '../../lib/api.js';
 import { jobSourceImageUrl, sourceLabel } from '../../lib/jobSourceImage.js';
-import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../../lib/roles.js';
+import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../../lib/roles.js';
 import JobIdBadge from '../jobs/JobIdBadge.jsx';
 import JobRegionBadge from '../jobs/JobRegionBadge.jsx';
 import { APPLICATION_WORKFLOW_STATUSES, BID_TABS } from './bidConstants.js';
@@ -63,17 +63,21 @@ export default function BidJobCard({
   const isTailoring = Boolean(tailoringByJobId[cardKey] || tailoringByJobId[job.id]);
   const statusDefault = activeTab === BID_TABS.interviews ? 'interviewing' : activeTab === BID_TABS.done ? 'submitted' : undefined;
   const isAdmin = isAdminRole(currentUser);
+  const isSuperadminUser = isSuperadmin(currentUser);
   const isBidder = BIDDER_ROLES.includes(currentUser?.role);
   const bidStatus = job.bid?.status || draft.status || 'planned';
   const reviewStatus = reviewStatusValue(bidStatus);
   const isInvalidReviewJob = Boolean(reviewStatus);
+  const canRecoverBadWorkJob = activeTab === BID_TABS.badWork && isSuperadminUser;
   const canMoveDoneJobToInterview = activeTab === BID_TABS.done && PRIVILEGED_USER_ROLES.includes(currentUser?.role) && !isBidder;
   const canReviewDoneJob = activeTab === BID_TABS.done && isAdmin;
   const canReviewBadWorkJob = activeTab === BID_TABS.badWork && isAdmin;
   const canReviewTailoredJob = activeTab === BID_TABS.tailored && isAdmin && hasActiveTailoredResumeStatus(job.tailoredResume?.status);
   const showReviewControl = canReviewDoneJob || canReviewBadWorkJob || canReviewTailoredJob;
   const showBidStatusChip = activeTab !== BID_TABS.tailored || isInvalidReviewJob;
-  const showStatusControl = activeTab === BID_TABS.interviews || activeTab === BID_TABS.done;
+  const showStatusControl = activeTab === BID_TABS.interviews || activeTab === BID_TABS.done || canRecoverBadWorkJob;
+  const statusControlLabel = canRecoverBadWorkJob ? 'Recover' : 'Status';
+  const statusControlValue = canRecoverBadWorkJob && isInvalidReviewJob ? '' : draft.status || statusDefault || 'planned';
   const showAppliedAction = activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready';
   const bidChipLabel = reviewStatusLabel(bidStatus) || (job.bid
     ? `Bid ${formatDate(job.bid.bidAt)}`
@@ -360,13 +364,18 @@ export default function BidJobCard({
               >
                 {showStatusControl ? (
                   <FormControl size="small" sx={{ minWidth: 150 }}>
-                    <InputLabel>Status</InputLabel>
+                    <InputLabel>{statusControlLabel}</InputLabel>
                     <Select
-                      label="Status"
-                      value={draft.status || statusDefault || 'planned'}
+                      label={statusControlLabel}
+                      value={statusControlValue}
                       onChange={handleStatusChange}
                       disabled={isSaving}
                     >
+                      {canRecoverBadWorkJob && isInvalidReviewJob ? (
+                        <MenuItem value="" disabled>
+                          Applicable state
+                        </MenuItem>
+                      ) : null}
                       {APPLICATION_WORKFLOW_STATUSES.map((status) => (
                         <MenuItem key={status.value} value={status.value}>
                           {status.label}
