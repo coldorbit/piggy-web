@@ -21,7 +21,7 @@ describe('tailoring resume ATS formatting', () => {
   };
 
   it('uses a clear company/location separator for company names with spaces', () => {
-    assert.equal(workExperienceCompanyLine(reefPointExperience), 'ReefPoint Group | Remote');
+    assert.equal(workExperienceCompanyLine(reefPointExperience), 'ReefPoint Group - Remote');
   });
 
   it('renders project names as bullet content instead of a standalone Projects line', () => {
@@ -41,7 +41,7 @@ describe('tailoring resume ATS formatting', () => {
       skills: {},
     }, {});
 
-    assert.equal(parts.includes('ReefPoint Group | Remote'), true);
+    assert.equal(parts.includes('ReefPoint Group - Remote'), true);
     assert.equal(parts.includes('Projects: Data Platform Modernization, Analytics & Reporting Enablement'), false);
     assert.equal(parts.includes('Project focus included Data Platform Modernization and Analytics & Reporting Enablement.'), true);
   });
