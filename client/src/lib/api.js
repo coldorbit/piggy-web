@@ -1334,6 +1334,21 @@ export function useCreateManualInterview() {
   });
 }
 
+export function useCreateInterviewCall() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ interviewId, callData }) =>
+      api(`/api/bid/interviews/${interviewId}/calls`, {
+        method: 'POST',
+        body: JSON.stringify(callData),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+    },
+  });
+}
+
 export function useDeleteInterview() {
   const queryClient = useQueryClient();
   return useMutation({

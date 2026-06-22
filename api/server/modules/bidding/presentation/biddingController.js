@@ -13,6 +13,7 @@ import {
   getWebUserModel,
   repositories,
 } from '../../../../db.js';
+import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { Op, QueryTypes } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -56,6 +57,7 @@ import {
   INTERNAL_DATA_ROLES,
   INTERVIEW_ACCESS_ROLES,
   PRIVILEGED_USER_ROLES,
+  canRegisterManualInterviewCalls,
   canManageCallers as canManageCallersRole,
   isAdminRole,
   isSuperadmin,
@@ -1691,7 +1693,9 @@ async function listInterviewJobs(req, res, { user, profile }) {
     user.role === 'caller' ? Promise.resolve(0) : countBidTabForProfile({ profile, tab: 'bad_work', query: req.query, user }),
     Interview.count({ where: { profileId: profile.id, ...(user.role === 'caller' ? { callerUserId: user.id } : {}) } }),
     bidUsersForProfile(profile),
-    isAdminRole(user) ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] }) : Promise.resolve([]),
+    canRegisterManualInterviewCalls(user)
+      ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] })
+      : Promise.resolve([]),
   ]);
   const logsByInterviewId = await interviewLogsByInterviewId(interviews);
   const tailoredResumesByUrl = await tailoredResumesForJobs({
@@ -2658,6 +2662,47 @@ export async function createManualInterview(req, res, next) {
   }
 }
 
+export async function createManualInterviewCall(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    if (!canRegisterManualInterviewCalls(user)) {
+      res.status(403).json({ error: 'Manual call registration access required' });
+      return;
+    }
+
+    const interview = await getInterviewModel().findByPk(req.params.id);
+    if (!interview) {
+      res.status(404).json({ error: 'Interview not found' });
+      return;
+    }
+    if (!isAdminRole(user)) {
+      await interviewWriteProfileForUser(user, interview.profileId, 'Interview not found');
+    }
+
+    const attrs = manualInterviewCallAttributes(req.body, interview);
+    if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
+    const call = await getInterviewCallModel().create({
+      ...attrs,
+      interviewId: interview.id,
+      userId: interview.userId || null,
+      sourceType: 'manual',
+      sourceKey: `interview:${interview.id}:manual-call:${randomUUID()}`,
+      metadata: {
+        createdFrom: 'manual',
+        createdByUserId: user.id,
+      },
+    });
+
+    res.status(201).json({
+      call: formatInterviewCall(call),
+      job: formatInterviewAsJob(interview),
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 function validHttpUrl(value) {
   try {
     const url = new URL(value);
@@ -3470,6 +3515,39 @@ function interviewValuesFromAttrs(attrs, existing = null) {
   };
 }
 
+function manualInterviewCallAttributes(body = {}, interview) {
+  const hasCallerUserId = Object.prototype.hasOwnProperty.call(body || {}, 'callerUserId');
+  const hasMeetingLink = Object.prototype.hasOwnProperty.call(body || {}, 'meetingLink')
+    || Object.prototype.hasOwnProperty.call(body || {}, 'interviewMeetingLink');
+  const hasNotes = Object.prototype.hasOwnProperty.call(body || {}, 'notes')
+    || Object.prototype.hasOwnProperty.call(body || {}, 'interviewNotes');
+  const stage = clean(body?.interviewStage) || interview?.interviewStage || 'todo';
+  const attrs = bidAttributesFromBody({
+    status: 'interviewing',
+    interviewStage: stage,
+    interviewNextAt: body?.scheduledAt || body?.interviewNextAt,
+    interviewDurationMinutes: body?.durationMinutes || body?.interviewDurationMinutes || body?.interviewDuration,
+    ...(hasCallerUserId ? { callerUserId: body?.callerUserId } : {}),
+    ...(hasMeetingLink ? { interviewMeetingLink: body?.meetingLink || body?.interviewMeetingLink } : {}),
+    ...(hasNotes ? { interviewNotes: body?.notes ?? body?.interviewNotes } : {}),
+  });
+  if (!attrs.interviewNextAt) throw new InputError('Call date is required');
+
+  const callStage = attrs.interviewStage || interview?.interviewStage || 'todo';
+  const existingLinks = interview?.stageMeetingLinks && typeof interview.stageMeetingLinks === 'object' ? interview.stageMeetingLinks : {};
+  const existingNotes = interview?.stageNotes && typeof interview.stageNotes === 'object' ? interview.stageNotes : {};
+  return {
+    callerUserId: Object.prototype.hasOwnProperty.call(attrs, 'callerUserId')
+      ? attrs.callerUserId
+      : interview?.callerUserId || null,
+    interviewStage: callStage,
+    scheduledAt: attrs.interviewNextAt,
+    durationMinutes: attrs.interviewDurationMinutes || interview?.interviewDurationMinutes || 60,
+    meetingLink: hasMeetingLink ? attrs.interviewMeetingLink || null : meetingLinkForStage(existingLinks, callStage) || null,
+    notes: hasNotes ? attrs.interviewNotes || null : clean(existingNotes[callStage] || interview?.interviewNotes) || null,
+  };
+}
+
 function rejectReviewStatusForNonAdmin(req, res, attrs) {
   if (!REVIEW_BID_STATUSES.has(attrs.status) || isAdminRole(req.user)) return false;
   res.status(403).json({ error: 'Admin access is required' });
@@ -3600,6 +3678,23 @@ function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById
   };
 }
 
+function formatInterviewCall(call) {
+  return {
+    id: call.id,
+    interviewId: call.interviewId,
+    userId: call.userId,
+    callerUserId: call.callerUserId,
+    interviewStage: call.interviewStage,
+    scheduledAt: call.scheduledAt,
+    durationMinutes: call.durationMinutes || 60,
+    meetingLink: call.meetingLink,
+    notes: call.notes,
+    sourceType: call.sourceType,
+    createdAt: call.createdAt,
+    updatedAt: call.updatedAt,
+  };
+}
+
 async function interviewLogsByInterviewId(interviews) {
   const interviewIds = interviews.map((interview) => interview.id).filter(Boolean);
   if (!interviewIds.length) return new Map();
@@ -3722,7 +3817,7 @@ async function logInterviewCreated(interview, userId) {
 async function logInterviewChanges({ interview, previous, attrs, userId }) {
   const logs = [];
   if (previous.interviewStage !== interview.interviewStage) {
-    if (shouldRegisterInterviewCallForStageChange(previous.interviewStage, interview.interviewStage)) {
+    if (shouldRegisterInterviewCallForStageChange(previous.interviewStage, interview.interviewStage, attrs.status || interview.status)) {
       await ensureInterviewCallForCurrentSchedule(interview, { sourceType: 'stage_changed' });
     }
     const occurrenceLog = interviewOccurrenceLogFromSnapshot(previous, interview);
@@ -3779,9 +3874,10 @@ async function logInterviewChanges({ interview, previous, attrs, userId }) {
   );
 }
 
-export function shouldRegisterInterviewCallForStageChange(previousStage, nextStage) {
+export function shouldRegisterInterviewCallForStageChange(previousStage, nextStage, nextStatus = 'interviewing') {
   const fromStage = previousStage || 'todo';
   const toStage = nextStage || 'todo';
+  if (['failed', 'lost'].includes(clean(nextStatus))) return false;
   if (fromStage === 'todo' && toStage === 'screening') return false;
   return fromStage !== toStage;
 }

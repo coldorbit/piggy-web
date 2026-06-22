@@ -14,6 +14,7 @@ import {
   bulkUpdateJobBids,
   createCaller,
   createCollaborationEvent,
+  createManualInterviewCall,
   createManualInterview,
   createManualTailoredResume,
   createProfile,
@@ -91,6 +92,7 @@ export function registerBidRoutes(app) {
   app.post('/api/bid/tailored-resumes/bulk', requireBidWorkspaceAccess, bulkCreateTailoredResumes);
   app.post('/api/bid/tailored-resumes/manual', requireBidWorkspaceAccess, createManualTailoredResume);
   app.post('/api/bid/interviews/manual', requireInterviewAccess, createManualInterview);
+  app.post('/api/bid/interviews/:id/calls', requireInterviewAccess, createManualInterviewCall);
   app.patch('/api/bid/interviews/:id', requireInterviewAccess, updateInterview);
   app.delete('/api/bid/interviews/:id', requireInterviewAccess, deleteInterview);
   app.delete('/api/bid/interview-calls/:id', requireInterviewAccess, deleteInterviewCall);

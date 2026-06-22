@@ -41,9 +41,17 @@ import {
   toDatetimeLocalValue,
 } from '../components/interviews/interviewUtils.js';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { downloadAuthenticatedFile, useBidJobs, useBidProfiles, useCreateManualInterview, useDeleteInterview, useUpdateJobBid } from '../lib/api.js';
+import {
+  downloadAuthenticatedFile,
+  useBidJobs,
+  useBidProfiles,
+  useCreateInterviewCall,
+  useCreateManualInterview,
+  useDeleteInterview,
+  useUpdateJobBid,
+} from '../lib/api.js';
 import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
-import { isAdminRole } from '../lib/roles.js';
+import { canRegisterManualInterviewCalls, isAdminRole } from '../lib/roles.js';
 import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
 const EMPTY_MANUAL_INTERVIEW = {
@@ -58,6 +66,15 @@ const EMPTY_MANUAL_INTERVIEW = {
   stageMeetingLinks: {},
   callerUserId: '',
   interviewNotes: '',
+};
+
+const EMPTY_MANUAL_CALL = {
+  interviewStage: 'todo',
+  scheduledAt: '',
+  durationMinutes: DEFAULT_INTERVIEW_DURATION_MINUTES,
+  callerUserId: '',
+  meetingLink: '',
+  notes: '',
 };
 
 const INTERVIEW_SAVED_VIEWS_STORAGE_KEY = 'applypilot.interviews.savedViews.v1';
@@ -82,10 +99,12 @@ export default function InterviewsPage({ currentUser }) {
   const [drafts, setDrafts] = useState({});
   const [activeDropStage, setActiveDropStage] = useState('');
   const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
+  const [isManualCallDialogOpen, setIsManualCallDialogOpen] = useState(false);
   const [selectedInterviewId, setSelectedInterviewId] = useState('');
   const [selectedApplicationJob, setSelectedApplicationJob] = useState(null);
   const [applicationSearch, setApplicationSearch] = useState('');
   const [manualInterview, setManualInterview] = useState(EMPTY_MANUAL_INTERVIEW);
+  const [manualCall, setManualCall] = useState(EMPTY_MANUAL_CALL);
   const [pendingStepChangeSave, setPendingStepChangeSave] = useState(null);
   const [error, setError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
@@ -128,6 +147,7 @@ export default function InterviewsPage({ currentUser }) {
   } = useBidJobs(isManualDialogOpen ? activeProfile?.id : '', applicationPickerFilters);
   const { mutate: updateBid, isPending: updatingBid } = useUpdateJobBid();
   const { mutate: createManualInterview, isPending: creatingManualInterview } = useCreateManualInterview();
+  const { mutate: createInterviewCall, isPending: creatingInterviewCall } = useCreateInterviewCall();
   const { mutate: deleteInterview, isPending: deletingInterview } = useDeleteInterview();
 
   useEffect(() => {
@@ -258,6 +278,29 @@ export default function InterviewsPage({ currentUser }) {
     setApplicationSearch('');
   }
 
+  function openManualCallDialog(job) {
+    if (!job?.bid?.id) return;
+    const draft = draftFor(job);
+    const stage = canonicalInterviewStage(draft.interviewStage);
+    const stageNotes = draft.stageNotes || {};
+    const stageMeetingLinks = draft.stageMeetingLinks || {};
+    setError('');
+    setManualCall({
+      interviewStage: stage,
+      scheduledAt: toDatetimeLocalValue(draft.interviewNextAt),
+      durationMinutes: draft.interviewDurationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
+      callerUserId: draft.callerUserId || '',
+      meetingLink: stageMeetingLinks[stage] || draft.meetingLink || '',
+      notes: stageNotes[stage] || draft.interviewNotes || '',
+    });
+    setIsManualCallDialogOpen(true);
+  }
+
+  function closeManualCallDialog() {
+    setIsManualCallDialogOpen(false);
+    setManualCall(EMPTY_MANUAL_CALL);
+  }
+
   function openInterviewDialog(job) {
     if (!job?.bid?.id) return;
     setSelectedInterviewId(String(job.bid.id));
@@ -265,6 +308,7 @@ export default function InterviewsPage({ currentUser }) {
 
   function closeInterviewDialog() {
     setSelectedInterviewId('');
+    closeManualCallDialog();
   }
 
   function submitManualInterview(event) {
@@ -310,6 +354,29 @@ export default function InterviewsPage({ currentUser }) {
       {
         onSuccess: closeManualDialog,
         onError: (interviewError) => setError(interviewError.message),
+      },
+    );
+  }
+
+  function submitManualCall(event) {
+    event.preventDefault();
+    if (!selectedJob?.bid?.parentInterviewId) return;
+    setError('');
+    createInterviewCall(
+      {
+        interviewId: selectedJob.bid.parentInterviewId,
+        callData: {
+          interviewStage: manualCall.interviewStage,
+          scheduledAt: fromDefaultTimezoneDatetimeLocal(manualCall.scheduledAt),
+          durationMinutes: manualCall.durationMinutes,
+          callerUserId: manualCall.callerUserId,
+          meetingLink: manualCall.meetingLink,
+          notes: manualCall.notes,
+        },
+      },
+      {
+        onSuccess: closeManualCallDialog,
+        onError: (callError) => setError(callError.message),
       },
     );
   }
@@ -360,6 +427,7 @@ export default function InterviewsPage({ currentUser }) {
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
   const missingMeetingLinkCount = allJobs.filter((job) => !hasMeetingLink(job, draftFor(job))).length;
   const totalInterviewCount = Number(activeProfile?.progress?.totalInterviews || interviewsData?.total || 0);
+  const canRegisterCalls = canRegisterManualInterviewCalls(currentUser);
   const canEditInterviews = currentUser?.role !== 'caller' && (isAdminRole(currentUser) || isActiveProfileOwner);
   const canDeleteSelectedInterview =
     selectedJob &&
@@ -842,6 +910,15 @@ export default function InterviewsPage({ currentUser }) {
             </DialogContent>
             <DialogActions sx={{ justifyContent: 'space-between' }}>
               <Box>
+                {canRegisterCalls ? (
+                  <Button
+                    disabled={creatingInterviewCall}
+                    onClick={() => openManualCallDialog(selectedJob)}
+                    startIcon={<AddIcon />}
+                  >
+                    Register call
+                  </Button>
+                ) : null}
                 {canDeleteSelectedInterview ? (
                   <Button color="error" startIcon={<DeleteIcon />} disabled={deletingInterview || updatingBid} onClick={() => handleDeleteInterview(selectedJob)}>
                     Delete
@@ -861,6 +938,101 @@ export default function InterviewsPage({ currentUser }) {
             </DialogActions>
           </>
         ) : null}
+      </Dialog>
+      <Dialog open={isManualCallDialogOpen} onClose={closeManualCallDialog} fullWidth maxWidth="sm">
+        <form onSubmit={submitManualCall}>
+          <DialogTitle>Register call</DialogTitle>
+          <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 2 }}>
+            {selectedJob ? (
+              <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.35, bgcolor: '#F8FAFC' }}>
+                <Typography fontWeight={900} noWrap>
+                  {selectedJob.title || 'Untitled role'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" noWrap>
+                  {[selectedJob.company, activeProfile?.name].filter(Boolean).join(' · ') || 'Interview'}
+                </Typography>
+              </Paper>
+            ) : null}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+              <TextField
+                autoFocus
+                label={`Call time (${DEFAULT_TIME_ZONE_LABEL})`}
+                required
+                type="datetime-local"
+                value={toDatetimeLocalValue(manualCall.scheduledAt)}
+                onChange={(event) => setManualCall((current) => ({ ...current, scheduledAt: event.target.value }))}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <FormControl>
+                <InputLabel>Step</InputLabel>
+                <Select
+                  label="Step"
+                  value={manualCall.interviewStage}
+                  onChange={(event) => setManualCall((current) => ({ ...current, interviewStage: event.target.value }))}
+                >
+                  {INTERVIEW_STAGES.map((stage) => (
+                    <MenuItem key={stage.value} value={stage.value}>
+                      {stage.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: callerUsers.length ? '1fr 1fr' : '1fr' }, gap: 1.5 }}>
+              <FormControl>
+                <InputLabel>Duration</InputLabel>
+                <Select
+                  label="Duration"
+                  value={manualCall.durationMinutes}
+                  onChange={(event) => setManualCall((current) => ({ ...current, durationMinutes: Number(event.target.value) }))}
+                >
+                  {INTERVIEW_DURATION_OPTIONS.map((duration) => (
+                    <MenuItem key={duration.value} value={duration.value}>
+                      {duration.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {callerUsers.length ? (
+                <FormControl>
+                  <InputLabel>Assignee</InputLabel>
+                  <Select
+                    label="Assignee"
+                    value={manualCall.callerUserId}
+                    onChange={(event) => setManualCall((current) => ({ ...current, callerUserId: event.target.value }))}
+                  >
+                    <MenuItem value="">Unassigned</MenuItem>
+                    {callerUsers.map((caller) => (
+                      <MenuItem key={caller.id} value={caller.id}>
+                        {caller.username}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : null}
+            </Box>
+            <TextField
+              label={`${stageLabel(manualCall.interviewStage)} meeting link`}
+              type="url"
+              value={manualCall.meetingLink}
+              onChange={(event) => setManualCall((current) => ({ ...current, meetingLink: event.target.value }))}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Call notes"
+              multiline
+              minRows={3}
+              value={manualCall.notes}
+              onChange={(event) => setManualCall((current) => ({ ...current, notes: event.target.value }))}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeManualCallDialog}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={creatingInterviewCall || !manualCall.scheduledAt}>
+              Register call
+            </Button>
+          </DialogActions>
+        </form>
       </Dialog>
       <Dialog open={Boolean(pendingStepChangeSave)} onClose={closePendingStepChangeDialog} fullWidth maxWidth="xs">
         <DialogTitle>Confirm step change</DialogTitle>
@@ -920,11 +1092,12 @@ function interviewStepChange(job, bidData) {
     toStage,
     fromLabel: stageLabel(fromStage),
     toLabel: stageLabel(toStage),
-    willRegisterCall: shouldRegisterCallForStepChange(fromStage, toStage),
+    willRegisterCall: shouldRegisterCallForStepChange(fromStage, toStage, bidData?.status),
   };
 }
 
-function shouldRegisterCallForStepChange(fromStage, toStage) {
+function shouldRegisterCallForStepChange(fromStage, toStage, nextStatus = 'interviewing') {
+  if (['failed', 'lost'].includes(String(nextStatus || '').trim())) return false;
   if (fromStage === 'todo' && toStage === 'screening') return false;
   return fromStage !== toStage;
 }

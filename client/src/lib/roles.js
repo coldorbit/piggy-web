@@ -31,6 +31,7 @@ export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user,
 export const PERSONAL_DASHBOARD_ROLES = [ROLES.user, ROLES.financeManager];
 export const MARKETPLACE_ACCESS_ROLES = ADMIN_ROLES;
 export const INTERVIEW_ROLES = [...STAFF_WORKSPACE_ROLES, ROLES.caller];
+export const MANUAL_INTERVIEW_CALL_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
 export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller, ROLES.guest];
 export const JOB_ACCESS_ROLES = VALID_USER_ROLES.filter((role) => ![ROLES.caller, ROLES.guest].includes(role));
@@ -84,6 +85,10 @@ export function canAccessPersonalDashboard(userOrRole) {
 
 export function canAccessInterviews(userOrRole) {
   return INTERVIEW_ROLES.includes(roleOf(userOrRole));
+}
+
+export function canRegisterManualInterviewCalls(userOrRole) {
+  return MANUAL_INTERVIEW_CALL_ROLES.includes(roleOf(userOrRole));
 }
 
 export function canAccessJobs(userOrRole) {

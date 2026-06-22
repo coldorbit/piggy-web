@@ -93,6 +93,8 @@ describe('interview scheduled occurrences', () => {
   it('does not register a calendar call when moving todo to screening', () => {
     assert.equal(shouldRegisterInterviewCallForStageChange('todo', 'screening'), false);
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'hiring_manager'), true);
+    assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'technical_interview', 'lost'), false);
+    assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'technical_interview', 'failed'), false);
   });
 
   it('captures the previous scheduled stage when an interview progresses', () => {

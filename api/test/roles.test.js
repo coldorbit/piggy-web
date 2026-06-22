@@ -8,6 +8,7 @@ import {
   canAccessInbox,
   canAccessJobs,
   canAccessPersonalDashboard,
+  canRegisterManualInterviewCalls,
   canManageCallers,
 } from '../server/utils/roles.js';
 
@@ -42,5 +43,14 @@ describe('role permissions', () => {
     assert.equal(canAccessInbox({ role: ROLES.readonlyBidder }), false);
     assert.equal(canManageCallers({ role: ROLES.admin }), true);
     assert.equal(canManageCallers({ role: ROLES.user }), false);
+  });
+
+  it('allows only requested staff roles to register manual interview calls', () => {
+    assert.equal(canRegisterManualInterviewCalls({ role: ROLES.superadmin }), true);
+    assert.equal(canRegisterManualInterviewCalls({ role: ROLES.admin }), true);
+    assert.equal(canRegisterManualInterviewCalls({ role: ROLES.user }), true);
+    assert.equal(canRegisterManualInterviewCalls({ role: ROLES.financeManager }), true);
+    assert.equal(canRegisterManualInterviewCalls({ role: ROLES.internal }), false);
+    assert.equal(canRegisterManualInterviewCalls({ role: ROLES.caller }), false);
   });
 });
