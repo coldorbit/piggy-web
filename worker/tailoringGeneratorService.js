@@ -206,7 +206,7 @@ ATS optimization rules:
 - Use standard resume section concepts only: Summary, Work Experience, Education, Skills.
 - Use plain text content only: no icons, emojis, decorative symbols, tables, columns, headers, footers, or graphics.
 - Use consistent date formatting everywhere: "MMM yyyy" for dates, such as "Jan 2024" or "Sep 2022", and "Present" for current roles. Do not use full month names like "January 2024".
-- Populate work experience fields so the rendered resume can show the position on the first line, company and work mode/location on the second line, and "MMM yyyy – MMM yyyy" on the third line. Example: "Senior Data Engineer" followed by "ReefPoint Group, Remote" followed by "Aug 2025 – Jun 2026".
+- Populate work experience fields so the rendered resume can show the position on the first line, company and work mode/location on the second line, and "MMM yyyy – MMM yyyy" on the third line. Example: "Senior Data Engineer" followed by "ReefPoint Group | Remote" followed by "Aug 2025 – Jun 2026".
 - Do not put headquarters_location at the end of the visible work experience heading, and do not combine work dates into the heading line. headquarters_location is structured context only.
 - Preserve the provided LinkedIn profile as an actual URL in "linkedin_profile". If the profile includes any LinkedIn value, you MUST include it in "linkedin_profile" using the display format "linkedin.com/in/profile-slug". If no LinkedIn profile is provided, leave it blank. Never invent a LinkedIn URL.
 - Normalize noisy target job titles before setting the top-level "role": remove locations, remote/hybrid tags, agency/recruiter names, team names, squad names, project names, product names, platform names, department labels, requisition IDs, contract labels, parenthetical clutter, and descriptive suffixes after separators such as "-", "|", "/", ":", "–", or "—". Keep the plain role name commonly used in job postings, such as "Software Engineer", "Senior Data Engineer", or "Product Manager". For example, "Senior Systems Engineer — AI Code Metrics Daemon" must become "Senior Systems Engineer".
@@ -225,6 +225,7 @@ Instructions:
 - For each work_experience entry, set "headquarters_location" to the company's headquarters location only when it is provided in the profile or available from verified public/company context. Format US headquarters as "City, ST" using the two-letter state abbreviation, such as "San Francisco, CA" or "New York, NY". Do not include the country. If unavailable, use the provided work location in "location" and leave "headquarters_location" blank.
 - For each work_experience entry, set "work_mode" to exactly one of "Remote", "Onsite", or "Hybrid" based on explicit profile/resume evidence. If the profile does not say, infer cautiously from the work location and job context; default to "Remote" only when remote work is clearly implied, otherwise use "Onsite".
 - For each work_experience entry, provide exactly 2 "projects" only when they are explicitly named in the profile or can be supported by verified public/company context such as a product, platform, or program area. If exact project names cannot be verified, use concise project-area names grounded in the profile and company context, not invented confidential initiatives.
+- Do not rely on standalone "Projects:" lines for visible resume content. When project names matter, weave them naturally into achievement bullets so ATS parsers see normal work-experience bullet content after the date line.
 - Use metrics sparingly and only when plausible. Prefer concrete counts, scale, scope, latency, throughput, team size, systems, users, data volume, or time saved over percentage claims.
 - Do not overload work_experience bullets with percentages. Use at most one percentage-style metric per role unless the profile explicitly provides more, because unverifiable percentage claims can look fabricated.
 - Summary must be exactly 4 lines and 65 to 70 words.
@@ -328,14 +329,12 @@ async function renderResumeDocx(data, profile) {
 
   addSection(children, 'Work Experience', template);
   for (const exp of workExperienceEntries(data)) {
-    const projects = projectNames(exp);
     const period = workExperienceDateRange(exp);
 
     addText(children, workExperienceTitle(exp), { bold: true, before: template.experienceBefore, after: 30 }, template);
     addWorkExperienceCompanyLine(children, exp, template);
-    addText(children, period, { size: template.metaSize, after: projects.length ? 30 : 60 }, template);
-    if (projects.length) addText(children, `Projects: ${projects.join(', ')}`, { size: template.metaSize, after: 60 }, template);
-    for (const bullet of exp.bullets || []) {
+    addText(children, period, { size: template.metaSize, after: 60 }, template);
+    for (const bullet of workExperienceBullets(exp)) {
       children.push(
         new Paragraph({
           bullet: { level: 0 },
@@ -416,10 +415,10 @@ function addWorkExperienceCompanyLine(children, exp, template) {
   );
 }
 
-function workExperienceCompanyLine(exp) {
+export function workExperienceCompanyLine(exp) {
   const company = String(exp.company || '').trim();
   const workPlace = workExperienceDisplayPlace(exp);
-  return [company, workPlace].filter(Boolean).join(', ');
+  return [company, workPlace].filter(Boolean).join(' | ');
 }
 
 function addSpacer(children, after) {
@@ -508,6 +507,27 @@ function projectNames(exp) {
     .slice(0, 2);
 }
 
+export function workExperienceBullets(exp) {
+  const bullets = Array.isArray(exp.bullets) ? exp.bullets : [];
+  const projectBullet = workExperienceProjectBullet(exp);
+  return [
+    projectBullet,
+    ...bullets,
+  ].filter(Boolean);
+}
+
+function workExperienceProjectBullet(exp) {
+  const projects = projectNames(exp);
+  if (!projects.length) return '';
+
+  return `Project focus included ${sentenceList(projects)}.`;
+}
+
+function sentenceList(values) {
+  if (values.length <= 1) return values[0] || '';
+  return `${values.slice(0, -1).join(', ')} and ${values.at(-1)}`;
+}
+
 function contactParagraph(profile, data, template) {
   const runs = [];
   for (const value of [profile.location, profile.email, profile.phone].filter(Boolean)) {
@@ -547,7 +567,7 @@ function renderedResumeTextLength(data, profile) {
   return renderedResumeTextParts(data, profile).join(' ').length;
 }
 
-function renderedResumeTextParts(data, profile) {
+export function renderedResumeTextParts(data, profile) {
   const parts = [
     profile.name || data.name || 'Resume',
     profile.location,
@@ -565,8 +585,7 @@ function renderedResumeTextParts(data, profile) {
       workExperienceTitle(exp),
       workExperienceCompanyLine(exp),
       workExperienceDateRange(exp),
-      ...projectNames(exp),
-      ...(exp.bullets || []),
+      ...workExperienceBullets(exp),
     );
   }
 

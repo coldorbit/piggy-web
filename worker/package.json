@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "node tailoringWorker.js",
     "start": "NODE_ENV=production node tailoringWorker.js",
+    "test": "node --test \"test/**/*.test.js\"",
     "check": "find . -path ./node_modules -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check"
   },
   "dependencies": {
