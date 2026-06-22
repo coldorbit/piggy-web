@@ -2,6 +2,7 @@ import {
   ensureWebModels,
   getBidProfileModel,
   getCollaborationEventModel,
+  getInterviewCallModel,
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
@@ -1179,10 +1180,25 @@ export async function exportCalendarIcs(req, res, next) {
 
 async function calendarInterviewsForUser(user) {
   const Interview = getInterviewModel();
+  const InterviewCall = getInterviewCallModel();
   const BidProfile = getBidProfileModel();
   const WebUser = getWebUserModel();
+  const callerCallInterviewIds = user.role === 'caller'
+    ? (await InterviewCall.findAll({
+        where: { callerUserId: user.id },
+        attributes: ['interviewId'],
+        group: ['interviewId'],
+      })).map((call) => call.interviewId)
+    : [];
   const where = {
-    ...(user.role === 'caller' ? { callerUserId: user.id } : {}),
+    ...(user.role === 'caller'
+      ? {
+          [Op.or]: [
+            { callerUserId: user.id },
+            ...(callerCallInterviewIds.length ? [{ id: { [Op.in]: callerCallInterviewIds } }] : []),
+          ],
+        }
+      : {}),
   };
 
   const interviews = await Interview.findAll({
@@ -1200,20 +1216,93 @@ async function calendarInterviewsForUser(user) {
       ['updatedAt', 'DESC'],
     ],
   });
-  const logsByInterviewId = await interviewLogsByInterviewId(interviews);
+  const [logsByInterviewId, callsByInterviewId] = await Promise.all([
+    interviewLogsByInterviewId(interviews),
+    interviewCallsByInterviewId(interviews, user),
+  ]);
   for (const interview of interviews) {
     interview.setDataValue('logs', logsByInterviewId.get(String(interview.id)) || []);
+    interview.setDataValue('calls', callsByInterviewId.get(String(interview.id)) || []);
   }
   return interviews;
 }
 
 export function calendarEventsForInterviews(interviews = []) {
   return interviews
-    .flatMap((interview) => [
-      ...interviewOccurrenceEvents(interview),
-      ...(interview.interviewNextAt ? [currentInterviewCalendarEvent(interview)] : []),
-    ])
+    .flatMap((interview) => {
+      const callEvents = interviewCallEvents(interview);
+      if (callEvents.length) return callEvents;
+      return [
+        ...interviewOccurrenceEvents(interview),
+        ...(interview.interviewNextAt ? [currentInterviewCalendarEvent(interview)] : []),
+      ];
+    })
     .sort((left, right) => new Date(left.interviewNextAt || 0) - new Date(right.interviewNextAt || 0));
+}
+
+function interviewCallEvents(interview) {
+  const calls = interview.calls || interview.get?.('calls') || [];
+  const seen = new Set();
+  return [...calls]
+    .sort(compareInterviewCallsForCalendar)
+    .map((call) => interviewCallEvent(interview, call))
+    .filter(Boolean)
+    .filter((event) => {
+      const key = `${event.parentInterviewId}:${event.interviewStage}:${dateValue(event.interviewNextAt)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function compareInterviewCallsForCalendar(left, right) {
+  const leftTime = new Date(left.scheduledAt || 0).getTime();
+  const rightTime = new Date(right.scheduledAt || 0).getTime();
+  if (leftTime !== rightTime) return leftTime - rightTime;
+  const priorityDiff = interviewCallSourcePriority(right.sourceType) - interviewCallSourcePriority(left.sourceType);
+  if (priorityDiff) return priorityDiff;
+  return Number(right.id || 0) - Number(left.id || 0);
+}
+
+function interviewCallSourcePriority(sourceType) {
+  if (['current_schedule', 'schedule_update', 'created'].includes(sourceType)) return 3;
+  if (sourceType === 'schedule_changed') return 2;
+  if (sourceType === 'first_scheduled') return 1;
+  return 0;
+}
+
+function interviewCallEvent(interview, call) {
+  const scheduledAt = dateValue(call.scheduledAt);
+  if (!scheduledAt) return null;
+  const stage = call.interviewStage || interview.interviewStage || 'todo';
+  const meetingLink = clean(call.meetingLink);
+  const notes = clean(call.notes);
+
+  return {
+    calendarEventId: `interview-${interview.id}-call-${call.id}`,
+    parentInterviewId: interview.id,
+    interviewCallId: call.id,
+    profile: interview.profile,
+    profileId: interview.profileId,
+    userId: call.userId || interview.userId,
+    callerUserId: call.callerUserId || interview.callerUserId,
+    jobId: interview.jobId,
+    jobBidId: interview.jobBidId,
+    title: interview.title,
+    company: interview.company,
+    location: interview.location,
+    jobUrl: interview.jobUrl,
+    status: interview.status,
+    interviewStage: stage,
+    interviewNextAt: new Date(scheduledAt),
+    interviewDurationMinutes: Number(call.durationMinutes || interview.interviewDurationMinutes || 60),
+    interviewNotes: notes || interview.interviewNotes,
+    stageNotes: notes ? { [stage]: notes } : interview.stageNotes || {},
+    stageMeetingLinks: meetingLink ? { [stage]: meetingLink } : interview.stageMeetingLinks || {},
+    createdAt: call.createdAt || interview.createdAt,
+    updatedAt: call.updatedAt || interview.updatedAt,
+    isHistoricalOccurrence: dateValue(interview.interviewNextAt) !== scheduledAt || stage !== interview.interviewStage,
+  };
 }
 
 function currentInterviewCalendarEvent(interview) {
@@ -3420,6 +3509,7 @@ function formatInterviewAsJob(interview, bidUsersById = new Map(), callerUsersBy
   return {
     id: `interview-${formattedId}`,
     interviewId: interview.parentInterviewId || interview.id,
+    interviewCallId: interview.interviewCallId || null,
     occurrenceLogId: interview.occurrenceLogId || null,
     title: interview.title,
     company: interview.company,
@@ -3443,6 +3533,7 @@ function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById
     id: interview.calendarEventId || interview.id,
     isInterview: true,
     parentInterviewId: interview.parentInterviewId || interview.id,
+    interviewCallId: interview.interviewCallId || null,
     occurrenceLogId: interview.occurrenceLogId || null,
     isHistoricalOccurrence: Boolean(interview.isHistoricalOccurrence),
     userId: interview.userId,
@@ -3484,6 +3575,39 @@ async function interviewLogsByInterviewId(interviews) {
   const byInterviewId = new Map(interviewIds.map((id) => [String(id), []]));
   for (const log of logs) {
     byInterviewId.get(String(log.interviewId))?.push(log);
+  }
+  return byInterviewId;
+}
+
+async function interviewCallsByInterviewId(interviews, user = null) {
+  const interviewIds = interviews.map((interview) => interview.id).filter(Boolean);
+  if (!interviewIds.length) return new Map();
+  const currentCallerInterviewIds = user?.role === 'caller'
+    ? interviews
+        .filter((interview) => String(interview.callerUserId || '') === String(user.id))
+        .map((interview) => interview.id)
+    : [];
+  const calls = await getInterviewCallModel().findAll({
+    where: {
+      interviewId: interviewIds,
+      ...(user?.role === 'caller'
+        ? {
+            [Op.or]: [
+              { callerUserId: user.id },
+              ...(currentCallerInterviewIds.length ? [{ interviewId: { [Op.in]: currentCallerInterviewIds } }] : []),
+            ],
+          }
+        : {}),
+    },
+    order: [
+      ['interviewId', 'ASC'],
+      ['scheduledAt', 'ASC'],
+      ['id', 'ASC'],
+    ],
+  });
+  const byInterviewId = new Map(interviewIds.map((id) => [String(id), []]));
+  for (const call of calls) {
+    byInterviewId.get(String(call.interviewId))?.push(call);
   }
   return byInterviewId;
 }
@@ -3539,6 +3663,7 @@ function interviewSnapshot(interview) {
 }
 
 async function logInterviewCreated(interview, userId) {
+  await ensureInterviewCallForCurrentSchedule(interview, { sourceType: 'created' });
   await getInterviewLogModel().create({
     interviewId: interview.id,
     userId,
@@ -3558,6 +3683,7 @@ async function logInterviewCreated(interview, userId) {
 }
 
 async function logInterviewChanges({ interview, previous, attrs, userId }) {
+  await ensureInterviewCallForCurrentSchedule(interview, { sourceType: 'schedule_update' });
   const logs = [];
   if (previous.interviewStage !== interview.interviewStage) {
     const occurrenceLog = interviewOccurrenceLogFromSnapshot(previous, interview);
@@ -3612,6 +3738,38 @@ async function logInterviewChanges({ interview, previous, attrs, userId }) {
       metadata: { ...(log.metadata || {}), source: attrs.status || interview.status },
     })),
   );
+}
+
+async function ensureInterviewCallForCurrentSchedule(interview, { sourceType = 'current_schedule' } = {}) {
+  const scheduledAt = dateValue(interview.interviewNextAt);
+  if (!scheduledAt) return null;
+  const stage = interview.interviewStage || 'todo';
+  const notes = clean(interview.stageNotes?.[stage] || interview.interviewNotes);
+  const meetingLink = clean(meetingLinkForStage(interview.stageMeetingLinks, stage));
+  const sourceKey = interviewCallSourceKey({ interviewId: interview.id, stage, scheduledAt });
+
+  const [call] = await getInterviewCallModel().findOrCreate({
+    where: { sourceKey },
+    defaults: {
+      interviewId: interview.id,
+      userId: interview.userId || null,
+      callerUserId: interview.callerUserId || null,
+      interviewStage: stage,
+      scheduledAt: new Date(scheduledAt),
+      durationMinutes: Number(interview.interviewDurationMinutes || 60),
+      meetingLink: meetingLink || null,
+      notes: notes || null,
+      sourceType,
+      sourceKey,
+      metadata: { createdFrom: sourceType },
+    },
+  });
+
+  return call;
+}
+
+function interviewCallSourceKey({ interviewId, stage, scheduledAt }) {
+  return `interview:${interviewId}:call:${stage || 'todo'}:${dateValue(scheduledAt)}`;
 }
 
 export function interviewOccurrenceLogFromSnapshot(previous, interview) {

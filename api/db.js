@@ -9,6 +9,7 @@ export {
   getFaqModel,
   getForwardedMailboxMessageModel,
   getInterviewLogModel,
+  getInterviewCallModel,
   getInterviewModel,
   getJobBidModel,
   getMarketplaceCallerProfileModel,

@@ -172,6 +172,29 @@ describe('interview scheduled occurrences', () => {
     assert.equal(events[0].calendarEventId, 'interview-88-occurrence-601');
     assert.equal(events[0].interviewStage, 'screening');
   });
+
+  it('uses durable call rows instead of moving the previous calendar event', () => {
+    const interview = interviewRow({
+      id: 99,
+      interviewStage: 'hiring_manager',
+      interviewNextAt: new Date('2026-06-25T18:00:00.000Z'),
+      calls: [
+        interviewCall({ id: 701, interviewStage: 'screening', scheduledAt: new Date('2026-06-22T16:00:00.000Z') }),
+        interviewCall({ id: 702, interviewStage: 'hiring_manager', scheduledAt: new Date('2026-06-25T18:00:00.000Z') }),
+      ],
+    });
+
+    const events = calendarEventsForInterviews([interview]);
+
+    assert.equal(events.length, 2);
+    assert.deepEqual(
+      events.map((event) => [event.calendarEventId, event.parentInterviewId, event.interviewStage, event.interviewNextAt.toISOString()]),
+      [
+        ['interview-99-call-701', 99, 'screening', '2026-06-22T16:00:00.000Z'],
+        ['interview-99-call-702', 99, 'hiring_manager', '2026-06-25T18:00:00.000Z'],
+      ],
+    );
+  });
 });
 
 function bidJob(overrides = {}) {
@@ -209,6 +232,24 @@ function interviewRow(overrides = {}) {
     stageNotes: {},
     stageMeetingLinks: {},
     logs: [],
+    calls: [],
+    createdAt: new Date('2026-06-18T12:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T12:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function interviewCall(overrides = {}) {
+  return {
+    id: 1,
+    interviewId: 1,
+    userId: 20,
+    callerUserId: null,
+    interviewStage: 'screening',
+    scheduledAt: new Date('2026-06-22T16:00:00.000Z'),
+    durationMinutes: 60,
+    meetingLink: '',
+    notes: '',
     createdAt: new Date('2026-06-18T12:00:00.000Z'),
     updatedAt: new Date('2026-06-18T12:00:00.000Z'),
     ...overrides,

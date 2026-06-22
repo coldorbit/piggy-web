@@ -9,6 +9,7 @@ import {
   getConsumptionTransactionModel,
   getFaqModel,
   getForwardedMailboxMessageModel,
+  getInterviewCallModel,
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
@@ -42,6 +43,7 @@ export async function ensureWebModels() {
       await ensureAssessmentColumns();
       await getJobBidModel().sync();
       await getInterviewModel().sync();
+      await getInterviewCallModel().sync();
       await getInterviewLogModel().sync();
       await getTailoredResumeModel().sync();
       await getMarketplaceParticipantModel().sync();
@@ -76,6 +78,7 @@ export async function ensureWebModels() {
       await ensureForwardedMailboxMessageIndexes();
       await ensureJobBidProfileScopedUniqueness();
       await ensureInterviewIndexes();
+      await ensureInterviewCallBackfill();
       await ensureAssessmentIndexes();
       await ensureMarketplaceIndexes();
     })().catch((error) => {
@@ -218,6 +221,172 @@ async function ensureInterviewIndexes() {
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS interview_logs_interview_created_at_idx
     ON interview_logs (interview_id, created_at)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interview_calls_interview_scheduled_at_idx
+    ON interview_calls (interview_id, scheduled_at)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interview_calls_caller_scheduled_at_idx
+    ON interview_calls (caller_user_id, scheduled_at)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interview_calls_scheduled_at_idx
+    ON interview_calls (scheduled_at)
+  `);
+  await sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS interview_calls_source_key_unique
+    ON interview_calls (source_key)
+  `);
+}
+
+async function ensureInterviewCallBackfill() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    INSERT INTO interview_calls (
+      interview_id,
+      user_id,
+      caller_user_id,
+      interview_stage,
+      scheduled_at,
+      duration_minutes,
+      meeting_link,
+      notes,
+      source_type,
+      source_key,
+      metadata,
+      created_at,
+      updated_at
+    )
+    SELECT
+      interviews.id,
+      interviews.user_id,
+      interviews.caller_user_id,
+      COALESCE(NULLIF(interview_logs.metadata->>'stage', ''), interviews.interview_stage, 'todo'),
+      (COALESCE(NULLIF(interview_logs.metadata->>'scheduledAt', ''), interview_logs.to_value))::timestamptz,
+      COALESCE(NULLIF(interview_logs.metadata->>'durationMinutes', '')::int, interviews.interview_duration_minutes, 60),
+      NULLIF(interview_logs.metadata->>'meetingLink', ''),
+      NULLIF(interview_logs.metadata->>'notes', ''),
+      'interview_occurrence',
+      'interview_log:' || interview_logs.id::text,
+      jsonb_build_object('backfilled', true, 'logEventType', interview_logs.event_type),
+      COALESCE(interview_logs.created_at, interviews.created_at, now()),
+      COALESCE(interview_logs.created_at, interviews.updated_at, now())
+    FROM interview_logs
+    JOIN interviews ON interviews.id = interview_logs.interview_id
+    WHERE interview_logs.event_type = 'interview_occurrence'
+      AND COALESCE(NULLIF(interview_logs.metadata->>'scheduledAt', ''), interview_logs.to_value) IS NOT NULL
+    ON CONFLICT (source_key) DO NOTHING
+  `);
+
+  await sequelize.query(`
+    INSERT INTO interview_calls (
+      interview_id,
+      user_id,
+      caller_user_id,
+      interview_stage,
+      scheduled_at,
+      duration_minutes,
+      meeting_link,
+      notes,
+      source_type,
+      source_key,
+      metadata,
+      created_at,
+      updated_at
+    )
+    SELECT
+      interviews.id,
+      interviews.user_id,
+      interviews.caller_user_id,
+      COALESCE(NULLIF(interview_logs.metadata->>'stage', ''), interviews.interview_stage, 'todo'),
+      interview_logs.from_value::timestamptz,
+      COALESCE(interviews.interview_duration_minutes, 60),
+      NULLIF(interviews.stage_meeting_links->>COALESCE(NULLIF(interview_logs.metadata->>'stage', ''), interviews.interview_stage, 'todo'), ''),
+      NULLIF(interviews.stage_notes->>COALESCE(NULLIF(interview_logs.metadata->>'stage', ''), interviews.interview_stage, 'todo'), ''),
+      'schedule_changed_previous',
+      'interview_log:' || interview_logs.id::text || ':from',
+      jsonb_build_object('backfilled', true, 'logEventType', interview_logs.event_type),
+      COALESCE(interview_logs.created_at, interviews.created_at, now()),
+      COALESCE(interview_logs.created_at, interviews.updated_at, now())
+    FROM interview_logs
+    JOIN interviews ON interviews.id = interview_logs.interview_id
+    WHERE interview_logs.event_type = 'schedule_changed'
+      AND interview_logs.from_value IS NOT NULL
+    ON CONFLICT (source_key) DO NOTHING
+  `);
+
+  await sequelize.query(`
+    INSERT INTO interview_calls (
+      interview_id,
+      user_id,
+      caller_user_id,
+      interview_stage,
+      scheduled_at,
+      duration_minutes,
+      meeting_link,
+      notes,
+      source_type,
+      source_key,
+      metadata,
+      created_at,
+      updated_at
+    )
+    SELECT
+      interviews.id,
+      interviews.user_id,
+      interviews.caller_user_id,
+      COALESCE(NULLIF(interview_logs.metadata->>'stage', ''), interviews.interview_stage, 'todo'),
+      COALESCE(interview_logs.to_value, interview_logs.metadata->>'scheduledAt')::timestamptz,
+      COALESCE(interviews.interview_duration_minutes, 60),
+      NULLIF(interviews.stage_meeting_links->>COALESCE(NULLIF(interview_logs.metadata->>'stage', ''), interviews.interview_stage, 'todo'), ''),
+      NULLIF(interviews.stage_notes->>COALESCE(NULLIF(interview_logs.metadata->>'stage', ''), interviews.interview_stage, 'todo'), ''),
+      interview_logs.event_type,
+      'interview_log:' || interview_logs.id::text || ':to',
+      jsonb_build_object('backfilled', true, 'logEventType', interview_logs.event_type),
+      COALESCE(interview_logs.created_at, interviews.created_at, now()),
+      COALESCE(interview_logs.created_at, interviews.updated_at, now())
+    FROM interview_logs
+    JOIN interviews ON interviews.id = interview_logs.interview_id
+    WHERE interview_logs.event_type IN ('first_scheduled', 'schedule_changed')
+      AND COALESCE(interview_logs.to_value, interview_logs.metadata->>'scheduledAt') IS NOT NULL
+    ON CONFLICT (source_key) DO NOTHING
+  `);
+
+  await sequelize.query(`
+    INSERT INTO interview_calls (
+      interview_id,
+      user_id,
+      caller_user_id,
+      interview_stage,
+      scheduled_at,
+      duration_minutes,
+      meeting_link,
+      notes,
+      source_type,
+      source_key,
+      metadata,
+      created_at,
+      updated_at
+    )
+    SELECT
+      interviews.id,
+      interviews.user_id,
+      interviews.caller_user_id,
+      COALESCE(interviews.interview_stage, 'todo'),
+      interviews.interview_next_at,
+      COALESCE(interviews.interview_duration_minutes, 60),
+      NULLIF(interviews.stage_meeting_links->>COALESCE(interviews.interview_stage, 'todo'), ''),
+      NULLIF(interviews.stage_notes->>COALESCE(interviews.interview_stage, 'todo'), ''),
+      'current_schedule',
+      'interview:' || interviews.id::text || ':call:' || COALESCE(interviews.interview_stage, 'todo') || ':' || to_char(interviews.interview_next_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+      jsonb_build_object('backfilled', true),
+      COALESCE(interviews.created_at, now()),
+      COALESCE(interviews.updated_at, now())
+    FROM interviews
+    WHERE interviews.interview_next_at IS NOT NULL
+    ON CONFLICT (source_key) DO NOTHING
   `);
 }
 
