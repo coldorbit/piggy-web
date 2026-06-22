@@ -869,9 +869,11 @@ export default function InterviewsPage({ currentUser }) {
             Move this interview from {pendingStepChangeSave?.fromLabel || 'the current step'} to {pendingStepChangeSave?.toLabel || 'the next step'}?
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {pendingStepChangeSave?.bidData?.interviewNextAt
+            {pendingStepChangeSave?.willRegisterCall && pendingStepChangeSave?.bidData?.interviewNextAt
               ? 'A calendar call will be registered for the new step using the next interview time.'
-              : 'No calendar call will be registered for this move because no next interview time is set.'}
+              : pendingStepChangeSave?.willRegisterCall
+                ? 'No calendar call will be registered for this move because no next interview time is set.'
+                : 'No calendar call will be registered for this move.'}
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -918,7 +920,13 @@ function interviewStepChange(job, bidData) {
     toStage,
     fromLabel: stageLabel(fromStage),
     toLabel: stageLabel(toStage),
+    willRegisterCall: shouldRegisterCallForStepChange(fromStage, toStage),
   };
+}
+
+function shouldRegisterCallForStepChange(fromStage, toStage) {
+  if (fromStage === 'todo' && toStage === 'screening') return false;
+  return fromStage !== toStage;
 }
 
 function applicationOptionLabel(option) {

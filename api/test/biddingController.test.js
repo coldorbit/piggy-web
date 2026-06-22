@@ -5,6 +5,7 @@ import {
   canWriteInterviewForProfile,
   groupedBidJobs,
   interviewOccurrenceLogFromSnapshot,
+  shouldRegisterInterviewCallForStageChange,
 } from '../server/modules/bidding/presentation/biddingController.js';
 import { ROLES } from '../server/utils/roles.js';
 
@@ -89,6 +90,11 @@ describe('canWriteInterviewForProfile', () => {
 });
 
 describe('interview scheduled occurrences', () => {
+  it('does not register a calendar call when moving todo to screening', () => {
+    assert.equal(shouldRegisterInterviewCallForStageChange('todo', 'screening'), false);
+    assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'hiring_manager'), true);
+  });
+
   it('captures the previous scheduled stage when an interview progresses', () => {
     const log = interviewOccurrenceLogFromSnapshot(
       {

@@ -3722,7 +3722,9 @@ async function logInterviewCreated(interview, userId) {
 async function logInterviewChanges({ interview, previous, attrs, userId }) {
   const logs = [];
   if (previous.interviewStage !== interview.interviewStage) {
-    await ensureInterviewCallForCurrentSchedule(interview, { sourceType: 'stage_changed' });
+    if (shouldRegisterInterviewCallForStageChange(previous.interviewStage, interview.interviewStage)) {
+      await ensureInterviewCallForCurrentSchedule(interview, { sourceType: 'stage_changed' });
+    }
     const occurrenceLog = interviewOccurrenceLogFromSnapshot(previous, interview);
     if (occurrenceLog) logs.push(occurrenceLog);
     logs.push({
@@ -3775,6 +3777,13 @@ async function logInterviewChanges({ interview, previous, attrs, userId }) {
       metadata: { ...(log.metadata || {}), source: attrs.status || interview.status },
     })),
   );
+}
+
+export function shouldRegisterInterviewCallForStageChange(previousStage, nextStage) {
+  const fromStage = previousStage || 'todo';
+  const toStage = nextStage || 'todo';
+  if (fromStage === 'todo' && toStage === 'screening') return false;
+  return fromStage !== toStage;
 }
 
 async function ensureInterviewCallForCurrentSchedule(interview, { sourceType = 'current_schedule' } = {}) {
