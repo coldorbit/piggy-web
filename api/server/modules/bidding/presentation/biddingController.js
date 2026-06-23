@@ -3362,6 +3362,66 @@ export async function deleteInterview(req, res, next) {
   }
 }
 
+export async function updateInterviewCall(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const call = await getInterviewCallModel().findByPk(req.params.id);
+    if (!call) {
+      res.status(404).json({ error: 'Interview call not found' });
+      return;
+    }
+
+    const interview = await getInterviewModel().findByPk(call.interviewId);
+    if (!interview) {
+      res.status(404).json({ error: 'Interview not found' });
+      return;
+    }
+    if (!isAdminRole(user)) {
+      await interviewWriteProfileForUser(user, interview.profileId, 'Interview not found');
+    }
+
+    const attrs = bidAttributesFromBody({
+      status: 'interviewing',
+      interviewStage: call.interviewStage || interview.interviewStage || 'todo',
+      interviewNextAt: req.body?.scheduledAt || req.body?.interviewNextAt,
+      interviewDurationMinutes: req.body?.durationMinutes || req.body?.interviewDurationMinutes || req.body?.interviewDuration,
+    });
+    if (!attrs.interviewNextAt) throw new InputError('Call date is required');
+
+    const syncCurrentSchedule = callMatchesCurrentInterviewSchedule(call, interview);
+    const durationMinutes = attrs.interviewDurationMinutes || call.durationMinutes || interview.interviewDurationMinutes || 60;
+    const now = new Date();
+    await call.update({
+      scheduledAt: attrs.interviewNextAt,
+      durationMinutes,
+      updatedAt: now,
+    });
+
+    if (syncCurrentSchedule) {
+      await interview.update({
+        interviewNextAt: attrs.interviewNextAt,
+        interviewDurationMinutes: durationMinutes,
+        updatedAt: now,
+      });
+      if (interview.jobBidId) {
+        const bid = await getJobBidModel().findByPk(interview.jobBidId);
+        if (bid) {
+          await bid.update({
+            interviewNextAt: attrs.interviewNextAt,
+            interviewDurationMinutes: durationMinutes,
+            updatedAt: now,
+          });
+        }
+      }
+    }
+
+    res.json({ call: formatInterviewCall(call) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 export async function deleteInterviewCall(req, res, next) {
   try {
     await ensureWebModels();

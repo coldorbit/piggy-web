@@ -6,7 +6,7 @@ import CalendarProfileLegend from '../components/calendar/CalendarProfileLegend.
 import CalendarToolbar, { CALENDAR_VIEWS } from '../components/calendar/CalendarToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { CALENDAR_PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { api, downloadAuthenticatedFile } from '../lib/api.js';
+import { api, downloadAuthenticatedFile, useUpdateInterviewCall, useUpdateJobBid } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
 import {
   addDaysToDateKey,
@@ -23,7 +23,10 @@ export default function CalendarPage() {
   const [cursorDate, setCursorDate] = useState(() => defaultTimezoneTodayKey());
   const [search, setSearch] = useState('');
   const [checkedProfileIds, setCheckedProfileIds] = useState([]);
+  const [calendarActionError, setCalendarActionError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
+  const updateBid = useUpdateJobBid();
+  const updateInterviewCall = useUpdateInterviewCall();
   const {
     data: calendarData,
     isLoading: calendarLoading,
@@ -78,7 +81,7 @@ export default function CalendarPage() {
     [jobs, profileById, checkedProfileIds, search, calendarMeta.conflicts],
   );
   const loading = calendarLoading;
-  const pageError = calendarError?.message || '';
+  const pageError = calendarActionError || calendarError?.message || '';
   const visibleDays = useMemo(
     () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
     [cursorDate, view],
@@ -102,6 +105,40 @@ export default function CalendarPage() {
       else currentSet.delete(id);
       return calendarProfiles.map((profile) => String(profile.id)).filter((activeId) => currentSet.has(activeId));
     });
+  }
+
+  function moveCalendarEvent(event, startsAt) {
+    if (!event || !startsAt || Number.isNaN(startsAt.getTime()) || event.occurrenceLogId) return;
+    setCalendarActionError('');
+    const scheduledAt = startsAt.toISOString();
+    const durationMinutes = event.durationMinutes || event.job?.bid?.interviewDurationMinutes || 60;
+    if (event.interviewCallId) {
+      updateInterviewCall.mutate(
+        {
+          interviewCallId: event.interviewCallId,
+          callData: { scheduledAt, durationMinutes },
+        },
+        { onError: (error) => setCalendarActionError(error.message) },
+      );
+      return;
+    }
+
+    if (!event.interviewId || !event.job?.bid) return;
+    updateBid.mutate(
+      {
+        bidId: event.interviewId,
+        jobId: event.job.id,
+        bidData: {
+          ...event.job.bid,
+          id: event.interviewId,
+          isInterview: true,
+          status: event.job.bid.status || 'interviewing',
+          interviewNextAt: scheduledAt,
+          interviewDurationMinutes: durationMinutes,
+        },
+      },
+      { onError: (error) => setCalendarActionError(error.message) },
+    );
   }
 
   return (
@@ -147,7 +184,14 @@ export default function CalendarPage() {
           onSelectNone={() => setCheckedProfileIds([])}
         />
 
-        <CalendarGrid currentUser={currentUser} cursorDate={cursorDate} eventsByDay={eventsByDay} visibleDays={visibleDays} view={view} />
+        <CalendarGrid
+          currentUser={currentUser}
+          cursorDate={cursorDate}
+          eventsByDay={eventsByDay}
+          visibleDays={visibleDays}
+          view={view}
+          onEventDrop={moveCalendarEvent}
+        />
       </Box>
     </Box>
   );
@@ -166,6 +210,8 @@ function calendarEvents(jobs, profileById, checkedProfileIds, search, conflicts 
         id: eventId,
         sourceId: String(job.bid?.id || job.id || ''),
         interviewCallId: job.interviewCallId || job.bid?.interviewCallId || null,
+        interviewId: job.interviewId || job.bid?.parentInterviewId || null,
+        occurrenceLogId: job.occurrenceLogId || job.bid?.occurrenceLogId || null,
         title: job.title || 'Untitled role',
         company: job.company || 'Unknown company',
         location: job.location || '',
@@ -173,6 +219,7 @@ function calendarEvents(jobs, profileById, checkedProfileIds, search, conflicts 
         durationMinutes: job.bid?.interviewDurationMinutes || 60,
         profile,
         job,
+        canDrag: !job.occurrenceLogId && !job.bid?.occurrenceLogId,
         hasConflict: conflictIdsByEventId.has(String(job.bid?.id || job.id || '')),
       };
     })

@@ -10,6 +10,7 @@ import {
   dateKeyDayOfWeek,
   dateKeyMonth,
   defaultTimezoneTodayKey,
+  fromDefaultTimezoneDatetimeLocal,
   timeLabelInDefaultTimezone,
   zonedDateParts,
 } from '../../lib/timezone.js';
@@ -20,9 +21,26 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_item, hour) => hour);
 const HOUR_HEIGHT = 64;
 
-export default function CalendarGrid({ currentUser = {}, cursorDate, eventsByDay, visibleDays, view }) {
+export default function CalendarGrid({ currentUser = {}, cursorDate, eventsByDay, visibleDays, view, onEventDrop = null }) {
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [draggedEventId, setDraggedEventId] = useState('');
   const selectedEventId = selectedEvent?.id || '';
+  const eventById = eventLookup(eventsByDay);
+
+  function handleDragStart(event) {
+    setDraggedEventId(event.id);
+  }
+
+  function handleDragEnd() {
+    setDraggedEventId('');
+  }
+
+  function handleEventDrop(eventId, startsAt) {
+    const event = eventById.get(eventId);
+    setDraggedEventId('');
+    if (!event || !onEventDrop) return;
+    onEventDrop(event, startsAt);
+  }
 
   return (
     <>
@@ -38,14 +56,27 @@ export default function CalendarGrid({ currentUser = {}, cursorDate, eventsByDay
         }}
       >
         {view === CALENDAR_VIEWS.week ? (
-          <WeekCalendar days={visibleDays} eventsByDay={eventsByDay} selectedEventId={selectedEventId} onEventClick={setSelectedEvent} />
+          <WeekCalendar
+            days={visibleDays}
+            draggedEventId={draggedEventId}
+            eventsByDay={eventsByDay}
+            selectedEventId={selectedEventId}
+            onDragEnd={handleDragEnd}
+            onDragStart={handleDragStart}
+            onEventClick={setSelectedEvent}
+            onEventDrop={onEventDrop ? handleEventDrop : null}
+          />
         ) : (
           <MonthCalendar
             cursorDate={cursorDate}
             days={visibleDays}
+            draggedEventId={draggedEventId}
             eventsByDay={eventsByDay}
             selectedEventId={selectedEventId}
+            onDragEnd={handleDragEnd}
+            onDragStart={handleDragStart}
             onEventClick={setSelectedEvent}
+            onEventDrop={onEventDrop ? handleEventDrop : null}
           />
         )}
       </Paper>
@@ -54,7 +85,7 @@ export default function CalendarGrid({ currentUser = {}, cursorDate, eventsByDay
   );
 }
 
-function MonthCalendar({ cursorDate, days, eventsByDay, selectedEventId, onEventClick }) {
+function MonthCalendar({ cursorDate, days, draggedEventId, eventsByDay, selectedEventId, onDragEnd, onDragStart, onEventClick, onEventDrop }) {
   return (
     <>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', borderBottom: 1, borderColor: 'divider' }}>
@@ -87,10 +118,14 @@ function MonthCalendar({ cursorDate, days, eventsByDay, selectedEventId, onEvent
           <CalendarDay
             key={day}
             day={day}
+            draggedEventId={draggedEventId}
             events={eventsByDay.get(day) || []}
             isCurrentMonth={dateKeyMonth(day) === dateKeyMonth(cursorDate)}
             selectedEventId={selectedEventId}
+            onDragEnd={onDragEnd}
+            onDragStart={onDragStart}
             onEventClick={onEventClick}
+            onEventDrop={onEventDrop}
           />
         ))}
       </Box>
@@ -98,7 +133,7 @@ function MonthCalendar({ cursorDate, days, eventsByDay, selectedEventId, onEvent
   );
 }
 
-function WeekCalendar({ days, eventsByDay, selectedEventId, onEventClick }) {
+function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDragEnd, onDragStart, onEventClick, onEventDrop }) {
   const [now, setNow] = useState(() => new Date());
   const scrollRef = useRef(null);
   const centeredRangeRef = useRef('');
@@ -182,10 +217,14 @@ function WeekCalendar({ days, eventsByDay, selectedEventId, onEventClick }) {
             key={day}
             day={day}
             column={index + 2}
+            draggedEventId={draggedEventId}
             events={eventsByDay.get(day) || []}
             now={now}
             selectedEventId={selectedEventId}
+            onDragEnd={onDragEnd}
+            onDragStart={onDragStart}
             onEventClick={onEventClick}
+            onEventDrop={onEventDrop}
           />
         ))}
       </Box>
@@ -235,12 +274,29 @@ function WeekDayHeader({ day }) {
   );
 }
 
-function WeekDayColumn({ day, column, events, now, selectedEventId, onEventClick }) {
+function WeekDayColumn({ day, column, draggedEventId, events, now, selectedEventId, onDragEnd, onDragStart, onEventClick, onEventDrop }) {
   const isToday = day === defaultTimezoneTodayKey();
   const currentTimeTop = isToday ? eventTop(now) : null;
   const laidOutEvents = layoutOverlappingEvents(events);
+
+  function handleDragOver(event) {
+    if (!onEventDrop || !draggedEventId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  function handleDrop(event) {
+    if (!onEventDrop) return;
+    event.preventDefault();
+    const eventId = event.dataTransfer.getData('text/calendar-event-id') || draggedEventId;
+    if (!eventId) return;
+    onEventDrop(eventId, weekDropDateTime(day, event.currentTarget, event.clientY));
+  }
+
   return (
     <Box
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       sx={{
         gridColumn: `${column} / ${column + 1}`,
         gridRow: '2 / 3',
@@ -265,8 +321,11 @@ function WeekDayColumn({ day, column, events, now, selectedEventId, onEventClick
         <WeekCalendarEvent
           key={event.id}
           event={event}
+          isDragging={event.id === draggedEventId}
           isSelected={event.id === selectedEventId}
           layout={layout}
+          onDragEnd={onDragEnd}
+          onDragStart={onDragStart}
           onEventClick={onEventClick}
         />
       ))}
@@ -275,7 +334,7 @@ function WeekDayColumn({ day, column, events, now, selectedEventId, onEventClick
   );
 }
 
-function WeekCalendarEvent({ event, isSelected, layout, onEventClick }) {
+function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, onDragStart, onEventClick }) {
   const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   const top = eventTop(event.startsAt);
   const height = eventHeight(event.durationMinutes);
@@ -293,7 +352,10 @@ function WeekCalendarEvent({ event, isSelected, layout, onEventClick }) {
       <Box
         component="button"
         type="button"
+        draggable={Boolean(event.canDrag)}
         aria-pressed={isSelected}
+        onDragEnd={onDragEnd}
+        onDragStart={(dragEvent) => beginEventDrag(dragEvent, event, onDragStart)}
         onClick={() => onEventClick(event)}
         sx={{
           position: 'absolute',
@@ -319,13 +381,17 @@ function WeekCalendarEvent({ event, isSelected, layout, onEventClick }) {
           borderTop: 0,
           borderRight: 0,
           borderBottom: 0,
-          cursor: 'pointer',
+          cursor: event.canDrag ? 'grab' : 'pointer',
+          opacity: isDragging ? 0.55 : 1,
           font: 'inherit',
           textAlign: 'left',
           zIndex: isSelected ? 20 : layout?.column + 1 || 1,
           '&:hover': {
             boxShadow: isSelected ? '0 10px 22px rgba(15, 23, 42, 0.32)' : '0 2px 7px rgba(15, 23, 42, 0.22)',
             zIndex: isSelected ? 20 : 10,
+          },
+          '&:active': {
+            cursor: event.canDrag ? 'grabbing' : 'pointer',
           },
           '&:focus-visible': {
             outline: '3px solid rgba(37, 99, 235, 0.42)',
@@ -384,13 +450,30 @@ function CurrentTimeLine({ top }) {
   );
 }
 
-function CalendarDay({ day, events, isCurrentMonth, selectedEventId, onEventClick }) {
+function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEventId, onDragEnd, onDragStart, onEventClick, onEventDrop }) {
   const isToday = day === defaultTimezoneTodayKey();
   const displayedEvents = events.slice(0, 4);
   const hiddenCount = events.length - displayedEvents.length;
 
+  function handleDragOver(event) {
+    if (!onEventDrop || !draggedEventId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }
+
+  function handleDrop(event) {
+    if (!onEventDrop) return;
+    event.preventDefault();
+    const eventId = event.dataTransfer.getData('text/calendar-event-id') || draggedEventId;
+    const sourceStartsAt = event.dataTransfer.getData('text/calendar-event-start');
+    if (!eventId) return;
+    onEventDrop(eventId, monthDropDateTime(day, sourceStartsAt));
+  }
+
   return (
     <Box
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       sx={{
         minWidth: 0,
         minHeight: 0,
@@ -426,7 +509,15 @@ function CalendarDay({ day, events, isCurrentMonth, selectedEventId, onEventClic
       </Box>
       <Box sx={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start', gap: 0.5 }}>
         {displayedEvents.map((event) => (
-          <CalendarEvent key={event.id} event={event} isSelected={event.id === selectedEventId} onEventClick={onEventClick} />
+          <CalendarEvent
+            key={event.id}
+            event={event}
+            isDragging={event.id === draggedEventId}
+            isSelected={event.id === selectedEventId}
+            onDragEnd={onDragEnd}
+            onDragStart={onDragStart}
+            onEventClick={onEventClick}
+          />
         ))}
         {hiddenCount > 0 ? (
           <Typography variant="caption" color="text.secondary" sx={{ px: 0.25 }}>
@@ -438,7 +529,7 @@ function CalendarDay({ day, events, isCurrentMonth, selectedEventId, onEventClic
   );
 }
 
-function CalendarEvent({ event, isSelected, onEventClick }) {
+function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, onEventClick }) {
   const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   return (
     <Tooltip
@@ -449,7 +540,10 @@ function CalendarEvent({ event, isSelected, onEventClick }) {
       <Box
         component="button"
         type="button"
+        draggable={Boolean(event.canDrag)}
         aria-pressed={isSelected}
+        onDragEnd={onDragEnd}
+        onDragStart={(dragEvent) => beginEventDrag(dragEvent, event, onDragStart)}
         onClick={() => onEventClick(event)}
         sx={{
           minWidth: 0,
@@ -465,7 +559,8 @@ function CalendarEvent({ event, isSelected, onEventClick }) {
           py: 0.5,
           display: 'grid',
           gap: 0.1,
-          cursor: 'pointer',
+          cursor: event.canDrag ? 'grab' : 'pointer',
+          opacity: isDragging ? 0.55 : 1,
           font: 'inherit',
           textAlign: 'left',
           outline: isSelected ? '2px solid rgba(15, 23, 42, 0.25)' : '1px solid transparent',
@@ -473,6 +568,9 @@ function CalendarEvent({ event, isSelected, onEventClick }) {
           boxShadow: isSelected ? '0 5px 12px rgba(15, 23, 42, 0.24)' : 'none',
           '&:hover': {
             boxShadow: isSelected ? '0 7px 16px rgba(15, 23, 42, 0.28)' : '0 1px 4px rgba(15, 23, 42, 0.18)',
+          },
+          '&:active': {
+            cursor: event.canDrag ? 'grabbing' : 'pointer',
           },
           '&:focus-visible': {
             outline: '3px solid rgba(37, 99, 235, 0.42)',
@@ -503,8 +601,6 @@ function CalendarEventDialog({ currentUser = {}, event, onClose }) {
   const resumeUrl = resumeDownloadUrl(event?.job?.tailoredResume);
   const resumeHref = resumeUrl ? authUrl(resumeUrl) : '';
   const resumeStatus = event?.job?.tailoredResume?.status || '';
-  const googleUrl = event ? googleCalendarUrl(event, meetingUrl) : '';
-  const outlookUrl = event ? outlookCalendarUrl(event, meetingUrl) : '';
   const canDeleteCall = isSuperadmin(currentUser) && event?.interviewCallId;
 
   function handleDeleteCall() {
@@ -557,12 +653,6 @@ function CalendarEventDialog({ currentUser = {}, event, onClose }) {
               ) : null}
             </Box>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 1 }}>
-              <Button component="a" href={googleUrl} target="_blank" rel="noreferrer">
-                Google
-              </Button>
-              <Button component="a" href={outlookUrl} target="_blank" rel="noreferrer">
-                Outlook
-              </Button>
               {meetingUrl ? (
                 <Button component="a" href={meetingUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="contained">
                   Join call
@@ -624,6 +714,52 @@ function LinkifiedText({ value }) {
       </span>
     );
   });
+}
+
+function eventLookup(eventsByDay) {
+  const byId = new Map();
+  for (const events of eventsByDay.values()) {
+    events.forEach((event) => byId.set(event.id, event));
+  }
+  return byId;
+}
+
+function beginEventDrag(dragEvent, event, onDragStart) {
+  if (!event.canDrag) {
+    dragEvent.preventDefault();
+    return;
+  }
+  dragEvent.dataTransfer.effectAllowed = 'move';
+  dragEvent.dataTransfer.setData('text/calendar-event-id', event.id);
+  dragEvent.dataTransfer.setData('text/calendar-event-start', event.startsAt.toISOString());
+  onDragStart?.(event);
+}
+
+function weekDropDateTime(day, element, clientY) {
+  const rect = element.getBoundingClientRect();
+  const offsetY = Math.min(Math.max(clientY - rect.top, 0), rect.height);
+  const minutes = roundToInterval((offsetY / Math.max(rect.height, 1)) * 24 * 60, 15);
+  return dateTimeForDateKey(day, Math.min(minutes, 23 * 60 + 45));
+}
+
+function monthDropDateTime(day, sourceStartsAt) {
+  const parts = zonedDateParts(sourceStartsAt || new Date());
+  return dateTimeForDateKey(day, parts.hour * 60 + parts.minute);
+}
+
+function dateTimeForDateKey(day, minutes) {
+  const boundedMinutes = Math.min(Math.max(Number(minutes) || 0, 0), 23 * 60 + 59);
+  const hour = Math.floor(boundedMinutes / 60);
+  const minute = boundedMinutes % 60;
+  return new Date(fromDefaultTimezoneDatetimeLocal(`${day}T${padTime(hour)}:${padTime(minute)}`));
+}
+
+function roundToInterval(value, interval) {
+  return Math.round(value / interval) * interval;
+}
+
+function padTime(value) {
+  return String(value).padStart(2, '0');
 }
 
 function timeLabel(date) {
@@ -737,52 +873,6 @@ function meetingLinkForEvent(event) {
   const links = event?.job?.bid?.stageMeetingLinks || {};
   const url = links[stage] || event?.job?.bid?.meetingLink || '';
   return /^https?:\/\//i.test(String(url)) ? url : '';
-}
-
-function googleCalendarUrl(event, meetingUrl = '') {
-  const params = new URLSearchParams({
-    action: 'TEMPLATE',
-    text: calendarTitle(event),
-    dates: `${calendarUtcDate(event.startsAt)}/${calendarUtcDate(eventEndsAt(event))}`,
-    details: calendarDescription(event, meetingUrl),
-    location: meetingUrl || event.location || '',
-  });
-  return `https://calendar.google.com/calendar/render?${params}`;
-}
-
-function outlookCalendarUrl(event, meetingUrl = '') {
-  const params = new URLSearchParams({
-    path: '/calendar/action/compose',
-    rru: 'addevent',
-    subject: calendarTitle(event),
-    startdt: event.startsAt.toISOString(),
-    enddt: eventEndsAt(event).toISOString(),
-    body: calendarDescription(event, meetingUrl),
-    location: meetingUrl || event.location || '',
-  });
-  return `https://outlook.office.com/calendar/0/deeplink/compose?${params}`;
-}
-
-function calendarTitle(event) {
-  return [event.company, event.title].filter(Boolean).join(' - ') || 'Interview';
-}
-
-function calendarDescription(event, meetingUrl = '') {
-  const resumeUrl = resumeDownloadUrl(event?.job?.tailoredResume);
-  return [
-    meetingUrl ? `Meeting link: ${meetingUrl}` : '',
-    event.job?.url ? `Job link: ${event.job.url}` : '',
-    resumeUrl ? `Resume: ${authUrl(resumeUrl)}` : '',
-    event.job?.bid?.interviewNotes || '',
-  ].filter(Boolean).join('\n');
-}
-
-function eventEndsAt(event) {
-  return new Date(event.startsAt.getTime() + Number(event.durationMinutes || 60) * 60000);
-}
-
-function calendarUtcDate(value) {
-  return value.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 }
 
 function resumeDownloadUrl(resume) {

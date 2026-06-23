@@ -38,6 +38,7 @@ import {
   shareProfile,
   updateJobBid,
   updateInterview,
+  updateInterviewCall,
   updateProfile,
   updateCollaborationEvent,
   updateProfileStatus,
@@ -94,6 +95,7 @@ export function registerBidRoutes(app) {
   app.post('/api/bid/interviews/manual', requireInterviewAccess, createManualInterview);
   app.post('/api/bid/interviews/:id/calls', requireInterviewAccess, createManualInterviewCall);
   app.patch('/api/bid/interviews/:id', requireInterviewAccess, updateInterview);
+  app.patch('/api/bid/interview-calls/:id', requireInterviewAccess, updateInterviewCall);
   app.delete('/api/bid/interviews/:id', requireInterviewAccess, deleteInterview);
   app.delete('/api/bid/interview-calls/:id', requireInterviewAccess, deleteInterviewCall);
   app.post('/api/bid/jobs/:jobId/tailored-resume', requireBidWorkspaceAccess, createTailoredResume);
