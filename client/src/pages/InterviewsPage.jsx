@@ -25,7 +25,6 @@ import { useSearchParams } from 'react-router-dom';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BID_TABS, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
 import EmptyState from '../components/common/EmptyState.jsx';
-import SavedViewsToolbar from '../components/common/SavedViewsToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.jsx';
 import InterviewLoadingState from '../components/interviews/InterviewLoadingState.jsx';
@@ -76,20 +75,6 @@ const EMPTY_MANUAL_CALL = {
   meetingLink: '',
   notes: '',
 };
-
-const INTERVIEW_SAVED_VIEWS_STORAGE_KEY = 'applypilot.interviews.savedViews.v1';
-const INTERVIEW_DEFAULT_SAVED_VIEWS = [
-  {
-    id: 'needs-links',
-    label: 'Missing meeting links',
-    payload: { search: '', needsLinksOnly: true },
-  },
-  {
-    id: 'all-active',
-    label: 'All active interviews',
-    payload: { search: '', needsLinksOnly: false },
-  },
-];
 
 export default function InterviewsPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -201,12 +186,6 @@ export default function InterviewsPage({ currentUser }) {
         [key]: value,
       },
     }));
-  }
-
-  function applySavedView(view) {
-    if (view?.activeProfileId) setActiveProfileId(view.activeProfileId);
-    if (Object.prototype.hasOwnProperty.call(view || {}, 'search')) setSearch(view.search || '');
-    if (Object.prototype.hasOwnProperty.call(view || {}, 'needsLinksOnly')) setNeedsLinksOnly(Boolean(view.needsLinksOnly));
   }
 
   function saveInterview(job, overrides = {}, options = {}) {
@@ -425,7 +404,6 @@ export default function InterviewsPage({ currentUser }) {
   const effectiveCurrentUser = interviewsData?.currentUser || currentUser;
   const isActiveProfileOwner = String(activeProfile?.userId || '') === String(effectiveCurrentUser?.id || currentUser?.id || '');
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
-  const missingMeetingLinkCount = allJobs.filter((job) => !hasMeetingLink(job, draftFor(job))).length;
   const totalInterviewCount = Number(activeProfile?.progress?.totalInterviews || interviewsData?.total || 0);
   const canRegisterCalls = canRegisterManualInterviewCalls(currentUser);
   const canEditInterviews = currentUser?.role !== 'caller' && (isAdminRole(currentUser) || isActiveProfileOwner);
@@ -515,17 +493,6 @@ export default function InterviewsPage({ currentUser }) {
                   </Button>
                 ) : null}
               </Box>
-            </Box>
-
-            <Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: '#F8FAFC' }}>
-              <SavedViewsToolbar
-                currentView={{ activeProfileId, search, needsLinksOnly }}
-                defaultViews={INTERVIEW_DEFAULT_SAVED_VIEWS}
-                helperText={`${missingMeetingLinkCount.toLocaleString()} interview${missingMeetingLinkCount === 1 ? '' : 's'} missing a stage meeting link.`}
-                onApplyView={applySavedView}
-                storageKey={INTERVIEW_SAVED_VIEWS_STORAGE_KEY}
-                title="Interview saved views"
-              />
             </Box>
 
             <Box sx={{ flex: 1, minHeight: { md: 0 }, minWidth: 0, overflow: 'hidden', bgcolor: 'background.paper' }}>

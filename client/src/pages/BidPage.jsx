@@ -8,7 +8,6 @@ import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BidWorkspaceProvider } from '../components/bids/BidWorkspaceContext.jsx';
 import SameCompanyTailoringDialog from '../components/bids/SameCompanyTailoringDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
-import SavedViewsToolbar from '../components/common/SavedViewsToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { BID_TABS, EMPTY_BID } from '../components/bids/bidConstants.js';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
@@ -48,25 +47,6 @@ import {
   tailoringByProfileJobs,
   withoutTomorrowDateFilter,
 } from './bidPage/bidPageUtils.js';
-
-const BID_SAVED_VIEWS_STORAGE_KEY = 'applypilot.bids.savedViews.v1';
-const BID_DEFAULT_SAVED_VIEWS = [
-  {
-    id: 'today-todo',
-    label: 'Today todo',
-    payload: { activeBidTab: BID_TABS.todo, filters: { since: 'today', search: '', page: 1 } },
-  },
-  {
-    id: 'ready-resumes',
-    label: 'Ready resumes',
-    payload: { activeBidTab: BID_TABS.tailored, filters: { since: 'all', search: '', page: 1 } },
-  },
-  {
-    id: 'bad-work-review',
-    label: 'Bad work review',
-    payload: { activeBidTab: BID_TABS.badWork, filters: { since: 'all', visibility: 'all', page: 1 } },
-  },
-];
 
 export default function BidPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -208,14 +188,6 @@ export default function BidPage({ currentUser }) {
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value, page: key === 'page' ? value : 1 }));
-  }
-
-  function applySavedView(view) {
-    if (view?.activeBidTab) setActiveBidTab(bidTabFromParam(view.activeBidTab));
-    if (view?.activeProfileId) setActiveProfileId(view.activeProfileId);
-    if (view?.filters) {
-      setFilters((current) => normalizeBidDateFilter({ ...current, ...view.filters, page: 1 }));
-    }
   }
 
   useEffect(() => {
@@ -508,14 +480,6 @@ export default function BidPage({ currentUser }) {
                   refetchMeta();
                   refetchJobs();
                 }}
-              />
-              <SavedViewsToolbar
-                currentView={{ activeBidTab, activeProfileId, filters }}
-                defaultViews={BID_DEFAULT_SAVED_VIEWS}
-                helperText="Save application tabs, date presets, search, and filter combinations."
-                onApplyView={applySavedView}
-                storageKey={BID_SAVED_VIEWS_STORAGE_KEY}
-                title="Application saved views"
               />
               {canViewBidGoals ? (
                 <BidDailyGoalBar

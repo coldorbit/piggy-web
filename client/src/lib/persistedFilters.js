@@ -30,34 +30,6 @@ export function mergeKnownFilters(defaults, overrides, keys) {
   return next;
 }
 
-export function readSavedViews(storageKey, defaultViews = []) {
-  if (typeof window === 'undefined') return defaultViews;
-
-  try {
-    const storedViews = JSON.parse(window.localStorage.getItem(storageKey) || '[]');
-    if (!Array.isArray(storedViews)) return defaultViews;
-    return [...defaultViews, ...storedViews.filter(isSavedView)];
-  } catch {
-    return defaultViews;
-  }
-}
-
-export function writeSavedViews(storageKey, views = [], defaultViews = []) {
-  if (typeof window === 'undefined') return;
-
-  const defaultIds = new Set(defaultViews.map((view) => view.id));
-  const userViews = views.filter((view) => isSavedView(view) && !defaultIds.has(view.id));
-  window.localStorage.setItem(storageKey, JSON.stringify(userViews));
-}
-
-export function createSavedViewId(label) {
-  return `${Date.now()}-${String(label || 'view').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'view'}`;
-}
-
-function isSavedView(view) {
-  return Boolean(view?.id && view?.label && view?.payload && typeof view.payload === 'object');
-}
-
 function positiveNumber(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
