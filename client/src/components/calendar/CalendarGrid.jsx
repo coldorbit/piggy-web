@@ -3,7 +3,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Link, Paper, Tooltip, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
-import { downloadAuthenticatedFile, useDeleteInterviewCall } from '../../lib/api.js';
+import { authUrl, useDeleteInterviewCall } from '../../lib/api.js';
 import { isSuperadmin } from '../../lib/roles.js';
 import {
   dateKeyDay,
@@ -501,6 +501,7 @@ function CalendarEventDialog({ currentUser = {}, event, onClose }) {
   const jobUrl = externalJobUrl(event);
   const meetingUrl = meetingLinkForEvent(event);
   const resumeUrl = resumeDownloadUrl(event?.job?.tailoredResume);
+  const resumeHref = resumeUrl ? authUrl(resumeUrl) : '';
   const resumeStatus = event?.job?.tailoredResume?.status || '';
   const googleUrl = event ? googleCalendarUrl(event, meetingUrl) : '';
   const outlookUrl = event ? outlookCalendarUrl(event, meetingUrl) : '';
@@ -538,7 +539,13 @@ function CalendarEventDialog({ currentUser = {}, event, onClose }) {
             {event.location ? <DetailRow label="Location" value={event.location} /> : null}
             {event.job?.bid?.interviewStage ? <DetailRow label="Step" value={stageLabel(event.job.bid.interviewStage)} /> : null}
             {meetingUrl ? <DetailRow label="Meeting link" value={meetingUrl} /> : null}
-            {resumeStatus ? <DetailRow label="Resume" value={resumeUrl ? resumeFileName(event.job.tailoredResume.filePath) : resumeStatus} /> : null}
+            {resumeStatus ? (
+              <DetailRow
+                href={resumeHref}
+                label="Resume"
+                value={resumeUrl ? resumeFileName(event.job.tailoredResume.filePath) : resumeStatus}
+              />
+            ) : null}
             {event.job?.bid?.interviewNotes ? <DetailRow label="Notes" value={event.job.bid.interviewNotes} multiline /> : null}
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'space-between' }}>
@@ -567,10 +574,7 @@ function CalendarEventDialog({ currentUser = {}, event, onClose }) {
                 </Button>
               ) : null}
               {resumeUrl ? (
-                <Button
-                  onClick={() => downloadAuthenticatedFile(resumeUrl, resumeFileName(event.job.tailoredResume.filePath))}
-                  startIcon={<OpenInNewIcon />}
-                >
+                <Button component="a" href={resumeHref} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />}>
                   Resume
                 </Button>
               ) : null}
@@ -585,14 +589,20 @@ function CalendarEventDialog({ currentUser = {}, event, onClose }) {
   );
 }
 
-function DetailRow({ label, value, multiline = false }) {
+function DetailRow({ href = '', label, value, multiline = false }) {
   return (
     <Box sx={{ display: 'grid', gap: 0.25, minWidth: 0 }}>
       <Typography variant="caption" color="text.secondary" fontWeight={900}>
         {label}
       </Typography>
       <Typography variant="body2" sx={{ whiteSpace: multiline ? 'pre-wrap' : 'normal', overflowWrap: 'anywhere' }}>
-        <LinkifiedText value={value} />
+        {href ? (
+          <Link href={href} target="_blank" rel="noreferrer" fontWeight={800} underline="always">
+            {value}
+          </Link>
+        ) : (
+          <LinkifiedText value={value} />
+        )}
       </Typography>
     </Box>
   );
@@ -758,9 +768,11 @@ function calendarTitle(event) {
 }
 
 function calendarDescription(event, meetingUrl = '') {
+  const resumeUrl = resumeDownloadUrl(event?.job?.tailoredResume);
   return [
     meetingUrl ? `Meeting link: ${meetingUrl}` : '',
     event.job?.url ? `Job link: ${event.job.url}` : '',
+    resumeUrl ? `Resume: ${authUrl(resumeUrl)}` : '',
     event.job?.bid?.interviewNotes || '',
   ].filter(Boolean).join('\n');
 }

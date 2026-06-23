@@ -1137,6 +1137,7 @@ export async function listCalendarInterviews(req, res, next) {
     if (res.headersSent) return;
 
     const interviews = calendarEventsForInterviews(await calendarInterviewsForUser(user));
+    const tailoredResumesByEvent = await tailoredResumesForCalendarEvents(interviews);
 
     const profilesById = new Map();
     for (const interview of interviews) {
@@ -1147,7 +1148,9 @@ export async function listCalendarInterviews(req, res, next) {
 
     res.json({
       profiles: sortProfilesForDisplay([...profilesById.values()]).map(formatProfile),
-      jobs: interviews.map((interview) => formatInterviewAsJob(interview)),
+      jobs: interviews.map((interview) => (
+        formatInterviewAsJob(interview, new Map(), new Map(), tailoredResumesByEvent.get(calendarResumeKey(interview)) || null)
+      )),
       calendar: {
         generatedAt: new Date().toISOString(),
         icsUrl: '/api/bid/calendar.ics',
@@ -1227,6 +1230,43 @@ async function calendarInterviewsForUser(user) {
     interview.setDataValue('calls', callsByInterviewId.get(String(interview.id)) || []);
   }
   return interviews;
+}
+
+async function tailoredResumesForCalendarEvents(interviews = []) {
+  const jobUrls = [...new Set(interviews.map((interview) => clean(interview.jobUrl)).filter(Boolean))];
+  const profileIds = [...new Set(interviews.map((interview) => clean(interview.profileId)).filter(Boolean))];
+  if (!jobUrls.length || !profileIds.length) return new Map();
+
+  const rows = await getTailoredResumeModel().findAll({
+    where: {
+      jobUrl: { [Op.in]: jobUrls },
+      profileId: { [Op.in]: profileIds },
+      status: { [Op.in]: ACTIVE_TAILORED_RESUME_STATUSES },
+    },
+    order: [
+      ['status', 'ASC'],
+      ['updatedAt', 'DESC'],
+    ],
+  });
+  const priority = { ready: 4, processing: 3, requested: 2, dead_letter: 1 };
+  const byEvent = new Map();
+
+  for (const row of rows) {
+    const formatted = formatTailoredResume(row);
+    const key = calendarResumeKey(formatted);
+    const current = byEvent.get(key);
+    const currentPriority = priority[current?.status] || 0;
+    const rowPriority = priority[formatted.status] || 0;
+    if (!current || rowPriority > currentPriority) {
+      byEvent.set(key, formatted);
+    }
+  }
+
+  return byEvent;
+}
+
+function calendarResumeKey(value) {
+  return `${clean(value?.profileId)}:${clean(value?.jobUrl)}`;
 }
 
 export function calendarEventsForInterviews(interviews = []) {
