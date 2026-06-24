@@ -21,7 +21,6 @@ import PeopleIcon from '@mui/icons-material/People';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import QuizIcon from '@mui/icons-material/Quiz';
 import SearchIcon from '@mui/icons-material/Search';
-import StyleIcon from '@mui/icons-material/Style';
 import WorkIcon from '@mui/icons-material/Work';
 import {
   AppBar,
@@ -322,9 +321,6 @@ export default function AppLayout({ user }) {
             <NavItem to="/callers" icon={<PhoneInTalkIcon />} label="Callers" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
           {canViewBidWorkspace && !isCaller ? <NavItem to="/profiles" icon={<BadgeIcon />} label="Profiles" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
-          {canViewBidWorkspace && !isCaller ? (
-            <NavItem to="/tailoring-requests" icon={<StyleIcon />} label="Tailoring" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
-          ) : null}
           <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           {isAdminRole(user) ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />

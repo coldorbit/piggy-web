@@ -711,14 +711,13 @@ function profileActivitySql(grainConfig, timeZone, anchor) {
 }
 
 function sourceBreakdownSql(grainConfig, timeZone, anchor) {
-  const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
-
   return `
-    ${rangeCte(grainConfig, timeZone, anchor)}
+    WITH ${currentPeriodCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source, COUNT(*)::int AS count
     FROM job_bids
-    JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id, range
-    WHERE ${rangePredicate(bidBucket)}
+    JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+    CROSS JOIN current_period
+    WHERE ${currentPeriodPredicate('job_bids.bid_at', timeZone)}
     GROUP BY 1
     ORDER BY count DESC, source ASC
     LIMIT 12
@@ -726,26 +725,24 @@ function sourceBreakdownSql(grainConfig, timeZone, anchor) {
 }
 
 function bidStatusBreakdownSql(grainConfig, timeZone, anchor) {
-  const bidBucket = bucketExpression('bid_at', grainConfig, timeZone);
-
   return `
-    ${rangeCte(grainConfig, timeZone, anchor)}
+    WITH ${currentPeriodCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
-    FROM job_bids, range
-    WHERE ${rangePredicate(bidBucket)}
+    FROM job_bids
+    CROSS JOIN current_period
+    WHERE ${currentPeriodPredicate('bid_at', timeZone)}
     GROUP BY 1
     ORDER BY count DESC, status ASC
   `;
 }
 
 function interviewStageBreakdownSql(grainConfig, timeZone, anchor) {
-  const interviewCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
-
   return `
-    ${rangeCte(grainConfig, timeZone, anchor)}
+    WITH ${currentPeriodCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(interview_stage, ''), 'unknown') AS stage, COUNT(*)::int AS count
-    FROM interviews, range
-    WHERE ${rangePredicate(interviewCreatedBucket)}
+    FROM interviews
+    CROSS JOIN current_period
+    WHERE ${currentPeriodPredicate('created_at', timeZone)}
     GROUP BY 1
     ORDER BY count DESC, stage ASC
   `;

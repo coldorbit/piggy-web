@@ -76,10 +76,23 @@ describe('dashboard queries', () => {
   it('keeps interview breakdown counts aligned with interview creation totals', () => {
     const queries = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles' });
 
-    assert.match(queries.interviewStages, /timezone\('America\/Los_Angeles', created_at\)\) >= range\.starts_at[\s\S]*timezone\('America\/Los_Angeles', created_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
+    assert.match(queries.interviewStages, /current_period AS \([\s\S]*date_trunc\('day', timezone\('America\/Los_Angeles', now\(\)\)\) AS starts_at/);
+    assert.match(queries.interviewStages, /timezone\('America\/Los_Angeles', created_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', created_at\) < current_period\.ends_at/);
     assert.doesNotMatch(queries.interviewStages, /COALESCE\(updated_at, created_at\)/);
     assert.match(queries.interviewStatuses, /timezone\('America\/Los_Angeles', created_at\)\) >= range\.starts_at[\s\S]*timezone\('America\/Los_Angeles', created_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
     assert.doesNotMatch(queries.interviewStatuses, /COALESCE\(updated_at, created_at\)/);
+  });
+
+  it('filters dashboard breakdown charts to the selected period', () => {
+    const queries = dashboardQueries(grainConfigFor('monthly'), {
+      anchorDate: new Date('2026-06-18T12:00:00.000Z'),
+      timeZone: 'America/Los_Angeles',
+    });
+
+    assert.match(queries.sources, /current_period AS \([\s\S]*date_trunc\('month', timezone\('America\/Los_Angeles', '2026-06-18T12:00:00\.000Z'::timestamptz\)\) AS starts_at/);
+    assert.match(queries.sources, /timezone\('America\/Los_Angeles', job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) < current_period\.ends_at/);
+    assert.match(queries.bidStatuses, /timezone\('America\/Los_Angeles', bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', bid_at\) < current_period\.ends_at/);
+    assert.match(queries.interviewStages, /timezone\('America\/Los_Angeles', created_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', created_at\) < current_period\.ends_at/);
   });
 
   it('caps rolling dashboard metrics at the selected range end', () => {
@@ -94,8 +107,8 @@ describe('dashboard queries', () => {
     }
 
     assert.match(queries.profileActivity, /job_bids\.bid_at\)\) >= range\.starts_at[\s\S]*job_bids\.bid_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
-    assert.match(queries.sources, /job_bids\.bid_at\)\) >= range\.starts_at[\s\S]*job_bids\.bid_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
-    assert.match(queries.bidStatuses, /bid_at\)\) >= range\.starts_at[\s\S]*bid_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
+    assert.match(queries.sources, /job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*job_bids\.bid_at\) < current_period\.ends_at/);
+    assert.match(queries.bidStatuses, /bid_at\) >= current_period\.starts_at[\s\S]*bid_at\) < current_period\.ends_at/);
   });
 
   it('uses interviews table rows as the dashboard funnel source of truth', () => {
