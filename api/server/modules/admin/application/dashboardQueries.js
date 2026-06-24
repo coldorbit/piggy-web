@@ -68,6 +68,18 @@ function currentPeriodCte({ sql, step }, timeZone, anchor = 'now()') {
   `;
 }
 
+function currentPeriodUtcCte({ sql, step }, timeZone, anchor = 'now()') {
+  const normalizedTimeZone = normalizeTimeZone(timeZone).replaceAll("'", "''");
+  const startsAt = currentPeriodStartSql(sql, normalizedTimeZone, anchor);
+  return `
+    current_period_utc AS (
+      SELECT
+        ${startsAt} AT TIME ZONE '${normalizedTimeZone}' AS starts_at,
+        (${startsAt} + interval '${step}') AT TIME ZONE '${normalizedTimeZone}' AS ends_at
+    )
+  `;
+}
+
 function currentPeriodStartSql(grainSql, timeZone, anchor = 'now()') {
   return anchorBucketSql(grainSql, timeZone, anchor);
 }
@@ -104,6 +116,10 @@ function currentPeriodPredicate(column, timeZone, alias = 'current_period') {
   return `${localTimestamp} >= ${alias}.starts_at AND ${localTimestamp} < ${alias}.ends_at`;
 }
 
+function timestampPeriodPredicate(column, alias = 'current_period_utc') {
+  return `${column} >= ${alias}.starts_at AND ${column} < ${alias}.ends_at`;
+}
+
 function rangePredicate(bucketSql, alias = 'range') {
   return `${bucketSql} >= ${alias}.starts_at AND ${bucketSql} < (${alias}.ends_at + ${alias}.bucket_step)`;
 }
@@ -113,6 +129,7 @@ function overallSql(grainConfig, timeZone, anchor) {
 
   return `
     WITH ${currentPeriodCte(grainConfig, normalizedTimeZone, anchor)},
+    ${currentPeriodUtcCte(grainConfig, normalizedTimeZone, anchor)},
     job_totals AS (
       SELECT
         COUNT(*)::int AS total_jobs,
@@ -123,8 +140,8 @@ function overallSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE is_spam = false)::int AS reviewed_good_jobs,
         COUNT(*) FILTER (WHERE is_spam IS NULL)::int AS unreviewed_jobs
       FROM scraped_jobs
-      CROSS JOIN current_period
-      WHERE ${currentPeriodPredicate('scraped_at', normalizedTimeZone)}
+      CROSS JOIN current_period_utc
+      WHERE ${timestampPeriodPredicate('scraped_at')}
     ),
     bid_totals AS (
       SELECT
@@ -136,8 +153,8 @@ function overallSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications,
         COUNT(*) FILTER (WHERE status IN ('mismatching_bid', 'spam_job'))::int AS review_blocked_applications
       FROM job_bids
-      CROSS JOIN current_period
-      WHERE ${currentPeriodPredicate('bid_at', normalizedTimeZone)}
+      CROSS JOIN current_period_utc
+      WHERE ${timestampPeriodPredicate('bid_at')}
     ),
     period_bid_totals AS (
       SELECT
@@ -154,8 +171,8 @@ function overallSql(grainConfig, timeZone, anchor) {
         )::int AS period_bidder_bids
       FROM job_bids
       LEFT JOIN web_users ON web_users.id = job_bids.user_id
-      CROSS JOIN current_period
-      WHERE ${currentPeriodPredicate('job_bids.bid_at', normalizedTimeZone)}
+      CROSS JOIN current_period_utc
+      WHERE ${timestampPeriodPredicate('job_bids.bid_at')}
     ),
     interview_totals AS (
       SELECT
@@ -168,17 +185,17 @@ function overallSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'won')::int AS successful_offers,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_interviews
       FROM interviews
-      CROSS JOIN current_period
+      CROSS JOIN current_period_utc
       WHERE interview_next_at IS NOT NULL
-        AND ${currentPeriodPredicate('interview_next_at', normalizedTimeZone)}
+        AND ${timestampPeriodPredicate('interview_next_at')}
     ),
     tailoring_totals AS (
       SELECT
         COUNT(*)::int AS tailored_resume_requests,
         COUNT(*) FILTER (WHERE status = 'ready')::int AS ready_tailored_resumes
       FROM tailored_resumes
-      CROSS JOIN current_period
-      WHERE ${currentPeriodPredicate('created_at', normalizedTimeZone)}
+      CROSS JOIN current_period_utc
+      WHERE ${timestampPeriodPredicate('created_at')}
     )
     SELECT job_totals.*, bid_totals.*, period_bid_totals.*, interview_totals.*, tailoring_totals.*
     FROM job_totals
