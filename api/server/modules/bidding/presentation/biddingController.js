@@ -1138,6 +1138,10 @@ export async function listCalendarInterviews(req, res, next) {
 
     const interviews = calendarEventsForInterviews(await calendarInterviewsForUser(user));
     const tailoredResumesByEvent = await tailoredResumesForCalendarEvents(interviews);
+    const callerUsers = canRegisterManualInterviewCalls(user)
+      ? await getWebUserModel().findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] })
+      : [];
+    const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
     const profilesById = new Map();
     for (const interview of interviews) {
@@ -1149,8 +1153,9 @@ export async function listCalendarInterviews(req, res, next) {
     res.json({
       profiles: sortProfilesForDisplay([...profilesById.values()]).map(formatProfile),
       jobs: interviews.map((interview) => (
-        formatInterviewAsJob(interview, new Map(), new Map(), tailoredResumesByEvent.get(calendarResumeKey(interview)) || null)
+        formatInterviewAsJob(interview, new Map(), callerUsersById, tailoredResumesByEvent.get(calendarResumeKey(interview)) || null)
       )),
+      callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
       calendar: {
         generatedAt: new Date().toISOString(),
         icsUrl: '/api/bid/calendar.ics',
@@ -2556,7 +2561,7 @@ export async function createJobBid(req, res, next) {
     const attrs = bidAttributesFromBody(req.body);
     if (rejectReviewStatusForNonAdmin(req, res, attrs)) return;
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
-    if (!isAdminRole(req.user)) delete attrs.callerUserId;
+    if (!canAssignInterviewCaller(user)) delete attrs.callerUserId;
 
     const bid = await getJobBidModel().create({
       ...bidUpdateValuesFromAttrs(attrs),
@@ -2597,7 +2602,7 @@ export async function bulkUpdateJobBids(req, res, next) {
     pruneAttrsForProvidedBidFields(attrs, updatesBody);
     if (rejectReviewStatusForNonAdmin(req, res, attrs)) return;
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
-    if (!isAdminRole(req.user)) delete attrs.callerUserId;
+    if (!canAssignInterviewCaller(user)) delete attrs.callerUserId;
 
     const profileId = clean(req.body?.profileId);
     const profile = profileId ? await accessibleProfile(req, profileId) : null;
@@ -2623,7 +2628,7 @@ export async function bulkUpdateJobBids(req, res, next) {
           bid = await applyBidUpdates({ bid, attrs });
         } else {
           if (!profile) throw new InputError('profileId is required when creating applications');
-          if (attrs.callerUserId && !isAdminRole(req.user)) delete attrs.callerUserId;
+          if (attrs.callerUserId && !canAssignInterviewCaller(user)) delete attrs.callerUserId;
           bid = await createBidForBatch({ user, profile, job, attrs });
         }
 
@@ -2682,7 +2687,7 @@ export async function createManualInterview(req, res, next) {
     const attrs = bidAttributesFromBody({ ...req.body, status: 'interviewing' });
     ensureInitialInterviewCallSchedule(attrs);
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
-    if (!isAdminRole(req.user)) delete attrs.callerUserId;
+    if (!canAssignInterviewCaller(user)) delete attrs.callerUserId;
 
     const interview = await getInterviewModel().create({
       ...interviewValuesFromAttrs(attrs),
@@ -2733,6 +2738,7 @@ export async function createManualInterviewCall(req, res, next) {
       metadata: {
         createdFrom: 'manual',
         createdByUserId: user.id,
+        ...(attrs.callerUserIdProvided ? { callerUserIdManuallyAssigned: true } : {}),
       },
     });
 
@@ -3237,7 +3243,7 @@ export async function updateJobBid(req, res, next) {
         res.status(404).json({ error: 'Bid not found' });
         return;
       }
-      delete attrs.callerUserId;
+      if (!canAssignInterviewCaller(user)) delete attrs.callerUserId;
     } else {
       const profile = await getBidProfileModel().findByPk(bid.profileId);
       if (isLegacyProfile(profile) && !isInterviewBidStatus(attrs.status || bid.status)) {
@@ -3311,13 +3317,16 @@ export async function updateInterview(req, res, next) {
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (!isAdminRole(req.user)) {
       await interviewWriteProfileForUser(user, interview.profileId, 'Interview not found');
-      delete attrs.callerUserId;
+      if (!canAssignInterviewCaller(user)) delete attrs.callerUserId;
     }
     const previous = interviewSnapshot(interview);
     const now = new Date();
     await interview.update({ ...interviewValuesFromAttrs(attrs, interview), updatedAt: now });
     await logInterviewChanges({ interview, previous, attrs, userId: user.id });
     await syncInterviewCallForCurrentSchedule(interview, { sourceType: 'schedule_update' });
+    if (String(previous.callerUserId || '') !== String(interview.callerUserId || '')) {
+      await syncInterviewCallerToCalls(interview);
+    }
     if (interview.jobBidId) {
       const bid = await getJobBidModel().findByPk(interview.jobBidId);
       if (bid) {
@@ -3392,13 +3401,18 @@ export async function updateInterviewCall(req, res, next) {
 
     const syncCurrentSchedule = callMatchesCurrentInterviewSchedule(call, interview);
     const durationMinutes = attrs.durationMinutes || call.durationMinutes || interview.interviewDurationMinutes || 60;
+    const callerUserId = attrs.callerUserIdProvided ? attrs.callerUserId ?? null : call.callerUserId;
     const now = new Date();
+    const metadata = attrs.callerUserIdProvided
+      ? { ...(call.metadata || {}), callerUserIdManuallyAssigned: true }
+      : call.metadata || {};
     await call.update({
-      callerUserId: attrs.callerUserId ?? null,
+      callerUserId,
       scheduledAt: attrs.scheduledAt,
       durationMinutes,
       meetingLink: attrs.meetingLink || null,
       notes: attrs.notes || null,
+      metadata,
       updatedAt: now,
     });
 
@@ -3613,7 +3627,9 @@ function interviewValuesFromAttrs(attrs, existing = null) {
   });
   const interviewNextAt = attrs.interviewNextAt || null;
   return {
-    callerUserId: attrs.callerUserId ?? null,
+    callerUserId: Object.prototype.hasOwnProperty.call(attrs, 'callerUserId')
+      ? attrs.callerUserId
+      : existing?.callerUserId || null,
     status: attrs.status || 'interviewing',
     interviewStage: stage,
     interviewNextAt,
@@ -3650,6 +3666,7 @@ function manualInterviewCallAttributes(body = {}, interview) {
     callerUserId: Object.prototype.hasOwnProperty.call(attrs, 'callerUserId')
       ? attrs.callerUserId
       : interview?.callerUserId || null,
+    callerUserIdProvided: hasCallerUserId,
     interviewStage: callStage,
     scheduledAt: attrs.interviewNextAt,
     durationMinutes: attrs.interviewDurationMinutes || interview?.interviewDurationMinutes || 60,
@@ -3662,6 +3679,10 @@ function rejectReviewStatusForNonAdmin(req, res, attrs) {
   if (!REVIEW_BID_STATUSES.has(attrs.status) || isAdminRole(req.user)) return false;
   res.status(403).json({ error: 'Admin access is required' });
   return true;
+}
+
+function canAssignInterviewCaller(user) {
+  return canRegisterManualInterviewCalls(user);
 }
 
 function bidUpdateValuesFromAttrs(attrs) {
@@ -3724,6 +3745,9 @@ async function upsertInterviewForBid({ bid, job, attrs, userId }) {
     await existing.update(interviewValuesFromAttrs(attrs, existing));
     await logInterviewChanges({ interview: existing, previous, attrs, userId });
     await syncInterviewCallForCurrentSchedule(existing, { sourceType: 'schedule_update' });
+    if (String(previous.callerUserId || '') !== String(existing.callerUserId || '')) {
+      await syncInterviewCallerToCalls(existing);
+    }
     return existing;
   }
   ensureInitialInterviewCallSchedule(attrs);
@@ -4046,10 +4070,11 @@ async function upsertInterviewCallForStage(interview, attrs, { sourceType = 'cur
   const existing = await getInterviewCallModel().findOne({
     where: { interviewId: interview.id, interviewStage: stage },
   });
+  const keepExplicitCaller = existing?.metadata?.callerUserIdManuallyAssigned && !metadata.callerUserIdManuallyAssigned;
   const values = {
     interviewId: interview.id,
     userId: interview.userId || null,
-    callerUserId: attrs.callerUserId ?? interview.callerUserId ?? null,
+    callerUserId: keepExplicitCaller ? existing.callerUserId : attrs.callerUserId ?? interview.callerUserId ?? null,
     interviewStage: stage,
     scheduledAt: new Date(scheduledAt),
     durationMinutes: Number(attrs.durationMinutes || interview.interviewDurationMinutes || 60),
@@ -4065,6 +4090,16 @@ async function upsertInterviewCallForStage(interview, attrs, { sourceType = 'cur
     return existing;
   }
   return getInterviewCallModel().create(values);
+}
+
+async function syncInterviewCallerToCalls(interview) {
+  if (!interview?.id) return;
+  const calls = await getInterviewCallModel().findAll({ where: { interviewId: interview.id } });
+  await Promise.all(
+    calls
+      .filter((call) => !call.metadata?.callerUserIdManuallyAssigned)
+      .map((call) => call.update({ callerUserId: interview.callerUserId || null })),
+  );
 }
 
 export function shouldRegisterInterviewCallForStage(stage, status = 'interviewing') {

@@ -1,6 +1,22 @@
 import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Link, Paper, Tooltip, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  InputLabel,
+  Link,
+  MenuItem,
+  Paper,
+  Select,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { authUrl, useDeleteInterviewCall } from '../../lib/api.js';
@@ -21,7 +37,17 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 24 }, (_item, hour) => hour);
 const HOUR_HEIGHT = 64;
 
-export default function CalendarGrid({ currentUser = {}, cursorDate, eventsByDay, visibleDays, view, onEventDrop = null }) {
+export default function CalendarGrid({
+  callerUsers = [],
+  currentUser = {},
+  cursorDate,
+  eventsByDay,
+  isAssigningCaller = false,
+  visibleDays,
+  view,
+  onCallerChange = null,
+  onEventDrop = null,
+}) {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [draggedEventId, setDraggedEventId] = useState('');
   const selectedEventId = selectedEvent?.id || '';
@@ -80,7 +106,14 @@ export default function CalendarGrid({ currentUser = {}, cursorDate, eventsByDay
           />
         )}
       </Paper>
-      <CalendarEventDialog currentUser={currentUser} event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+      <CalendarEventDialog
+        callerUsers={callerUsers}
+        currentUser={currentUser}
+        event={selectedEvent}
+        isAssigningCaller={isAssigningCaller}
+        onCallerChange={onCallerChange}
+        onClose={() => setSelectedEvent(null)}
+      />
     </>
   );
 }
@@ -594,20 +627,31 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
   );
 }
 
-function CalendarEventDialog({ currentUser = {}, event, onClose }) {
+function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssigningCaller = false, onCallerChange = null, onClose }) {
   const { mutate: deleteInterviewCall, isPending: deletingInterviewCall } = useDeleteInterviewCall();
+  const [callerUserId, setCallerUserId] = useState('');
   const jobUrl = externalJobUrl(event);
   const meetingUrl = meetingLinkForEvent(event);
   const resumeUrl = resumeDownloadUrl(event?.job?.tailoredResume);
   const resumeHref = resumeUrl ? authUrl(resumeUrl) : '';
   const resumeStatus = event?.job?.tailoredResume?.status || '';
   const canDeleteCall = isSuperadmin(currentUser) && event?.interviewCallId;
+  const canAssignCaller = Boolean(onCallerChange && callerUsers.length && event?.interviewId && currentUser?.role !== 'caller');
+
+  useEffect(() => {
+    setCallerUserId(event?.job?.bid?.callerUserId ? String(event.job.bid.callerUserId) : '');
+  }, [event]);
 
   function handleDeleteCall() {
     if (!event?.interviewCallId) return;
     const label = [event.company, event.title].filter(Boolean).join(' - ') || 'this call';
     if (!window.confirm(`Delete ${label} from the calendar?`)) return;
     deleteInterviewCall(event.interviewCallId, { onSuccess: onClose });
+  }
+
+  function handleCallerChange(nextCallerUserId) {
+    setCallerUserId(String(nextCallerUserId || ''));
+    onCallerChange?.(event, nextCallerUserId || '');
   }
 
   return (
@@ -634,6 +678,26 @@ function CalendarEventDialog({ currentUser = {}, event, onClose }) {
             <DetailRow label="Role" value={event.title || 'Untitled role'} />
             {event.location ? <DetailRow label="Location" value={event.location} /> : null}
             {event.job?.bid?.interviewStage ? <DetailRow label="Step" value={stageLabel(event.job.bid.interviewStage)} /> : null}
+            {canAssignCaller ? (
+              <FormControl size="small">
+                <InputLabel>Assignee</InputLabel>
+                <Select
+                  label="Assignee"
+                  value={callerUserId}
+                  onChange={(selectEvent) => handleCallerChange(selectEvent.target.value)}
+                  disabled={isAssigningCaller}
+                >
+                  <MenuItem value="">Unassigned</MenuItem>
+                  {callerUsers.map((caller) => (
+                    <MenuItem key={caller.id} value={String(caller.id)}>
+                      {caller.username}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : event.job?.bid?.callerUser ? (
+              <DetailRow label="Assignee" value={event.job.bid.callerUser.username} />
+            ) : null}
             {meetingUrl ? <DetailRow label="Meeting link" value={meetingUrl} /> : null}
             {resumeStatus ? (
               <DetailRow

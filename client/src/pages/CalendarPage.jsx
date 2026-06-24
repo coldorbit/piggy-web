@@ -38,6 +38,7 @@ export default function CalendarPage() {
   });
   const profiles = calendarData?.profiles || [];
   const jobs = calendarData?.jobs || [];
+  const callerUsers = calendarData?.callerUsers || [];
   const calendarMeta = calendarData?.calendar || {};
   const currentUser = calendarData?.currentUser || {};
   const calendarProfiles = useMemo(
@@ -141,6 +142,25 @@ export default function CalendarPage() {
     );
   }
 
+  function assignCalendarEvent(event, callerUserId) {
+    if (!event?.interviewId || !event.job?.bid) return;
+    setCalendarActionError('');
+    updateBid.mutate(
+      {
+        bidId: event.interviewId,
+        jobId: event.job.id,
+        bidData: {
+          ...event.job.bid,
+          id: event.interviewId,
+          isInterview: true,
+          status: event.job.bid.status || 'interviewing',
+          callerUserId,
+        },
+      },
+      { onError: (error) => setCalendarActionError(error.message) },
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -186,10 +206,13 @@ export default function CalendarPage() {
 
         <CalendarGrid
           currentUser={currentUser}
+          callerUsers={callerUsers}
           cursorDate={cursorDate}
           eventsByDay={eventsByDay}
+          isAssigningCaller={updateBid.isPending}
           visibleDays={visibleDays}
           view={view}
+          onCallerChange={assignCalendarEvent}
           onEventDrop={moveCalendarEvent}
         />
       </Box>

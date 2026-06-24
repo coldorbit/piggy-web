@@ -365,13 +365,15 @@ export default function InterviewsPage({ currentUser }) {
     event.preventDefault();
     if (!selectedJob?.bid?.parentInterviewId) return;
     setError('');
+    const existingCall = manualCall.id ? selectedDraft?.calls?.find((call) => String(call.id) === String(manualCall.id)) : callForStage(selectedJob, manualCall.interviewStage);
+    const defaultCallerUserId = String(existingCall?.callerUserId ?? selectedDraft?.callerUserId ?? '');
     const callData = {
       interviewStage: manualCall.interviewStage,
       scheduledAt: fromDefaultTimezoneDatetimeLocal(manualCall.scheduledAt),
       durationMinutes: manualCall.durationMinutes,
-      callerUserId: manualCall.callerUserId,
       meetingLink: manualCall.meetingLink,
       notes: manualCall.notes,
+      ...(String(manualCall.callerUserId || '') !== defaultCallerUserId ? { callerUserId: manualCall.callerUserId } : {}),
     };
     const existingCallId = manualCall.id || callForStage(selectedJob, manualCall.interviewStage)?.id || '';
     const mutationOptions = {
@@ -531,7 +533,7 @@ export default function InterviewsPage({ currentUser }) {
                   activeDropStage={activeDropStage}
                   callerUsers={callerUsers}
                   currentUser={effectiveCurrentUser}
-                  canAssignCallers={isAdminRole(currentUser)}
+                  canAssignCallers={canRegisterCalls}
                   canDeleteInterviews={canEditInterviews}
                   draftFor={draftFor}
                   isDeleting={deletingInterview}
@@ -708,7 +710,7 @@ export default function InterviewsPage({ currentUser }) {
                 ))}
               </Select>
             </FormControl>
-            {isAdminRole(currentUser) ? (
+            {canRegisterCalls ? (
               <FormControl>
                 <InputLabel>Assignee</InputLabel>
                 <Select
@@ -868,7 +870,7 @@ export default function InterviewsPage({ currentUser }) {
                   disabled={updatingBid || !canEditInterviews}
                   slotProps={{ inputLabel: { shrink: true } }}
                 />
-                {isAdminRole(currentUser) ? (
+                {canRegisterCalls ? (
                   <FormControl size="small">
                     <InputLabel>Assignee</InputLabel>
                     <Select

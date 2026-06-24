@@ -190,11 +190,12 @@ describe('interview scheduled occurrences', () => {
   it('uses durable call rows instead of moving the previous calendar event', () => {
     const interview = interviewRow({
       id: 99,
+      callerUserId: 900,
       interviewStage: 'hiring_manager',
       interviewNextAt: new Date('2026-06-25T18:00:00.000Z'),
       calls: [
         interviewCall({ id: 701, interviewStage: 'screening', scheduledAt: new Date('2026-06-22T16:00:00.000Z') }),
-        interviewCall({ id: 702, interviewStage: 'hiring_manager', scheduledAt: new Date('2026-06-25T18:00:00.000Z') }),
+        interviewCall({ id: 702, callerUserId: 901, interviewStage: 'hiring_manager', scheduledAt: new Date('2026-06-25T18:00:00.000Z') }),
       ],
     });
 
@@ -207,6 +208,10 @@ describe('interview scheduled occurrences', () => {
         ['interview-99-call-701', 99, 'screening', '2026-06-22T16:00:00.000Z'],
         ['interview-99-call-702', 99, 'hiring_manager', '2026-06-25T18:00:00.000Z'],
       ],
+    );
+    assert.deepEqual(
+      events.map((event) => event.callerUserId),
+      [900, 901],
     );
   });
 });
