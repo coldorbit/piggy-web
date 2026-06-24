@@ -69,13 +69,11 @@ function currentPeriodCte({ sql, step }, timeZone, anchor = 'now()') {
 }
 
 function currentPeriodStartSql(grainSql, timeZone, anchor = 'now()') {
-  if (grainSql !== 'week') return anchorBucketSql(grainSql, timeZone, anchor);
-
-  const localAnchor = localTimestampSql(anchor, timeZone);
-  return `(date_trunc('day', ${localAnchor}) - (EXTRACT(DOW FROM ${localAnchor})::int * interval '1 day'))`;
+  return anchorBucketSql(grainSql, timeZone, anchor);
 }
 
 function bucketExpression(column, grainConfig, timeZone) {
+  if (grainConfig.sql === 'week') return sundayWeekBucketSql(column, timeZone);
   return localBucketSql(column, grainConfig.sql, timeZone);
 }
 
@@ -85,8 +83,14 @@ function localTimestampSql(column, timeZone) {
 }
 
 function anchorBucketSql(grainSql, timeZone, anchor = 'now()') {
+  if (grainSql === 'week') return sundayWeekBucketSql(anchor, timeZone);
   if (anchor === 'now()') return localNowBucketSql(grainSql, timeZone);
   return localBucketSql(anchor, grainSql, timeZone);
+}
+
+function sundayWeekBucketSql(column, timeZone) {
+  const localTimestamp = localTimestampSql(column, timeZone);
+  return `(date_trunc('day', ${localTimestamp}) - (EXTRACT(DOW FROM ${localTimestamp})::int * interval '1 day'))`;
 }
 
 function dashboardAnchorSql(value) {
@@ -106,18 +110,9 @@ function rangePredicate(bucketSql, alias = 'range') {
 
 function overallSql(grainConfig, timeZone, anchor) {
   const normalizedTimeZone = normalizeTimeZone(timeZone);
-  const jobBucket = bucketExpression('scraped_at', grainConfig, normalizedTimeZone);
-  const bidBucket = bucketExpression('bid_at', grainConfig, normalizedTimeZone);
-  const tailoringBucket = bucketExpression('created_at', grainConfig, normalizedTimeZone);
 
   return `
-    ${rangeCte(grainConfig, normalizedTimeZone, anchor)},
-    ${currentPeriodCte(grainConfig, normalizedTimeZone, anchor)},
-    local_day AS (
-      SELECT
-        ${anchorBucketSql('day', normalizedTimeZone, anchor)} AT TIME ZONE '${normalizedTimeZone}' AS starts_at,
-        (${anchorBucketSql('day', normalizedTimeZone, anchor)} + interval '1 day') AT TIME ZONE '${normalizedTimeZone}' AS ends_at
-    ),
+    WITH ${currentPeriodCte(grainConfig, normalizedTimeZone, anchor)},
     job_totals AS (
       SELECT
         COUNT(*)::int AS total_jobs,
@@ -127,8 +122,9 @@ function overallSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE is_spam = true)::int AS spam_jobs,
         COUNT(*) FILTER (WHERE is_spam = false)::int AS reviewed_good_jobs,
         COUNT(*) FILTER (WHERE is_spam IS NULL)::int AS unreviewed_jobs
-      FROM scraped_jobs, range
-      WHERE ${rangePredicate(jobBucket)}
+      FROM scraped_jobs
+      CROSS JOIN current_period
+      WHERE ${currentPeriodPredicate('scraped_at', normalizedTimeZone)}
     ),
     bid_totals AS (
       SELECT
@@ -139,22 +135,22 @@ function overallSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'won')::int AS won_applications,
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications,
         COUNT(*) FILTER (WHERE status IN ('mismatching_bid', 'spam_job'))::int AS review_blocked_applications
-      FROM job_bids, range
-      WHERE ${rangePredicate(bidBucket)}
+      FROM job_bids
+      CROSS JOIN current_period
+      WHERE ${currentPeriodPredicate('bid_at', normalizedTimeZone)}
     ),
-    daily_bid_totals AS (
+    period_bid_totals AS (
       SELECT
         COUNT(*) FILTER (
           WHERE web_users.role IN ('user', 'admin', 'superadmin', 'finance_manager', 'bidder', 'readonly_bidder', 'editable_bidder')
-        )::int AS daily_total_bids,
-        COUNT(*) FILTER (WHERE web_users.role IN ('user', 'admin', 'superadmin', 'finance_manager'))::int AS daily_user_role_bids,
-        COUNT(*) FILTER (WHERE web_users.role IN ('bidder', 'readonly_bidder', 'editable_bidder'))::int AS daily_bidder_bids
+        )::int AS period_total_bids,
+        COUNT(*) FILTER (WHERE web_users.role IN ('user', 'admin', 'superadmin', 'finance_manager'))::int AS period_user_role_bids,
+        COUNT(*) FILTER (WHERE web_users.role IN ('bidder', 'readonly_bidder', 'editable_bidder'))::int AS period_bidder_bids
       FROM job_bids
       JOIN web_users ON web_users.id = job_bids.user_id
-      CROSS JOIN local_day
+      CROSS JOIN current_period
       WHERE job_bids.status IN ('submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost')
-        AND job_bids.bid_at >= local_day.starts_at
-        AND job_bids.bid_at < local_day.ends_at
+        AND ${currentPeriodPredicate('job_bids.bid_at', normalizedTimeZone)}
     ),
     interview_totals AS (
       SELECT
@@ -175,13 +171,14 @@ function overallSql(grainConfig, timeZone, anchor) {
       SELECT
         COUNT(*)::int AS tailored_resume_requests,
         COUNT(*) FILTER (WHERE status = 'ready')::int AS ready_tailored_resumes
-      FROM tailored_resumes, range
-      WHERE ${rangePredicate(tailoringBucket)}
+      FROM tailored_resumes
+      CROSS JOIN current_period
+      WHERE ${currentPeriodPredicate('created_at', normalizedTimeZone)}
     )
-    SELECT job_totals.*, bid_totals.*, daily_bid_totals.*, interview_totals.*, tailoring_totals.*
+    SELECT job_totals.*, bid_totals.*, period_bid_totals.*, interview_totals.*, tailoring_totals.*
     FROM job_totals
     CROSS JOIN bid_totals
-    CROSS JOIN daily_bid_totals
+    CROSS JOIN period_bid_totals
     CROSS JOIN interview_totals
     CROSS JOIN tailoring_totals
   `;

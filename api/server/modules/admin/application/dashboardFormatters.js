@@ -131,6 +131,9 @@ function formatTotals(row) {
     'won_applications',
     'lost_applications',
     'review_blocked_applications',
+    'period_total_bids',
+    'period_user_role_bids',
+    'period_bidder_bids',
     'daily_total_bids',
     'daily_user_role_bids',
     'daily_bidder_bids',
@@ -145,9 +148,19 @@ function formatTotals(row) {
     'tailored_resume_requests',
     'ready_tailored_resumes',
   ]);
+  const values = camelizeKeys(totals);
+  const periodTotalBids = values.periodTotalBids ?? values.dailyTotalBids ?? 0;
+  const periodUserRoleBids = values.periodUserRoleBids ?? values.dailyUserRoleBids ?? 0;
+  const periodBidderBids = values.periodBidderBids ?? values.dailyBidderBids ?? 0;
 
   return {
-    ...camelizeKeys(totals),
+    ...values,
+    periodTotalBids,
+    periodUserRoleBids,
+    periodBidderBids,
+    dailyTotalBids: periodTotalBids,
+    dailyUserRoleBids: periodUserRoleBids,
+    dailyBidderBids: periodBidderBids,
     applicationToInterviewRate: rate(totals.total_interviews, totals.total_applications),
     interviewToOfferRate: rate(totals.successful_offers, totals.total_interviews),
     finalToOfferRate: rate(totals.successful_final_interviews, totals.final_interviews),

@@ -97,7 +97,7 @@ export default function AdminDashboardPage() {
           <Grid container spacing={1.25}>
             <DashboardMetric icon={<WorkIcon />} label="Jobs" value={totals.totalJobs} detail={`${number(totals.manualJobs)} manual · ${number(totals.scrapedJobs)} scraped`} />
             <DashboardMetric icon={<AssignmentTurnedInIcon />} label="Applications" value={totals.totalApplications} detail={`${number(totals.submittedApplications)} submitted`} />
-            <DashboardMetric icon={<TodayIcon />} label="Daily bids" value={totals.dailyTotalBids} detail={`${number(totals.dailyUserRoleBids)} user/admin/finance · ${number(totals.dailyBidderBids)} bidders`} />
+            <DashboardMetric icon={<TodayIcon />} label="Bids" value={totals.periodTotalBids} detail={`${number(totals.periodUserRoleBids)} user/admin/finance · ${number(totals.periodBidderBids)} bidders`} />
             <DashboardMetric icon={<EventAvailableIcon />} label="Interviews" value={totals.totalInterviews} detail={`${number(totals.activeInterviews)} active`} />
             <DashboardMetric icon={<TrendingUpIcon />} label="Technical success" value={percent(totals.technicalSuccessRate)} detail={`${number(totals.successfulTechnicalInterviews)} successful`} />
             <DashboardMetric icon={<EmojiEventsIcon />} label="Offers" value={totals.successfulOffers} detail={`${percent(totals.interviewToOfferRate)} interview-to-offer`} />

@@ -17,16 +17,32 @@ describe('dashboard queries', () => {
     assert.match(sql, /current_period AS \([\s\S]*EXTRACT\(DOW FROM timezone\('America\/Los_Angeles', now\(\)\)\)::int \* interval '1 day'/);
   });
 
+  it('uses the same Sunday week buckets for trend charts', () => {
+    const sql = dashboardQueries(grainConfigFor('weekly'), { timeZone: 'America/Los_Angeles' }).trend;
+
+    assert.match(sql, /WITH range AS \([\s\S]*EXTRACT\(DOW FROM timezone\('America\/Los_Angeles', now\(\)\)\)::int \* interval '1 day'/);
+    assert.match(sql, /SELECT \(date_trunc\('day', timezone\('America\/Los_Angeles', scraped_at\)\) - \(EXTRACT\(DOW FROM timezone\('America\/Los_Angeles', scraped_at\)\)::int \* interval '1 day'\)\) AS bucket_start/);
+    assert.doesNotMatch(sql, /date_trunc\('week', timezone/);
+  });
+
   it('anchors dashboard periods to a requested date when provided', () => {
     const sql = dashboardQueries(grainConfigFor('daily'), {
       anchorDate: new Date('2026-06-18T12:00:00.000Z'),
       timeZone: 'America/Los_Angeles',
     }).overall;
 
-    assert.match(sql, /date_trunc\('day', timezone\('America\/Los_Angeles', '2026-06-18T12:00:00\.000Z'::timestamptz\)\) - interval '29 days' AS starts_at/);
-    assert.match(sql, /date_trunc\('day', timezone\('America\/Los_Angeles', '2026-06-18T12:00:00\.000Z'::timestamptz\)\) AS ends_at/);
     assert.match(sql, /current_period AS \([\s\S]*date_trunc\('day', timezone\('America\/Los_Angeles', '2026-06-18T12:00:00\.000Z'::timestamptz\)\) AS starts_at/);
     assert.doesNotMatch(sql, /date_trunc\('day', timezone\('America\/Los_Angeles', now\(\)\)\) AS starts_at/);
+  });
+
+  it('filters overall cards to the selected current period', () => {
+    const sql = dashboardQueries(grainConfigFor('weekly'), { timeZone: 'America/Los_Angeles' }).overall;
+
+    assert.match(sql, /job_totals AS \([\s\S]*FROM scraped_jobs[\s\S]*CROSS JOIN current_period[\s\S]*timezone\('America\/Los_Angeles', scraped_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', scraped_at\) < current_period\.ends_at/);
+    assert.match(sql, /bid_totals AS \([\s\S]*FROM job_bids[\s\S]*CROSS JOIN current_period[\s\S]*timezone\('America\/Los_Angeles', bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', bid_at\) < current_period\.ends_at/);
+    assert.match(sql, /period_bid_totals AS \([\s\S]*AS period_total_bids[\s\S]*AS period_user_role_bids[\s\S]*AS period_bidder_bids[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) < current_period\.ends_at/);
+    assert.match(sql, /tailoring_totals AS \([\s\S]*FROM tailored_resumes[\s\S]*CROSS JOIN current_period[\s\S]*timezone\('America\/Los_Angeles', created_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', created_at\) < current_period\.ends_at/);
+    assert.doesNotMatch(sql, /daily_bid_totals/);
   });
 
   it('counts user interviews by creation date while keeping outcomes activity-based', () => {
