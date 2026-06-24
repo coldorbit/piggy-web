@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
 import {
+  bidAttributesFromBody,
   buildBidTabQuery,
   dailyGoalRangeForBidFilter,
   dailyGoalRangeForUserBidFilter,
@@ -16,6 +17,16 @@ const sequelize = {
     return `'${String(value).replaceAll("'", "''")}'`;
   },
 };
+
+describe('bidAttributesFromBody', () => {
+  it('allows todo status only for interview row updates', () => {
+    assert.throws(() => bidAttributesFromBody({ status: 'todo' }), /valid bid status/);
+
+    const attrs = bidAttributesFromBody({ status: 'todo' }, { allowInterviewTodoStatus: true });
+    assert.equal(attrs.status, 'todo');
+    assert.equal(attrs.interviewStage, 'todo');
+  });
+});
 
 describe('buildBidTabQuery', () => {
   it('keeps tailored resume jobs on the todo tab until they are done', () => {

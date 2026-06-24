@@ -1,6 +1,7 @@
 import { Op, Sequelize } from 'sequelize';
 import { formatJob } from '../../jobs/application/jobsService.js';
 import { clean } from '../../../utils/index.js';
+import { InputError } from '../../../utils/errors.js';
 import {
   addLocalDays,
   localDateRange,
@@ -332,7 +333,7 @@ for (let i = 0; i < CRC_TABLE.length; i += 1) {
   CRC_TABLE[i] = c >>> 0;
 }
 
-export function bidAttributesFromBody(body) {
+export function bidAttributesFromBody(body, options = {}) {
   const status = clean(body?.status || 'planned');
   const bidAmount = clean(body?.bidAmount);
   const hasCallerUserId = Object.prototype.hasOwnProperty.call(body || {}, 'callerUserId');
@@ -364,7 +365,8 @@ export function bidAttributesFromBody(body) {
     'lost',
     ...REVIEW_BID_STATUSES,
   ]);
-  const normalizedInterviewStage = status === 'interviewing' && !interviewStage ? 'todo' : interviewStage;
+  if (options.allowInterviewTodoStatus) allowedStatuses.add('todo');
+  const normalizedInterviewStage = ['interviewing', 'todo'].includes(status) && !interviewStage ? 'todo' : interviewStage;
 
   if (!allowedStatuses.has(status)) throw new InputError('Choose a valid bid status');
   if (bidAmount && Number.isNaN(Number(bidAmount))) throw new InputError('Bid amount must be a number');

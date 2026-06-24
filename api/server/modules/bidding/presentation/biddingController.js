@@ -3313,7 +3313,10 @@ export async function updateInterview(req, res, next) {
       res.status(404).json({ error: 'Interview not found' });
       return;
     }
-    const attrs = bidAttributesFromBody({ ...req.body, status: req.body?.status || interview.status });
+    const attrs = bidAttributesFromBody(
+      { ...req.body, status: req.body?.status || interview.status },
+      { allowInterviewTodoStatus: true },
+    );
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (!isAdminRole(req.user)) {
       await interviewWriteProfileForUser(user, interview.profileId, 'Interview not found');
@@ -3330,9 +3333,10 @@ export async function updateInterview(req, res, next) {
     if (interview.jobBidId) {
       const bid = await getJobBidModel().findByPk(interview.jobBidId);
       if (bid) {
-        const bidUpdates = { ...bidUpdateValuesFromAttrs(attrs), updatedAt: now };
-        if (shouldRefreshBidAtForStatus(attrs.status, bid.status)) bidUpdates.bidAt = now;
-        if (shouldSetInterviewAtForStatus(attrs.status, bid.status, bid.interviewAt)) bidUpdates.interviewAt = now;
+        const bidAttrs = { ...attrs, status: bidStatusFromInterviewStatus(attrs.status) };
+        const bidUpdates = { ...bidUpdateValuesFromAttrs(bidAttrs), updatedAt: now };
+        if (shouldRefreshBidAtForStatus(bidAttrs.status, bid.status)) bidUpdates.bidAt = now;
+        if (shouldSetInterviewAtForStatus(bidAttrs.status, bid.status, bid.interviewAt)) bidUpdates.interviewAt = now;
         await bid.update(bidUpdates);
       }
     }
@@ -3630,7 +3634,7 @@ function interviewValuesFromAttrs(attrs, existing = null) {
     callerUserId: Object.prototype.hasOwnProperty.call(attrs, 'callerUserId')
       ? attrs.callerUserId
       : existing?.callerUserId || null,
-    status: attrs.status || 'interviewing',
+    status: interviewStatusFromAttrs(attrs, existing),
     interviewStage: stage,
     interviewNextAt,
     interviewDurationMinutes: attrs.interviewDurationMinutes || existing?.interviewDurationMinutes || 60,
@@ -3639,6 +3643,16 @@ function interviewValuesFromAttrs(attrs, existing = null) {
     stageNotes,
     stageMeetingLinks,
   };
+}
+
+export function interviewStatusFromAttrs(attrs = {}, existing = null) {
+  if (attrs.status === 'won' || attrs.status === 'lost') return attrs.status;
+  const stage = attrs.interviewStage || existing?.interviewStage || 'todo';
+  return stage === 'todo' ? 'todo' : 'interviewing';
+}
+
+export function bidStatusFromInterviewStatus(status) {
+  return status === 'won' || status === 'lost' ? status : 'interviewing';
 }
 
 function manualInterviewCallAttributes(body = {}, interview) {

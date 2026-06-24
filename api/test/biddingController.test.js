@@ -4,7 +4,9 @@ import {
   calendarEventsForInterviews,
   canDeleteInterviewCall,
   canWriteInterviewForProfile,
+  bidStatusFromInterviewStatus,
   groupedBidJobs,
+  interviewStatusFromAttrs,
   interviewOccurrenceLogFromSnapshot,
   shouldRegisterInterviewCallForStage,
   shouldRegisterInterviewCallForStageChange,
@@ -92,6 +94,14 @@ describe('canWriteInterviewForProfile', () => {
 });
 
 describe('interview scheduled occurrences', () => {
+  it('stores newly moved application interviews as todo rows', () => {
+    assert.equal(interviewStatusFromAttrs({ status: 'interviewing', interviewStage: 'todo' }), 'todo');
+    assert.equal(interviewStatusFromAttrs({ status: 'interviewing', interviewStage: 'screening' }), 'interviewing');
+    assert.equal(interviewStatusFromAttrs({ status: 'won', interviewStage: 'final' }), 'won');
+    assert.equal(bidStatusFromInterviewStatus('todo'), 'interviewing');
+    assert.equal(bidStatusFromInterviewStatus('lost'), 'lost');
+  });
+
   it('registers scheduled calls for non-todo active stages only', () => {
     assert.equal(shouldRegisterInterviewCallForStage('todo'), false);
     assert.equal(shouldRegisterInterviewCallForStage('screening'), true);
