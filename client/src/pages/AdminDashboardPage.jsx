@@ -1,4 +1,3 @@
-import AnalyticsIcon from '@mui/icons-material/Analytics';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -101,7 +100,6 @@ export default function AdminDashboardPage() {
             <DashboardMetric icon={<EventAvailableIcon />} label="Interviews" value={totals.totalInterviews} detail={`${number(totals.activeInterviews)} active`} />
             <DashboardMetric icon={<TrendingUpIcon />} label="Technical success" value={percent(totals.technicalSuccessRate)} detail={`${number(totals.successfulTechnicalInterviews)} successful`} />
             <DashboardMetric icon={<EmojiEventsIcon />} label="Offers" value={totals.successfulOffers} detail={`${percent(totals.interviewToOfferRate)} interview-to-offer`} />
-            <DashboardMetric icon={<AnalyticsIcon />} label="Tailoring" value={totals.tailoredResumeRequests} detail={`${number(totals.readyTailoredResumes)} ready resumes`} />
           </Grid>
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1.35fr 1fr' }, gap: 1.5 }}>
