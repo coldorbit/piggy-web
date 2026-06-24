@@ -22,6 +22,19 @@ describe('appliedFilterOwnerRoles', () => {
     }
   });
 
+  it('lets bidder roles filter by other user and bidder-owned profiles', () => {
+    for (const role of BIDDER_ROLES) {
+      assert.equal(appliedFilterOwnerRoles({ role }).includes(ROLES.user), true);
+      for (const bidderRole of BIDDER_ROLES) {
+        assert.equal(
+          appliedFilterOwnerRoles({ role }).includes(bidderRole),
+          true,
+          `${role} should see ${bidderRole} profiles in the applied using filter`,
+        );
+      }
+    }
+  });
+
   it('keeps finance manager applied filter ownership narrow', () => {
     assert.deepEqual(appliedFilterOwnerRoles({ role: ROLES.financeManager }), [ROLES.user]);
   });

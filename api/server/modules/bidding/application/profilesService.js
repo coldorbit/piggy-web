@@ -14,6 +14,7 @@ import { InputError, NotFoundError } from '../../../utils/errors.js';
 import {
   ADMIN_MANAGED_PROFILE_OWNER_ROLES,
   APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES,
+  APPLIED_PROFILE_FILTER_ROLES,
   BIDDER_ROLES,
   PRIVILEGED_USER_ROLES,
   isAdminRole,
@@ -70,7 +71,7 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
   });
   if (!appliedProfile) throw new NotFoundError('Profile not found');
 
-  if (!PRIVILEGED_USER_ROLES.includes(user.role)) return accessibleProfile(req, profileId);
+  if (!APPLIED_PROFILE_FILTER_ROLES.includes(user.role)) return accessibleProfile(req, profileId);
   if ((appliedProfile.profileStatus || 'active') !== 'active') throw new NotFoundError('Profile not found');
   if ((appliedProfile.profileBadge || 'SWE') !== (profile.profileBadge || 'SWE')) throw new NotFoundError('Profile not found');
   if (!appliedFilterOwnerRoles(user).includes(appliedProfile.user?.role)) throw new NotFoundError('Profile not found');
@@ -449,7 +450,7 @@ export async function profilesManagedByUser(user) {
 }
 
 export async function profilesForAppliedFilter(user) {
-  if (!PRIVILEGED_USER_ROLES.includes(user?.role)) return [];
+  if (!APPLIED_PROFILE_FILTER_ROLES.includes(user?.role)) return [];
   const BidProfile = getBidProfileModel();
   const WebUser = getWebUserModel();
 
@@ -472,7 +473,7 @@ export async function profilesForAppliedFilter(user) {
 
 export function appliedFilterOwnerRoles(user) {
   const managedRoles = isAdminRole(user) ? ADMIN_MANAGED_PROFILE_OWNER_ROLES : ['user'];
-  if (!APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES.includes(user?.role)) return managedRoles;
+  if (!APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES.includes(user?.role) && !BIDDER_ROLES.includes(user?.role)) return managedRoles;
   return [...new Set([...managedRoles, ...BIDDER_ROLES])];
 }
 

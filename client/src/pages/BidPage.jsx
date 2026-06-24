@@ -28,7 +28,7 @@ import {
   useUpdateJobBid,
 } from '../lib/api.js';
 import { writePersistedFilters } from '../lib/persistedFilters.js';
-import { PRIVILEGED_USER_ROLES, isAdminRole } from '../lib/roles.js';
+import { APPLIED_PROFILE_FILTER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../lib/roles.js';
 import {
   BID_FILTER_KEYS,
   BID_FILTERS_STORAGE_KEY,
@@ -74,7 +74,7 @@ export default function BidPage({ currentUser }) {
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
     { ...(canUseTomorrowDateFilter ? { scope: 'manage' } : {}), ...profileGoalFilters },
   );
-  const canUseCrossUserAppliedFilter = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
+  const canUseCrossUserAppliedFilter = APPLIED_PROFILE_FILTER_ROLES.includes(currentUser?.role);
   const { data: appliedFilterProfiles = [], isLoading: appliedFilterProfilesLoading } = useBidProfiles(
     canUseCrossUserAppliedFilter ? { scope: 'applied-filter' } : {},
     { enabled: canUseCrossUserAppliedFilter },

@@ -42,6 +42,7 @@ export const INBOX_ACCESS_ROLES = STAFF_WORKSPACE_ROLES;
 export const CALLER_MANAGEMENT_ROLES = ADMIN_ROLES;
 export const ADMIN_MANAGED_PROFILE_OWNER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
 export const APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user];
+export const APPLIED_PROFILE_FILTER_ROLES = [...PRIVILEGED_USER_ROLES, ...BIDDER_ROLES];
 
 export function isSuperadmin(userOrRole) {
   return roleOf(userOrRole) === ROLES.superadmin;
