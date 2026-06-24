@@ -33,6 +33,7 @@ import {
   BID_FILTER_KEYS,
   BID_FILTERS_STORAGE_KEY,
   areBidFiltersEqual,
+  appliedProfileOptionsForActiveProfile,
   bidFiltersFromParams,
   bidGoalFilterParams,
   bidJobActionId,
@@ -40,6 +41,7 @@ import {
   bidParamsFromState,
   bidTabFromParam,
   goalDateLabelForFilters,
+  isAppliedProfileFilterValid,
   isCurrentDailyGoalFilter,
   isJobVisibleForTab,
   normalizeBidDateFilter,
@@ -73,7 +75,7 @@ export default function BidPage({ currentUser }) {
     { ...(canUseTomorrowDateFilter ? { scope: 'manage' } : {}), ...profileGoalFilters },
   );
   const canUseCrossUserAppliedFilter = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
-  const { data: appliedFilterProfiles = [] } = useBidProfiles(
+  const { data: appliedFilterProfiles = [], isLoading: appliedFilterProfilesLoading } = useBidProfiles(
     canUseCrossUserAppliedFilter ? { scope: 'applied-filter' } : {},
     { enabled: canUseCrossUserAppliedFilter },
   );
@@ -86,11 +88,12 @@ export default function BidPage({ currentUser }) {
     [activeProfiles, activeProfileId],
   );
   const appliedProfileOptions = useMemo(
-    () =>
-      (canUseCrossUserAppliedFilter ? appliedFilterProfiles : activeProfiles)
-        .filter((profile) => (profile.profileStatus || 'active') === 'active')
-        .filter((profile) => String(profile.id) !== String(activeProfile?.id || ''))
-        .filter((profile) => !activeProfile || (profile.profileBadge || 'SWE') === (activeProfile.profileBadge || 'SWE')),
+    () => appliedProfileOptionsForActiveProfile({
+      activeProfile,
+      activeProfiles,
+      appliedFilterProfiles,
+      canUseCrossUserAppliedFilter,
+    }),
     [activeProfile, activeProfiles, appliedFilterProfiles, canUseCrossUserAppliedFilter],
   );
   const { data: metaData, isLoading: metaLoading, error: metaError, refetch: refetchMeta } = useJobsMeta();
@@ -156,6 +159,20 @@ export default function BidPage({ currentUser }) {
   useEffect(() => {
     writePersistedFilters(BID_FILTERS_STORAGE_KEY, filters, BID_FILTER_KEYS);
   }, [filters]);
+
+  useEffect(() => {
+    if (!canUseCrossUserAppliedFilter || activeBidTab !== BID_TABS.todo) return;
+    if (filters.appliedProfileId === 'all') return;
+    if (appliedFilterProfilesLoading) return;
+    if (isAppliedProfileFilterValid(filters.appliedProfileId, appliedProfileOptions)) return;
+    setFilters((current) => ({ ...current, appliedProfileId: 'all', page: 1 }));
+  }, [
+    activeBidTab,
+    appliedFilterProfilesLoading,
+    appliedProfileOptions,
+    canUseCrossUserAppliedFilter,
+    filters.appliedProfileId,
+  ]);
 
   function submitProfile(event) {
     event.preventDefault();

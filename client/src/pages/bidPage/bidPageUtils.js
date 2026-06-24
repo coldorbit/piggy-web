@@ -45,6 +45,22 @@ export function tailoringByProfileJobs(tailoringByProfileJobId, profileId, jobs)
   }, {});
 }
 
+export function appliedProfileOptionsForActiveProfile({ activeProfile, activeProfiles = [], appliedFilterProfiles = [], canUseCrossUserAppliedFilter = false }) {
+  const sourceProfiles = canUseCrossUserAppliedFilter ? appliedFilterProfiles : activeProfiles;
+  const activeProfileId = String(activeProfile?.id || '');
+  const activeProfileBadge = activeProfile ? profileBadge(activeProfile) : '';
+
+  return sourceProfiles
+    .filter((profile) => (profile.profileStatus || 'active') === 'active')
+    .filter((profile) => String(profile.id) !== activeProfileId)
+    .filter((profile) => !activeProfileBadge || profileBadge(profile) === activeProfileBadge);
+}
+
+export function isAppliedProfileFilterValid(appliedProfileId, appliedProfiles = []) {
+  if (!appliedProfileId || appliedProfileId === 'all') return true;
+  return appliedProfiles.some((profile) => String(profile.id) === String(appliedProfileId));
+}
+
 export function bidTabFromParam(value) {
   return APPLICATION_TABS.has(value) ? value : BID_TABS.todo;
 }
@@ -135,4 +151,8 @@ export function isJobVisibleForTab(job, activeTab, draft) {
   if (activeTab === BID_TABS.done) return done;
   if (activeTab === BID_TABS.badWork) return reviewBlocked;
   return !done && !interviewing && !reviewBlocked;
+}
+
+function profileBadge(profile) {
+  return profile.profileBadge || 'SWE';
 }
