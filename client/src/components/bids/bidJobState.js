@@ -8,3 +8,11 @@ export function hasTailoredResumeActivity(job) {
 export function isTodoTailoringLocked(job) {
   return TODO_LOCKED_TAILORED_STATUSES.includes(job?.tailoredResume?.status);
 }
+
+export function moveToInterviewDraft(draft = {}) {
+  return {
+    ...draft,
+    status: 'interviewing',
+    interviewStage: 'todo',
+  };
+}

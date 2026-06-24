@@ -30,7 +30,7 @@ import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '
 import JobIdBadge from '../jobs/JobIdBadge.jsx';
 import JobRegionBadge from '../jobs/JobRegionBadge.jsx';
 import { APPLICATION_WORKFLOW_STATUSES, BID_TABS } from './bidConstants.js';
-import { isTodoTailoringLocked } from './bidJobState.js';
+import { isTodoTailoringLocked, moveToInterviewDraft } from './bidJobState.js';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 
 const SELECTED_JOB_CARD_BG = '#EFF6FF';
@@ -133,9 +133,10 @@ export default function BidJobCard({
   }
 
   function handleMoveToInterview() {
-    const status = 'interviewing';
-    onDraftChange(job.id, 'status', status);
-    onStatusChange(job, { ...draft, status });
+    const nextDraft = moveToInterviewDraft(draft);
+    onDraftChange(job.id, 'status', nextDraft.status);
+    onDraftChange(job.id, 'interviewStage', nextDraft.interviewStage);
+    onStatusChange(job, nextDraft);
   }
 
   function handleCardClick(event) {
