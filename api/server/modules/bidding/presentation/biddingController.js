@@ -72,7 +72,6 @@ import {
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
 const DAILY_BID_GOAL_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
-const INITIAL_INTERVIEW_CALL_STAGE = 'screening';
 const BATCH_LIMIT = 100;
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -4030,36 +4029,45 @@ export function shouldRegisterInterviewCallForStageChange(previousStage, nextSta
 }
 
 function ensureInitialInterviewCallSchedule(attrs) {
-  if (!shouldRegisterInterviewCallForStage(INITIAL_INTERVIEW_CALL_STAGE, attrs.status || 'interviewing')) return;
+  if (!shouldRegisterInitialInterviewCall(attrs)) return;
   if (!attrs.interviewNextAt) throw new InputError('Screening call date is required');
+}
+
+export function shouldRegisterInitialInterviewCall(attrs = {}) {
+  const stage = attrs.interviewStage || 'todo';
+  return shouldRegisterInterviewCallForStage(stage, interviewStatusFromAttrs(attrs));
 }
 
 async function syncInitialInterviewCall(interview, { sourceType = 'created' } = {}) {
   const scheduledAt = dateValue(interview.interviewNextAt);
-  if (!scheduledAt || !shouldRegisterInterviewCallForStage(INITIAL_INTERVIEW_CALL_STAGE, interview.status)) return null;
-  const notes = clean(interview.stageNotes?.[INITIAL_INTERVIEW_CALL_STAGE] || interview.interviewNotes);
+  const stage = interview.interviewStage || 'todo';
+  if (!scheduledAt || !shouldRegisterInterviewCallForStage(stage, interview.status)) return null;
+  const notes = clean(interview.stageNotes?.[stage] || interview.interviewNotes);
   const meetingLink = clean(
-    meetingLinkForStage(interview.stageMeetingLinks, INITIAL_INTERVIEW_CALL_STAGE)
+    meetingLinkForStage(interview.stageMeetingLinks, stage)
       || meetingLinkForStage(interview.stageMeetingLinks, interview.interviewStage),
   );
   return upsertInterviewCallForStage(interview, {
     callerUserId: interview.callerUserId || null,
-    interviewStage: INITIAL_INTERVIEW_CALL_STAGE,
+    interviewStage: stage,
     scheduledAt: new Date(scheduledAt),
     durationMinutes: Number(interview.interviewDurationMinutes || 60),
     meetingLink: meetingLink || null,
     notes: notes || null,
   }, {
     sourceType,
-    metadata: { createdFrom: sourceType, initialStage: INITIAL_INTERVIEW_CALL_STAGE },
+    metadata: { createdFrom: sourceType, initialStage: stage },
   });
 }
 
 async function syncInterviewCallForCurrentSchedule(interview, { sourceType = 'current_schedule' } = {}) {
+  const stage = interview.interviewStage || 'todo';
+  if (!shouldRegisterInterviewCallForStage(stage, interview.status)) {
+    if (stage === 'todo' || interview.status === 'todo') await deleteGeneratedInterviewCalls(interview);
+    return null;
+  }
   const scheduledAt = dateValue(interview.interviewNextAt);
   if (!scheduledAt) return null;
-  const stage = interview.interviewStage || 'todo';
-  if (!shouldRegisterInterviewCallForStage(stage, interview.status)) return null;
   const notes = clean(interview.stageNotes?.[stage] || interview.interviewNotes);
   const meetingLink = clean(meetingLinkForStage(interview.stageMeetingLinks, stage));
   return upsertInterviewCallForStage(interview, {
@@ -4072,6 +4080,16 @@ async function syncInterviewCallForCurrentSchedule(interview, { sourceType = 'cu
   }, {
     sourceType,
     metadata: { createdFrom: sourceType },
+  });
+}
+
+async function deleteGeneratedInterviewCalls(interview) {
+  if (!interview?.id) return 0;
+  return getInterviewCallModel().destroy({
+    where: {
+      interviewId: interview.id,
+      sourceType: { [Op.ne]: 'manual' },
+    },
   });
 }
 
@@ -4120,6 +4138,7 @@ export function shouldRegisterInterviewCallForStage(stage, status = 'interviewin
   const normalizedStage = clean(stage || 'todo');
   const normalizedStatus = clean(status || 'interviewing');
   return normalizedStage !== 'todo'
+    && normalizedStatus !== 'todo'
     && !['failed', 'lost'].includes(normalizedStage)
     && !['failed', 'lost'].includes(normalizedStatus);
 }

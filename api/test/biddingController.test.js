@@ -8,6 +8,7 @@ import {
   groupedBidJobs,
   interviewStatusFromAttrs,
   interviewOccurrenceLogFromSnapshot,
+  shouldRegisterInitialInterviewCall,
   shouldRegisterInterviewCallForStage,
   shouldRegisterInterviewCallForStageChange,
 } from '../server/modules/bidding/presentation/biddingController.js';
@@ -104,6 +105,7 @@ describe('interview scheduled occurrences', () => {
 
   it('registers scheduled calls for non-todo active stages only', () => {
     assert.equal(shouldRegisterInterviewCallForStage('todo'), false);
+    assert.equal(shouldRegisterInterviewCallForStage('screening', 'todo'), false);
     assert.equal(shouldRegisterInterviewCallForStage('screening'), true);
     assert.equal(shouldRegisterInterviewCallForStage('technical_interview', 'lost'), false);
     assert.equal(shouldRegisterInterviewCallForStage('lost'), false);
@@ -111,6 +113,11 @@ describe('interview scheduled occurrences', () => {
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'hiring_manager'), true);
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'technical_interview', 'lost'), false);
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'technical_interview', 'failed'), false);
+  });
+
+  it('does not create an initial call for todo-stage interviews', () => {
+    assert.equal(shouldRegisterInitialInterviewCall({ status: 'interviewing', interviewStage: 'todo' }), false);
+    assert.equal(shouldRegisterInitialInterviewCall({ status: 'interviewing', interviewStage: 'screening' }), true);
   });
 
   it('captures the previous scheduled stage when an interview progresses', () => {
