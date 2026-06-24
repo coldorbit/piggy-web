@@ -40,9 +40,10 @@ describe('dashboard queries', () => {
 
     assert.match(sql, /job_totals AS \([\s\S]*FROM scraped_jobs[\s\S]*CROSS JOIN current_period[\s\S]*timezone\('America\/Los_Angeles', scraped_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', scraped_at\) < current_period\.ends_at/);
     assert.match(sql, /bid_totals AS \([\s\S]*FROM job_bids[\s\S]*CROSS JOIN current_period[\s\S]*timezone\('America\/Los_Angeles', bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', bid_at\) < current_period\.ends_at/);
-    assert.match(sql, /period_bid_totals AS \([\s\S]*AS period_total_bids[\s\S]*AS period_user_role_bids[\s\S]*AS period_bidder_bids[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) < current_period\.ends_at/);
+    assert.match(sql, /period_bid_totals AS \([\s\S]*job_bids\.status NOT IN \('mismatching_bid', 'spam_job'\)[\s\S]*AS period_total_bids[\s\S]*'internal'[\s\S]*AS period_user_role_bids[\s\S]*AS period_bidder_bids[\s\S]*LEFT JOIN web_users ON web_users\.id = job_bids\.user_id[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) < current_period\.ends_at/);
     assert.match(sql, /tailoring_totals AS \([\s\S]*FROM tailored_resumes[\s\S]*CROSS JOIN current_period[\s\S]*timezone\('America\/Los_Angeles', created_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', created_at\) < current_period\.ends_at/);
     assert.doesNotMatch(sql, /daily_bid_totals/);
+    assert.doesNotMatch(sql, /WHERE job_bids\.status IN \('submitted'/);
   });
 
   it('counts user interviews by creation date while keeping outcomes activity-based', () => {

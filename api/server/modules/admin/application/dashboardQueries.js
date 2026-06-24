@@ -142,15 +142,20 @@ function overallSql(grainConfig, timeZone, anchor) {
     period_bid_totals AS (
       SELECT
         COUNT(*) FILTER (
-          WHERE web_users.role IN ('user', 'admin', 'superadmin', 'finance_manager', 'bidder', 'readonly_bidder', 'editable_bidder')
+          WHERE job_bids.status NOT IN ('mismatching_bid', 'spam_job')
         )::int AS period_total_bids,
-        COUNT(*) FILTER (WHERE web_users.role IN ('user', 'admin', 'superadmin', 'finance_manager'))::int AS period_user_role_bids,
-        COUNT(*) FILTER (WHERE web_users.role IN ('bidder', 'readonly_bidder', 'editable_bidder'))::int AS period_bidder_bids
+        COUNT(*) FILTER (
+          WHERE job_bids.status NOT IN ('mismatching_bid', 'spam_job')
+            AND web_users.role IN ('user', 'admin', 'superadmin', 'finance_manager', 'internal')
+        )::int AS period_user_role_bids,
+        COUNT(*) FILTER (
+          WHERE job_bids.status NOT IN ('mismatching_bid', 'spam_job')
+            AND web_users.role IN ('bidder', 'readonly_bidder', 'editable_bidder')
+        )::int AS period_bidder_bids
       FROM job_bids
-      JOIN web_users ON web_users.id = job_bids.user_id
+      LEFT JOIN web_users ON web_users.id = job_bids.user_id
       CROSS JOIN current_period
-      WHERE job_bids.status IN ('submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost')
-        AND ${currentPeriodPredicate('job_bids.bid_at', normalizedTimeZone)}
+      WHERE ${currentPeriodPredicate('job_bids.bid_at', normalizedTimeZone)}
     ),
     interview_totals AS (
       SELECT
