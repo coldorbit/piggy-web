@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   calendarEventsForInterviews,
+  canDeleteInterviewCall,
   canWriteInterviewForProfile,
   groupedBidJobs,
   interviewOccurrenceLogFromSnapshot,
+  shouldRegisterInterviewCallForStage,
   shouldRegisterInterviewCallForStageChange,
 } from '../server/modules/bidding/presentation/biddingController.js';
 import { ROLES } from '../server/utils/roles.js';
@@ -90,8 +92,12 @@ describe('canWriteInterviewForProfile', () => {
 });
 
 describe('interview scheduled occurrences', () => {
-  it('does not register a calendar call when moving todo to screening', () => {
-    assert.equal(shouldRegisterInterviewCallForStageChange('todo', 'screening'), false);
+  it('registers scheduled calls for non-todo active stages only', () => {
+    assert.equal(shouldRegisterInterviewCallForStage('todo'), false);
+    assert.equal(shouldRegisterInterviewCallForStage('screening'), true);
+    assert.equal(shouldRegisterInterviewCallForStage('technical_interview', 'lost'), false);
+    assert.equal(shouldRegisterInterviewCallForStage('lost'), false);
+    assert.equal(shouldRegisterInterviewCallForStageChange('todo', 'screening'), true);
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'hiring_manager'), true);
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'technical_interview', 'lost'), false);
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'technical_interview', 'failed'), false);
@@ -202,6 +208,25 @@ describe('interview scheduled occurrences', () => {
         ['interview-99-call-702', 99, 'hiring_manager', '2026-06-25T18:00:00.000Z'],
       ],
     );
+  });
+});
+
+describe('canDeleteInterviewCall', () => {
+  it('allows the call owner, interview owner, and superadmin to delete a call', () => {
+    const call = interviewCall({ userId: 20 });
+    const interview = interviewRow({ userId: 30 });
+
+    assert.equal(canDeleteInterviewCall({ id: 20, role: ROLES.user }, call, interview), true);
+    assert.equal(canDeleteInterviewCall({ id: 30, role: ROLES.user }, call, interview), true);
+    assert.equal(canDeleteInterviewCall({ id: 99, role: ROLES.superadmin }, call, interview), true);
+  });
+
+  it('blocks non-owner admins and other users from deleting a call', () => {
+    const call = interviewCall({ userId: 20 });
+    const interview = interviewRow({ userId: 30 });
+
+    assert.equal(canDeleteInterviewCall({ id: 99, role: ROLES.admin }, call, interview), false);
+    assert.equal(canDeleteInterviewCall({ id: 99, role: ROLES.user }, call, interview), false);
   });
 });
 

@@ -41,6 +41,7 @@ export default function InterviewCard({
   const jobUrl = externalUrl(job.rawJob?.originalUrl || job.url || job.sourceUrl);
   const resumeUrl = resumeDownloadUrl(job.tailoredResume);
   const scheduledStepCount = interviewStepCount(job.bid);
+  const hasAssociatedCall = Array.isArray(job.bid?.calls) && job.bid.calls.length > 0;
 
   function handlePointerDown(event) {
     if (event.target.closest(INTERACTIVE_SELECTOR)) {
@@ -123,6 +124,7 @@ export default function InterviewCard({
           />
           {owner ? <Chip label={owner} size="small" sx={{ ...chipSx, bgcolor: '#edf0ff', color: '#343f91' }} /> : null}
           <Chip label={stageLabel(currentStage)} size="small" sx={{ ...chipSx, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
+          {!hasAssociatedCall ? <Chip label="Missing call" size="small" sx={{ ...chipSx, bgcolor: '#FEF3C7', color: '#92400E' }} /> : null}
           {scheduledStepCount > 1 ? <Chip label={`${scheduledStepCount} interviews`} size="small" sx={{ ...chipSx, bgcolor: '#F5F3FF', color: '#6D28D9' }} /> : null}
           <Chip label={formatDate(job.bid?.updatedAt)} size="small" sx={{ ...chipSx, bgcolor: '#f7ead1', color: '#70400d' }} />
           {currentStageMeetingLink ? (

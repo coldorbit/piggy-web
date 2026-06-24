@@ -13,7 +13,6 @@ import {
   getWebUserModel,
   repositories,
 } from '../../../../db.js';
-import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { Op, QueryTypes } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -73,6 +72,7 @@ import {
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
 const DAILY_BID_GOAL_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
+const INITIAL_INTERVIEW_CALL_STAGE = 'screening';
 const BATCH_LIMIT = 100;
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1737,7 +1737,10 @@ async function listInterviewJobs(req, res, { user, profile }) {
       ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] })
       : Promise.resolve([]),
   ]);
-  const logsByInterviewId = await interviewLogsByInterviewId(interviews);
+  const [logsByInterviewId, callsByInterviewId] = await Promise.all([
+    interviewLogsByInterviewId(interviews),
+    interviewCallsByInterviewId(interviews, user),
+  ]);
   const tailoredResumesByUrl = await tailoredResumesForJobs({
     TailoredResume,
     jobs: interviews.map((interview) => ({ url: interview.jobUrl })).filter((job) => job.url),
@@ -1749,6 +1752,7 @@ async function listInterviewJobs(req, res, { user, profile }) {
   res.json({
     jobs: interviews.map((interview) => {
       interview.setDataValue('logs', logsByInterviewId.get(String(interview.id)) || []);
+      interview.setDataValue('calls', callsByInterviewId.get(String(interview.id)) || []);
       return formatInterviewAsJob(interview, bidUsersById, callerUsersById, tailoredResumesByUrl.get(interview.jobUrl) || null);
     }),
     bidUsers,
@@ -2676,6 +2680,7 @@ export async function createManualInterview(req, res, next) {
     }
 
     const attrs = bidAttributesFromBody({ ...req.body, status: 'interviewing' });
+    ensureInitialInterviewCallSchedule(attrs);
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
     if (!isAdminRole(req.user)) delete attrs.callerUserId;
 
@@ -2689,6 +2694,7 @@ export async function createManualInterview(req, res, next) {
       jobUrl: jobUrl || null,
     });
     await logInterviewCreated(interview, user.id);
+    await syncInitialInterviewCall(interview, { sourceType: 'created' });
 
     res.status(201).json({
       job: formatInterviewAsJob(interview),
@@ -2722,12 +2728,8 @@ export async function createManualInterviewCall(req, res, next) {
 
     const attrs = manualInterviewCallAttributes(req.body, interview);
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
-    const call = await getInterviewCallModel().create({
-      ...attrs,
-      interviewId: interview.id,
-      userId: interview.userId || null,
+    const call = await upsertInterviewCallForStage(interview, attrs, {
       sourceType: 'manual',
-      sourceKey: `interview:${interview.id}:manual-call:${randomUUID()}`,
       metadata: {
         createdFrom: 'manual',
         createdByUserId: user.id,
@@ -3315,6 +3317,7 @@ export async function updateInterview(req, res, next) {
     const now = new Date();
     await interview.update({ ...interviewValuesFromAttrs(attrs, interview), updatedAt: now });
     await logInterviewChanges({ interview, previous, attrs, userId: user.id });
+    await syncInterviewCallForCurrentSchedule(interview, { sourceType: 'schedule_update' });
     if (interview.jobBidId) {
       const bid = await getJobBidModel().findByPk(interview.jobBidId);
       if (bid) {
@@ -3381,26 +3384,27 @@ export async function updateInterviewCall(req, res, next) {
       await interviewWriteProfileForUser(user, interview.profileId, 'Interview not found');
     }
 
-    const attrs = bidAttributesFromBody({
-      status: 'interviewing',
+    const attrs = manualInterviewCallAttributes({
+      ...req.body,
       interviewStage: call.interviewStage || interview.interviewStage || 'todo',
-      interviewNextAt: req.body?.scheduledAt || req.body?.interviewNextAt,
-      interviewDurationMinutes: req.body?.durationMinutes || req.body?.interviewDurationMinutes || req.body?.interviewDuration,
-    });
-    if (!attrs.interviewNextAt) throw new InputError('Call date is required');
+    }, interview);
+    if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
 
     const syncCurrentSchedule = callMatchesCurrentInterviewSchedule(call, interview);
-    const durationMinutes = attrs.interviewDurationMinutes || call.durationMinutes || interview.interviewDurationMinutes || 60;
+    const durationMinutes = attrs.durationMinutes || call.durationMinutes || interview.interviewDurationMinutes || 60;
     const now = new Date();
     await call.update({
-      scheduledAt: attrs.interviewNextAt,
+      callerUserId: attrs.callerUserId ?? null,
+      scheduledAt: attrs.scheduledAt,
       durationMinutes,
+      meetingLink: attrs.meetingLink || null,
+      notes: attrs.notes || null,
       updatedAt: now,
     });
 
     if (syncCurrentSchedule) {
       await interview.update({
-        interviewNextAt: attrs.interviewNextAt,
+        interviewNextAt: attrs.scheduledAt,
         interviewDurationMinutes: durationMinutes,
         updatedAt: now,
       });
@@ -3408,7 +3412,7 @@ export async function updateInterviewCall(req, res, next) {
         const bid = await getJobBidModel().findByPk(interview.jobBidId);
         if (bid) {
           await bid.update({
-            interviewNextAt: attrs.interviewNextAt,
+            interviewNextAt: attrs.scheduledAt,
             interviewDurationMinutes: durationMinutes,
             updatedAt: now,
           });
@@ -3426,11 +3430,6 @@ export async function deleteInterviewCall(req, res, next) {
   try {
     await ensureWebModels();
     const user = await currentDbUser(req);
-    if (!isSuperadmin(user)) {
-      res.status(403).json({ error: 'Only superadmins can delete interview calls' });
-      return;
-    }
-
     const call = await getInterviewCallModel().findByPk(req.params.id);
     if (!call) {
       res.status(404).json({ error: 'Interview call not found' });
@@ -3438,6 +3437,10 @@ export async function deleteInterviewCall(req, res, next) {
     }
 
     const interview = await getInterviewModel().findByPk(call.interviewId);
+    if (!canDeleteInterviewCall(user, call, interview)) {
+      res.status(403).json({ error: 'Only the interview owner or a superadmin can delete interview calls' });
+      return;
+    }
     const clearsCurrentSchedule = interview && callMatchesCurrentInterviewSchedule(call, interview);
     await call.destroy();
 
@@ -3458,6 +3461,13 @@ export async function deleteInterviewCall(req, res, next) {
 function callMatchesCurrentInterviewSchedule(call, interview) {
   return dateValue(call.scheduledAt) === dateValue(interview.interviewNextAt)
     && String(call.interviewStage || '') === String(interview.interviewStage || '');
+}
+
+export function canDeleteInterviewCall(user, call, interview = null) {
+  if (isSuperadmin(user)) return true;
+  const userId = String(user?.id || '');
+  if (!userId) return false;
+  return String(call?.userId || '') === userId || String(interview?.userId || '') === userId;
 }
 
 async function ensureCallerUser(callerUserId) {
@@ -3713,10 +3723,13 @@ async function upsertInterviewForBid({ bid, job, attrs, userId }) {
     const previous = interviewSnapshot(existing);
     await existing.update(interviewValuesFromAttrs(attrs, existing));
     await logInterviewChanges({ interview: existing, previous, attrs, userId });
+    await syncInterviewCallForCurrentSchedule(existing, { sourceType: 'schedule_update' });
     return existing;
   }
+  ensureInitialInterviewCallSchedule(attrs);
   const interview = await getInterviewModel().create(values);
   await logInterviewCreated(interview, userId);
+  await syncInitialInterviewCall(interview, { sourceType: 'created' });
   return interview;
 }
 
@@ -3769,6 +3782,7 @@ function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById
     stageNotes: interview.stageNotes || {},
     stageMeetingLinks: interview.stageMeetingLinks || {},
     meetingLink: meetingLinkForStage(interview.stageMeetingLinks, interview.interviewStage),
+    calls: (interview.calls || interview.get?.('calls') || []).map(formatInterviewCall),
     logs: (interview.logs || interview.get?.('logs') || []).map(formatInterviewLog),
     bidAt: interview.createdAt,
     createdAt: interview.createdAt,
@@ -3917,9 +3931,6 @@ async function logInterviewCreated(interview, userId) {
 async function logInterviewChanges({ interview, previous, attrs, userId }) {
   const logs = [];
   if (previous.interviewStage !== interview.interviewStage) {
-    if (shouldRegisterInterviewCallForStageChange(previous.interviewStage, interview.interviewStage, attrs.status || interview.status)) {
-      await ensureInterviewCallForCurrentSchedule(interview, { sourceType: 'stage_changed' });
-    }
     const occurrenceLog = interviewOccurrenceLogFromSnapshot(previous, interview);
     if (occurrenceLog) logs.push(occurrenceLog);
     logs.push({
@@ -3977,41 +3988,95 @@ async function logInterviewChanges({ interview, previous, attrs, userId }) {
 export function shouldRegisterInterviewCallForStageChange(previousStage, nextStage, nextStatus = 'interviewing') {
   const fromStage = previousStage || 'todo';
   const toStage = nextStage || 'todo';
-  if (['failed', 'lost'].includes(clean(nextStatus))) return false;
-  if (fromStage === 'todo' && toStage === 'screening') return false;
-  return fromStage !== toStage;
+  return fromStage !== toStage && shouldRegisterInterviewCallForStage(toStage, nextStatus);
 }
 
-async function ensureInterviewCallForCurrentSchedule(interview, { sourceType = 'current_schedule' } = {}) {
+function ensureInitialInterviewCallSchedule(attrs) {
+  if (!shouldRegisterInterviewCallForStage(INITIAL_INTERVIEW_CALL_STAGE, attrs.status || 'interviewing')) return;
+  if (!attrs.interviewNextAt) throw new InputError('Screening call date is required');
+}
+
+async function syncInitialInterviewCall(interview, { sourceType = 'created' } = {}) {
+  const scheduledAt = dateValue(interview.interviewNextAt);
+  if (!scheduledAt || !shouldRegisterInterviewCallForStage(INITIAL_INTERVIEW_CALL_STAGE, interview.status)) return null;
+  const notes = clean(interview.stageNotes?.[INITIAL_INTERVIEW_CALL_STAGE] || interview.interviewNotes);
+  const meetingLink = clean(
+    meetingLinkForStage(interview.stageMeetingLinks, INITIAL_INTERVIEW_CALL_STAGE)
+      || meetingLinkForStage(interview.stageMeetingLinks, interview.interviewStage),
+  );
+  return upsertInterviewCallForStage(interview, {
+    callerUserId: interview.callerUserId || null,
+    interviewStage: INITIAL_INTERVIEW_CALL_STAGE,
+    scheduledAt: new Date(scheduledAt),
+    durationMinutes: Number(interview.interviewDurationMinutes || 60),
+    meetingLink: meetingLink || null,
+    notes: notes || null,
+  }, {
+    sourceType,
+    metadata: { createdFrom: sourceType, initialStage: INITIAL_INTERVIEW_CALL_STAGE },
+  });
+}
+
+async function syncInterviewCallForCurrentSchedule(interview, { sourceType = 'current_schedule' } = {}) {
   const scheduledAt = dateValue(interview.interviewNextAt);
   if (!scheduledAt) return null;
   const stage = interview.interviewStage || 'todo';
+  if (!shouldRegisterInterviewCallForStage(stage, interview.status)) return null;
   const notes = clean(interview.stageNotes?.[stage] || interview.interviewNotes);
   const meetingLink = clean(meetingLinkForStage(interview.stageMeetingLinks, stage));
-  const sourceKey = interviewCallSourceKey({ interviewId: interview.id, stage, scheduledAt });
-
-  const [call] = await getInterviewCallModel().findOrCreate({
-    where: { sourceKey },
-    defaults: {
-      interviewId: interview.id,
-      userId: interview.userId || null,
-      callerUserId: interview.callerUserId || null,
-      interviewStage: stage,
-      scheduledAt: new Date(scheduledAt),
-      durationMinutes: Number(interview.interviewDurationMinutes || 60),
-      meetingLink: meetingLink || null,
-      notes: notes || null,
-      sourceType,
-      sourceKey,
-      metadata: { createdFrom: sourceType },
-    },
+  return upsertInterviewCallForStage(interview, {
+    callerUserId: interview.callerUserId || null,
+    interviewStage: stage,
+    scheduledAt: new Date(scheduledAt),
+    durationMinutes: Number(interview.interviewDurationMinutes || 60),
+    meetingLink: meetingLink || null,
+    notes: notes || null,
+  }, {
+    sourceType,
+    metadata: { createdFrom: sourceType },
   });
-
-  return call;
 }
 
-function interviewCallSourceKey({ interviewId, stage, scheduledAt }) {
-  return `interview:${interviewId}:call:${stage || 'todo'}:${dateValue(scheduledAt)}`;
+async function upsertInterviewCallForStage(interview, attrs, { sourceType = 'current_schedule', metadata = {} } = {}) {
+  const stage = attrs.interviewStage || interview?.interviewStage || 'todo';
+  const scheduledAt = dateValue(attrs.scheduledAt);
+  if (!scheduledAt) throw new InputError('Call date is required');
+  if (!shouldRegisterInterviewCallForStage(stage, interview?.status)) throw new InputError('Choose a scheduled interview stage');
+  const sourceKey = interviewCallSourceKey({ interviewId: interview.id, stage });
+  const existing = await getInterviewCallModel().findOne({
+    where: { interviewId: interview.id, interviewStage: stage },
+  });
+  const values = {
+    interviewId: interview.id,
+    userId: interview.userId || null,
+    callerUserId: attrs.callerUserId ?? interview.callerUserId ?? null,
+    interviewStage: stage,
+    scheduledAt: new Date(scheduledAt),
+    durationMinutes: Number(attrs.durationMinutes || interview.interviewDurationMinutes || 60),
+    meetingLink: attrs.meetingLink || null,
+    notes: attrs.notes || null,
+    sourceType,
+    sourceKey,
+    metadata: { ...(existing?.metadata || {}), ...metadata },
+  };
+
+  if (existing) {
+    await existing.update(values);
+    return existing;
+  }
+  return getInterviewCallModel().create(values);
+}
+
+export function shouldRegisterInterviewCallForStage(stage, status = 'interviewing') {
+  const normalizedStage = clean(stage || 'todo');
+  const normalizedStatus = clean(status || 'interviewing');
+  return normalizedStage !== 'todo'
+    && !['failed', 'lost'].includes(normalizedStage)
+    && !['failed', 'lost'].includes(normalizedStatus);
+}
+
+function interviewCallSourceKey({ interviewId, stage }) {
+  return `interview:${interviewId}:call:${stage || 'todo'}`;
 }
 
 export function interviewOccurrenceLogFromSnapshot(previous, interview) {

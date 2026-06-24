@@ -47,6 +47,7 @@ import {
   useCreateInterviewCall,
   useCreateManualInterview,
   useDeleteInterview,
+  useUpdateInterviewCall,
   useUpdateJobBid,
 } from '../lib/api.js';
 import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
@@ -58,7 +59,7 @@ const EMPTY_MANUAL_INTERVIEW = {
   company: '',
   location: '',
   jobUrl: '',
-  interviewStage: 'todo',
+  interviewStage: 'screening',
   interviewNextAt: '',
   interviewDurationMinutes: DEFAULT_INTERVIEW_DURATION_MINUTES,
   interviewMeetingLink: '',
@@ -68,7 +69,8 @@ const EMPTY_MANUAL_INTERVIEW = {
 };
 
 const EMPTY_MANUAL_CALL = {
-  interviewStage: 'todo',
+  id: '',
+  interviewStage: 'screening',
   scheduledAt: '',
   durationMinutes: DEFAULT_INTERVIEW_DURATION_MINUTES,
   callerUserId: '',
@@ -133,6 +135,7 @@ export default function InterviewsPage({ currentUser }) {
   const { mutate: updateBid, isPending: updatingBid } = useUpdateJobBid();
   const { mutate: createManualInterview, isPending: creatingManualInterview } = useCreateManualInterview();
   const { mutate: createInterviewCall, isPending: creatingInterviewCall } = useCreateInterviewCall();
+  const { mutate: updateInterviewCall, isPending: updatingInterviewCall } = useUpdateInterviewCall();
   const { mutate: deleteInterview, isPending: deletingInterview } = useDeleteInterview();
 
   useEffect(() => {
@@ -260,19 +263,40 @@ export default function InterviewsPage({ currentUser }) {
   function openManualCallDialog(job) {
     if (!job?.bid?.id) return;
     const draft = draftFor(job);
-    const stage = canonicalInterviewStage(draft.interviewStage);
+    const draftStage = canonicalInterviewStage(draft.interviewStage);
+    const stage = draftStage === 'todo' ? 'screening' : draftStage;
+    const existingCall = callForStage(job, stage);
     const stageNotes = draft.stageNotes || {};
     const stageMeetingLinks = draft.stageMeetingLinks || {};
     setError('');
     setManualCall({
+      id: existingCall?.id || '',
       interviewStage: stage,
-      scheduledAt: toDatetimeLocalValue(draft.interviewNextAt),
-      durationMinutes: draft.interviewDurationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
-      callerUserId: draft.callerUserId || '',
-      meetingLink: stageMeetingLinks[stage] || draft.meetingLink || '',
-      notes: stageNotes[stage] || draft.interviewNotes || '',
+      scheduledAt: toDatetimeLocalValue(existingCall?.scheduledAt || draft.interviewNextAt),
+      durationMinutes: existingCall?.durationMinutes || draft.interviewDurationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
+      callerUserId: existingCall?.callerUserId || draft.callerUserId || '',
+      meetingLink: existingCall?.meetingLink || stageMeetingLinks[stage] || draft.meetingLink || '',
+      notes: existingCall?.notes || stageNotes[stage] || draft.interviewNotes || '',
     });
     setIsManualCallDialogOpen(true);
+  }
+
+  function updateManualCallStage(stage) {
+    const normalizedStage = canonicalInterviewStage(stage);
+    const existingCall = callForStage(selectedJob, normalizedStage);
+    const draft = selectedJob ? draftFor(selectedJob) : {};
+    const stageNotes = draft.stageNotes || {};
+    const stageMeetingLinks = draft.stageMeetingLinks || {};
+    setManualCall((current) => ({
+      ...current,
+      id: existingCall?.id || '',
+      interviewStage: normalizedStage,
+      scheduledAt: toDatetimeLocalValue(existingCall?.scheduledAt || current.scheduledAt),
+      durationMinutes: existingCall?.durationMinutes || current.durationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
+      callerUserId: existingCall?.callerUserId || current.callerUserId || '',
+      meetingLink: existingCall?.meetingLink || stageMeetingLinks[normalizedStage] || '',
+      notes: existingCall?.notes || stageNotes[normalizedStage] || '',
+    }));
   }
 
   function closeManualCallDialog() {
@@ -341,23 +365,26 @@ export default function InterviewsPage({ currentUser }) {
     event.preventDefault();
     if (!selectedJob?.bid?.parentInterviewId) return;
     setError('');
-    createInterviewCall(
-      {
-        interviewId: selectedJob.bid.parentInterviewId,
-        callData: {
-          interviewStage: manualCall.interviewStage,
-          scheduledAt: fromDefaultTimezoneDatetimeLocal(manualCall.scheduledAt),
-          durationMinutes: manualCall.durationMinutes,
-          callerUserId: manualCall.callerUserId,
-          meetingLink: manualCall.meetingLink,
-          notes: manualCall.notes,
-        },
-      },
-      {
-        onSuccess: closeManualCallDialog,
-        onError: (callError) => setError(callError.message),
-      },
-    );
+    const callData = {
+      interviewStage: manualCall.interviewStage,
+      scheduledAt: fromDefaultTimezoneDatetimeLocal(manualCall.scheduledAt),
+      durationMinutes: manualCall.durationMinutes,
+      callerUserId: manualCall.callerUserId,
+      meetingLink: manualCall.meetingLink,
+      notes: manualCall.notes,
+    };
+    const existingCallId = manualCall.id || callForStage(selectedJob, manualCall.interviewStage)?.id || '';
+    const mutationOptions = {
+      onSuccess: closeManualCallDialog,
+      onError: (callError) => setError(callError.message),
+    };
+
+    if (existingCallId) {
+      updateInterviewCall({ interviewCallId: existingCallId, callData }, mutationOptions);
+      return;
+    }
+
+    createInterviewCall({ interviewId: selectedJob.bid.parentInterviewId, callData }, mutationOptions);
   }
 
   function handleDeleteInterview(job) {
@@ -395,6 +422,7 @@ export default function InterviewsPage({ currentUser }) {
   const selectedMeetingUrl = externalUrl(selectedStageMeetingLink);
   const selectedResumeUrl = resumeDownloadUrl(selectedJob?.tailoredResume);
   const selectedResumeStatus = selectedJob?.tailoredResume?.status || '';
+  const selectedHasCall = Array.isArray(selectedDraft?.calls) && selectedDraft.calls.length > 0;
   const callerUsers = interviewsData?.callerUsers || [];
   const applicationOptions = useMemo(
     () => (applicationPickerData?.jobs || []).filter((job) => job?.bid?.id && job.bid.status === 'submitted'),
@@ -644,6 +672,7 @@ export default function InterviewsPage({ currentUser }) {
               <TextField
                 label={`Next interview (${DEFAULT_TIME_ZONE_LABEL})`}
                 type="datetime-local"
+                required
                 value={toDatetimeLocalValue(manualInterview.interviewNextAt)}
                 onChange={(event) => setManualInterview((current) => ({ ...current, interviewNextAt: event.target.value }))}
                 slotProps={{ inputLabel: { shrink: true } }}
@@ -655,7 +684,7 @@ export default function InterviewsPage({ currentUser }) {
                   value={manualInterview.interviewStage}
                   onChange={(event) => setManualInterview((current) => ({ ...current, interviewStage: event.target.value }))}
                 >
-                  {INTERVIEW_STAGES.map((stage) => (
+                  {INTERVIEW_STAGES.filter((stage) => stage.value !== 'todo').map((stage) => (
                     <MenuItem key={stage.value} value={stage.value}>
                       {stage.label}
                     </MenuItem>
@@ -713,7 +742,7 @@ export default function InterviewsPage({ currentUser }) {
           </DialogContent>
           <DialogActions>
             <Button onClick={closeManualDialog}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={creatingManualInterview || updatingBid}>
+            <Button type="submit" variant="contained" disabled={creatingManualInterview || updatingBid || !manualInterview.interviewNextAt}>
               {selectedApplicationJob ? 'Register from application' : 'Register manually'}
             </Button>
           </DialogActions>
@@ -738,6 +767,11 @@ export default function InterviewsPage({ currentUser }) {
             </DialogTitle>
             <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 280px' }, gap: 2, pt: 2 }}>
               <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', minWidth: 0 }}>
+                {!selectedHasCall ? (
+                  <Alert severity="warning">
+                    Create at least one call for this interview.
+                  </Alert>
+                ) : null}
                 <TextField
                   label={`${stageLabel(selectedStage)} notes`}
                   minRows={8}
@@ -935,9 +969,9 @@ export default function InterviewsPage({ currentUser }) {
                 <Select
                   label="Step"
                   value={manualCall.interviewStage}
-                  onChange={(event) => setManualCall((current) => ({ ...current, interviewStage: event.target.value }))}
+                  onChange={(event) => updateManualCallStage(event.target.value)}
                 >
-                  {INTERVIEW_STAGES.map((stage) => (
+                  {INTERVIEW_STAGES.filter((stage) => stage.value !== 'todo').map((stage) => (
                     <MenuItem key={stage.value} value={stage.value}>
                       {stage.label}
                     </MenuItem>
@@ -995,8 +1029,8 @@ export default function InterviewsPage({ currentUser }) {
           </DialogContent>
           <DialogActions>
             <Button onClick={closeManualCallDialog}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={creatingInterviewCall || !manualCall.scheduledAt}>
-              Register call
+            <Button type="submit" variant="contained" disabled={creatingInterviewCall || updatingInterviewCall || !manualCall.scheduledAt}>
+              {manualCall.id ? 'Update call' : 'Register call'}
             </Button>
           </DialogActions>
         </form>
@@ -1038,6 +1072,11 @@ function externalUrl(url) {
 function resumeDownloadUrl(resume) {
   if (resume?.status !== 'ready' || !resume?.filePath || !resume?.id) return '';
   return `/api/bid/tailored-resumes/${encodeURIComponent(resume.id)}/download`;
+}
+
+function callForStage(job, stage) {
+  const calls = Array.isArray(job?.bid?.calls) ? job.bid.calls : [];
+  return calls.find((call) => String(call.interviewStage || '') === String(stage || '')) || null;
 }
 
 function resumeFileName(filePath) {
