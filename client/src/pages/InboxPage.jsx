@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
@@ -761,45 +761,101 @@ function VirtualizedMessageList({
   onLoadMore,
   onMessageSelect,
 }) {
+  const listRef = useRef(null);
+  const listHeightRef = useRef(COMPACT_MESSAGE_ROW_HEIGHT);
   const rowCount = messages.length + (canLoadMore ? 1 : 0);
   const loadThresholdIndex = Math.max(messages.length - 3, 0);
+  const selectedIndex = selectedMessage
+    ? messages.findIndex((message) => String(message.id) === String(selectedMessage.id))
+    : -1;
+  const scrollToIndex = selectedIndex >= 0 ? selectedIndex : undefined;
+
+  const selectMessageAtIndex = useCallback((index) => {
+    const boundedIndex = Math.min(Math.max(index, 0), messages.length - 1);
+    const message = messages[boundedIndex];
+    if (!message) return;
+    onMessageSelect(message.id);
+    listRef.current?.scrollToRow(boundedIndex);
+    if (canLoadMore && !isLoadingMore && boundedIndex >= loadThresholdIndex) onLoadMore?.();
+  }, [canLoadMore, isLoadingMore, loadThresholdIndex, messages, onLoadMore, onMessageSelect]);
+
+  const handleKeyDown = useCallback((event) => {
+    if (!messages.length || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    const currentIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    const pageSize = Math.max(1, Math.floor(listHeightRef.current / COMPACT_MESSAGE_ROW_HEIGHT) - 1);
+    const keyActions = {
+      ArrowDown: () => selectMessageAtIndex(currentIndex + 1),
+      ArrowUp: () => selectMessageAtIndex(currentIndex - 1),
+      Home: () => selectMessageAtIndex(0),
+      End: () => selectMessageAtIndex(messages.length - 1),
+      PageDown: () => selectMessageAtIndex(currentIndex + pageSize),
+      PageUp: () => selectMessageAtIndex(currentIndex - pageSize),
+      Enter: () => selectMessageAtIndex(currentIndex),
+      ' ': () => selectMessageAtIndex(currentIndex),
+    };
+    const action = keyActions[event.key];
+    if (!action) return;
+
+    event.preventDefault();
+    action();
+  }, [messages.length, selectMessageAtIndex, selectedIndex]);
 
   return (
-    <Box sx={{ height: '100%', minHeight: 0 }}>
+    <Box
+      aria-activedescendant={selectedMessage ? `inbox-message-${selectedMessage.id}` : undefined}
+      aria-label="Email messages"
+      onKeyDown={handleKeyDown}
+      role="listbox"
+      tabIndex={0}
+      sx={{
+        height: '100%',
+        minHeight: 0,
+        outline: 'none',
+        '&:focus-visible': {
+          boxShadow: `inset 0 0 0 2px ${INBOX_MESSAGE_ACCENT.main}`,
+        },
+      }}
+    >
       <AutoSizer>
-        {({ height, width }) => (
-          <VirtualizedList
-            height={height}
-            width={width}
-            rowCount={rowCount}
-            rowHeight={COMPACT_MESSAGE_ROW_HEIGHT}
-            overscanRowCount={6}
-            onRowsRendered={({ stopIndex }) => {
-              if (canLoadMore && !isLoadingMore && stopIndex >= loadThresholdIndex) onLoadMore?.();
-            }}
-            rowRenderer={({ index, key, style }) => {
-              const message = messages[index];
-              if (!message) {
+        {({ height, width }) => {
+          listHeightRef.current = height || COMPACT_MESSAGE_ROW_HEIGHT;
+          return (
+            <VirtualizedList
+              ref={listRef}
+              height={height}
+              width={width}
+              rowCount={rowCount}
+              rowHeight={COMPACT_MESSAGE_ROW_HEIGHT}
+              overscanRowCount={6}
+              scrollToIndex={scrollToIndex}
+              onRowsRendered={({ stopIndex }) => {
+                if (canLoadMore && !isLoadingMore && stopIndex >= loadThresholdIndex) onLoadMore?.();
+              }}
+              rowRenderer={({ index, key, style }) => {
+                const message = messages[index];
+                if (!message) {
+                  return (
+                    <MessageLoadingRow
+                      key={key}
+                      isLoading={isLoadingMore}
+                      style={style}
+                    />
+                  );
+                }
                 return (
-                  <MessageLoadingRow
+                  <MessageListItem
                     key={key}
-                    isLoading={isLoadingMore}
+                    isSelected={String(message.id) === String(selectedMessage?.id)}
+                    message={message}
                     style={style}
+                    onClick={() => onMessageSelect(message.id)}
                   />
                 );
-              }
-              return (
-                <MessageListItem
-                  key={key}
-                  isSelected={String(message.id) === String(selectedMessage?.id)}
-                  message={message}
-                  style={style}
-                  onClick={() => onMessageSelect(message.id)}
-                />
-              );
-            }}
-          />
-        )}
+              }}
+            />
+          );
+        }}
       </AutoSizer>
     </Box>
   );
@@ -837,8 +893,12 @@ function MessageListItem({ isSelected, message, onClick, style }) {
     <Box
       component="button"
       type="button"
+      aria-selected={isSelected}
+      id={`inbox-message-${message.id}`}
       onClick={onClick}
+      role="option"
       style={style}
+      tabIndex={-1}
       sx={{
         width: '100%',
         height: COMPACT_MESSAGE_ROW_HEIGHT,
