@@ -23,7 +23,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
-import { BID_TABS, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
+import { APPLICATION_WORKFLOW_STATUSES, BID_TABS, DONE_STATUSES, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.jsx';
@@ -427,7 +427,7 @@ export default function InterviewsPage({ currentUser }) {
   const selectedHasCall = Array.isArray(selectedDraft?.calls) && selectedDraft.calls.length > 0;
   const callerUsers = interviewsData?.callerUsers || [];
   const applicationOptions = useMemo(
-    () => (applicationPickerData?.jobs || []).filter((job) => job?.bid?.id && job.bid.status === 'submitted'),
+    () => (applicationPickerData?.jobs || []).filter((job) => job?.bid?.id && DONE_STATUSES.has(job.bid.status)),
     [applicationPickerData?.jobs],
   );
   const jobsByStage = groupJobsByStage(jobs, draftFor);
@@ -563,7 +563,7 @@ export default function InterviewsPage({ currentUser }) {
               getOptionLabel={applicationOptionLabel}
               isOptionEqualToValue={(option, value) => String(option?.bid?.id || '') === String(value?.bid?.id || '')}
               loading={applicationPickerLoading}
-              noOptionsText={applicationSearch ? 'No submitted applications found' : 'No submitted applications'}
+              noOptionsText={applicationSearch ? 'No done applications found' : 'No done applications'}
               options={applicationOptions}
               value={selectedApplicationJob}
               inputValue={applicationSearch}
@@ -590,7 +590,7 @@ export default function InterviewsPage({ currentUser }) {
                     {option.title || 'Untitled role'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {[option.company, option.location].filter(Boolean).join(' · ') || 'Submitted application'}
+                    {[option.company, option.location, statusLabel(option.bid?.status)].filter(Boolean).join(' · ') || 'Done application'}
                   </Typography>
                 </Box>
               )}
@@ -598,8 +598,8 @@ export default function InterviewsPage({ currentUser }) {
                 <TextField
                   {...params}
                   label="Application"
-                  placeholder="Search submitted applications"
-                  helperText="Submitted applications for this profile"
+                  placeholder="Search done applications"
+                  helperText="Done-tab applications for this profile"
                 />
               )}
               sx={{ mt: 1 }}
@@ -612,14 +612,14 @@ export default function InterviewsPage({ currentUser }) {
                       {selectedApplicationJob.title || 'Untitled role'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" noWrap>
-                      {[selectedApplicationJob.company, selectedApplicationJob.location].filter(Boolean).join(' · ') || 'Submitted application'}
+                      {[selectedApplicationJob.company, selectedApplicationJob.location, statusLabel(selectedApplicationJob.bid?.status)].filter(Boolean).join(' · ') || 'Done application'}
                     </Typography>
                   </Box>
                   <Chip label="From application" sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 900 }} />
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                   <Typography variant="caption" color="text.secondary">
-                    {selectedApplicationJob.bid?.bidAt ? `Applied ${formatShortDate(selectedApplicationJob.bid.bidAt)}` : 'Submitted application'}
+                    {[statusLabel(selectedApplicationJob.bid?.status), selectedApplicationJob.bid?.bidAt ? `Applied ${formatShortDate(selectedApplicationJob.bid.bidAt)}` : 'Done application'].filter(Boolean).join(' · ')}
                   </Typography>
                   <Button
                     size="small"
@@ -1113,6 +1113,14 @@ function shouldRegisterCallForStepChange(fromStage, toStage, nextStatus = 'inter
 function applicationOptionLabel(option) {
   if (!option || typeof option === 'string') return option || '';
   return [option.title || 'Untitled role', option.company].filter(Boolean).join(' · ');
+}
+
+function statusLabel(status) {
+  if (status === 'won') return 'Won';
+  if (status === 'lost') return 'Lost';
+  const workflowStatus = APPLICATION_WORKFLOW_STATUSES.find((option) => option.value === status);
+  if (workflowStatus) return workflowStatus.label;
+  return '';
 }
 
 function formatShortDate(value) {
