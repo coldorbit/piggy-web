@@ -67,6 +67,7 @@ export default function TailoringRequestsPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [manualForm, setManualForm] = useState(emptyManualForm);
+  const [manualValidationError, setManualValidationError] = useState('');
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const filters = useMemo(
     () => ({ status, profileId, since, dateFrom, dateTo, search, page: page + 1, limit: rowsPerPage }),
@@ -130,18 +131,24 @@ export default function TailoringRequestsPage() {
   }
 
   function updateManualForm(field, value) {
+    if (manualValidationError) setManualValidationError('');
     setManualForm((current) => ({ ...current, [field]: value }));
   }
 
   function submitManualTailoring(event) {
     event.preventDefault();
     if (!canSubmitManual) return;
+    const jobUrl = normalizedHttpUrl(manualForm.jobUrl);
+    if (!jobUrl) {
+      setManualValidationError('Enter a valid job URL.');
+      return;
+    }
     createManualTailoring.mutate(
       {
         profileId: manualForm.profileId,
         company: manualForm.company,
         role: manualForm.role,
-        jobUrl: manualForm.jobUrl,
+        jobUrl,
         jobDescription: manualForm.jobDescription,
       },
       {
@@ -173,6 +180,7 @@ export default function TailoringRequestsPage() {
     >
       {error ? <Alert severity="error">{error.message}</Alert> : null}
       {manualError ? <Alert severity="error">{manualError.message}</Alert> : null}
+      {manualValidationError ? <Alert severity="error">{manualValidationError}</Alert> : null}
 
       <Accordion variant="outlined" disableGutters sx={{ borderRadius: 1, overflow: 'hidden', '&:before': { display: 'none' } }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 48, '& .MuiAccordionSummary-content': { my: 1 } }}>
@@ -181,55 +189,59 @@ export default function TailoringRequestsPage() {
             <Typography fontWeight={900}>Manual tailoring</Typography>
           </Stack>
         </AccordionSummary>
-        <AccordionDetails component="form" onSubmit={submitManualTailoring} sx={{ pt: 0, display: 'grid', gap: 1.25 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) auto' }, gap: 1, alignItems: 'start' }}>
+        <AccordionDetails sx={{ pt: 0 }}>
+          <Box component="form" noValidate onSubmit={submitManualTailoring} sx={{ display: 'grid', gap: 1.25 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) auto' }, gap: 1, alignItems: 'start' }}>
+              <TextField
+                select
+                label="Profile"
+                value={manualForm.profileId}
+                onChange={(event) => updateManualForm('profileId', event.target.value)}
+                required
+              >
+                {manualProfileOptions.map((profile) => (
+                  <MenuItem key={profile.id} value={String(profile.id)}>
+                    {profile.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                label="Company"
+                value={manualForm.company}
+                onChange={(event) => updateManualForm('company', event.target.value)}
+                required
+              />
+              <TextField
+                label="Role / position title"
+                value={manualForm.role}
+                onChange={(event) => updateManualForm('role', event.target.value)}
+                required
+              />
+              <TextField
+                label="Job URL"
+                type="url"
+                value={manualForm.jobUrl}
+                onChange={(event) => updateManualForm('jobUrl', event.target.value)}
+                error={Boolean(manualValidationError)}
+                helperText={manualValidationError ? 'Use a full URL or paste a domain and path.' : ''}
+                required
+              />
+              <Button type="submit" variant="contained" startIcon={createManualTailoring.isPending ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />} disabled={!canSubmitManual} sx={{ minHeight: 37 }}>
+                Tailor
+              </Button>
+            </Box>
             <TextField
-              select
-              label="Profile"
-              value={manualForm.profileId}
-              onChange={(event) => updateManualForm('profileId', event.target.value)}
+              label="Job description"
+              value={manualForm.jobDescription}
+              onChange={(event) => updateManualForm('jobDescription', event.target.value)}
+              placeholder="Paste the full JD content"
+              multiline
+              minRows={6}
+              maxRows={12}
               required
-            >
-              {manualProfileOptions.map((profile) => (
-                <MenuItem key={profile.id} value={String(profile.id)}>
-                  {profile.name}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label="Company"
-              value={manualForm.company}
-              onChange={(event) => updateManualForm('company', event.target.value)}
-              required
+              fullWidth
             />
-            <TextField
-              label="Role / position title"
-              value={manualForm.role}
-              onChange={(event) => updateManualForm('role', event.target.value)}
-              required
-            />
-            <TextField
-              label="Job URL"
-              type="url"
-              value={manualForm.jobUrl}
-              onChange={(event) => updateManualForm('jobUrl', event.target.value)}
-              required
-            />
-            <Button type="submit" variant="contained" startIcon={createManualTailoring.isPending ? <CircularProgress color="inherit" size={16} /> : <AutoAwesomeIcon />} disabled={!canSubmitManual} sx={{ minHeight: 37 }}>
-              Tailor
-            </Button>
           </Box>
-          <TextField
-            label="Job description"
-            value={manualForm.jobDescription}
-            onChange={(event) => updateManualForm('jobDescription', event.target.value)}
-            placeholder="Paste the full JD content"
-            multiline
-            minRows={6}
-            maxRows={12}
-            required
-            fullWidth
-          />
         </AccordionDetails>
       </Accordion>
 
@@ -489,6 +501,18 @@ function formatDateOnly(value) {
   const month = String(value.getMonth() + 1).padStart(2, '0');
   const day = String(value.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function normalizedHttpUrl(value) {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    return ['http:', 'https:'].includes(url.protocol) && url.hostname.includes('.') ? url.toString() : '';
+  } catch {
+    return '';
+  }
 }
 
 function TailoringRequestRow({ request }) {
