@@ -124,6 +124,10 @@ export function isLegacyProfile(profile) {
   return (profile?.profileStatus || 'active') === 'legacy';
 }
 
+export function isDraftProfile(profile) {
+  return (profile?.profileStatus || 'active') === 'draft';
+}
+
 export function sortProfilesForDisplay(profiles) {
   return [...profiles].sort(compareProfilesForDisplay);
 }
@@ -570,7 +574,7 @@ export function profileStatusAttributesFromBody(body) {
   const status = clean(body?.status || body?.profileStatus).toLowerCase();
   const reason = clean(body?.reason || body?.closedReason);
 
-  if (!['active', 'closed', 'legacy'].includes(status)) throw new InputError('Profile status must be active, closed, or legacy');
+  if (!['active', 'closed', 'draft', 'legacy'].includes(status)) throw new InputError('Profile status must be active, closed, draft, or legacy');
   if (status === 'closed' && !reason) throw new InputError('Closed profiles require a reason');
 
   return {
@@ -589,7 +593,9 @@ function compareProfilesForDisplay(left, right) {
 }
 
 function profileStatusWeight(profile) {
-  return isLegacyProfile(profile) ? 1 : 0;
+  if (isLegacyProfile(profile)) return 2;
+  if (isDraftProfile(profile)) return 1;
+  return 0;
 }
 
 function profileBadgeFromBody(value) {

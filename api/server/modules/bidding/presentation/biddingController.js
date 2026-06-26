@@ -46,6 +46,7 @@ import {
   profilesVisibleToUser,
   profilesWithProgress,
   profilesWithSharing,
+  isDraftProfile,
 } from '../application/profilesService.js';
 import { enqueueTailoredResumeRequest } from '../application/tailoringQueueService.js';
 import { userAttributesFromBody } from '../../admin/application/usersService.js';
@@ -956,6 +957,12 @@ function canUpdateProfileStatus(req, res, profile, status) {
   if (status === 'legacy' || isLegacyProfile(profile)) {
     if (isSuperadmin(req.user)) return true;
     res.status(403).json({ error: 'Only superadmins can mark or restore legacy profiles' });
+    return false;
+  }
+
+  if (status === 'draft' || isDraftProfile(profile)) {
+    if (PRIVILEGED_USER_ROLES.includes(req.user?.role)) return true;
+    res.status(403).json({ error: 'Only user and admin roles can mark or restore draft profiles' });
     return false;
   }
 

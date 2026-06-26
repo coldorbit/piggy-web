@@ -138,10 +138,10 @@ async function processTailoredResume(tailoredResume) {
 
     if (!job) throw new Error('Job not found for tailoring request');
     if (!profile) throw new Error('Profile not found for tailoring request');
-    if ((profile.profileStatus || 'active') === 'legacy') {
+    if (['draft', 'legacy'].includes(profile.profileStatus || 'active')) {
       await tailoredResume.update({
         status: 'invalid',
-        lastError: 'Legacy profiles cannot be used for tailoring',
+        lastError: 'Draft and legacy profiles cannot be used for tailoring',
         deadLetterAt: new Date(),
       });
       return;

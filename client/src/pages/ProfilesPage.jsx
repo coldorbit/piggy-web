@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
@@ -8,21 +9,28 @@ import {
   Card,
   CardContent,
   Checkbox,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
   FormControl,
+  IconButton,
   InputLabel,
   ListItemText,
   MenuItem,
+  Paper,
   Select,
   Skeleton,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import ProfileCard from '../components/profiles/ProfileCard.jsx';
 import CollaborationPanel from '../components/collaboration/CollaborationPanel.jsx';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
@@ -41,6 +49,34 @@ import {
 } from '../lib/api.js';
 import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../lib/roles.js';
 
+const PROFILE_STATUS_ORDER = ['active', 'draft', 'legacy'];
+const PROFILE_STATUS_META = {
+  active: {
+    label: 'Active',
+    emptyTitle: 'No active profiles',
+    emptyDetail: 'Profiles ready for bidding and tailoring will appear here.',
+    color: { main: '#16a34a', dark: '#166534', soft: '#dcfce7' },
+  },
+  draft: {
+    label: 'Draft',
+    emptyTitle: 'No draft profiles',
+    emptyDetail: 'Profiles that are not ready for bidding yet will appear here.',
+    color: { main: '#d97706', dark: '#92400e', soft: '#fef3c7' },
+  },
+  legacy: {
+    label: 'Legacy',
+    emptyTitle: 'No legacy profiles',
+    emptyDetail: 'Archived profiles that should stay available for history will appear here.',
+    color: { main: '#64748b', dark: '#334155', soft: '#e2e8f0' },
+  },
+  closed: {
+    label: 'Closed',
+    emptyTitle: 'No closed profiles',
+    emptyDetail: 'Closed profiles with retained history will appear here.',
+    color: { main: '#475569', dark: '#334155', soft: '#e2e8f0' },
+  },
+};
+
 export default function ProfilesPage({ currentUser }) {
   const [searchParams] = useSearchParams();
   const [dialogMode, setDialogMode] = useState(null);
@@ -53,8 +89,9 @@ export default function ProfilesPage({ currentUser }) {
   const [closeReason, setCloseReason] = useState('');
   const [form, setForm] = useState(EMPTY_PROFILE);
   const [error, setError] = useState('');
+  const [activeStatus, setActiveStatus] = useState('active');
 
-  const { data: profiles = [], isLoading, error: loadError } = useBidProfiles(
+  const { data: profiles = [], isLoading, error: loadError, refetch } = useBidProfiles(
     isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
   const { data: shareRequests = {}, error: sharesError } = useProfileShareRequests();
@@ -176,6 +213,16 @@ export default function ProfilesPage({ currentUser }) {
     );
   }
 
+  function markProfileDraft(profile) {
+    setError('');
+    updateProfileStatus(
+      { profileId: profile.id, status: 'draft' },
+      {
+        onError: (statusError) => setError(statusError.message),
+      },
+    );
+  }
+
   function submitLegacyStatus(event) {
     event.preventDefault();
     if (!legacyProfile) return;
@@ -222,27 +269,33 @@ export default function ProfilesPage({ currentUser }) {
   const canRestoreProfiles = isAdminRole(currentUser);
   const canManageLegacyProfiles = isSuperadmin(currentUser);
   const highlightedProfileId = searchParams.get('profileId') || '';
+  const profileStatusSections = useMemo(() => profileStatusSectionsForProfiles(profiles), [profiles]);
+  const activeStatusSection = profileStatusSections.find((section) => section.status === activeStatus) || profileStatusSections[0];
+  const visibleProfiles = useMemo(
+    () => profiles.filter((profile) => normalizedProfileStatus(profile.profileStatus) === activeStatusSection.status),
+    [activeStatusSection.status, profiles],
+  );
 
   useEffect(() => {
     if (!highlightedProfileId || isLoading) return;
     const element = document.getElementById(`profile-card-${highlightedProfileId}`);
     element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [highlightedProfileId, isLoading]);
+  }, [activeStatusSection.status, highlightedProfileId, isLoading]);
+
+  useEffect(() => {
+    if (!highlightedProfileId || !profiles.length) return;
+    const highlightedProfile = profiles.find((profile) => String(profile.id) === String(highlightedProfileId));
+    if (!highlightedProfile) return;
+    setActiveStatus(normalizedProfileStatus(highlightedProfile.profileStatus));
+  }, [highlightedProfileId, profiles]);
+
+  function handleStatusChange(status) {
+    setActiveStatus(status);
+    setError('');
+  }
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', '& .MuiChip-root': { fontWeight: 400 } }}>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
-        {canManageProfiles ? (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={openCreateDialog}
-          >
-            Add profile
-          </Button>
-        ) : null}
-      </Box>
-
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
 
       {incomingShares.length ? (
@@ -287,42 +340,101 @@ export default function ProfilesPage({ currentUser }) {
         </Card>
       ) : null}
 
-      {!isLoading && profiles.length === 0 ? (
-        <EmptyState
-          title={canManageProfiles ? 'No profiles yet' : 'No profiles available'}
-          detail={canManageProfiles ? 'Create your first profile to use it for tailored applications.' : 'Profiles shared with you will appear here.'}
-        />
-      ) : null}
-
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 360px))',
-          justifyContent: 'start',
+          gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)', xl: '240px minmax(0, 1fr)' },
           gap: 1.5,
+          alignItems: 'stretch',
+          height: { xs: 'auto', md: incomingShares.length ? 'calc(100vh - 244px)' : 'calc(100vh - 108px)', xl: incomingShares.length ? 'calc(100vh - 260px)' : 'calc(100vh - 124px)' },
+          minHeight: { md: 0 },
+          minWidth: 0,
         }}
       >
-        {isLoading && !profiles.length ? <ProfileSkeletonCards /> : null}
-        {profiles.map((profile) => (
-          <ProfileCard
-            key={profile.id}
-            isDeleting={deleting}
-            isHighlighted={String(profile.id) === String(highlightedProfileId)}
-            isUpdatingStatus={updatingStatus}
-            canManage={canManageProfiles}
-            canManageLegacy={canManageLegacyProfiles}
-            canUpdateStatus={canUpdateProfileStatus}
-            canRestore={canRestoreProfiles}
-            profile={profile}
-            onCloseProfile={openCloseDialog}
-            onDelete={removeProfile}
-            onEdit={openEditDialog}
-            onMarkLegacy={openLegacyDialog}
-            onReopenProfile={reopenProfile}
-            onShare={openShareDialog}
-            onView={setViewingProfile}
-          />
-        ))}
+        <ProfileStatusTabs
+          activeStatus={activeStatusSection.status}
+          isLoading={isLoading}
+          statuses={profileStatusSections}
+          onStatusChange={handleStatusChange}
+        />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, minHeight: 0, minWidth: 0 }}>
+          <Paper
+            variant="outlined"
+            sx={{
+              px: 1.25,
+              py: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1,
+              flexWrap: 'wrap',
+              boxShadow: 1,
+              flexShrink: 0,
+            }}
+          >
+            <Box minWidth={0}>
+              <Typography fontWeight={900}>{activeStatusSection.label} profiles</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {visibleProfiles.length.toLocaleString()} of {profiles.length.toLocaleString()} profiles
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={0.75} alignItems="center">
+              <IconButton type="button" onClick={() => refetch()} title="Refresh profiles" aria-label="Refresh profiles">
+                <RefreshIcon />
+              </IconButton>
+              {canManageProfiles ? (
+                <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
+                  Add profile
+                </Button>
+              ) : null}
+            </Stack>
+          </Paper>
+
+          {!isLoading && profiles.length === 0 ? (
+            <EmptyState
+              title={canManageProfiles ? 'No profiles yet' : 'No profiles available'}
+              detail={canManageProfiles ? 'Create your first profile to use it for tailored applications.' : 'Profiles shared with you will appear here.'}
+            />
+          ) : !isLoading && visibleProfiles.length === 0 ? (
+            <EmptyState title={activeStatusSection.emptyTitle} detail={activeStatusSection.emptyDetail} />
+          ) : (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 360px))',
+                alignContent: 'start',
+                justifyContent: 'start',
+                gap: 1.5,
+                minHeight: 0,
+                overflow: { md: 'auto' },
+                pb: 0.5,
+              }}
+            >
+              {isLoading && !profiles.length ? <ProfileSkeletonCards /> : null}
+              {visibleProfiles.map((profile) => (
+                <ProfileCard
+                  key={profile.id}
+                  isDeleting={deleting}
+                  isHighlighted={String(profile.id) === String(highlightedProfileId)}
+                  isUpdatingStatus={updatingStatus}
+                  canManage={canManageProfiles}
+                  canManageLegacy={canManageLegacyProfiles}
+                  canUpdateStatus={canUpdateProfileStatus}
+                  canRestore={canRestoreProfiles}
+                  profile={profile}
+                  onCloseProfile={openCloseDialog}
+                  onDelete={removeProfile}
+                  onEdit={openEditDialog}
+                  onMarkDraft={markProfileDraft}
+                  onMarkLegacy={openLegacyDialog}
+                  onReopenProfile={reopenProfile}
+                  onShare={openShareDialog}
+                  onView={setViewingProfile}
+                />
+              ))}
+            </Box>
+          )}
+        </Box>
       </Box>
 
       <ProfileDialog
@@ -460,6 +572,145 @@ function ProfileSkeletonCards() {
       </CardContent>
     </Card>
   ));
+}
+
+function ProfileStatusTabs({ activeStatus, isLoading, statuses, onStatusChange }) {
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+  const activeColor = profileStatusColor(activeStatus);
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        display: 'grid',
+        gridTemplateRows: 'auto minmax(0, 1fr)',
+        overflow: 'hidden',
+        boxShadow: 1,
+        alignSelf: 'stretch',
+        height: { xs: 'auto', md: '100%' },
+        minHeight: 0,
+      }}
+    >
+      <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase' }}>
+          Status
+        </Typography>
+      </Box>
+      {isLoading && !statuses.some((status) => status.count) ? (
+        <ProfileStatusSkeletons />
+      ) : (
+        <Tabs
+          orientation={isDesktop ? 'vertical' : 'horizontal'}
+          value={activeStatus}
+          onChange={(_event, value) => onStatusChange(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 0,
+            bgcolor: 'rgba(255, 255, 255, 0.72)',
+            '& .MuiTabs-indicator': { backgroundColor: activeColor.main },
+            '& .MuiTabs-scroller': {
+              overflowY: { md: 'auto !important' },
+            },
+            '& .MuiTabs-flexContainer': {
+              alignItems: 'stretch',
+            },
+            '& .MuiTab-root': {
+              minHeight: 64,
+              alignItems: isDesktop ? 'stretch' : 'center',
+              borderRadius: 0,
+              borderBottom: isDesktop ? 1 : 0,
+              borderRight: isDesktop ? 0 : 1,
+              borderColor: 'divider',
+              px: 1.25,
+              py: 1,
+            },
+          }}
+        >
+          {statuses.map((status) => {
+            const color = profileStatusColor(status.status);
+            return (
+              <Tab
+                key={status.status}
+                value={status.status}
+                label={<ProfileStatusTabLabel status={status} />}
+                sx={{
+                  color: color.dark,
+                  fontWeight: 800,
+                  textAlign: 'left',
+                  '&.Mui-selected': {
+                    color: color.dark,
+                    backgroundColor: color.soft,
+                  },
+                }}
+              />
+            );
+          })}
+        </Tabs>
+      )}
+    </Paper>
+  );
+}
+
+function ProfileStatusTabLabel({ status }) {
+  const color = profileStatusColor(status.status);
+
+  return (
+    <Box sx={{ display: 'grid', gap: 0.5, justifyItems: 'stretch', minWidth: 0, width: '100%' }}>
+      <Typography component="span" variant="body2" fontWeight={900} noWrap sx={{ minWidth: 0 }}>
+        {status.label}
+      </Typography>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+        <Chip
+          label={`${status.count.toLocaleString()} total`}
+          size="small"
+          sx={{ height: 20, fontSize: 11, fontWeight: 900, bgcolor: color.soft, color: color.dark, '& .MuiChip-label': { px: 0.75 } }}
+        />
+      </Box>
+    </Box>
+  );
+}
+
+function ProfileStatusSkeletons() {
+  return (
+    <Box sx={{ display: 'grid', alignContent: 'start' }}>
+      {Array.from({ length: 3 }).map((_, index) => (
+        <Box key={`profile-status-loading-${index}`} sx={{ minHeight: 64, px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider' }}>
+          <Skeleton width="68%" />
+          <Skeleton width="46%" />
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+function profileStatusSectionsForProfiles(profiles) {
+  const counts = new Map();
+  for (const profile of profiles) {
+    const status = normalizedProfileStatus(profile.profileStatus);
+    counts.set(status, (counts.get(status) || 0) + 1);
+  }
+
+  const statuses = [...PROFILE_STATUS_ORDER];
+  if (counts.get('closed')) statuses.push('closed');
+
+  return statuses.map((status) => ({
+    status,
+    count: counts.get(status) || 0,
+    ...PROFILE_STATUS_META[status],
+  }));
+}
+
+function normalizedProfileStatus(status) {
+  const value = String(status || 'active').toLowerCase();
+  return PROFILE_STATUS_META[value] ? value : 'active';
+}
+
+function profileStatusColor(status) {
+  return PROFILE_STATUS_META[status]?.color || PROFILE_STATUS_META.active.color;
 }
 
 function ProfileReadOnlyDialog({ assignableUsers = [], profile, onClose }) {

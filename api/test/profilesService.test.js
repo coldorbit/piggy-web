@@ -94,14 +94,23 @@ describe('profile status helpers', () => {
     });
   });
 
-  it('sorts legacy profiles after non-legacy profiles', () => {
+  it('accepts draft profile status without a close reason', () => {
+    assert.deepEqual(profileStatusAttributesFromBody({ status: 'draft' }), {
+      profileStatus: 'draft',
+      closedReason: null,
+      closedAt: null,
+    });
+  });
+
+  it('sorts draft and legacy profiles after active profiles', () => {
     const profiles = [
       profileRow({ id: 1, name: 'Legacy', profileStatus: 'legacy', createdAt: '2024-01-01T00:00:00.000Z' }),
       profileRow({ id: 2, name: 'Active', profileStatus: 'active', createdAt: '2024-02-01T00:00:00.000Z' }),
       profileRow({ id: 3, name: 'Closed', profileStatus: 'closed', createdAt: '2024-03-01T00:00:00.000Z' }),
+      profileRow({ id: 4, name: 'Draft', profileStatus: 'draft', createdAt: '2024-01-15T00:00:00.000Z' }),
     ];
 
-    assert.deepEqual(sortProfilesForDisplay(profiles).map((profile) => profile.name), ['Active', 'Closed', 'Legacy']);
+    assert.deepEqual(sortProfilesForDisplay(profiles).map((profile) => profile.name), ['Active', 'Closed', 'Draft', 'Legacy']);
   });
 });
 

@@ -1,4 +1,5 @@
 import DeleteIcon from '@mui/icons-material/Delete';
+import DraftsIcon from '@mui/icons-material/Drafts';
 import EditIcon from '@mui/icons-material/Edit';
 import HistoryIcon from '@mui/icons-material/History';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
@@ -19,6 +20,7 @@ export default function ProfileCard({
   onCloseProfile,
   onDelete,
   onEdit,
+  onMarkDraft = () => {},
   onMarkLegacy = () => {},
   onView = () => {},
   onReopenProfile,
@@ -26,6 +28,7 @@ export default function ProfileCard({
 }) {
   const color = PROFILE_COLORS[profile.colorScheme] || PROFILE_COLORS.green;
   const isClosed = profile.profileStatus === 'closed';
+  const isDraft = profile.profileStatus === 'draft';
   const isLegacy = profile.profileStatus === 'legacy';
   const showActions = canManage && !profile.isShared;
   const sharedWith = (profile.sharedWith || []).filter((share) => share.username);
@@ -109,11 +112,16 @@ export default function ProfileCard({
         ) : null}
         <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
           <Chip
-            label={isLegacy ? 'Legacy' : isClosed ? 'Closed' : 'Active'}
+            label={isLegacy ? 'Legacy' : isDraft ? 'Draft' : isClosed ? 'Closed' : 'Active'}
             size="small"
-            color={isLegacy || isClosed ? 'default' : 'success'}
-            variant={isLegacy || isClosed ? 'outlined' : 'filled'}
-            sx={{ ...profileChipSx, fontWeight: 400 }}
+            color={isLegacy || isClosed || isDraft ? 'default' : 'success'}
+            variant={isLegacy || isClosed || isDraft ? 'outlined' : 'filled'}
+            sx={{
+              ...profileChipSx,
+              bgcolor: isDraft ? '#fef3c7' : undefined,
+              color: isDraft ? '#92400e' : undefined,
+              fontWeight: 400,
+            }}
           />
           {isClosed && profile.closedReason ? <Chip label={profile.closedReason} size="small" variant="outlined" sx={profileChipSx} /> : null}
         </Stack>
@@ -169,6 +177,10 @@ export default function ProfileCard({
                   Reopen
                 </Button>
               ) : null
+            ) : isDraft ? (
+              <Button disabled={isUpdatingStatus} startIcon={<LockOpenIcon />} onClick={() => onReopenProfile(profile)} variant="outlined">
+                Activate
+              </Button>
             ) : isClosed ? (
               canRestore ? (
                 <Button disabled={isUpdatingStatus} startIcon={<LockOpenIcon />} onClick={() => onReopenProfile(profile)} variant="outlined">
@@ -182,6 +194,9 @@ export default function ProfileCard({
                     Legacy
                   </Button>
                 ) : null}
+                <Button disabled={isUpdatingStatus} startIcon={<DraftsIcon />} onClick={() => onMarkDraft(profile)} variant="outlined">
+                  Draft
+                </Button>
                 <Button color="warning" disabled={isUpdatingStatus} startIcon={<StopCircleIcon />} onClick={() => onCloseProfile(profile)} variant="outlined">
                   Close
                 </Button>
