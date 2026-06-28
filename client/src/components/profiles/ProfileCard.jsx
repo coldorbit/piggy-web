@@ -49,9 +49,12 @@ export default function ProfileCard({
         borderTop: `4px solid ${color.main}`,
         boxShadow: isHighlighted ? `0 0 0 3px ${color.soft}` : 1,
         cursor: 'pointer',
-        minHeight: 246,
         display: 'flex',
         flexDirection: 'column',
+        height: '100%',
+        minHeight: 0,
+        minWidth: 0,
+        overflow: 'visible',
         transition: 'box-shadow 150ms ease, transform 150ms ease',
         '&:hover': {
           boxShadow: 2,
@@ -63,7 +66,7 @@ export default function ProfileCard({
         },
       }}
     >
-      <CardContent sx={{ display: 'grid', gap: 1, minWidth: 0 }}>
+      <CardContent sx={{ display: 'grid', gap: 1, flex: '1 1 auto', minHeight: 0, minWidth: 0 }}>
         <Box
           sx={{
             display: 'grid',
@@ -143,7 +146,7 @@ export default function ProfileCard({
         <CardActions
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
-          sx={{ mt: 'auto', px: 1.25, pb: 1.25, gap: 0.5, flexWrap: 'wrap' }}
+          sx={{ mt: 'auto', px: 1.25, pb: 1.25, gap: 0.5, flexShrink: 0, flexWrap: 'wrap' }}
         >
           <>
             <Tooltip title="Edit profile">

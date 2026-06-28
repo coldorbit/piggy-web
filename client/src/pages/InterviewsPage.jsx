@@ -1,4 +1,5 @@
 import AddIcon from '@mui/icons-material/Add';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
@@ -8,6 +9,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -93,6 +95,7 @@ export default function InterviewsPage({ currentUser }) {
   const [manualInterview, setManualInterview] = useState(EMPTY_MANUAL_INTERVIEW);
   const [manualCall, setManualCall] = useState(EMPTY_MANUAL_CALL);
   const [pendingStepChangeSave, setPendingStepChangeSave] = useState(null);
+  const [isJourneyExpanded, setIsJourneyExpanded] = useState(false);
   const [error, setError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
@@ -307,10 +310,12 @@ export default function InterviewsPage({ currentUser }) {
 
   function openInterviewDialog(job) {
     if (!job?.bid?.id) return;
+    setIsJourneyExpanded(false);
     setSelectedInterviewId(String(job.bid.id));
   }
 
   function closeInterviewDialog() {
+    setIsJourneyExpanded(false);
     setSelectedInterviewId('');
     closeManualCallDialog();
   }
@@ -793,21 +798,6 @@ export default function InterviewsPage({ currentUser }) {
                     inputLabel: { shrink: true, sx: { bgcolor: 'background.paper', px: 0.5 } },
                   }}
                 />
-                {selectedDraft.logs?.length ? (
-                  <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.75, bgcolor: '#F8FAFC' }}>
-                    <Typography variant="body2" fontWeight={900}>
-                      Journey
-                    </Typography>
-                    {selectedDraft.logs.map((log) => (
-                      <Box key={log.id} sx={{ display: 'grid', gap: 0.2, minWidth: 0 }}>
-                        <Typography variant="body2">{formatJourneyLog(log)}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {log.createdAt ? new Date(log.createdAt).toLocaleString() : ''}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Paper>
-                ) : null}
                 <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 1, bgcolor: '#F8FAFC' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                     <Typography variant="body2" fontWeight={900}>
@@ -897,6 +887,43 @@ export default function InterviewsPage({ currentUser }) {
                     </Typography>
                   )}
                 </Paper>
+                {selectedDraft.logs?.length ? (
+                  <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: isJourneyExpanded ? 0.75 : 0, bgcolor: '#F8FAFC' }}>
+                    <Button
+                      aria-expanded={isJourneyExpanded}
+                      endIcon={
+                        <ExpandMoreIcon
+                          fontSize="small"
+                          sx={{ transform: isJourneyExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }}
+                        />
+                      }
+                      onClick={() => setIsJourneyExpanded((expanded) => !expanded)}
+                      sx={{
+                        alignItems: 'center',
+                        color: 'text.primary',
+                        fontWeight: 900,
+                        justifyContent: 'space-between',
+                        minHeight: 32,
+                        p: 0,
+                        textTransform: 'none',
+                      }}
+                    >
+                      Journey
+                    </Button>
+                    <Collapse in={isJourneyExpanded} timeout="auto" unmountOnExit>
+                      <Box sx={{ display: 'grid', gap: 0.75, pt: 0.75 }}>
+                        {selectedDraft.logs.map((log) => (
+                          <Box key={log.id} sx={{ display: 'grid', gap: 0.2, minWidth: 0 }}>
+                            <Typography variant="body2">{formatJourneyLog(log)}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {log.createdAt ? new Date(log.createdAt).toLocaleString() : ''}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Collapse>
+                  </Paper>
+                ) : null}
               </Box>
               <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', pt: 0.5 }}>
                 <FormControl size="small">

@@ -401,13 +401,15 @@ export default function ProfilesPage({ currentUser }) {
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 360px))',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))' },
                 alignContent: 'start',
-                justifyContent: 'start',
+                justifyContent: 'stretch',
                 gap: 1.5,
                 minHeight: 0,
+                minWidth: 0,
                 overflow: { md: 'auto' },
                 pb: 0.5,
+                width: '100%',
               }}
             >
               {isLoading && !profiles.length ? <ProfileSkeletonCards /> : null}
