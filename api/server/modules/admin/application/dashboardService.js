@@ -1,6 +1,7 @@
 import { QueryTypes } from 'sequelize';
 import { ensureWebModels, getSequelize } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
+import { normalizeTimeZone } from '../../../utils/localTime.js';
 import { formatDashboardResponse } from './dashboardFormatters.js';
 import { DEFAULT_GRAIN, GRAIN_KEYS, dashboardQueries, grainConfigFor } from './dashboardQueries.js';
 
@@ -10,8 +11,9 @@ export async function getDashboardMetrics(query = {}, { user } = {}) {
   const requestedGrain = clean(query.grain);
   const grain = GRAIN_KEYS.includes(requestedGrain) ? requestedGrain : DEFAULT_GRAIN;
   const anchorDate = dashboardAnchorDate(query.anchorDate || query.anchor);
+  const timeZone = normalizeTimeZone(query.timeZone || user?.timezone);
   const sequelize = getSequelize();
-  const sql = dashboardQueries(grainConfigFor(grain), { anchorDate, timeZone: user?.timezone });
+  const sql = dashboardQueries(grainConfigFor(grain), { anchorDate, timeZone });
 
   const [
     overall,

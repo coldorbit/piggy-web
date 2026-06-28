@@ -24,6 +24,7 @@ import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerforman
 import ProfileActivityTable from '../components/adminDashboard/ProfileActivityTable.jsx';
 import { useAdminDashboard } from '../lib/api.js';
 import { formatFirstNameLastInitial } from '../lib/formatters.js';
+import { DEFAULT_TIME_ZONE } from '../lib/timezone.js';
 
 export default function AdminDashboardPage() {
   const { section } = useParams();
@@ -31,7 +32,7 @@ export default function AdminDashboardPage() {
   const dashboardSearch = searchParams.toString();
   const [grain, setGrain] = useState(() => dashboardGrainFrom(searchParams.get('grain')));
   const [anchorDate, setAnchorDate] = useState(() => dashboardAnchorFrom(searchParams.get('anchorDate')));
-  const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString() }), [anchorDate, grain]);
+  const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString(), timeZone: DEFAULT_TIME_ZONE }), [anchorDate, grain]);
   const { data: dashboard, isLoading, error } = useAdminDashboard(dashboardFilters);
   const activeSection = dashboardSectionFor(section);
   const totals = dashboard?.totals || {};

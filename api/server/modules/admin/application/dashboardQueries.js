@@ -153,8 +153,8 @@ function overallSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications,
         COUNT(*) FILTER (WHERE status IN ('mismatching_bid', 'spam_job'))::int AS review_blocked_applications
       FROM job_bids
-      CROSS JOIN current_period_utc
-      WHERE ${timestampPeriodPredicate('bid_at')}
+      CROSS JOIN current_period
+      WHERE ${currentPeriodPredicate('bid_at', normalizedTimeZone)}
     ),
     period_bid_totals AS (
       SELECT
@@ -171,8 +171,8 @@ function overallSql(grainConfig, timeZone, anchor) {
         )::int AS period_bidder_bids
       FROM job_bids
       LEFT JOIN web_users ON web_users.id = job_bids.user_id
-      CROSS JOIN current_period_utc
-      WHERE ${timestampPeriodPredicate('job_bids.bid_at')}
+      CROSS JOIN current_period
+      WHERE ${currentPeriodPredicate('job_bids.bid_at', normalizedTimeZone)}
     ),
     interview_totals AS (
       SELECT
