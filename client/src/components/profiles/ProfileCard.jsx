@@ -49,12 +49,14 @@ export default function ProfileCard({
         borderTop: `4px solid ${color.main}`,
         boxShadow: isHighlighted ? `0 0 0 3px ${color.soft}` : 1,
         cursor: 'pointer',
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        alignSelf: 'start',
+        flex: { xs: '1 1 100%', sm: '1 1 320px' },
         height: 'auto',
+        maxWidth: '100%',
         minWidth: 0,
-        overflow: 'hidden',
+        overflow: 'visible',
         transition: 'box-shadow 150ms ease, transform 150ms ease',
         '&:hover': {
           boxShadow: 2,
@@ -66,17 +68,18 @@ export default function ProfileCard({
         },
       }}
     >
-      <CardContent sx={{ display: 'grid', gap: 1, flex: '0 0 auto', minWidth: 0 }}>
+      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, pb: showActions ? 1 : undefined }}>
         <Box
           sx={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) max-content',
-            gap: 1,
             alignItems: 'flex-start',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 1,
+            justifyContent: 'space-between',
             width: '100%',
           }}
         >
-          <Box minWidth={0}>
+          <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
             <Typography variant="h6" fontWeight={900} noWrap>
               {profile.name}
             </Typography>
@@ -146,7 +149,24 @@ export default function ProfileCard({
         <CardActions
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
-          sx={{ px: 1.25, pb: 1.25, pt: 0, gap: 0.5, flex: '0 0 auto', flexWrap: 'wrap' }}
+          sx={{
+            alignItems: 'center',
+            borderTop: 1,
+            borderColor: 'divider',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 0.5,
+            justifyContent: 'flex-start',
+            minWidth: 0,
+            position: 'static',
+            px: 1.25,
+            py: 1,
+            width: '100%',
+            '& .MuiButton-root': {
+              flex: '0 1 auto',
+              minWidth: 0,
+            },
+          }}
         >
           <>
             <Tooltip title="Edit profile">
@@ -222,7 +242,7 @@ function ProfileProgress({ progress = {} }) {
   const dailyPercent = dailyGoal ? Math.min((dailyFinished / dailyGoal) * 100, 100) : 0;
 
   return (
-    <Box sx={{ display: 'grid', gap: 0.75, minWidth: 0 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, minWidth: 0 }}>
       <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
         <Chip label={`${tailored.toLocaleString()} tailored`} size="small" variant="outlined" sx={profileChipSx} />
         <Chip label={`${bids.toLocaleString()} bids`} size="small" variant="outlined" sx={profileChipSx} />
