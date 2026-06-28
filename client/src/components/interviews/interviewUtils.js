@@ -19,6 +19,10 @@ export const INTERVIEW_DURATION_OPTIONS = [
   { value: 60, label: '1 hr' },
   { value: 90, label: '90 mins' },
   { value: 120, label: '2 hrs' },
+  { value: 150, label: '2.5 hrs' },
+  { value: 180, label: '3 hrs' },
+  { value: 210, label: '3.5 hrs' },
+  { value: 240, label: '4 hrs' },
 ];
 
 export const DEFAULT_INTERVIEW_DURATION_MINUTES = 60;

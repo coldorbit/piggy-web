@@ -1039,6 +1039,7 @@ function optimisticBid({ id, jobId, bidData }) {
     stageNotes: bidData?.stageNotes || {},
     stageMeetingLinks: bidData?.stageMeetingLinks || {},
     meetingLink: bidData?.meetingLink || '',
+    calls: bidData?.calls || [],
     logs: bidData?.logs || [],
     bidAt: now,
     interviewAt: bidData?.interviewAt || (bidData?.status === 'interviewing' ? now : null),

@@ -260,23 +260,24 @@ export default function InterviewsPage({ currentUser }) {
     setApplicationSearch('');
   }
 
-  function openManualCallDialog(job) {
+  function openManualCallDialog(job, call = null) {
     if (!job?.bid?.id) return;
     const draft = draftFor(job);
     const draftStage = canonicalInterviewStage(draft.interviewStage);
-    const stage = draftStage === 'todo' ? 'screening' : draftStage;
+    const stage = call?.interviewStage || (draftStage === 'todo' ? 'screening' : draftStage);
     const existingCall = callForStage(job, stage);
     const stageNotes = draft.stageNotes || {};
     const stageMeetingLinks = draft.stageMeetingLinks || {};
+    const callDraft = call || existingCall;
     setError('');
     setManualCall({
-      id: existingCall?.id || '',
+      id: callDraft?.id || '',
       interviewStage: stage,
-      scheduledAt: toDatetimeLocalValue(existingCall?.scheduledAt || draft.interviewNextAt),
-      durationMinutes: existingCall?.durationMinutes || draft.interviewDurationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
-      callerUserId: existingCall?.callerUserId || draft.callerUserId || '',
-      meetingLink: existingCall?.meetingLink || stageMeetingLinks[stage] || draft.meetingLink || '',
-      notes: existingCall?.notes || stageNotes[stage] || draft.interviewNotes || '',
+      scheduledAt: toDatetimeLocalValue(callDraft?.scheduledAt || draft.interviewNextAt),
+      durationMinutes: callDraft?.durationMinutes || draft.interviewDurationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
+      callerUserId: callDraft?.callerUserId || draft.callerUserId || '',
+      meetingLink: callDraft?.meetingLink || stageMeetingLinks[stage] || draft.meetingLink || '',
+      notes: callDraft?.notes || stageNotes[stage] || draft.interviewNotes || '',
     });
     setIsManualCallDialogOpen(true);
   }
@@ -424,7 +425,8 @@ export default function InterviewsPage({ currentUser }) {
   const selectedMeetingUrl = externalUrl(selectedStageMeetingLink);
   const selectedResumeUrl = resumeDownloadUrl(selectedJob?.tailoredResume);
   const selectedResumeStatus = selectedJob?.tailoredResume?.status || '';
-  const selectedHasCall = Array.isArray(selectedDraft?.calls) && selectedDraft.calls.length > 0;
+  const selectedCalls = sortedInterviewCalls(selectedDraft?.calls);
+  const selectedHasCall = selectedCalls.length > 0;
   const callerUsers = interviewsData?.callerUsers || [];
   const applicationOptions = useMemo(
     () => (applicationPickerData?.jobs || []).filter((job) => job?.bid?.id && DONE_STATUSES.has(job.bid.status)),
@@ -806,6 +808,95 @@ export default function InterviewsPage({ currentUser }) {
                     ))}
                   </Paper>
                 ) : null}
+                <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 1, bgcolor: '#F8FAFC' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                    <Typography variant="body2" fontWeight={900}>
+                      Calls
+                    </Typography>
+                    <Chip
+                      label={`${selectedCalls.length} ${selectedCalls.length === 1 ? 'call' : 'calls'}`}
+                      size="small"
+                      sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 900 }}
+                    />
+                  </Box>
+                  {selectedCalls.length ? (
+                    <Box component="ul" sx={{ display: 'grid', gap: 0.75, listStyle: 'none', m: 0, p: 0 }}>
+                      {selectedCalls.map((call) => {
+                        const meetingUrl = externalUrl(call.meetingLink);
+                        return (
+                          <Box
+                            component="li"
+                            key={call.id}
+                            sx={{
+                              border: 1,
+                              borderColor: 'divider',
+                              borderRadius: 1,
+                              bgcolor: 'background.paper',
+                              display: 'grid',
+                              gap: 0.75,
+                              minWidth: 0,
+                              p: 1,
+                            }}
+                          >
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) max-content', gap: 1, alignItems: 'start' }}>
+                              <Box minWidth={0}>
+                                <Typography variant="body2" fontWeight={900} noWrap>
+                                  {stageLabel(call.interviewStage)}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                  {formatDateTimeInDefaultTimezone(call.scheduledAt)}
+                                  {call.durationMinutes ? ` · ${formatDuration(call.durationMinutes)}` : ''}
+                                </Typography>
+                              </Box>
+                              {canRegisterCalls ? (
+                                <Button size="small" onClick={() => openManualCallDialog(selectedJob, call)}>
+                                  Edit
+                                </Button>
+                              ) : null}
+                            </Box>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, minWidth: 0 }}>
+                              <Chip
+                                label={callAssigneeLabel(call, callerUsers, selectedDraft, effectiveCurrentUser)}
+                                size="small"
+                                sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800, maxWidth: '100%' }}
+                              />
+                              {call.sourceType ? (
+                                <Chip
+                                  label={callSourceLabel(call.sourceType)}
+                                  size="small"
+                                  sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 800, maxWidth: '100%' }}
+                                />
+                              ) : null}
+                              {meetingUrl ? (
+                                <Button
+                                  component="a"
+                                  href={meetingUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  size="small"
+                                  startIcon={<OpenInNewIcon fontSize="small" />}
+                                  variant="outlined"
+                                  sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 900, lineHeight: 1.4 }}
+                                >
+                                  Link
+                                </Button>
+                              ) : null}
+                            </Box>
+                            {call.notes ? (
+                              <Typography variant="body2" color="text.secondary">
+                                {call.notes}
+                              </Typography>
+                            ) : null}
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No calls registered.
+                    </Typography>
+                  )}
+                </Paper>
               </Box>
               <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', pt: 0.5 }}>
                 <FormControl size="small">
@@ -1081,6 +1172,21 @@ function callForStage(job, stage) {
   return calls.find((call) => String(call.interviewStage || '') === String(stage || '')) || null;
 }
 
+function sortedInterviewCalls(calls) {
+  if (!Array.isArray(calls)) return [];
+  return [...calls].sort((left, right) => {
+    const leftTime = sortableTime(left.scheduledAt);
+    const rightTime = sortableTime(right.scheduledAt);
+    if (leftTime !== rightTime) return leftTime - rightTime;
+    return Number(left.id || 0) - Number(right.id || 0);
+  });
+}
+
+function sortableTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? Number.MAX_SAFE_INTEGER : date.getTime();
+}
+
 function resumeFileName(filePath) {
   return filePath ? String(filePath).split('/').pop() || 'tailored-resume.docx' : 'tailored-resume.docx';
 }
@@ -1128,6 +1234,33 @@ function formatShortDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function formatDuration(minutes) {
+  const value = Number(minutes || 0);
+  if (!value) return '';
+  if (value < 60) return `${value} min`;
+  const hours = value / 60;
+  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} hr`;
+}
+
+function callAssigneeLabel(call, callerUsers, selectedDraft, currentUser) {
+  const callerUserId = String(call?.callerUserId || '');
+  if (!callerUserId) return 'Unassigned';
+  const caller = callerUsers.find((user) => String(user.id) === callerUserId);
+  if (caller?.username) return caller.username;
+  if (String(selectedDraft?.callerUser?.id || '') === callerUserId && selectedDraft?.callerUser?.username) return selectedDraft.callerUser.username;
+  if (String(currentUser?.id || '') === callerUserId && currentUser?.username) return currentUser.username;
+  return `Caller #${callerUserId}`;
+}
+
+function callSourceLabel(sourceType) {
+  return {
+    created: 'Created',
+    current_schedule: 'Current schedule',
+    manual: 'Manual',
+    schedule_update: 'Schedule update',
+  }[sourceType] || sourceType;
 }
 
 function stageLabel(value) {
