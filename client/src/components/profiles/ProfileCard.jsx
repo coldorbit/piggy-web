@@ -51,10 +51,10 @@ export default function ProfileCard({
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
-        minHeight: 0,
+        alignSelf: 'start',
+        height: 'auto',
         minWidth: 0,
-        overflow: 'visible',
+        overflow: 'hidden',
         transition: 'box-shadow 150ms ease, transform 150ms ease',
         '&:hover': {
           boxShadow: 2,
@@ -66,7 +66,7 @@ export default function ProfileCard({
         },
       }}
     >
-      <CardContent sx={{ display: 'grid', gap: 1, flex: '1 1 auto', minHeight: 0, minWidth: 0 }}>
+      <CardContent sx={{ display: 'grid', gap: 1, flex: '0 0 auto', minWidth: 0 }}>
         <Box
           sx={{
             display: 'grid',
@@ -80,7 +80,7 @@ export default function ProfileCard({
             <Typography variant="h6" fontWeight={900} noWrap>
               {profile.name}
             </Typography>
-            <Typography color="text.secondary" variant="body2">
+            <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: 'anywhere' }}>
               {[profile.location, profile.email, profile.phone].filter(Boolean).join(' · ') || 'No contact details set.'}
             </Typography>
           </Box>
@@ -146,7 +146,7 @@ export default function ProfileCard({
         <CardActions
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => event.stopPropagation()}
-          sx={{ mt: 'auto', px: 1.25, pb: 1.25, gap: 0.5, flexShrink: 0, flexWrap: 'wrap' }}
+          sx={{ px: 1.25, pb: 1.25, pt: 0, gap: 0.5, flex: '0 0 auto', flexWrap: 'wrap' }}
         >
           <>
             <Tooltip title="Edit profile">
@@ -255,6 +255,7 @@ function ProfileProgress({ progress = {} }) {
 }
 
 const actionIconSx = {
+  flex: '0 0 auto',
   width: 38,
   height: 38,
   border: 1,
@@ -270,6 +271,7 @@ const chipListSx = {
 
 const profileChipSx = {
   maxWidth: '100%',
+  minWidth: 0,
   flexShrink: 1,
   height: 'auto',
   minHeight: 24,

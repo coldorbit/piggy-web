@@ -403,6 +403,7 @@ export default function ProfilesPage({ currentUser }) {
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))' },
                 alignContent: 'start',
+                alignItems: 'start',
                 justifyContent: 'stretch',
                 gap: 1.5,
                 minHeight: 0,
