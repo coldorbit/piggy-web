@@ -8,6 +8,9 @@ const GRAINS = {
   annually: { sql: 'year', step: "1 year", lookback: "4 years", labelFormat: 'YYYY' },
 };
 
+const DASHBOARD_BID_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
+const DASHBOARD_BID_STATUSES_SQL = DASHBOARD_BID_STATUSES.map((status) => `'${status}'`).join(', ');
+
 export const DEFAULT_GRAIN = 'daily';
 export const GRAIN_KEYS = Object.keys(GRAINS);
 
@@ -159,14 +162,14 @@ function overallSql(grainConfig, timeZone, anchor) {
     period_bid_totals AS (
       SELECT
         COUNT(*) FILTER (
-          WHERE job_bids.status NOT IN ('mismatching_bid', 'spam_job')
+          WHERE job_bids.status IN (${DASHBOARD_BID_STATUSES_SQL})
         )::int AS period_total_bids,
         COUNT(*) FILTER (
-          WHERE job_bids.status NOT IN ('mismatching_bid', 'spam_job')
+          WHERE job_bids.status IN (${DASHBOARD_BID_STATUSES_SQL})
             AND web_users.role IN ('user', 'admin', 'superadmin', 'finance_manager', 'internal')
         )::int AS period_user_role_bids,
         COUNT(*) FILTER (
-          WHERE job_bids.status NOT IN ('mismatching_bid', 'spam_job')
+          WHERE job_bids.status IN (${DASHBOARD_BID_STATUSES_SQL})
             AND web_users.role IN ('bidder', 'readonly_bidder', 'editable_bidder')
         )::int AS period_bidder_bids
       FROM job_bids

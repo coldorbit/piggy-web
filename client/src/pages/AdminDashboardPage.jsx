@@ -24,15 +24,16 @@ import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerforman
 import ProfileActivityTable from '../components/adminDashboard/ProfileActivityTable.jsx';
 import { useAdminDashboard } from '../lib/api.js';
 import { formatFirstNameLastInitial } from '../lib/formatters.js';
-import { DEFAULT_TIME_ZONE } from '../lib/timezone.js';
+import { addDaysToDateKey, dateKeyDayOfWeek, zonedDateParts } from '../lib/timezone.js';
 
-export default function AdminDashboardPage() {
+export default function AdminDashboardPage({ currentUser }) {
   const { section } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const dashboardSearch = searchParams.toString();
   const [grain, setGrain] = useState(() => dashboardGrainFrom(searchParams.get('grain')));
   const [anchorDate, setAnchorDate] = useState(() => dashboardAnchorFrom(searchParams.get('anchorDate')));
-  const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString(), timeZone: DEFAULT_TIME_ZONE }), [anchorDate, grain]);
+  const dashboardTimeZone = currentUser?.timezone || '';
+  const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString(), timeZone: dashboardTimeZone }), [anchorDate, dashboardTimeZone, grain]);
   const { data: dashboard, isLoading, error } = useAdminDashboard(dashboardFilters);
   const activeSection = dashboardSectionFor(section);
   const totals = dashboard?.totals || {};
@@ -81,7 +82,7 @@ export default function AdminDashboardPage() {
         generatedAt={dashboard?.generatedAt}
         grain={grain}
         isLoading={isLoading}
-        periodLabel={labelForDashboardPeriod(grain, anchorDate)}
+        periodLabel={labelForDashboardPeriod(grain, anchorDate, dashboardTimeZone)}
         onGrainChange={changeGrain}
         onMove={movePeriod}
         onToday={resetToToday}
@@ -422,22 +423,26 @@ function addDashboardPeriod(value, grain, amount) {
   return addDays(date, amount);
 }
 
-function labelForDashboardPeriod(grain, anchor) {
-  const start = startForDashboardPeriod(grain, anchor);
-  if (grain === 'annually') return String(start.getFullYear());
-  if (grain === 'quarterly') return `Q${Math.floor(start.getMonth() / 3) + 1} ${start.getFullYear()}`;
-  if (grain === 'monthly') return start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  if (grain === 'weekly') return `${shortDate(start)} - ${shortDate(addDays(start, 6))}`;
-  return start.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+function labelForDashboardPeriod(grain, anchor, timeZone) {
+  const start = startForDashboardPeriod(grain, anchor, timeZone);
+  if (grain === 'annually') return String(start.year);
+  if (grain === 'quarterly') return `Q${Math.floor((start.month - 1) / 3) + 1} ${start.year}`;
+  if (grain === 'monthly') return formatDateKey(start.dateKey, { month: 'long', year: 'numeric' });
+  if (grain === 'weekly') return `${shortDateKey(start.dateKey)} - ${shortDateKey(addDaysToDateKey(start.dateKey, 6))}`;
+  return formatDateKey(start.dateKey, { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-function startForDashboardPeriod(grain, anchor) {
-  const date = new Date(anchor);
-  if (grain === 'weekly') return addDays(startOfDay(date), -date.getDay());
-  if (grain === 'monthly') return new Date(date.getFullYear(), date.getMonth(), 1);
-  if (grain === 'quarterly') return new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3, 1);
-  if (grain === 'annually') return new Date(date.getFullYear(), 0, 1);
-  return startOfDay(date);
+function startForDashboardPeriod(grain, anchor, timeZone) {
+  const parts = zonedDateParts(anchor, timeZone);
+  const dateKey = dateKeyForParts(parts);
+  if (grain === 'weekly') return datePartsForKey(addDaysToDateKey(dateKey, -dateKeyDayOfWeek(dateKey)));
+  if (grain === 'monthly') return { year: parts.year, month: parts.month, day: 1, dateKey: `${parts.year}-${pad(parts.month)}-01` };
+  if (grain === 'quarterly') {
+    const month = Math.floor((parts.month - 1) / 3) * 3 + 1;
+    return { year: parts.year, month, day: 1, dateKey: `${parts.year}-${pad(month)}-01` };
+  }
+  if (grain === 'annually') return { year: parts.year, month: 1, day: 1, dateKey: `${parts.year}-01-01` };
+  return { ...parts, dateKey: dateKeyForParts(parts) };
 }
 
 function addDays(value, days) {
@@ -446,14 +451,26 @@ function addDays(value, days) {
   return date;
 }
 
-function startOfDay(value) {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
+function shortDateKey(dateKey) {
+  return formatDateKey(dateKey, { month: 'short', day: 'numeric' });
 }
 
-function shortDate(value) {
-  return value.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+function formatDateKey(dateKey, options) {
+  const { year, month, day } = datePartsForKey(dateKey);
+  return new Intl.DateTimeFormat(undefined, { ...options, timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+function dateKeyForParts(parts) {
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+}
+
+function datePartsForKey(dateKey) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return { year, month, day, dateKey };
+}
+
+function pad(value) {
+  return String(value).padStart(2, '0');
 }
 
 const periodIconButtonSx = {
