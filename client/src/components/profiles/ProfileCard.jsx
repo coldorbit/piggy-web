@@ -3,6 +3,7 @@ import DraftsIcon from '@mui/icons-material/Drafts';
 import EditIcon from '@mui/icons-material/Edit';
 import HistoryIcon from '@mui/icons-material/History';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ShareIcon from '@mui/icons-material/Share';
 import StopCircleIcon from '@mui/icons-material/StopCircle';
 import { Box, Button, Card, CardActions, CardContent, Chip, IconButton, LinearProgress, Stack, Tooltip, Typography } from '@mui/material';
@@ -20,6 +21,7 @@ export default function ProfileCard({
   onCloseProfile,
   onDelete,
   onEdit,
+  onChangeOwner = () => {},
   onMarkDraft = () => {},
   onMarkLegacy = () => {},
   onView = () => {},
@@ -52,8 +54,8 @@ export default function ProfileCard({
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        flex: { xs: '1 1 100%', sm: '1 1 320px' },
-        height: 'auto',
+        flex: { xs: '1 1 100%', sm: '0 1 320px' },
+        height: 450,
         maxWidth: '100%',
         minWidth: 0,
         overflow: 'visible',
@@ -66,6 +68,7 @@ export default function ProfileCard({
           outline: `2px solid ${color.main}`,
           outlineOffset: 2,
         },
+        width: '100%',
       }}
     >
       <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, pb: showActions ? 1 : undefined }}>
@@ -177,6 +180,11 @@ export default function ProfileCard({
             <Tooltip title="Share profile">
               <IconButton aria-label="Share profile" onClick={() => onShare(profile)} sx={actionIconSx}>
                 <ShareIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Change owner">
+              <IconButton aria-label="Change profile owner" onClick={() => onChangeOwner(profile)} sx={actionIconSx}>
+                <ManageAccountsIcon />
               </IconButton>
             </Tooltip>
             <Tooltip title="Delete profile">

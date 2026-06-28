@@ -1183,6 +1183,20 @@ export function useUpdateBidProfile() {
   });
 }
 
+export function useChangeBidProfileOwner() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, ownerUserId }) =>
+      api(`/api/bid/profiles/${profileId}/owner`, {
+        method: 'PATCH',
+        body: JSON.stringify({ ownerUserId }),
+      }).then((data) => data.profile),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid'] });
+    },
+  });
+}
+
 export function useUpdateBidProfileStatus() {
   const queryClient = useQueryClient();
   return useMutation({

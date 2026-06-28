@@ -53,6 +53,7 @@ import { userAttributesFromBody } from '../../admin/application/usersService.js'
 import { clean } from '../../../utils/index.js';
 import { handleInputError, handleUserWriteError, InputError, NotFoundError } from '../../../utils/errors.js';
 import {
+  ADMIN_MANAGED_PROFILE_OWNER_ROLES,
   BIDDER_ROLES,
   INTERNAL_DATA_ROLES,
   INTERVIEW_ACCESS_ROLES,
@@ -143,16 +144,13 @@ export async function listProfileShareRequests(req, res, next) {
 export async function listProfileShareRecipients(req, res, next) {
   try {
     await ensureWebModels();
-    const user = await currentDbUser(req);
     const users = await repositories.listUsers();
     res.json({
-      users: users
-        .filter((row) => String(row.id) !== String(user.id))
-        .map((row) => ({
-          id: row.id,
-          username: row.username,
-          role: row.role,
-        })),
+      users: users.map((row) => ({
+        id: row.id,
+        username: row.username,
+        role: row.role,
+      })),
     });
   } catch (error) {
     handleInputError(error, res, next);
@@ -920,6 +918,39 @@ export async function updateProfile(req, res, next) {
   }
 }
 
+export async function changeProfileOwner(req, res, next) {
+  try {
+    await ensureWebModels();
+    if (!canManageProfiles(req, res)) return;
+    const profile = await manageableProfile(req, req.params.id);
+    const owner = await profileOwnerFromBody(req.body);
+    const ProfileShareRequest = getProfileShareRequestModel();
+
+    await getSequelize().transaction(async (transaction) => {
+      await ProfileShareRequest.destroy({
+        where: {
+          profileId: profile.id,
+          recipientUserId: owner.id,
+        },
+        transaction,
+      });
+      await ProfileShareRequest.update(
+        { ownerUserId: owner.id },
+        {
+          where: { profileId: profile.id },
+          transaction,
+        },
+      );
+      await profile.update({ userId: owner.id }, { transaction });
+    });
+
+    profile.setDataValue('user', owner);
+    res.json({ profile: formatProfile(profile) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 export async function updateProfileStatus(req, res, next) {
   try {
     await ensureWebModels();
@@ -975,6 +1006,22 @@ function canUpdateProfileStatus(req, res, profile, status) {
   if (PRIVILEGED_USER_ROLES.includes(req.user?.role)) return true;
   res.status(403).json({ error: 'Only user and admin roles can close profiles' });
   return false;
+}
+
+async function profileOwnerFromBody(body = {}) {
+  const userId = clean(body.ownerUserId || body.userId);
+  const username = clean(body.ownerUsername || body.username);
+  if (!userId && !username) throw new InputError('Choose a new owner');
+
+  const user = userId
+    ? await getWebUserModel().findByPk(userId)
+    : await repositories.findUserByUsernameCaseInsensitive(username);
+  if (!user) throw new NotFoundError('User not found');
+  if (!ADMIN_MANAGED_PROFILE_OWNER_ROLES.includes(user.role)) {
+    throw new InputError('Choose a user or admin account to own this profile');
+  }
+
+  return user;
 }
 
 async function manageableProfile(req, profileId) {

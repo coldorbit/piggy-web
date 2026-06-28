@@ -19,6 +19,7 @@ import {
   createManualTailoredResume,
   createProfile,
   createTailoredResume,
+  changeProfileOwner,
   deleteProfile,
   deleteInterview,
   deleteInterviewCall,
@@ -78,6 +79,7 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/profiles/:id/mailbox/messages', requireInboxAccess, listProfileForwardedMessages);
   app.patch('/api/bid/profiles/:id/mailbox/messages/read', requireInboxAccess, markProfileForwardedMessageRead);
   app.patch('/api/bid/profiles/:id', requireBidWorkspaceAccess, updateProfile);
+  app.patch('/api/bid/profiles/:id/owner', requireBidWorkspaceAccess, changeProfileOwner);
   app.patch('/api/bid/profiles/:id/status', requireBidWorkspaceAccess, updateProfileStatus);
   app.delete('/api/bid/profiles/:id', requireBidWorkspaceAccess, deleteProfile);
   app.post('/api/bid/profiles/:id/share', requireBidWorkspaceAccess, shareProfile);

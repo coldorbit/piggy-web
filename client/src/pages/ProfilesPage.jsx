@@ -38,6 +38,7 @@ import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_PROFILE } from '../components/profiles/profileConstants.js';
 import {
   useBidProfiles,
+  useChangeBidProfileOwner,
   useCreateBidProfile,
   useDeleteBidProfile,
   useProfileShareRecipients,
@@ -47,7 +48,7 @@ import {
   useUpdateBidProfile,
   useUpdateBidProfileStatus,
 } from '../lib/api.js';
-import { BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../lib/roles.js';
+import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../lib/roles.js';
 
 const PROFILE_STATUS_ORDER = ['active', 'draft', 'legacy'];
 const PROFILE_STATUS_META = {
@@ -82,10 +83,12 @@ export default function ProfilesPage({ currentUser }) {
   const [dialogMode, setDialogMode] = useState(null);
   const [editingProfileId, setEditingProfileId] = useState(null);
   const [sharingProfile, setSharingProfile] = useState(null);
+  const [ownerProfile, setOwnerProfile] = useState(null);
   const [closingProfile, setClosingProfile] = useState(null);
   const [legacyProfile, setLegacyProfile] = useState(null);
   const [viewingProfile, setViewingProfile] = useState(null);
   const [shareUsernames, setShareUsernames] = useState([]);
+  const [ownerUserId, setOwnerUserId] = useState('');
   const [closeReason, setCloseReason] = useState('');
   const [form, setForm] = useState(EMPTY_PROFILE);
   const [error, setError] = useState('');
@@ -100,6 +103,7 @@ export default function ProfilesPage({ currentUser }) {
   const { mutate: updateProfile, isPending: updating } = useUpdateBidProfile();
   const { mutate: deleteProfile, isPending: deleting } = useDeleteBidProfile();
   const { mutate: shareProfile, isPending: sharing } = useShareBidProfile();
+  const { mutate: changeProfileOwner, isPending: changingOwner } = useChangeBidProfileOwner();
   const { mutate: updateProfileStatus, isPending: updatingStatus } = useUpdateBidProfileStatus();
   const { mutate: respondToShare, isPending: respondingToShare } = useRespondToProfileShare();
 
@@ -150,6 +154,17 @@ export default function ProfilesPage({ currentUser }) {
   function closeShareDialog() {
     setSharingProfile(null);
     setShareUsernames([]);
+  }
+
+  function openOwnerDialog(profile) {
+    setError('');
+    setOwnerProfile(profile);
+    setOwnerUserId('');
+  }
+
+  function closeOwnerDialog() {
+    setOwnerProfile(null);
+    setOwnerUserId('');
   }
 
   function openCloseDialog(profile) {
@@ -249,6 +264,19 @@ export default function ProfilesPage({ currentUser }) {
     );
   }
 
+  function submitOwnerChange(event) {
+    event.preventDefault();
+    if (!ownerProfile || !ownerUserId) return;
+    setError('');
+    changeProfileOwner(
+      { profileId: ownerProfile.id, ownerUserId },
+      {
+        onSuccess: closeOwnerDialog,
+        onError: (ownerError) => setError(ownerError.message),
+      },
+    );
+  }
+
   function respondToRequest(shareId, status) {
     setError('');
     respondToShare(
@@ -262,6 +290,9 @@ export default function ProfilesPage({ currentUser }) {
   const incomingShares = shareRequests.incoming || [];
   const shareRecipientOptions = shareRecipients.filter(
     (user) => String(user.id) !== String(currentUser?.id) && String(user.id) !== String(sharingProfile?.userId),
+  );
+  const ownerRecipientOptions = shareRecipients.filter(
+    (user) => ADMIN_MANAGED_PROFILE_OWNER_ROLES.includes(user.role) && String(user.id) !== String(ownerProfile?.userId),
   );
   const pageError = error || loadError?.message || sharesError?.message || recipientsError?.message || '';
   const canManageProfiles = !BIDDER_ROLES.includes(currentUser?.role);
@@ -400,9 +431,9 @@ export default function ProfilesPage({ currentUser }) {
           ) : (
             <Box
               sx={{
-                alignItems: 'flex-start',
-                display: 'flex',
-                flexWrap: 'wrap',
+                alignItems: 'start',
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))' },
                 gap: 1.5,
                 minHeight: 0,
                 minWidth: 0,
@@ -426,6 +457,7 @@ export default function ProfilesPage({ currentUser }) {
                   onCloseProfile={openCloseDialog}
                   onDelete={removeProfile}
                   onEdit={openEditDialog}
+                  onChangeOwner={openOwnerDialog}
                   onMarkDraft={markProfileDraft}
                   onMarkLegacy={openLegacyDialog}
                   onReopenProfile={reopenProfile}
@@ -489,6 +521,45 @@ export default function ProfilesPage({ currentUser }) {
             <Button onClick={closeShareDialog}>Cancel</Button>
             <Button type="submit" variant="contained" disabled={sharing || recipientsLoading || !sharingProfile}>
               Save sharing
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      <Dialog open={Boolean(ownerProfile)} onClose={closeOwnerDialog} fullWidth maxWidth="xs">
+        <form onSubmit={submitOwnerChange}>
+          <DialogTitle>Change owner</DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>Owner</InputLabel>
+              <Select
+                autoFocus
+                label="Owner"
+                value={ownerUserId}
+                onChange={(event) => setOwnerUserId(event.target.value)}
+                disabled={recipientsLoading || !ownerRecipientOptions.length}
+              >
+                {ownerRecipientOptions.map((user) => (
+                  <MenuItem key={user.id} value={String(user.id)}>
+                    {user.username}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {ownerRecipientOptions.length
+                ? ownerProfile
+                  ? `Transferring ${ownerProfile.name}${ownerProfile.ownerUsername ? ` from ${ownerProfile.ownerUsername}` : ''}.`
+                  : ''
+                : recipientsLoading
+                  ? 'Loading users...'
+                  : 'No eligible users are available.'}
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeOwnerDialog}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={changingOwner || recipientsLoading || !ownerProfile || !ownerUserId}>
+              Change owner
             </Button>
           </DialogActions>
         </form>
