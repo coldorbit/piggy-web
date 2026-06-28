@@ -401,7 +401,7 @@ export default function ProfilesPage({ currentUser }) {
             <Box
               sx={{
                 display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))' },
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fill, minmax(300px, 1fr))' },
                 alignContent: 'start',
                 alignItems: 'start',
                 justifyContent: 'stretch',
