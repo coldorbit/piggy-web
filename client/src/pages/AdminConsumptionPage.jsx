@@ -316,9 +316,7 @@ function rangeForPeriod(period, anchor) {
 function startForPeriod(period, anchor) {
   const date = startOfDay(anchor);
   if (period === 'weekly') {
-    const day = date.getDay();
-    const mondayOffset = day === 0 ? -6 : 1 - day;
-    return addDays(date, mondayOffset);
+    return addDays(date, -date.getDay());
   }
   if (period === 'monthly') return new Date(date.getFullYear(), date.getMonth(), 1);
   if (period === 'annual') return new Date(date.getFullYear(), 0, 1);

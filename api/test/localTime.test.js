@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { localDateRange, localDayRange, localDateKey, localPresetRange } from '../server/utils/localTime.js';
+import { localDateRange, localDayRange, localDateKey, localPresetRange, localWeekStart } from '../server/utils/localTime.js';
 
 describe('local time helpers', () => {
   it('uses local midnight as the day boundary', () => {
@@ -53,6 +53,18 @@ describe('local time helpers', () => {
 
     assert.equal(range.from.toISOString(), '2026-01-10T08:00:00.000Z');
     assert.equal(range.to.toISOString(), '2026-01-11T08:00:00.000Z');
+  });
+
+  it('uses Sunday through Saturday for local week presets', () => {
+    const now = new Date('2026-06-17T14:00:00.000Z');
+    const thisWeek = localPresetRange('this_week', now, { timeZone: 'America/Los_Angeles' });
+    const lastWeek = localPresetRange('last_week', now, { timeZone: 'America/Los_Angeles' });
+
+    assert.equal(localWeekStart(now, { timeZone: 'America/Los_Angeles' }).toISOString(), '2026-06-14T07:00:00.000Z');
+    assert.equal(thisWeek.from.toISOString(), '2026-06-14T07:00:00.000Z');
+    assert.equal(thisWeek.to.toISOString(), '2026-06-21T07:00:00.000Z');
+    assert.equal(lastWeek.from.toISOString(), '2026-06-07T07:00:00.000Z');
+    assert.equal(lastWeek.to.toISOString(), '2026-06-14T07:00:00.000Z');
   });
 });
 

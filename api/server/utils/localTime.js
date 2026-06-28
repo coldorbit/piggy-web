@@ -65,8 +65,7 @@ export function localWeekStart(value = new Date(), options = {}) {
   const start = localDayStart(value, { timeZone });
   const parts = zonedDateParts(start, timeZone);
   const day = new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  return addLocalDays(start, mondayOffset, { timeZone });
+  return addLocalDays(start, -day, { timeZone });
 }
 
 export function localDateKey(value = new Date(), options = {}) {
