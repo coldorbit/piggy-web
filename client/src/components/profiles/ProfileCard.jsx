@@ -58,7 +58,7 @@ export default function ProfileCard({
         height: 450,
         maxWidth: '100%',
         minWidth: 0,
-        overflow: 'visible',
+        overflow: 'hidden',
         transition: 'box-shadow 150ms ease, transform 150ms ease',
         '&:hover': {
           boxShadow: 2,
@@ -71,82 +71,108 @@ export default function ProfileCard({
         width: '100%',
       }}
     >
-      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, pb: showActions ? 1 : undefined }}>
+      <CardContent
+        sx={{
+          display: 'flex',
+          flex: '1 1 auto',
+          flexDirection: 'column',
+          minHeight: 0,
+          minWidth: 0,
+          p: 2,
+          pb: showActions ? 1 : 2,
+          '&:last-child': { pb: showActions ? 1 : 2 },
+        }}
+      >
         <Box
           sx={{
-            alignItems: 'flex-start',
             display: 'flex',
-            flexWrap: 'wrap',
+            flex: '1 1 auto',
+            flexDirection: 'column',
             gap: 1,
-            justifyContent: 'space-between',
-            width: '100%',
+            minHeight: 0,
+            minWidth: 0,
+            overflow: 'auto',
+            pr: 0.25,
           }}
         >
-          <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
-            <Typography variant="h6" fontWeight={900} noWrap>
-              {profile.name}
-            </Typography>
-            <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-              {[profile.location, profile.email, profile.phone].filter(Boolean).join(' · ') || 'No contact details set.'}
-            </Typography>
-          </Box>
-          <Chip
-            label={profile.colorScheme}
-            sx={{ ...profileChipSx, bgcolor: color.soft, color: color.dark, fontWeight: 400, justifySelf: 'end' }}
-          />
-        </Box>
-        {profile.isShared ? (
-          <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
-            <Chip label="Shared" size="small" color="secondary" sx={{ ...profileChipSx, fontWeight: 400 }} />
-            {profile.sharedBy ? <Chip label={`From ${profile.sharedBy}`} size="small" variant="outlined" sx={profileChipSx} /> : null}
-          </Stack>
-        ) : null}
-        {profile.ownerUsername ? (
-          <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
-            <Chip label={`Owner ${profile.ownerUsername}`} size="small" variant="outlined" sx={profileChipSx} />
-          </Stack>
-        ) : null}
-        {sharedWith.length ? (
-          <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
-            {sharedWith.map((share) => (
-              <Chip
-                key={share.id || share.userId || share.username}
-                label={`Shared with ${share.username}${share.status === 'pending' ? ' (pending)' : ''}`}
-                size="small"
-                variant="outlined"
-                sx={profileChipSx}
-              />
-            ))}
-          </Stack>
-        ) : null}
-        <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
-          <Chip
-            label={isLegacy ? 'Legacy' : isDraft ? 'Draft' : isClosed ? 'Closed' : 'Active'}
-            size="small"
-            color={isLegacy || isClosed || isDraft ? 'default' : 'success'}
-            variant={isLegacy || isClosed || isDraft ? 'outlined' : 'filled'}
+          <Box
             sx={{
-              ...profileChipSx,
-              bgcolor: isDraft ? '#fef3c7' : undefined,
-              color: isDraft ? '#92400e' : undefined,
-              fontWeight: 400,
+              alignItems: 'flex-start',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 1,
+              justifyContent: 'space-between',
+              width: '100%',
             }}
-          />
-          {isClosed && profile.closedReason ? <Chip label={profile.closedReason} size="small" variant="outlined" sx={profileChipSx} /> : null}
-        </Stack>
-        <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
-          <Chip
-            label={profile.profileBadge || 'SWE'}
-            size="small"
-            sx={{ ...profileChipSx, ...(PROFILE_BADGE_COLORS[profile.profileBadge || 'SWE'] || {}), fontWeight: 400 }}
-          />
-        </Stack>
-        {profile.yearsOfExperience ? (
-          <Stack direction="row" spacing={1} useFlexGap sx={chipListSx}>
-            <Chip label={`${profile.yearsOfExperience} yrs`} size="small" sx={profileChipSx} />
+          >
+            <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
+              <Typography variant="h6" fontWeight={900} noWrap>
+                {profile.name}
+              </Typography>
+              <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                {[profile.location, profile.email, profile.phone].filter(Boolean).join(' · ') || 'No contact details set.'}
+              </Typography>
+            </Box>
+            <Chip
+              label={profile.colorScheme}
+              sx={{ ...profileChipSx, bgcolor: color.soft, color: color.dark, fontWeight: 400, justifySelf: 'end' }}
+            />
+          </Box>
+          {profile.isShared ? (
+            <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
+              <Chip label="Shared" size="small" color="secondary" sx={{ ...profileChipSx, fontWeight: 400 }} />
+              {profile.sharedBy ? <Chip label={`From ${profile.sharedBy}`} size="small" variant="outlined" sx={profileChipSx} /> : null}
+            </Stack>
+          ) : null}
+          {profile.ownerUsername ? (
+            <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
+              <Chip label={`Owner ${profile.ownerUsername}`} size="small" variant="outlined" sx={profileChipSx} />
+            </Stack>
+          ) : null}
+          {sharedWith.length ? (
+            <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
+              {sharedWith.map((share) => (
+                <Chip
+                  key={share.id || share.userId || share.username}
+                  label={`Shared with ${share.username}${share.status === 'pending' ? ' (pending)' : ''}`}
+                  size="small"
+                  variant="outlined"
+                  sx={profileChipSx}
+                />
+              ))}
+            </Stack>
+          ) : null}
+          <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
+            <Chip
+              label={isLegacy ? 'Legacy' : isDraft ? 'Draft' : isClosed ? 'Closed' : 'Active'}
+              size="small"
+              color={isLegacy || isClosed || isDraft ? 'default' : 'success'}
+              variant={isLegacy || isClosed || isDraft ? 'outlined' : 'filled'}
+              sx={{
+                ...profileChipSx,
+                bgcolor: isDraft ? '#fef3c7' : undefined,
+                color: isDraft ? '#92400e' : undefined,
+                fontWeight: 400,
+              }}
+            />
+            {isClosed && profile.closedReason ? <Chip label={profile.closedReason} size="small" variant="outlined" sx={profileChipSx} /> : null}
           </Stack>
-        ) : null}
-        <ProfileProgress progress={profile.progress} />
+          <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
+            <Chip
+              label={profile.profileBadge || 'SWE'}
+              size="small"
+              sx={{ ...profileChipSx, ...(PROFILE_BADGE_COLORS[profile.profileBadge || 'SWE'] || {}), fontWeight: 400 }}
+            />
+          </Stack>
+          {profile.yearsOfExperience ? (
+            <Stack direction="row" spacing={1} useFlexGap sx={chipListSx}>
+              <Chip label={`${profile.yearsOfExperience} yrs`} size="small" sx={profileChipSx} />
+            </Stack>
+          ) : null}
+        </Box>
+        <Box sx={{ borderTop: 1, borderColor: 'divider', flex: '0 0 auto', mt: 1, pt: 1 }}>
+          <ProfileProgress progress={profile.progress} />
+        </Box>
       </CardContent>
       {showActions ? (
         <CardActions
@@ -156,7 +182,9 @@ export default function ProfileCard({
             alignItems: 'center',
             borderTop: 1,
             borderColor: 'divider',
+            bgcolor: 'background.paper',
             display: 'flex',
+            flex: '0 0 auto',
             flexWrap: 'wrap',
             gap: 0.5,
             justifyContent: 'flex-start',
