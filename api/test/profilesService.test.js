@@ -2,44 +2,11 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   appliedFilterProfileWhere,
-  appliedFilterOwnerRoles,
   forwardingAliasForProfileName,
   profileAttributesFromBody,
   profileStatusAttributesFromBody,
   sortProfilesForDisplay,
 } from '../server/modules/bidding/application/profilesService.js';
-import { BIDDER_ROLES, ROLES } from '../server/utils/roles.js';
-
-describe('appliedFilterOwnerRoles', () => {
-  it('lets user, admin, and superadmin roles filter by bidder-owned profiles', () => {
-    for (const role of [ROLES.user, ROLES.admin, ROLES.superadmin]) {
-      for (const bidderRole of BIDDER_ROLES) {
-        assert.equal(
-          appliedFilterOwnerRoles({ role }).includes(bidderRole),
-          true,
-          `${role} should see ${bidderRole} profiles in the applied using filter`,
-        );
-      }
-    }
-  });
-
-  it('lets bidder roles filter by other user and bidder-owned profiles', () => {
-    for (const role of BIDDER_ROLES) {
-      assert.equal(appliedFilterOwnerRoles({ role }).includes(ROLES.user), true);
-      for (const bidderRole of BIDDER_ROLES) {
-        assert.equal(
-          appliedFilterOwnerRoles({ role }).includes(bidderRole),
-          true,
-          `${role} should see ${bidderRole} profiles in the applied using filter`,
-        );
-      }
-    }
-  });
-
-  it('keeps finance manager applied filter ownership narrow', () => {
-    assert.deepEqual(appliedFilterOwnerRoles({ role: ROLES.financeManager }), [ROLES.user]);
-  });
-});
 
 describe('appliedFilterProfileWhere', () => {
   it('limits applied filter profiles to active profiles in the selected category', () => {

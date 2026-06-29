@@ -12,8 +12,6 @@ import { Op } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
 import {
-  ADMIN_MANAGED_PROFILE_OWNER_ROLES,
-  APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES,
   APPLIED_PROFILE_FILTER_ROLES,
   BIDDER_ROLES,
   PRIVILEGED_USER_ROLES,
@@ -74,7 +72,6 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
   if (!APPLIED_PROFILE_FILTER_ROLES.includes(user.role)) return accessibleProfile(req, profileId);
   if ((appliedProfile.profileStatus || 'active') !== 'active') throw new NotFoundError('Profile not found');
   if ((appliedProfile.profileBadge || 'SWE') !== (profile.profileBadge || 'SWE')) throw new NotFoundError('Profile not found');
-  if (!appliedFilterOwnerRoles(user).includes(appliedProfile.user?.role)) throw new NotFoundError('Profile not found');
 
   return appliedProfile;
 }
@@ -465,7 +462,6 @@ export async function profilesForAppliedFilter(user, { profileBadge } = {}) {
         model: WebUser,
         as: 'user',
         required: true,
-        where: { role: appliedFilterOwnerRoles(user) },
       },
     ],
     order: [
@@ -480,12 +476,6 @@ export function appliedFilterProfileWhere({ profileBadge } = {}) {
   const badge = clean(profileBadge).toUpperCase();
   if (badge) where.profileBadge = badge;
   return where;
-}
-
-export function appliedFilterOwnerRoles(user) {
-  const managedRoles = isAdminRole(user) ? ADMIN_MANAGED_PROFILE_OWNER_ROLES : ['user'];
-  if (!APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES.includes(user?.role) && !BIDDER_ROLES.includes(user?.role)) return managedRoles;
-  return [...new Set([...managedRoles, ...BIDDER_ROLES])];
 }
 
 export async function profilesVisibleToUser(user) {
