@@ -359,7 +359,7 @@ function LoadingPanel() {
   return (
     <Box sx={{ display: 'grid', gap: 1.5 }}>
       <Grid container spacing={1.25}>
-        {Array.from({ length: 7 }).map((_, index) => (
+        {Array.from({ length: 6 }).map((_, index) => (
           <Grid key={`dashboard-metric-loading-${index}`} size={{ xs: 12, sm: 6, lg: 4, xl: 2 }}>
             <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1, boxShadow: 1 }}>
               <Stack spacing={1}>

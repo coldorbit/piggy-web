@@ -54,6 +54,8 @@ export default function InboxPage({ currentUser }) {
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [selectedMessageId, setSelectedMessageId] = useState(() => searchParams.get('messageId') || '');
   const [shouldPersistSelectedMessage, setShouldPersistSelectedMessage] = useState(() => searchParams.has('messageId'));
+  const searchParamsString = searchParams.toString();
+  const isSyncingFromSearchParams = useRef(false);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const {
     data: profiles = [],
@@ -180,27 +182,33 @@ export default function InboxPage({ currentUser }) {
   }, [activeProfileId, inboxProfiles, profilesLoading]);
 
   useEffect(() => {
-    const nextProfileId = searchParams.get('profileId') || '';
-    const nextMailboxGroup = normalizedMailboxGroup(searchParams.get('group'));
-    const nextMessageId = searchParams.get('messageId') || '';
-    const nextSearch = searchParams.get('search') || '';
+    const nextParams = new URLSearchParams(searchParamsString);
+    const nextProfileId = nextParams.get('profileId') || '';
+    const nextMailboxGroup = normalizedMailboxGroup(nextParams.get('group'));
+    const nextMessageId = nextParams.get('messageId') || '';
+    const nextSearch = nextParams.get('search') || '';
+    isSyncingFromSearchParams.current = true;
     setActiveProfileId((currentProfileId) => (String(nextProfileId) !== String(currentProfileId) ? nextProfileId : currentProfileId));
     setActiveMailboxGroup((currentGroup) => (nextMailboxGroup !== currentGroup ? nextMailboxGroup : currentGroup));
     setSelectedMessageId((currentMessageId) => (String(nextMessageId) !== String(currentMessageId) ? nextMessageId : currentMessageId));
-    setShouldPersistSelectedMessage(searchParams.has('messageId'));
+    setShouldPersistSelectedMessage(nextParams.has('messageId'));
     setSearch((currentSearch) => (nextSearch !== currentSearch ? nextSearch : currentSearch));
-  }, [searchParams]);
+  }, [searchParamsString]);
 
   useEffect(() => {
+    if (isSyncingFromSearchParams.current) {
+      isSyncingFromSearchParams.current = false;
+      return;
+    }
     const nextParams = new URLSearchParams();
     if (activeProfileId) nextParams.set('profileId', activeProfileId);
     if (activeMailboxGroup !== MAILBOX_GROUPS.inbox) nextParams.set('group', activeMailboxGroup);
     if (shouldPersistSelectedMessage && selectedMessageId) nextParams.set('messageId', selectedMessageId);
     if (search) nextParams.set('search', search);
-    if (nextParams.toString() !== searchParams.toString()) {
+    if (nextParams.toString() !== searchParamsString) {
       setSearchParams(nextParams, { replace: true });
     }
-  }, [activeMailboxGroup, activeProfileId, search, searchParams, selectedMessageId, setSearchParams, shouldPersistSelectedMessage]);
+  }, [activeMailboxGroup, activeProfileId, search, searchParamsString, selectedMessageId, setSearchParams, shouldPersistSelectedMessage]);
 
   useEffect(() => {
     if (!filteredMessages.length) {
