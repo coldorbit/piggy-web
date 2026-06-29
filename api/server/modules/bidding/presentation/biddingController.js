@@ -84,12 +84,16 @@ export async function listProfiles(req, res, next) {
     const user = await currentDbUser(req);
     const scope = clean(req.query?.scope);
     const query = jobDateFiltersForUser(req.query, user);
-    const profiles =
-      scope === 'applied-filter'
-        ? await profilesForAppliedFilter(user)
-        : scope === 'manage' && isAdminRole(user)
-        ? await profilesManagedByUser(user)
-        : await profilesVisibleToUser(user);
+    let profiles;
+    if (scope === 'applied-filter') {
+      const activeProfileId = clean(req.query?.profileId);
+      const activeProfile = activeProfileId ? await accessibleProfile(req, activeProfileId) : null;
+      profiles = await profilesForAppliedFilter(user, { profileBadge: activeProfile?.profileBadge });
+    } else if (scope === 'manage' && isAdminRole(user)) {
+      profiles = await profilesManagedByUser(user);
+    } else {
+      profiles = await profilesVisibleToUser(user);
+    }
     const visibleProfiles = sortProfilesForDisplay(await profilesWithSharing(await profilesWithProgress(profiles, { user, dailyGoalFilters: query })));
     res.json({ profiles: visibleProfiles.map(formatProfile) });
   } catch (error) {

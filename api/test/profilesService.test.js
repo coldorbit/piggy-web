@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  appliedFilterProfileWhere,
   appliedFilterOwnerRoles,
   forwardingAliasForProfileName,
   profileAttributesFromBody,
@@ -37,6 +38,19 @@ describe('appliedFilterOwnerRoles', () => {
 
   it('keeps finance manager applied filter ownership narrow', () => {
     assert.deepEqual(appliedFilterOwnerRoles({ role: ROLES.financeManager }), [ROLES.user]);
+  });
+});
+
+describe('appliedFilterProfileWhere', () => {
+  it('limits applied filter profiles to active profiles in the selected category', () => {
+    assert.deepEqual(appliedFilterProfileWhere({ profileBadge: 'ml' }), {
+      profileStatus: 'active',
+      profileBadge: 'ML',
+    });
+  });
+
+  it('keeps the broad active profile query when no active profile category is available', () => {
+    assert.deepEqual(appliedFilterProfileWhere(), { profileStatus: 'active' });
   });
 });
 

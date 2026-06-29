@@ -74,11 +74,6 @@ export default function BidPage({ currentUser }) {
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
     { ...(canUseTomorrowDateFilter ? { scope: 'manage' } : {}), ...profileGoalFilters },
   );
-  const canUseCrossUserAppliedFilter = APPLIED_PROFILE_FILTER_ROLES.includes(currentUser?.role);
-  const { data: appliedFilterProfiles = [], isLoading: appliedFilterProfilesLoading } = useBidProfiles(
-    canUseCrossUserAppliedFilter ? { scope: 'applied-filter' } : {},
-    { enabled: canUseCrossUserAppliedFilter },
-  );
   const activeProfiles = useMemo(
     () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
     [profiles],
@@ -86,6 +81,15 @@ export default function BidPage({ currentUser }) {
   const activeProfile = useMemo(
     () => activeProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || activeProfiles[0] || null,
     [activeProfiles, activeProfileId],
+  );
+  const canUseCrossUserAppliedFilter = APPLIED_PROFILE_FILTER_ROLES.includes(currentUser?.role);
+  const appliedFilterProfileParams = useMemo(
+    () => ({ scope: 'applied-filter', profileId: activeProfile?.id || '' }),
+    [activeProfile?.id],
+  );
+  const { data: appliedFilterProfiles = [], isLoading: appliedFilterProfilesLoading } = useBidProfiles(
+    appliedFilterProfileParams,
+    { enabled: canUseCrossUserAppliedFilter && Boolean(activeProfile?.id) },
   );
   const appliedProfileOptions = useMemo(
     () => appliedProfileOptionsForActiveProfile({

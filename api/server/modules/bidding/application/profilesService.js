@@ -453,13 +453,13 @@ export async function profilesManagedByUser(user) {
   return profilesVisibleToUser(user);
 }
 
-export async function profilesForAppliedFilter(user) {
+export async function profilesForAppliedFilter(user, { profileBadge } = {}) {
   if (!APPLIED_PROFILE_FILTER_ROLES.includes(user?.role)) return [];
   const BidProfile = getBidProfileModel();
   const WebUser = getWebUserModel();
 
   return BidProfile.findAll({
-    where: { profileStatus: 'active' },
+    where: appliedFilterProfileWhere({ profileBadge }),
     include: [
       {
         model: WebUser,
@@ -473,6 +473,13 @@ export async function profilesForAppliedFilter(user) {
       ['name', 'ASC'],
     ],
   });
+}
+
+export function appliedFilterProfileWhere({ profileBadge } = {}) {
+  const where = { profileStatus: 'active' };
+  const badge = clean(profileBadge).toUpperCase();
+  if (badge) where.profileBadge = badge;
+  return where;
 }
 
 export function appliedFilterOwnerRoles(user) {
