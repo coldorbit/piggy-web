@@ -5,7 +5,7 @@ import CalendarGrid from '../components/calendar/CalendarGrid.jsx';
 import CalendarProfileLegend from '../components/calendar/CalendarProfileLegend.jsx';
 import CalendarToolbar, { CALENDAR_VIEWS } from '../components/calendar/CalendarToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
-import { CALENDAR_PROFILE_COLORS } from '../components/profiles/profileConstants.js';
+import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { api, downloadAuthenticatedFile, useUpdateInterviewCall, useUpdateJobBid } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
 import {
@@ -43,9 +43,9 @@ export default function CalendarPage() {
   const currentUser = calendarData?.currentUser || {};
   const calendarProfiles = useMemo(
     () =>
-      profiles.map((profile, index) => ({
+      profiles.map((profile) => ({
         ...profile,
-        calendarColor: CALENDAR_PROFILE_COLORS[index % CALENDAR_PROFILE_COLORS.length],
+        calendarColor: PROFILE_COLORS[profile.colorScheme] || PROFILE_COLORS.green,
       })),
     [profiles],
   );

@@ -17,6 +17,7 @@ import {
   COLOR_OPTIONS,
   PROFILE_BADGE_COLORS,
   PROFILE_BADGE_OPTIONS,
+  PROFILE_COLORS,
   RESUME_TEMPLATE_OPTIONS,
   forwardingAliasForProfileName,
 } from './profileConstants.js';
@@ -89,10 +90,11 @@ export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpe
                 label="Color"
                 value={form.colorScheme}
                 onChange={(event) => onChange((current) => ({ ...current, colorScheme: event.target.value }))}
+                renderValue={(selected) => <ColorOption color={selected} />}
               >
                 {COLOR_OPTIONS.map((color) => (
                   <MenuItem key={color} value={color}>
-                    {color}
+                    <ColorOption color={color} />
                   </MenuItem>
                 ))}
               </Select>
@@ -146,4 +148,19 @@ export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpe
       </form>
     </Dialog>
   );
+}
+
+function ColorOption({ color }) {
+  const colors = PROFILE_COLORS[color] || PROFILE_COLORS.green;
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: colors.main, border: '1px solid rgba(15, 23, 42, 0.16)' }} />
+      <Box component="span">{colorLabel(color)}</Box>
+    </Box>
+  );
+}
+
+function colorLabel(color) {
+  const value = String(color || '');
+  return value ? `${value.slice(0, 1).toUpperCase()}${value.slice(1)}` : 'Green';
 }

@@ -34,6 +34,10 @@ describe('profile status helpers', () => {
     assert.equal(profileAttributesFromBody({ name: 'SWE' }).dailyBidGoal, 60);
   });
 
+  it('accepts expanded profile color options', () => {
+    assert.equal(profileAttributesFromBody({ name: 'SWE', colorScheme: 'teal' }).colorScheme, 'teal');
+  });
+
   it('defaults forwarding aliases to service plus first name', () => {
     assert.equal(
       profileAttributesFromBody({ name: 'Tiep Nguyen' }).forwardingEmail,

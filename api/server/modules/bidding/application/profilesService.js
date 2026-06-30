@@ -523,17 +523,17 @@ export async function profilesVisibleToUser(user) {
 }
 
 const DEFAULT_PROFILE_DAILY_BID_GOAL = 60;
+const ALLOWED_PROFILE_COLORS = new Set(['green', 'blue', 'violet', 'amber', 'rose', 'slate', 'teal', 'cyan', 'pink', 'indigo', 'lime', 'orange']);
 
 export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, currentDailyBidGoal = DEFAULT_PROFILE_DAILY_BID_GOAL } = {}) {
   const name = clean(body?.name);
   const colorScheme = clean(body?.colorScheme || 'green');
   const profileBadge = profileBadgeFromBody(body?.profileBadge);
   const resumeTemplate = clean(body?.resumeTemplate || 'classic');
-  const allowedColors = new Set(['green', 'blue', 'violet', 'amber', 'rose', 'slate']);
   const allowedResumeTemplates = new Set(['classic', 'compact', 'modern']);
 
   if (!name) throw new InputError('Profile name is required');
-  if (!allowedColors.has(colorScheme)) throw new InputError('Choose a valid profile color');
+  if (!ALLOWED_PROFILE_COLORS.has(colorScheme)) throw new InputError('Choose a valid profile color');
   if (!allowedResumeTemplates.has(resumeTemplate)) throw new InputError('Choose a valid resume template');
   const dailyBidGoal = canSetDailyBidGoal
     ? dailyBidGoalFromBody(body?.dailyBidGoal)
