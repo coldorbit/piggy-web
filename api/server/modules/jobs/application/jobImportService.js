@@ -13,6 +13,7 @@ const JOB_CSV_COLUMNS = {
   listingText: ['listingtext', 'listing_text', 'listing text', 'description', 'job_description', 'job description'],
 };
 
+const REQUIRED_JOB_CSV_FIELDS = ['url', 'title', 'company'];
 const VALID_JOB_CATEGORIES = new Set(['software', 'data', 'ai_ml']);
 const JOB_TITLE_ACRONYMS = new Set(['AI', 'API', 'BI', 'CIO', 'CISO', 'CRM', 'CTO', 'DBA', 'ERP', 'ETL', 'IT', 'ML', 'QA', 'SRE', 'UI', 'UX']);
 
@@ -292,15 +293,18 @@ function isLinkedInUrl(value) {
 }
 
 function validateCsvHeaders(headers) {
-  if (!headers.some((header) => JOB_CSV_COLUMNS.url.map(normalizeHeader).includes(header))) {
-    throw new InputError('CSV must include a url column');
-  }
+  const missingFields = REQUIRED_JOB_CSV_FIELDS.filter((field) => !hasCsvHeaderForField(headers, field));
 
-  const knownHeaders = new Set(Object.values(JOB_CSV_COLUMNS).flat().map(normalizeHeader));
-  const processibleHeaders = headers.filter((header) => knownHeaders.has(header));
-  if (processibleHeaders.length < 2) {
-    throw new InputError('CSV must include url and at least one supported job column');
+  if (missingFields.length) {
+    throw new InputError(
+      `CSV headers do not match the expected job import format. Missing required columns: ${missingFields.join(', ')}. Required columns: ${REQUIRED_JOB_CSV_FIELDS.join(', ')}`,
+    );
   }
+}
+
+function hasCsvHeaderForField(headers, field) {
+  const acceptedHeaders = new Set(JOB_CSV_COLUMNS[field].map(normalizeHeader));
+  return headers.some((header) => acceptedHeaders.has(header));
 }
 
 function parseCsv(csvText) {

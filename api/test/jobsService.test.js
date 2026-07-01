@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
-import { buildJobDuplicateKey, buildJobQuery, capitalizeJobTitle, groupedJobsFromRows, jobDateFiltersForUser, jobsFromCsv, mergedJobSourceOptions, normalizeCompanyName, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
+import { buildJobDuplicateKey, buildJobQuery, canImportJobs, capitalizeJobTitle, groupedJobsFromRows, jobDateFiltersForUser, jobsFromCsv, mergedJobSourceOptions, normalizeCompanyName, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
 import { addLocalDays, localDayStart } from '../server/utils/localTime.js';
 
 describe('job query filters', () => {
@@ -245,6 +245,37 @@ describe('job source options', () => {
 });
 
 describe('manual CSV job imports', () => {
+  it('allows internal users to import job CSVs', () => {
+    assert.equal(canImportJobs({ role: 'internal' }), true);
+  });
+
+  it('rejects CSV imports with mismatched required headers', () => {
+    assert.throws(
+      () => jobsFromCsv(
+        [
+          'url,position,employer',
+          'https://example.com/jobs/mismatched-headers,Software Engineer,Acme',
+        ].join('\n'),
+        { importedBy: 'test-user' },
+      ),
+      /Missing required columns: title, company/,
+    );
+  });
+
+  it('accepts aliases for required CSV import headers', () => {
+    const [job] = jobsFromCsv(
+      [
+        'job url,job title,company name',
+        'https://example.com/jobs/alias-headers,Software Engineer,Acme',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(job.url, 'https://example.com/jobs/alias-headers');
+    assert.equal(job.title, 'Software Engineer');
+    assert.equal(job.company, 'Acme');
+  });
+
   it('normalizes company names for imported jobs', () => {
     const [job] = jobsFromCsv(
       [

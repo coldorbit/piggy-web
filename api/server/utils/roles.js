@@ -26,12 +26,12 @@ export const VALID_USER_ROLES = [
 
 export const ADMIN_ROLES = [ROLES.superadmin, ROLES.admin];
 export const STAFF_WORKSPACE_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.internal];
-export const ASSESSMENT_ACCESS_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
-export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
-export const PERSONAL_DASHBOARD_ROLES = [ROLES.user, ROLES.financeManager];
-export const MARKETPLACE_ACCESS_ROLES = ADMIN_ROLES;
+export const ASSESSMENT_ACCESS_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.internal];
+export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.internal];
+export const PERSONAL_DASHBOARD_ROLES = [ROLES.user, ROLES.financeManager, ROLES.internal];
+export const MARKETPLACE_ACCESS_ROLES = [...ADMIN_ROLES, ROLES.internal];
 export const INTERVIEW_ACCESS_ROLES = [...STAFF_WORKSPACE_ROLES, ROLES.caller];
-export const MANUAL_INTERVIEW_CALL_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
+export const MANUAL_INTERVIEW_CALL_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.internal];
 export const INTERNAL_DATA_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal];
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
 export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller, ROLES.guest];
@@ -40,8 +40,8 @@ export const BID_WORKSPACE_ACCESS_ROLES = [...STAFF_WORKSPACE_ROLES, ...BIDDER_R
 export const BIDDER_DIRECTORY_ACCESS_ROLES = [...STAFF_WORKSPACE_ROLES, ...BIDDER_ROLES];
 export const INBOX_ACCESS_ROLES = STAFF_WORKSPACE_ROLES;
 export const CALLER_MANAGEMENT_ROLES = ADMIN_ROLES;
-export const ADMIN_MANAGED_PROFILE_OWNER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager];
-export const APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user];
+export const ADMIN_MANAGED_PROFILE_OWNER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.internal];
+export const APPLIED_FILTER_BIDDER_PROFILE_VIEWER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.internal];
 export const APPLIED_PROFILE_FILTER_ROLES = [...PRIVILEGED_USER_ROLES, ...BIDDER_ROLES];
 
 export function isSuperadmin(userOrRole) {

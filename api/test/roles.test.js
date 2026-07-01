@@ -3,8 +3,11 @@ import { describe, it } from 'node:test';
 import {
   ROLES,
   VALID_USER_ROLES,
+  MARKETPLACE_ACCESS_ROLES,
+  canAccessAssessments,
   canAccessBidderDirectory,
   canAccessBidWorkspace,
+  canAccessInterviews,
   canAccessInbox,
   canAccessJobs,
   canAccessPersonalDashboard,
@@ -45,12 +48,25 @@ describe('role permissions', () => {
     assert.equal(canManageCallers({ role: ROLES.user }), false);
   });
 
+  it('treats internal as elevated staff without granting admin-only caller management', () => {
+    assert.equal(VALID_USER_ROLES.includes(ROLES.internal), true);
+    assert.equal(canAccessJobs({ role: ROLES.internal }), true);
+    assert.equal(canAccessBidWorkspace({ role: ROLES.internal }), true);
+    assert.equal(canAccessInbox({ role: ROLES.internal }), true);
+    assert.equal(canAccessBidderDirectory({ role: ROLES.internal }), true);
+    assert.equal(canAccessInterviews({ role: ROLES.internal }), true);
+    assert.equal(canAccessAssessments({ role: ROLES.internal }), true);
+    assert.equal(canAccessPersonalDashboard({ role: ROLES.internal }), true);
+    assert.equal(MARKETPLACE_ACCESS_ROLES.includes(ROLES.internal), true);
+    assert.equal(canManageCallers({ role: ROLES.internal }), false);
+  });
+
   it('allows only requested staff roles to register manual interview calls', () => {
     assert.equal(canRegisterManualInterviewCalls({ role: ROLES.superadmin }), true);
     assert.equal(canRegisterManualInterviewCalls({ role: ROLES.admin }), true);
     assert.equal(canRegisterManualInterviewCalls({ role: ROLES.user }), true);
     assert.equal(canRegisterManualInterviewCalls({ role: ROLES.financeManager }), true);
-    assert.equal(canRegisterManualInterviewCalls({ role: ROLES.internal }), false);
+    assert.equal(canRegisterManualInterviewCalls({ role: ROLES.internal }), true);
     assert.equal(canRegisterManualInterviewCalls({ role: ROLES.caller }), false);
   });
 });

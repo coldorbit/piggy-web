@@ -162,7 +162,7 @@ export function requireCallerManagement(req, res, next) {
 export function requireMarketplaceAccess(req, res, next) {
   requireAuth(req, res, () => {
     if (!MARKETPLACE_ACCESS_ROLES.includes(req.user?.role)) {
-      res.status(403).json({ error: 'Marketplace access requires an admin role' });
+      res.status(403).json({ error: 'Marketplace access required' });
       return;
     }
     next();
