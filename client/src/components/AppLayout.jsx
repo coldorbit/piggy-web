@@ -244,9 +244,6 @@ export default function AppLayout({ user }) {
                 <Typography fontWeight={900} lineHeight={1.1} sx={{ color: 'primary.dark', letterSpacing: 0.2 }}>
                   ApplyPilot
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Career command center
-                </Typography>
               </Box>
             </>
           ) : null}
