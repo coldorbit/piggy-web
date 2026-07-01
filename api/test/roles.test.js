@@ -4,9 +4,11 @@ import {
   ROLES,
   VALID_USER_ROLES,
   MARKETPLACE_ACCESS_ROLES,
+  INTERNAL_DATA_ROLES,
   canAccessAssessments,
   canAccessBidderDirectory,
   canAccessBidWorkspace,
+  canAccessConsumption,
   canAccessInterviews,
   canAccessInbox,
   canAccessJobs,
@@ -59,6 +61,21 @@ describe('role permissions', () => {
     assert.equal(canAccessPersonalDashboard({ role: ROLES.internal }), true);
     assert.equal(MARKETPLACE_ACCESS_ROLES.includes(ROLES.internal), true);
     assert.equal(canManageCallers({ role: ROLES.internal }), false);
+  });
+
+  it('treats finance manager as internal staff with extra consumption access', () => {
+    assert.equal(canAccessJobs({ role: ROLES.financeManager }), true);
+    assert.equal(canAccessBidWorkspace({ role: ROLES.financeManager }), true);
+    assert.equal(canAccessInbox({ role: ROLES.financeManager }), true);
+    assert.equal(canAccessBidderDirectory({ role: ROLES.financeManager }), true);
+    assert.equal(canAccessInterviews({ role: ROLES.financeManager }), true);
+    assert.equal(canAccessAssessments({ role: ROLES.financeManager }), true);
+    assert.equal(canAccessPersonalDashboard({ role: ROLES.financeManager }), true);
+    assert.equal(MARKETPLACE_ACCESS_ROLES.includes(ROLES.financeManager), true);
+    assert.equal(INTERNAL_DATA_ROLES.includes(ROLES.financeManager), true);
+    assert.equal(canAccessConsumption({ role: ROLES.financeManager }), true);
+    assert.equal(canAccessConsumption({ role: ROLES.internal }), false);
+    assert.equal(canManageCallers({ role: ROLES.financeManager }), false);
   });
 
   it('allows only requested staff roles to register manual interview calls', () => {

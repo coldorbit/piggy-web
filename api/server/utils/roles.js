@@ -29,10 +29,10 @@ export const STAFF_WORKSPACE_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user,
 export const ASSESSMENT_ACCESS_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.internal];
 export const PRIVILEGED_USER_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.internal];
 export const PERSONAL_DASHBOARD_ROLES = [ROLES.user, ROLES.financeManager, ROLES.internal];
-export const MARKETPLACE_ACCESS_ROLES = [...ADMIN_ROLES, ROLES.internal];
+export const MARKETPLACE_ACCESS_ROLES = [...ADMIN_ROLES, ROLES.financeManager, ROLES.internal];
 export const INTERVIEW_ACCESS_ROLES = [...STAFF_WORKSPACE_ROLES, ROLES.caller];
 export const MANUAL_INTERVIEW_CALL_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.internal];
-export const INTERNAL_DATA_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.internal];
+export const INTERNAL_DATA_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.financeManager, ROLES.internal];
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
 export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller, ROLES.guest];
 export const JOB_ACCESS_ROLES = VALID_USER_ROLES.filter((role) => ![ROLES.caller, ROLES.guest].includes(role));
