@@ -1,5 +1,5 @@
 import { ensureDefaultUsers, hashPassword, publicUser } from '../../../../auth.js';
-import { getWebUserModel, repositories } from '../../../../db.js';
+import { ensureDefaultWorkspace, getWebUserModel, getWorkspaceModel, repositories } from '../../../../db.js';
 import { userAttributesFromBody } from '../application/usersService.js';
 import { handleUserWriteError } from '../../../utils/errors.js';
 import { ADMIN_ROLES, ROLES, canAssignAdminRole, isSuperadmin } from '../../../utils/roles.js';
@@ -22,14 +22,17 @@ export async function createUser(req, res, next) {
       res.status(403).json({ error: 'Only superadmins can create admin users' });
       return;
     }
+    const workspace = await ensureDefaultWorkspace();
     const user = await repositories.createUser({
       username: attrs.username,
       email: attrs.email,
       passwordHash: hashPassword(attrs.password),
       role: attrs.role,
+      workspaceId: workspace.id,
       dailyBidGoal: attrs.dailyBidGoal,
       timezone: attrs.timezone,
     });
+    user.workspace = workspace;
     res.status(201).json({ user: publicUser(user) });
   } catch (error) {
     handleUserWriteError(error, res, next);
@@ -79,6 +82,13 @@ export async function updateUser(req, res, next) {
     };
     if (attrs.password) updates.passwordHash = hashPassword(attrs.password);
     await user.update(updates);
+    if (!user.workspaceId) {
+      const workspace = await ensureDefaultWorkspace();
+      await user.update({ workspaceId: workspace.id });
+    }
+    if (!user.workspace) {
+      await user.reload({ include: [{ model: getWorkspaceModel(), as: 'workspace', required: false }] });
+    }
     res.json({ user: publicUser(user) });
   } catch (error) {
     handleUserWriteError(error, res, next);

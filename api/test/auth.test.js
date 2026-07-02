@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { SESSION_COOKIE_NAME, createSessionToken, readSession, sessionCookieOptions } from '../auth.js';
+import { SESSION_COOKIE_NAME, createSessionToken, publicUser, readSession, sessionCookieOptions } from '../auth.js';
 
 describe('session auth', () => {
   it('reads valid sessions from the HttpOnly cookie', () => {
@@ -47,6 +47,22 @@ describe('session auth', () => {
         secure: false,
       },
     );
+  });
+
+  it('includes workspace identity in public users', () => {
+    const user = publicUser({
+      id: 7,
+      username: 'admin',
+      email: 'admin@example.com',
+      role: 'admin',
+      workspaceId: 3,
+      workspace: { id: 3, name: 'ApplyPilot', slug: 'default' },
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    assert.equal(user.workspaceId, 3);
+    assert.deepEqual(user.workspace, { id: 3, name: 'ApplyPilot', slug: 'default' });
   });
 });
 

@@ -21,7 +21,8 @@ export {
   getTailoredResumeModel,
   getTeamConsumptionModel,
   getWebUserModel,
+  getWorkspaceModel,
   setupWebAssociations,
 } from './db/models/index.js';
-export { ensureWebModels } from './db/schema.js';
+export { ensureDefaultWorkspace, ensureWebModels } from './db/schema.js';
 export * as repositories from './db/repositories/index.js';

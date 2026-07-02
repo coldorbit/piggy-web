@@ -1,8 +1,8 @@
-import { getWebUserModel } from '../models/index.js';
+import { getWebUserModel, getWorkspaceModel } from '../models/index.js';
 import { Op } from 'sequelize';
 
 export function findUserByUsername(username) {
-  return getWebUserModel().findOne({ where: { username } });
+  return getWebUserModel().findOne({ where: { username }, include: userWithWorkspace() });
 }
 
 export function findUserByLogin(login) {
@@ -15,6 +15,7 @@ export function findUserByLogin(login) {
         getWebUserModel().sequelize.where(getWebUserModel().sequelize.fn('lower', getWebUserModel().sequelize.col('email')), value),
       ],
     },
+    include: userWithWorkspace(),
   });
 }
 
@@ -24,17 +25,22 @@ export function findUserByUsernameCaseInsensitive(username) {
       getWebUserModel().sequelize.fn('lower', getWebUserModel().sequelize.col('username')),
       String(username || '').trim().toLowerCase(),
     ),
+    include: userWithWorkspace(),
   });
 }
 
 export function listUsers() {
-  return getWebUserModel().findAll({ order: [['username', 'ASC']] });
+  return getWebUserModel().findAll({ include: userWithWorkspace(), order: [['username', 'ASC']] });
 }
 
 export function findUserById(id) {
-  return getWebUserModel().findByPk(id);
+  return getWebUserModel().findByPk(id, { include: userWithWorkspace() });
 }
 
 export function createUser(values) {
   return getWebUserModel().create(values);
+}
+
+function userWithWorkspace() {
+  return [{ model: getWorkspaceModel(), as: 'workspace', required: false }];
 }

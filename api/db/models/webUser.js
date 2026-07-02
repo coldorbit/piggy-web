@@ -34,6 +34,11 @@ export function getWebUserModel() {
         allowNull: false,
         defaultValue: 'user',
       },
+      workspaceId: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        field: 'workspace_id',
+      },
       dailyBidGoal: {
         type: DataTypes.INTEGER,
         allowNull: true,

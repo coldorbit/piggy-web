@@ -22,6 +22,7 @@ import {
   getTailoredResumeModel,
   getTeamConsumptionModel,
   getWebUserModel,
+  getWorkspaceModel,
   setupWebAssociations,
 } from './models/index.js';
 import { addMissingColumns, removeExistingColumns } from './utils.js';
@@ -32,6 +33,7 @@ export async function ensureWebModels() {
   if (!initializationPromise) {
     initializationPromise = (async () => {
       await getScrapedJobModel().sync();
+      await getWorkspaceModel().sync();
       await getWebUserModel().sync();
       setupWebAssociations();
       await getFaqModel().sync();
@@ -65,6 +67,7 @@ export async function ensureWebModels() {
       await ensureWebUserEmailColumn();
       await ensureWebUserDailyBidGoalColumn();
       await ensureWebUserTimezoneColumn();
+      await ensureWebUserWorkspaceColumn();
       await ensureForwardedMailboxMessageColumns();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
@@ -80,6 +83,7 @@ export async function ensureWebModels() {
       await ensureInterviewIndexes();
       await ensureAssessmentIndexes();
       await ensureMarketplaceIndexes();
+      await ensureWorkspaceIndexes();
     })().catch((error) => {
       initializationPromise = undefined;
       throw error;
@@ -87,6 +91,57 @@ export async function ensureWebModels() {
   }
 
   await initializationPromise;
+}
+
+export const DEFAULT_WORKSPACE_SLUG = 'default';
+export const DEFAULT_WORKSPACE_NAME = 'ApplyPilot';
+
+export async function ensureDefaultWorkspace() {
+  const Workspace = getWorkspaceModel();
+  const [workspace] = await Workspace.findOrCreate({
+    where: { slug: DEFAULT_WORKSPACE_SLUG },
+    defaults: { name: DEFAULT_WORKSPACE_NAME },
+  });
+  return workspace;
+}
+
+async function ensureWebUserWorkspaceColumn() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'web_users';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    workspace_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: { model: 'workspaces', key: 'id' },
+      onUpdate: 'CASCADE',
+      onDelete: 'RESTRICT',
+    },
+  });
+
+  const workspace = await ensureDefaultWorkspace();
+  await queryInterface.sequelize.query(
+    `
+      UPDATE web_users
+      SET workspace_id = :workspaceId
+      WHERE workspace_id IS NULL
+    `,
+    { replacements: { workspaceId: workspace.id } },
+  );
+}
+
+async function ensureWorkspaceIndexes() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS workspaces_slug_unique
+    ON workspaces (slug)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS web_users_workspace_role_idx
+    ON web_users (workspace_id, role)
+  `);
 }
 
 async function ensureAssessmentIndexes() {

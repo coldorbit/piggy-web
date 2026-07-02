@@ -120,6 +120,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
   const roleOptions = roleOptionsWithCurrent(roleOptionsFor(currentUser), editing.role);
   const canEditRole = isSuperadmin(currentUser) || !isAdminRole(user);
   const canSetDailyGoal = canHaveDailyBidGoal(editing.role);
+  const workspaceLabel = user.workspace?.name || (user.workspaceId ? `Workspace ${user.workspaceId}` : 'Unassigned workspace');
 
   function handleRoleChange(role) {
     onEditingChange((current) => ({
@@ -228,6 +229,9 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
     <TableRow hover>
       <TableCell>
         <Typography fontWeight={800}>{user.username}</Typography>
+        <Typography variant="caption" color="text.secondary" display="block">
+          {workspaceLabel}
+        </Typography>
         {isSelf ? (
           <Typography variant="caption" color="text.secondary">
             Current user

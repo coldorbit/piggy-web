@@ -19,6 +19,7 @@ export { getScrapedJobModel } from './scrapedJob.js';
 export { getTailoredResumeModel } from './tailoredResume.js';
 export { getTeamConsumptionModel } from './teamConsumption.js';
 export { getWebUserModel } from './webUser.js';
+export { getWorkspaceModel } from './workspace.js';
 
 import { getAssessmentModel } from './assessment.js';
 import { getBidProfileModel } from './bidProfile.js';
@@ -41,9 +42,11 @@ import { getScrapedJobModel } from './scrapedJob.js';
 import { getTailoredResumeModel } from './tailoredResume.js';
 import { getTeamConsumptionModel } from './teamConsumption.js';
 import { getWebUserModel } from './webUser.js';
+import { getWorkspaceModel } from './workspace.js';
 
 export function setupWebAssociations() {
   const WebUserModel = getWebUserModel();
+  const WorkspaceModel = getWorkspaceModel();
   const ScrapedJobModel = getScrapedJobModel();
   const BidProfileModel = getBidProfileModel();
   const CollaborationEventModel = getCollaborationEventModel();
@@ -67,6 +70,8 @@ export function setupWebAssociations() {
 
   if (BidProfileModel.associations.user) return;
 
+  WorkspaceModel.hasMany(WebUserModel, { foreignKey: 'workspaceId', as: 'users' });
+  WebUserModel.belongsTo(WorkspaceModel, { foreignKey: 'workspaceId', as: 'workspace' });
   WebUserModel.hasMany(BidProfileModel, { foreignKey: 'userId', as: 'bidProfiles' });
   BidProfileModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'user' });
   WebUserModel.hasMany(CollaborationEventModel, { foreignKey: 'authorUserId', as: 'authoredCollaborationEvents' });

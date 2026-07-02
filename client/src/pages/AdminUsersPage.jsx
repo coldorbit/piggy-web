@@ -9,7 +9,7 @@ import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '../l
 import { ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleLabel, roleOptionsFor } from '../lib/roles.js';
 
 const DEFAULT_USER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
-const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE };
+const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', workspaceId: '', dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE };
 const ROLE_ORDER = [
   ROLES.superadmin,
   ROLES.admin,
@@ -109,6 +109,7 @@ export default function AdminUsersPage({ currentUser }) {
       username: user.username,
       password: '',
       role: normalizeRole(user.role),
+      workspaceId: user.workspaceId || '',
       dailyBidGoal: user.dailyBidGoal ?? '',
       timezone: user.timezone || DEFAULT_USER_TIMEZONE,
     });

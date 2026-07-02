@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { ensureWebModels, getWebUserModel, repositories } from './db.js';
+import { ensureDefaultWorkspace, ensureWebModels, getWebUserModel, repositories } from './db.js';
 import { ENV } from './env.js';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -63,12 +63,14 @@ export async function ensureDefaultUsers() {
     return;
   }
 
+  const workspace = await ensureDefaultWorkspace();
   for (const user of configuredUsers) {
     await WebUser.create({
       username: user.username,
       email: user.username.includes('@') ? user.username.toLowerCase() : null,
       passwordHash: hashPassword(user.password),
       role: user.role || 'admin',
+      workspaceId: workspace.id,
     });
   }
 
@@ -159,6 +161,12 @@ export function publicUser(row) {
     username: row.username,
     email: row.email || null,
     role: row.role,
+    workspaceId: row.workspaceId || null,
+    workspace: row.workspace ? {
+      id: row.workspace.id,
+      name: row.workspace.name,
+      slug: row.workspace.slug,
+    } : null,
     dailyBidGoal: row.dailyBidGoal ?? null,
     timezone: row.timezone || 'America/New_York',
     lastLoginAt: row.lastLoginAt || null,
