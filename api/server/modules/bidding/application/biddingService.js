@@ -10,7 +10,6 @@ import {
   normalizeTimeZone,
 } from '../../../utils/localTime.js';
 
-const INTERVIEW_DURATION_OPTIONS = new Set([10, 15, 20, 30, 45, 60, 90, 120]);
 const DONE_BID_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'won', 'lost'];
 const INTERVIEW_BID_STATUSES = ['interviewing', 'won', 'lost'];
 const FINISHED_BID_AT_STATUSES = new Set(['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost']);
@@ -375,9 +374,6 @@ export function bidAttributesFromBody(body, options = {}) {
   if (Object.keys(stageNotes).some((stage) => !allowedInterviewStages.has(stage) || !stage)) throw new InputError('Choose a valid interview stage');
   if (Object.keys(stageMeetingLinks).some((stage) => !allowedInterviewStages.has(stage) || !stage)) throw new InputError('Choose a valid interview stage');
   if (interviewNextAt && Number.isNaN(Date.parse(interviewNextAt))) throw new InputError('Choose a valid interview date');
-  if (interviewDurationMinutes && !INTERVIEW_DURATION_OPTIONS.has(Number(interviewDurationMinutes))) {
-    throw new InputError('Choose a valid interview duration');
-  }
   if (Object.values(stageMeetingLinks).some((url) => !validHttpUrl(url)) || (interviewMeetingLink && !validHttpUrl(interviewMeetingLink))) {
     throw new InputError('Meeting link must be a valid URL');
   }

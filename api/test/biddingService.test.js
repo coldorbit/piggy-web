@@ -26,6 +26,16 @@ describe('bidAttributesFromBody', () => {
     assert.equal(attrs.status, 'todo');
     assert.equal(attrs.interviewStage, 'todo');
   });
+
+  it('allows interview durations longer than two hours', () => {
+    const attrs = bidAttributesFromBody({
+      status: 'interviewing',
+      interviewStage: 'technical_interview',
+      interviewDurationMinutes: 180,
+    });
+
+    assert.equal(attrs.interviewDurationMinutes, 180);
+  });
 });
 
 describe('buildBidTabQuery', () => {
