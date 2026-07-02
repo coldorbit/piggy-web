@@ -34,7 +34,7 @@ export async function ownedProfile(req, profileId) {
   const user = await currentDbUser(req);
   const id = clean(profileId);
   if (!id) throw new InputError('Profile is required');
-  const profile = await repositories.findProfileForUser({ id, userId: user.id, workspaceId: user.workspaceId });
+  const profile = await repositories.findProfileForUser({ id, userId: user.id, workspaceId: user.workspaceId ?? null });
   if (!profile) throw new NotFoundError('Profile not found');
   return profile;
 }
@@ -79,10 +79,15 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
   return appliedProfile;
 }
 
-function isProfileInUserWorkspace(profile, user) {
+export function isProfileInUserWorkspace(profile, user) {
   if (isSuperadmin(user)) return true;
-  if (!profile?.workspaceId || !user?.workspaceId) return true;
-  return String(profile.workspaceId) === String(user.workspaceId);
+  if (!profile) return false;
+  return String(profile.workspaceId ?? '') === String(user?.workspaceId ?? '');
+}
+
+export function workspaceProfileWhereForUser(user) {
+  if (isSuperadmin(user)) return undefined;
+  return { workspaceId: user?.workspaceId ?? null };
 }
 
 export function formatProfile(row) {
@@ -452,7 +457,7 @@ export async function profilesManagedByUser(user) {
 
   if (isAdminRole(user)) {
     return BidProfile.findAll({
-      where: isSuperadmin(user) ? undefined : { workspaceId: user.workspaceId },
+      where: workspaceProfileWhereForUser(user),
       include: [{ model: WebUser, as: 'user', required: false }],
       order: [['createdAt', 'ASC']],
     });
@@ -467,7 +472,7 @@ export async function profilesForAppliedFilter(user, { profileBadge } = {}) {
   const WebUser = getWebUserModel();
 
   return BidProfile.findAll({
-    where: appliedFilterProfileWhere({ profileBadge, workspaceId: user.workspaceId }),
+    where: appliedFilterProfileWhere({ profileBadge, workspaceId: user.workspaceId ?? null }),
     include: [
       {
         model: WebUser,
@@ -482,12 +487,19 @@ export async function profilesForAppliedFilter(user, { profileBadge } = {}) {
   });
 }
 
-export function appliedFilterProfileWhere({ profileBadge, workspaceId } = {}) {
+export function appliedFilterProfileWhere(options = {}) {
+  const { profileBadge, workspaceId } = options;
   const where = { profileStatus: 'active' };
-  if (workspaceId) where.workspaceId = workspaceId;
+  if (hasWorkspaceId(options)) {
+    where.workspaceId = workspaceId ?? null;
+  }
   const badge = clean(profileBadge).toUpperCase();
   if (badge) where.profileBadge = badge;
   return where;
+}
+
+function hasWorkspaceId(value) {
+  return Object.prototype.hasOwnProperty.call(value || {}, 'workspaceId');
 }
 
 export async function profilesVisibleToUser(user) {
@@ -495,11 +507,13 @@ export async function profilesVisibleToUser(user) {
   const Interview = getInterviewModel();
   const ProfileShareRequest = getProfileShareRequestModel();
   const WebUser = getWebUserModel();
+  const workspaceWhere = workspaceProfileWhereForUser(user);
+  const workspaceScope = workspaceWhere || {};
 
   if (user.role === 'caller') {
     const assignments = await Interview.findAll({
       where: { callerUserId: user.id },
-      include: [{ model: BidProfile, as: 'profile', required: true, where: user.workspaceId ? { workspaceId: user.workspaceId } : undefined }],
+      include: [{ model: BidProfile, as: 'profile', required: true, where: workspaceWhere }],
       order: [['updatedAt', 'DESC']],
     });
     const profilesById = new Map();
@@ -513,13 +527,13 @@ export async function profilesVisibleToUser(user) {
 
   const [ownedProfiles, acceptedShares] = await Promise.all([
     BidProfile.findAll({
-      where: { userId: user.id, ...(user.workspaceId ? { workspaceId: user.workspaceId } : {}) },
+      where: { userId: user.id, ...workspaceScope },
       order: [['createdAt', 'ASC']],
     }),
     ProfileShareRequest.findAll({
       where: { recipientUserId: user.id, status: 'accepted' },
       include: [
-        { model: BidProfile, as: 'profile', required: true, where: user.workspaceId ? { workspaceId: user.workspaceId } : undefined },
+        { model: BidProfile, as: 'profile', required: true, where: workspaceWhere },
         { model: WebUser, as: 'owner', required: true },
       ],
       order: [['updatedAt', 'ASC']],

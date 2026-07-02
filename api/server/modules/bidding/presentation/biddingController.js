@@ -47,6 +47,8 @@ import {
   profilesWithProgress,
   profilesWithSharing,
   isDraftProfile,
+  isProfileInUserWorkspace,
+  workspaceProfileWhereForUser,
 } from '../application/profilesService.js';
 import { enqueueTailoredResumeRequest } from '../application/tailoringQueueService.js';
 import { userAttributesFromBody } from '../../admin/application/usersService.js';
@@ -327,8 +329,7 @@ function numericIdOrNull(value) {
 }
 
 function workspaceFilterForUser(user) {
-  if (isSuperadmin(user)) return {};
-  return user?.workspaceId ? { workspaceId: user.workspaceId } : {};
+  return workspaceProfileWhereForUser(user) || {};
 }
 
 async function assignedUserIdFromBody(body = {}) {
@@ -904,7 +905,7 @@ export async function createProfile(req, res, next) {
     const profile = await getBidProfileModel().create({
       ...attrs,
       userId: user.id,
-      workspaceId: user.workspaceId || null,
+      workspaceId: user.workspaceId ?? null,
       profileStatus: 'active',
     });
     res.status(201).json({ profile: formatProfile(profile) });
@@ -951,7 +952,7 @@ export async function changeProfileOwner(req, res, next) {
           transaction,
         },
       );
-      await profile.update({ userId: owner.id, workspaceId: owner.workspaceId || profile.workspaceId || null }, { transaction });
+      await profile.update({ userId: owner.id, workspaceId: owner.workspaceId ?? profile.workspaceId ?? null }, { transaction });
     });
 
     profile.setDataValue('user', owner);
@@ -1027,7 +1028,7 @@ async function profileOwnerFromBody(body = {}, currentUser = null) {
     ? await getWebUserModel().findByPk(userId)
     : await repositories.findUserByUsernameCaseInsensitive(username);
   if (!user) throw new NotFoundError('User not found');
-  if (!isSuperadmin(currentUser) && currentUser?.workspaceId && user.workspaceId && String(currentUser.workspaceId) !== String(user.workspaceId)) {
+  if (!isSuperadmin(currentUser) && String(currentUser?.workspaceId ?? '') !== String(user.workspaceId ?? '')) {
     throw new NotFoundError('User not found');
   }
   if (!ADMIN_MANAGED_PROFILE_OWNER_ROLES.includes(user.role)) {
@@ -1048,7 +1049,7 @@ async function adminManagedProfile(req, profileId) {
   if (!id) throw new NotFoundError('Profile not found');
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
-  if (!isSuperadmin(req.user) && req.user?.workspaceId && profile.workspaceId && String(req.user.workspaceId) !== String(profile.workspaceId)) {
+  if (!isProfileInUserWorkspace(profile, req.user)) {
     throw new NotFoundError('Profile not found');
   }
   return profile;
@@ -1892,7 +1893,7 @@ async function assignedCallerProfile(user, profileId) {
   if (!id) throw new NotFoundError('Profile not found');
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
-  if (!isSuperadmin(user) && user.workspaceId && profile.workspaceId && String(user.workspaceId) !== String(profile.workspaceId)) {
+  if (!isProfileInUserWorkspace(profile, user)) {
     throw new NotFoundError('Profile not found');
   }
   const assignment = await getInterviewModel().findOne({ where: { profileId: profile.id, callerUserId: user.id } });
@@ -3323,7 +3324,7 @@ export async function updateJobBid(req, res, next) {
       if (!canAssignInterviewCaller(user)) delete attrs.callerUserId;
     } else {
       bidProfile = await getBidProfileModel().findByPk(bid.profileId);
-      if (!isSuperadmin(req.user) && req.user?.workspaceId && bidProfile?.workspaceId && String(req.user.workspaceId) !== String(bidProfile.workspaceId)) {
+      if (!isProfileInUserWorkspace(bidProfile, req.user)) {
         res.status(404).json({ error: 'Bid not found' });
         return;
       }
@@ -3623,7 +3624,7 @@ async function ensureBidBatchWritable({ req, res, user, bid, attrs }) {
   }
 
   const profile = await getBidProfileModel().findByPk(bid.profileId);
-  if (!isSuperadmin(req.user) && req.user?.workspaceId && profile?.workspaceId && String(req.user.workspaceId) !== String(profile.workspaceId)) {
+  if (!isProfileInUserWorkspace(profile, req.user)) {
     throw new NotFoundError('Bid not found');
   }
   if (isLegacyProfile(profile) && !isInterviewBidStatus(attrs.status || bid.status)) {

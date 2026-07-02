@@ -3,10 +3,13 @@ import { describe, it } from 'node:test';
 import {
   appliedFilterProfileWhere,
   forwardingAliasForProfileName,
+  isProfileInUserWorkspace,
   profileAttributesFromBody,
   profileStatusAttributesFromBody,
   sortProfilesForDisplay,
+  workspaceProfileWhereForUser,
 } from '../server/modules/bidding/application/profilesService.js';
+import { ROLES } from '../server/utils/roles.js';
 
 describe('appliedFilterProfileWhere', () => {
   it('limits applied filter profiles to active profiles in the selected category', () => {
@@ -18,6 +21,44 @@ describe('appliedFilterProfileWhere', () => {
 
   it('keeps the broad active profile query when no active profile category is available', () => {
     assert.deepEqual(appliedFilterProfileWhere(), { profileStatus: 'active' });
+  });
+
+  it('limits applied filter profiles to the user workspace when provided', () => {
+    assert.deepEqual(appliedFilterProfileWhere({ profileBadge: 'swe', workspaceId: 42 }), {
+      profileStatus: 'active',
+      workspaceId: 42,
+      profileBadge: 'SWE',
+    });
+  });
+
+  it('keeps unassigned users scoped to unassigned profiles', () => {
+    assert.deepEqual(appliedFilterProfileWhere({ workspaceId: null }), {
+      profileStatus: 'active',
+      workspaceId: null,
+    });
+  });
+});
+
+describe('profile workspace helpers', () => {
+  it('matches profiles only inside the same workspace for non-superadmins', () => {
+    assert.equal(isProfileInUserWorkspace({ workspaceId: 7 }, { role: ROLES.user, workspaceId: 7 }), true);
+    assert.equal(isProfileInUserWorkspace({ workspaceId: 8 }, { role: ROLES.user, workspaceId: 7 }), false);
+    assert.equal(isProfileInUserWorkspace({ workspaceId: null }, { role: ROLES.user, workspaceId: 7 }), false);
+  });
+
+  it('treats unassigned users as scoped to unassigned profiles only', () => {
+    assert.equal(isProfileInUserWorkspace({ workspaceId: null }, { role: ROLES.user, workspaceId: null }), true);
+    assert.equal(isProfileInUserWorkspace({ workspaceId: 7 }, { role: ROLES.user, workspaceId: null }), false);
+  });
+
+  it('allows superadmins to cross workspace boundaries', () => {
+    assert.equal(isProfileInUserWorkspace({ workspaceId: 8 }, { role: ROLES.superadmin, workspaceId: 7 }), true);
+    assert.equal(workspaceProfileWhereForUser({ role: ROLES.superadmin, workspaceId: 7 }), undefined);
+  });
+
+  it('builds exact workspace filters for non-superadmins', () => {
+    assert.deepEqual(workspaceProfileWhereForUser({ role: ROLES.admin, workspaceId: 7 }), { workspaceId: 7 });
+    assert.deepEqual(workspaceProfileWhereForUser({ role: ROLES.user, workspaceId: null }), { workspaceId: null });
   });
 });
 
