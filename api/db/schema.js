@@ -68,6 +68,7 @@ export async function ensureWebModels() {
       await ensureWebUserDailyBidGoalColumn();
       await ensureWebUserTimezoneColumn();
       await ensureWebUserWorkspaceColumn();
+      await ensureTenantWorkspaceColumns();
       await ensureForwardedMailboxMessageColumns();
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
@@ -75,6 +76,7 @@ export async function ensureWebModels() {
       await ensureSpamReviewColumns();
       await ensureHiddenJobColumns();
       await ensureScrapedJobPublicIdColumn();
+      await ensureTenantWorkspaceIndexes();
       await ensureBidPageIndexes();
       await ensureCollaborationIndexes();
       await ensureProfileShareIndexes();
@@ -141,6 +143,61 @@ async function ensureWorkspaceIndexes() {
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS web_users_workspace_role_idx
     ON web_users (workspace_id, role)
+  `);
+}
+
+async function ensureTenantWorkspaceColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const defaultWorkspace = await ensureDefaultWorkspace();
+
+  await ensureTenantWorkspaceColumn(queryInterface, 'bid_profiles');
+  await queryInterface.sequelize.query(
+    `
+      UPDATE bid_profiles
+      SET workspace_id = COALESCE(web_users.workspace_id, :workspaceId)
+      FROM web_users
+      WHERE bid_profiles.user_id = web_users.id
+        AND bid_profiles.workspace_id IS NULL
+    `,
+    { replacements: { workspaceId: defaultWorkspace.id } },
+  );
+  await queryInterface.sequelize.query(
+    `
+      UPDATE bid_profiles
+      SET workspace_id = :workspaceId
+      WHERE workspace_id IS NULL
+    `,
+    { replacements: { workspaceId: defaultWorkspace.id } },
+  );
+}
+
+async function ensureTenantWorkspaceColumn(queryInterface, tableName) {
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    workspace_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: { model: 'workspaces', key: 'id' },
+      onUpdate: 'CASCADE',
+      onDelete: 'RESTRICT',
+    },
+  });
+}
+
+async function ensureTenantWorkspaceIndexes() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS bid_profiles_workspace_user_idx
+    ON bid_profiles (workspace_id, user_id)
+  `);
+  await sequelize.query('DROP INDEX IF EXISTS scraped_jobs_workspace_scraped_at_idx');
+  await sequelize.query('DROP INDEX IF EXISTS scraped_jobs_workspace_url_unique');
+  await sequelize.query('DROP INDEX IF EXISTS scraped_jobs_workspace_duplicate_key_idx');
+  await sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS scraped_jobs_url_unique
+    ON scraped_jobs (url)
   `);
 }
 

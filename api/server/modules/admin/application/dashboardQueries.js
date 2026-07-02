@@ -18,25 +18,60 @@ export function grainConfigFor(value) {
   return GRAINS[value] || GRAINS[DEFAULT_GRAIN];
 }
 
-export function dashboardQueries(grainConfig, { anchorDate, timeZone = DEFAULT_TIME_ZONE } = {}) {
+export function dashboardQueries(grainConfig, { anchorDate, timeZone = DEFAULT_TIME_ZONE, workspaceId = null } = {}) {
   const anchor = dashboardAnchorSql(anchorDate);
   return {
-    overall: overallSql(grainConfig, timeZone, anchor),
-    trend: trendSql(grainConfig, timeZone, anchor),
-    users: userPerformanceSql(grainConfig, timeZone, anchor),
-    bidders: bidderPerformanceSql(grainConfig, timeZone, anchor),
-    callers: callerPerformanceSql(grainConfig, timeZone, anchor),
-    profileFunnels: profileFunnelSql(grainConfig, timeZone, anchor),
-    roleFamilyFunnels: roleFamilyFunnelSql(grainConfig, timeZone, anchor),
-    userSources: userSourceMixSql(grainConfig, timeZone, anchor),
-    userCategories: userCategoryMixSql(grainConfig, timeZone, anchor),
-    userProfiles: userProfileMixSql(grainConfig, timeZone, anchor),
-    profileActivity: profileActivitySql(grainConfig, timeZone, anchor),
-    sources: sourceBreakdownSql(grainConfig, timeZone, anchor),
-    bidStatuses: bidStatusBreakdownSql(grainConfig, timeZone, anchor),
-    interviewStages: interviewStageBreakdownSql(grainConfig, timeZone, anchor),
-    interviewStatuses: interviewStatusBreakdownSql(grainConfig, timeZone, anchor),
+    overall: overallSql(grainConfig, timeZone, anchor, workspaceId),
+    trend: trendSql(grainConfig, timeZone, anchor, workspaceId),
+    users: userPerformanceSql(grainConfig, timeZone, anchor, workspaceId),
+    bidders: bidderPerformanceSql(grainConfig, timeZone, anchor, workspaceId),
+    callers: callerPerformanceSql(grainConfig, timeZone, anchor, workspaceId),
+    profileFunnels: profileFunnelSql(grainConfig, timeZone, anchor, workspaceId),
+    roleFamilyFunnels: roleFamilyFunnelSql(grainConfig, timeZone, anchor, workspaceId),
+    userSources: userSourceMixSql(grainConfig, timeZone, anchor, workspaceId),
+    userCategories: userCategoryMixSql(grainConfig, timeZone, anchor, workspaceId),
+    userProfiles: userProfileMixSql(grainConfig, timeZone, anchor, workspaceId),
+    profileActivity: profileActivitySql(grainConfig, timeZone, anchor, workspaceId),
+    sources: sourceBreakdownSql(grainConfig, timeZone, anchor, workspaceId),
+    bidStatuses: bidStatusBreakdownSql(grainConfig, timeZone, anchor, workspaceId),
+    interviewStages: interviewStageBreakdownSql(grainConfig, timeZone, anchor, workspaceId),
+    interviewStatuses: interviewStatusBreakdownSql(grainConfig, timeZone, anchor, workspaceId),
   };
+}
+
+function workspaceIdSql(value) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? String(id) : '';
+}
+
+function workspaceAnd(workspaceId, predicate) {
+  const id = workspaceIdSql(workspaceId);
+  return id ? ` AND ${predicate(id)}` : '';
+}
+
+function workspaceWhere(workspaceId, predicate) {
+  const id = workspaceIdSql(workspaceId);
+  return id ? ` WHERE ${predicate(id)}` : '';
+}
+
+function jobBidsWorkspace(id) {
+  return `job_bids.profile_id IN (SELECT id FROM bid_profiles WHERE workspace_id = ${id})`;
+}
+
+function interviewsWorkspace(id) {
+  return `interviews.profile_id IN (SELECT id FROM bid_profiles WHERE workspace_id = ${id})`;
+}
+
+function tailoredResumesWorkspace(id) {
+  return `tailored_resumes.profile_id IN (SELECT id FROM bid_profiles WHERE workspace_id = ${id})`;
+}
+
+function bidProfilesWorkspace(id) {
+  return `bid_profiles.workspace_id = ${id}`;
+}
+
+function webUsersWorkspace(id) {
+  return `web_users.workspace_id = ${id}`;
 }
 
 function funnelMetricsSelect() {
@@ -127,7 +162,7 @@ function rangePredicate(bucketSql, alias = 'range') {
   return `${bucketSql} >= ${alias}.starts_at AND ${bucketSql} < (${alias}.ends_at + ${alias}.bucket_step)`;
 }
 
-function overallSql(grainConfig, timeZone, anchor) {
+function overallSql(grainConfig, timeZone, anchor, workspaceId) {
   const normalizedTimeZone = normalizeTimeZone(timeZone);
 
   return `
@@ -158,6 +193,7 @@ function overallSql(grainConfig, timeZone, anchor) {
       FROM job_bids
       CROSS JOIN current_period
       WHERE ${currentPeriodPredicate('bid_at', normalizedTimeZone)}
+        ${workspaceAnd(workspaceId, jobBidsWorkspace)}
     ),
     period_bid_totals AS (
       SELECT
@@ -176,6 +212,7 @@ function overallSql(grainConfig, timeZone, anchor) {
       LEFT JOIN web_users ON web_users.id = job_bids.user_id
       CROSS JOIN current_period
       WHERE ${currentPeriodPredicate('job_bids.bid_at', normalizedTimeZone)}
+        ${workspaceAnd(workspaceId, jobBidsWorkspace)}
     ),
     interview_totals AS (
       SELECT
@@ -191,6 +228,7 @@ function overallSql(grainConfig, timeZone, anchor) {
       CROSS JOIN current_period_utc
       WHERE interview_next_at IS NOT NULL
         AND ${timestampPeriodPredicate('interview_next_at')}
+        ${workspaceAnd(workspaceId, interviewsWorkspace)}
     ),
     tailoring_totals AS (
       SELECT
@@ -199,6 +237,7 @@ function overallSql(grainConfig, timeZone, anchor) {
       FROM tailored_resumes
       CROSS JOIN current_period_utc
       WHERE ${timestampPeriodPredicate('created_at')}
+        ${workspaceAnd(workspaceId, tailoredResumesWorkspace)}
     )
     SELECT job_totals.*, bid_totals.*, period_bid_totals.*, interview_totals.*, tailoring_totals.*
     FROM job_totals
@@ -209,7 +248,7 @@ function overallSql(grainConfig, timeZone, anchor) {
   `;
 }
 
-function trendSql(grainConfig, timeZone, anchor) {
+function trendSql(grainConfig, timeZone, anchor, workspaceId) {
   const jobBucket = bucketExpression('scraped_at', grainConfig, timeZone);
   const bidBucket = bucketExpression('bid_at', grainConfig, timeZone);
   const interviewCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
@@ -237,12 +276,14 @@ function trendSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_applications
       FROM job_bids, range
       WHERE ${rangePredicate(bidBucket)}
+        ${workspaceAnd(workspaceId, jobBidsWorkspace)}
       GROUP BY 1
     ),
     interviews_created AS (
       SELECT ${interviewCreatedBucket} AS bucket_start, COUNT(*)::int AS interviews
       FROM interviews, range
       WHERE ${rangePredicate(interviewCreatedBucket)}
+        ${workspaceAnd(workspaceId, interviewsWorkspace)}
       GROUP BY 1
     ),
     interview_outcomes AS (
@@ -257,6 +298,7 @@ function trendSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE status = 'lost')::int AS lost_interviews
       FROM interviews, range
       WHERE ${rangePredicate(interviewUpdatedBucket)}
+        ${workspaceAnd(workspaceId, interviewsWorkspace)}
       GROUP BY 1
     )
     SELECT
@@ -285,7 +327,7 @@ function trendSql(grainConfig, timeZone, anchor) {
   `;
 }
 
-function userPerformanceSql(grainConfig, timeZone, anchor) {
+function userPerformanceSql(grainConfig, timeZone, anchor, workspaceId) {
   const bidBucket = bucketExpression('bid_at', grainConfig, timeZone);
   const interviewCreatedBucket = bucketExpression('interviews.created_at', grainConfig, timeZone);
   const interviewActivityBucket = bucketExpression('COALESCE(interviews.updated_at, interviews.created_at)', grainConfig, timeZone);
@@ -308,6 +350,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
         MAX(bid_at) AS last_application_at
       FROM job_bids, range
       WHERE ${rangePredicate(bidBucket)}
+        ${workspaceAnd(workspaceId, jobBidsWorkspace)}
       GROUP BY user_id
     ),
     interview_created_metrics AS (
@@ -324,6 +367,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
       LEFT JOIN job_bids linked_bid ON linked_bid.id = interviews.job_bid_id
       CROSS JOIN range
       WHERE ${rangePredicate(interviewCreatedBucket)}
+        ${workspaceAnd(workspaceId, interviewsWorkspace)}
       GROUP BY interviews.user_id
     ),
     interview_activity_metrics AS (
@@ -346,6 +390,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
       CROSS JOIN range
       CROSS JOIN current_period
       WHERE ${rangePredicate(interviewActivityBucket)}
+        ${workspaceAnd(workspaceId, interviewsWorkspace)}
       GROUP BY interviews.user_id
     ),
     profile_metrics AS (
@@ -355,12 +400,14 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE profile_status = 'active')::int AS active_profiles,
         COUNT(*) FILTER (WHERE profile_status <> 'active')::int AS inactive_profiles
       FROM bid_profiles
+      ${workspaceWhere(workspaceId, bidProfilesWorkspace)}
       GROUP BY user_id
     ),
     shared_profile_metrics AS (
       SELECT recipient_user_id AS user_id, COUNT(*)::int AS shared_profiles
       FROM profile_share_requests
       WHERE status = 'accepted'
+        ${workspaceAnd(workspaceId, (id) => `profile_id IN (SELECT id FROM bid_profiles WHERE workspace_id = ${id})`)}
       GROUP BY recipient_user_id
     ),
     tailoring_metrics AS (
@@ -372,6 +419,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
         COUNT(*) FILTER (WHERE downloaded_at IS NOT NULL)::int AS downloaded_tailored_resumes
       FROM tailored_resumes, range
       WHERE ${rangePredicate(tailoringBucket)}
+        ${workspaceAnd(workspaceId, tailoredResumesWorkspace)}
       GROUP BY user_id
     )
     SELECT
@@ -418,6 +466,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
     LEFT JOIN shared_profile_metrics ON shared_profile_metrics.user_id = web_users.id
     LEFT JOIN tailoring_metrics ON tailoring_metrics.user_id = web_users.id
     WHERE web_users.role NOT IN ('superadmin', 'bidder', 'readonly_bidder', 'editable_bidder')
+      ${workspaceAnd(workspaceId, webUsersWorkspace)}
       AND (
         web_users.role IN ('admin', 'user', 'finance_manager', 'internal')
         OR COALESCE(bid_metrics.applications, 0) > 0
@@ -432,7 +481,7 @@ function userPerformanceSql(grainConfig, timeZone, anchor) {
   `;
 }
 
-function callerPerformanceSql(grainConfig, timeZone, anchor) {
+function callerPerformanceSql(grainConfig, timeZone, anchor, workspaceId) {
   const callerCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
   const callerActivityBucket = bucketExpression('COALESCE(updated_at, created_at)', grainConfig, timeZone);
 
@@ -447,6 +496,7 @@ function callerPerformanceSql(grainConfig, timeZone, anchor) {
       FROM interviews, range
       WHERE caller_user_id IS NOT NULL
         AND ${rangePredicate(callerCreatedBucket)}
+        ${workspaceAnd(workspaceId, interviewsWorkspace)}
       GROUP BY caller_user_id
     ),
     caller_activity_metrics AS (
@@ -471,6 +521,7 @@ function callerPerformanceSql(grainConfig, timeZone, anchor) {
       CROSS JOIN current_period
       WHERE caller_user_id IS NOT NULL
         AND ${rangePredicate(callerActivityBucket)}
+        ${workspaceAnd(workspaceId, interviewsWorkspace)}
       GROUP BY caller_user_id
     )
     SELECT
@@ -494,16 +545,19 @@ function callerPerformanceSql(grainConfig, timeZone, anchor) {
     FROM web_users
     LEFT JOIN caller_created_metrics ON caller_created_metrics.user_id = web_users.id
     LEFT JOIN caller_activity_metrics ON caller_activity_metrics.user_id = web_users.id
-    WHERE web_users.role = 'caller'
-       OR COALESCE(caller_created_metrics.assigned_interviews, 0) > 0
-       OR COALESCE(caller_activity_metrics.active_interviews, 0) > 0
+    WHERE (
+      web_users.role = 'caller'
+      OR COALESCE(caller_created_metrics.assigned_interviews, 0) > 0
+      OR COALESCE(caller_activity_metrics.active_interviews, 0) > 0
+    )
+      ${workspaceAnd(workspaceId, webUsersWorkspace)}
     ORDER BY COALESCE(caller_activity_metrics.active_interviews, 0) DESC,
       COALESCE(caller_created_metrics.assigned_interviews, 0) DESC,
       web_users.username ASC
   `;
 }
 
-function bidderPerformanceSql(grainConfig, timeZone, anchor) {
+function bidderPerformanceSql(grainConfig, timeZone, anchor, workspaceId) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
@@ -523,6 +577,7 @@ function bidderPerformanceSql(grainConfig, timeZone, anchor) {
       LEFT JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
       CROSS JOIN range
       WHERE ${rangePredicate(bidBucket)}
+        ${workspaceAnd(workspaceId, jobBidsWorkspace)}
       GROUP BY job_bids.user_id
     ),
     scheduled_interview_metrics AS (
@@ -536,6 +591,7 @@ function bidderPerformanceSql(grainConfig, timeZone, anchor) {
       CROSS JOIN current_period
       WHERE interviews.interview_next_at IS NOT NULL
         AND ${currentPeriodPredicate('interviews.interview_next_at', timeZone)}
+        ${workspaceAnd(workspaceId, interviewsWorkspace)}
       GROUP BY COALESCE(job_bids.user_id, interviews.user_id)
     )
     SELECT
@@ -553,13 +609,16 @@ function bidderPerformanceSql(grainConfig, timeZone, anchor) {
     FROM web_users
     LEFT JOIN bid_metrics ON bid_metrics.user_id = web_users.id
     LEFT JOIN scheduled_interview_metrics ON scheduled_interview_metrics.user_id = web_users.id
-    WHERE COALESCE(bid_metrics.applications, 0) > 0
-       OR COALESCE(scheduled_interview_metrics.interviews, 0) > 0
+    WHERE (
+      COALESCE(bid_metrics.applications, 0) > 0
+      OR COALESCE(scheduled_interview_metrics.interviews, 0) > 0
+    )
+      ${workspaceAnd(workspaceId, webUsersWorkspace)}
     ORDER BY offers DESC, interviews DESC, applications DESC, web_users.username ASC
   `;
 }
 
-function profileFunnelSql(grainConfig, timeZone, anchor) {
+function profileFunnelSql(grainConfig, timeZone, anchor, workspaceId) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
   const interviewCreatedBucket = bucketExpression('interviews.created_at', grainConfig, timeZone);
 
@@ -574,6 +633,7 @@ function profileFunnelSql(grainConfig, timeZone, anchor) {
       JOIN job_bids ON job_bids.profile_id = bid_profiles.id
       CROSS JOIN range
       WHERE ${rangePredicate(bidBucket)}
+        ${workspaceAnd(workspaceId, bidProfilesWorkspace)}
       GROUP BY bid_profiles.id, bid_profiles.name
     ),
     interview_metrics AS (
@@ -587,6 +647,7 @@ function profileFunnelSql(grainConfig, timeZone, anchor) {
       JOIN interviews ON interviews.profile_id = bid_profiles.id
       CROSS JOIN range
       WHERE ${rangePredicate(interviewCreatedBucket)}
+        ${workspaceAnd(workspaceId, bidProfilesWorkspace)}
       GROUP BY bid_profiles.id, bid_profiles.name
     )
     SELECT
@@ -603,7 +664,7 @@ function profileFunnelSql(grainConfig, timeZone, anchor) {
   `;
 }
 
-function roleFamilyFunnelSql(grainConfig, timeZone, anchor) {
+function roleFamilyFunnelSql(grainConfig, timeZone, anchor, workspaceId) {
   return funnelByDimensionSql({
     grainConfig,
     dimension: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')",
@@ -613,10 +674,11 @@ function roleFamilyFunnelSql(grainConfig, timeZone, anchor) {
     groupBy: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')",
     anchor,
     timeZone,
+    workspaceId,
   });
 }
 
-function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, groupBy, timeZone, anchor }) {
+function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, groupBy, timeZone, anchor, workspaceId }) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
@@ -630,21 +692,22 @@ function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, 
     LEFT JOIN interviews ON interviews.job_bid_id = job_bids.id
     CROSS JOIN range
     WHERE ${rangePredicate(bidBucket)}
+      ${workspaceAnd(workspaceId, jobBidsWorkspace)}
     GROUP BY ${groupBy}
     ORDER BY offers DESC, interviews DESC, applications DESC, ${alias} ASC
     LIMIT 24
   `;
 }
 
-function userSourceMixSql(grainConfig, timeZone, anchor) {
-  return rankedMixSql({ grainConfig, dimension: "COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')", alias: 'source', timeZone, anchor });
+function userSourceMixSql(grainConfig, timeZone, anchor, workspaceId) {
+  return rankedMixSql({ grainConfig, dimension: "COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown')", alias: 'source', timeZone, anchor, workspaceId });
 }
 
-function userCategoryMixSql(grainConfig, timeZone, anchor) {
-  return rankedMixSql({ grainConfig, dimension: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')", alias: 'category', timeZone, anchor });
+function userCategoryMixSql(grainConfig, timeZone, anchor, workspaceId) {
+  return rankedMixSql({ grainConfig, dimension: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')", alias: 'category', timeZone, anchor, workspaceId });
 }
 
-function userProfileMixSql(grainConfig, timeZone, anchor) {
+function userProfileMixSql(grainConfig, timeZone, anchor, workspaceId) {
   return rankedMixSql({
     grainConfig,
     dimension: "COALESCE(NULLIF(bid_profiles.name, ''), 'Unknown profile')",
@@ -652,10 +715,11 @@ function userProfileMixSql(grainConfig, timeZone, anchor) {
     joinProfile: true,
     anchor,
     timeZone,
+    workspaceId,
   });
 }
 
-function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false, timeZone, anchor }) {
+function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false, timeZone, anchor, workspaceId }) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
@@ -674,6 +738,7 @@ function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false, time
       ${joinProfile ? 'JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id' : ''}
       CROSS JOIN range
       WHERE ${rangePredicate(bidBucket)}
+        ${workspaceAnd(workspaceId, jobBidsWorkspace)}
       GROUP BY job_bids.user_id, ${dimension}
     )
     SELECT user_id, ${alias}, count
@@ -683,7 +748,7 @@ function rankedMixSql({ grainConfig, dimension, alias, joinProfile = false, time
   `;
 }
 
-function profileActivitySql(grainConfig, timeZone, anchor) {
+function profileActivitySql(grainConfig, timeZone, anchor, workspaceId) {
   const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
 
   return `
@@ -708,12 +773,13 @@ function profileActivitySql(grainConfig, timeZone, anchor) {
     JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
     CROSS JOIN range
     WHERE ${rangePredicate(bidBucket)}
+      ${workspaceAnd(workspaceId, jobBidsWorkspace)}
     ORDER BY job_bids.bid_at DESC, job_bids.id DESC
     LIMIT 200
   `;
 }
 
-function sourceBreakdownSql(grainConfig, timeZone, anchor) {
+function sourceBreakdownSql(grainConfig, timeZone, anchor, workspaceId) {
   return `
     WITH ${currentPeriodCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(scraped_jobs.source, ''), 'Unknown') AS source, COUNT(*)::int AS count
@@ -721,37 +787,40 @@ function sourceBreakdownSql(grainConfig, timeZone, anchor) {
     JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
     CROSS JOIN current_period
     WHERE ${currentPeriodPredicate('job_bids.bid_at', timeZone)}
+      ${workspaceAnd(workspaceId, jobBidsWorkspace)}
     GROUP BY 1
     ORDER BY count DESC, source ASC
     LIMIT 12
   `;
 }
 
-function bidStatusBreakdownSql(grainConfig, timeZone, anchor) {
+function bidStatusBreakdownSql(grainConfig, timeZone, anchor, workspaceId) {
   return `
     WITH ${currentPeriodCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
     FROM job_bids
     CROSS JOIN current_period
     WHERE ${currentPeriodPredicate('bid_at', timeZone)}
+      ${workspaceAnd(workspaceId, jobBidsWorkspace)}
     GROUP BY 1
     ORDER BY count DESC, status ASC
   `;
 }
 
-function interviewStageBreakdownSql(grainConfig, timeZone, anchor) {
+function interviewStageBreakdownSql(grainConfig, timeZone, anchor, workspaceId) {
   return `
     WITH ${currentPeriodCte(grainConfig, timeZone, anchor)}
     SELECT COALESCE(NULLIF(interview_stage, ''), 'unknown') AS stage, COUNT(*)::int AS count
     FROM interviews
     CROSS JOIN current_period
     WHERE ${currentPeriodPredicate('created_at', timeZone)}
+      ${workspaceAnd(workspaceId, interviewsWorkspace)}
     GROUP BY 1
     ORDER BY count DESC, stage ASC
   `;
 }
 
-function interviewStatusBreakdownSql(grainConfig, timeZone, anchor) {
+function interviewStatusBreakdownSql(grainConfig, timeZone, anchor, workspaceId) {
   const interviewCreatedBucket = bucketExpression('created_at', grainConfig, timeZone);
 
   return `
@@ -759,6 +828,7 @@ function interviewStatusBreakdownSql(grainConfig, timeZone, anchor) {
     SELECT COALESCE(NULLIF(status, ''), 'unknown') AS status, COUNT(*)::int AS count
     FROM interviews, range
     WHERE ${rangePredicate(interviewCreatedBucket)}
+      ${workspaceAnd(workspaceId, interviewsWorkspace)}
     GROUP BY 1
     ORDER BY count DESC, status ASC
   `;

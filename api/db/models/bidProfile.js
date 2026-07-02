@@ -19,6 +19,11 @@ export function getBidProfileModel() {
         allowNull: false,
         field: 'user_id',
       },
+      workspaceId: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        field: 'workspace_id',
+      },
       name: {
         type: DataTypes.TEXT,
         allowNull: false,
@@ -93,7 +98,7 @@ export function getBidProfileModel() {
       underscored: true,
       createdAt: 'createdAt',
       updatedAt: 'updatedAt',
-      indexes: [{ fields: ['user_id'] }],
+      indexes: [{ fields: ['user_id'] }, { fields: ['workspace_id'] }],
     },
   );
 

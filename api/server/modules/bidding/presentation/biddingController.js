@@ -291,10 +291,10 @@ async function collaborationContextForEntity(req, entityType, entityId) {
   }
 
   if (entityType === 'job') {
-    const job = await getScrapedJobModel().findByPk(entityId);
-    if (!job) throw new NotFoundError('Job not found');
     const profileId = numericIdOrNull(req.body?.profileId || req.query?.profileId);
     const profile = profileId ? await accessibleProfile(req, profileId) : null;
+    const job = await getScrapedJobModel().findByPk(entityId);
+    if (!job) throw new NotFoundError('Job not found');
     return { entityId: job.id, profileId: profile?.id || null, jobId: job.id, bidId: null };
   }
 
@@ -324,6 +324,11 @@ function normalizeCollaborationEventType(value) {
 function numericIdOrNull(value) {
   const id = Number(value);
   return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function workspaceFilterForUser(user) {
+  if (isSuperadmin(user)) return {};
+  return user?.workspaceId ? { workspaceId: user.workspaceId } : {};
 }
 
 async function assignedUserIdFromBody(body = {}) {
@@ -394,7 +399,7 @@ export async function listCallers(req, res, next) {
     const ScrapedJob = getScrapedJobModel();
     const BidProfile = getBidProfileModel();
     const callers = await WebUser.findAll({
-      where: { role: 'caller' },
+      where: { role: 'caller', ...workspaceFilterForUser(user) },
       order: [['username', 'ASC']],
     });
     const callerIds = callers.map((caller) => caller.id);
@@ -406,7 +411,7 @@ export async function listCallers(req, res, next) {
           },
           include: [
             { model: ScrapedJob, as: 'job', required: false },
-            { model: BidProfile, as: 'profile', required: true },
+            { model: BidProfile, as: 'profile', required: true, where: workspaceFilterForUser(user) },
           ],
           order: [
             ['callerUserId', 'ASC'],
@@ -899,6 +904,7 @@ export async function createProfile(req, res, next) {
     const profile = await getBidProfileModel().create({
       ...attrs,
       userId: user.id,
+      workspaceId: user.workspaceId || null,
       profileStatus: 'active',
     });
     res.status(201).json({ profile: formatProfile(profile) });
@@ -927,7 +933,7 @@ export async function changeProfileOwner(req, res, next) {
     await ensureWebModels();
     if (!canManageProfiles(req, res)) return;
     const profile = await manageableProfile(req, req.params.id);
-    const owner = await profileOwnerFromBody(req.body);
+    const owner = await profileOwnerFromBody(req.body, req.user);
     const ProfileShareRequest = getProfileShareRequestModel();
 
     await getSequelize().transaction(async (transaction) => {
@@ -945,7 +951,7 @@ export async function changeProfileOwner(req, res, next) {
           transaction,
         },
       );
-      await profile.update({ userId: owner.id }, { transaction });
+      await profile.update({ userId: owner.id, workspaceId: owner.workspaceId || profile.workspaceId || null }, { transaction });
     });
 
     profile.setDataValue('user', owner);
@@ -1012,7 +1018,7 @@ function canUpdateProfileStatus(req, res, profile, status) {
   return false;
 }
 
-async function profileOwnerFromBody(body = {}) {
+async function profileOwnerFromBody(body = {}, currentUser = null) {
   const userId = clean(body.ownerUserId || body.userId);
   const username = clean(body.ownerUsername || body.username);
   if (!userId && !username) throw new InputError('Choose a new owner');
@@ -1021,6 +1027,9 @@ async function profileOwnerFromBody(body = {}) {
     ? await getWebUserModel().findByPk(userId)
     : await repositories.findUserByUsernameCaseInsensitive(username);
   if (!user) throw new NotFoundError('User not found');
+  if (!isSuperadmin(currentUser) && currentUser?.workspaceId && user.workspaceId && String(currentUser.workspaceId) !== String(user.workspaceId)) {
+    throw new NotFoundError('User not found');
+  }
   if (!ADMIN_MANAGED_PROFILE_OWNER_ROLES.includes(user.role)) {
     throw new InputError('Choose a user or admin account to own this profile');
   }
@@ -1039,6 +1048,9 @@ async function adminManagedProfile(req, profileId) {
   if (!id) throw new NotFoundError('Profile not found');
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
+  if (!isSuperadmin(req.user) && req.user?.workspaceId && profile.workspaceId && String(req.user.workspaceId) !== String(profile.workspaceId)) {
+    throw new NotFoundError('Profile not found');
+  }
   return profile;
 }
 
@@ -1067,6 +1079,7 @@ export async function listBidJobs(req, res, next) {
     const activeBidDateRange = bidDateRangeForTab(query, bidTab, user);
     const { where, order: jobOrder, limit, offset } = buildJobQuery({
       ...jobQueryForBidTab(query, bidTab),
+      workspaceId: profile.workspaceId,
       limit: query.limit || 10,
     }, { timeZone: user.timezone });
     const bidUsers = await bidUsersForProfile(profile);
@@ -1084,6 +1097,7 @@ export async function listBidJobs(req, res, next) {
     const countBidTab = (tab) => {
       const { where: countWhere } = buildJobQuery({
         ...jobQueryForBidTab(query, tab),
+        workspaceId: profile.workspaceId,
         limit: query.limit || 10,
       }, { timeZone: user.timezone });
       const countQuery = buildBidTabQuery({
@@ -1143,7 +1157,7 @@ export async function listBidJobs(req, res, next) {
     const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
     const callerUsers = canViewInternalData
       ? await WebUser.findAll({
-          where: { role: 'caller' },
+          where: { role: 'caller', ...workspaceFilterForUser(user) },
           order: [['username', 'ASC']],
         })
       : [];
@@ -1196,7 +1210,7 @@ export async function listCalendarInterviews(req, res, next) {
     const interviews = calendarEventsForInterviews(await calendarInterviewsForUser(user));
     const tailoredResumesByEvent = await tailoredResumesForCalendarEvents(interviews);
     const callerUsers = canRegisterManualInterviewCalls(user)
-      ? await getWebUserModel().findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] })
+      ? await getWebUserModel().findAll({ where: { role: 'caller', ...workspaceFilterForUser(user) }, order: [['username', 'ASC']] })
       : [];
     const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
@@ -1275,6 +1289,7 @@ async function calendarInterviewsForUser(user) {
         model: BidProfile,
         as: 'profile',
         required: true,
+        where: workspaceFilterForUser(user),
         include: [{ model: WebUser, as: 'user', required: false }],
       },
     ],
@@ -1796,7 +1811,7 @@ async function listInterviewJobs(req, res, { user, profile }) {
     Interview.count({ where: { profileId: profile.id, ...(user.role === 'caller' ? { callerUserId: user.id } : {}) } }),
     bidUsersForProfile(profile),
     canRegisterManualInterviewCalls(user)
-      ? WebUser.findAll({ where: { role: 'caller' }, order: [['username', 'ASC']] })
+      ? WebUser.findAll({ where: { role: 'caller', ...workspaceFilterForUser(user) }, order: [['username', 'ASC']] })
       : Promise.resolve([]),
   ]);
   const [logsByInterviewId, callsByInterviewId] = await Promise.all([
@@ -1841,6 +1856,7 @@ async function countBidTabForProfile({ profile, tab, query, user, appliedProfile
     ...jobQueryForBidTab(query, tab),
     bidTab: tab,
     profileId: profile.id,
+    workspaceId: profile.workspaceId,
     limit: query.limit || 10,
   }, { timeZone: user?.timezone });
   const countQuery = buildBidTabQuery({
@@ -1876,6 +1892,9 @@ async function assignedCallerProfile(user, profileId) {
   if (!id) throw new NotFoundError('Profile not found');
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
+  if (!isSuperadmin(user) && user.workspaceId && profile.workspaceId && String(user.workspaceId) !== String(profile.workspaceId)) {
+    throw new NotFoundError('Profile not found');
+  }
   const assignment = await getInterviewModel().findOne({ where: { profileId: profile.id, callerUserId: user.id } });
   if (!assignment) throw new NotFoundError('Profile not found');
   profile.setDataValue('shareStatus', 'caller');
@@ -3290,9 +3309,10 @@ export async function updateJobBid(req, res, next) {
     const attrs = bidAttributesFromBody(req.body);
     if (rejectReviewStatusForNonAdmin(req, res, attrs)) return;
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
+    let bidProfile = null;
     if (!isAdminRole(req.user)) {
-      const profile = await accessibleProfile(req, bid.profileId);
-      if (isLegacyProfile(profile) && !isInterviewBidStatus(attrs.status || bid.status)) {
+      bidProfile = await accessibleProfile(req, bid.profileId);
+      if (isLegacyProfile(bidProfile) && !isInterviewBidStatus(attrs.status || bid.status)) {
         res.status(403).json({ error: 'Legacy profiles can register interviews, but cannot be used for bidding' });
         return;
       }
@@ -3302,8 +3322,12 @@ export async function updateJobBid(req, res, next) {
       }
       if (!canAssignInterviewCaller(user)) delete attrs.callerUserId;
     } else {
-      const profile = await getBidProfileModel().findByPk(bid.profileId);
-      if (isLegacyProfile(profile) && !isInterviewBidStatus(attrs.status || bid.status)) {
+      bidProfile = await getBidProfileModel().findByPk(bid.profileId);
+      if (!isSuperadmin(req.user) && req.user?.workspaceId && bidProfile?.workspaceId && String(req.user.workspaceId) !== String(bidProfile.workspaceId)) {
+        res.status(404).json({ error: 'Bid not found' });
+        return;
+      }
+      if (isLegacyProfile(bidProfile) && !isInterviewBidStatus(attrs.status || bid.status)) {
         res.status(403).json({ error: 'Legacy profiles can register interviews, but cannot be used for bidding' });
         return;
       }
@@ -3599,9 +3623,13 @@ async function ensureBidBatchWritable({ req, res, user, bid, attrs }) {
   }
 
   const profile = await getBidProfileModel().findByPk(bid.profileId);
+  if (!isSuperadmin(req.user) && req.user?.workspaceId && profile?.workspaceId && String(req.user.workspaceId) !== String(profile.workspaceId)) {
+    throw new NotFoundError('Bid not found');
+  }
   if (isLegacyProfile(profile) && !isInterviewBidStatus(attrs.status || bid.status)) {
     res.status(403).json({ error: 'Legacy profiles can register interviews, but cannot be used for bidding' });
   }
+  return profile;
 }
 
 async function createBidForBatch({ user, profile, job, attrs }) {

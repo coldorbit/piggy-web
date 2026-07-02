@@ -193,14 +193,6 @@ function optionalDateFromBody(value, label) {
 }
 
 async function assessmentProfileForUser(user, profileId) {
-  if (isAdminRole(user)) {
-    const id = clean(profileId);
-    if (!id) throw new InputError('Profile is required');
-    const profile = await getBidProfileModel().findByPk(id);
-    if (!profile) throw new NotFoundError('Profile not found');
-    return profile;
-  }
-
   return accessibleProfile({ user }, profileId);
 }
 

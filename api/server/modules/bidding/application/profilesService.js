@@ -16,6 +16,7 @@ import {
   BIDDER_ROLES,
   PRIVILEGED_USER_ROLES,
   isAdminRole,
+  isSuperadmin,
 } from '../../../utils/roles.js';
 import { dailyGoalRangeForUserBidFilter } from './biddingService.js';
 
@@ -33,7 +34,7 @@ export async function ownedProfile(req, profileId) {
   const user = await currentDbUser(req);
   const id = clean(profileId);
   if (!id) throw new InputError('Profile is required');
-  const profile = await repositories.findProfileForUser({ id, userId: user.id });
+  const profile = await repositories.findProfileForUser({ id, userId: user.id, workspaceId: user.workspaceId });
   if (!profile) throw new NotFoundError('Profile not found');
   return profile;
 }
@@ -45,6 +46,7 @@ export async function accessibleProfile(req, profileId) {
 
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
+  if (!isProfileInUserWorkspace(profile, user)) throw new NotFoundError('Profile not found');
   if (isAdminRole(user)) return profile;
   if (String(profile.userId) === String(user.id)) return profile;
 
@@ -68,6 +70,7 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
     include: [{ model: getWebUserModel(), as: 'user', required: false }],
   });
   if (!appliedProfile) throw new NotFoundError('Profile not found');
+  if (!isProfileInUserWorkspace(appliedProfile, user)) throw new NotFoundError('Profile not found');
 
   if (!APPLIED_PROFILE_FILTER_ROLES.includes(user.role)) return accessibleProfile(req, profileId);
   if ((appliedProfile.profileStatus || 'active') !== 'active') throw new NotFoundError('Profile not found');
@@ -76,10 +79,17 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
   return appliedProfile;
 }
 
+function isProfileInUserWorkspace(profile, user) {
+  if (isSuperadmin(user)) return true;
+  if (!profile?.workspaceId || !user?.workspaceId) return true;
+  return String(profile.workspaceId) === String(user.workspaceId);
+}
+
 export function formatProfile(row) {
   return {
     id: row.id,
     userId: row.userId,
+    workspaceId: row.workspaceId || null,
     name: row.name,
     location: row.location,
     phone: row.phone,
@@ -442,6 +452,7 @@ export async function profilesManagedByUser(user) {
 
   if (isAdminRole(user)) {
     return BidProfile.findAll({
+      where: isSuperadmin(user) ? undefined : { workspaceId: user.workspaceId },
       include: [{ model: WebUser, as: 'user', required: false }],
       order: [['createdAt', 'ASC']],
     });
@@ -456,7 +467,7 @@ export async function profilesForAppliedFilter(user, { profileBadge } = {}) {
   const WebUser = getWebUserModel();
 
   return BidProfile.findAll({
-    where: appliedFilterProfileWhere({ profileBadge }),
+    where: appliedFilterProfileWhere({ profileBadge, workspaceId: user.workspaceId }),
     include: [
       {
         model: WebUser,
@@ -471,8 +482,9 @@ export async function profilesForAppliedFilter(user, { profileBadge } = {}) {
   });
 }
 
-export function appliedFilterProfileWhere({ profileBadge } = {}) {
+export function appliedFilterProfileWhere({ profileBadge, workspaceId } = {}) {
   const where = { profileStatus: 'active' };
+  if (workspaceId) where.workspaceId = workspaceId;
   const badge = clean(profileBadge).toUpperCase();
   if (badge) where.profileBadge = badge;
   return where;
@@ -487,7 +499,7 @@ export async function profilesVisibleToUser(user) {
   if (user.role === 'caller') {
     const assignments = await Interview.findAll({
       where: { callerUserId: user.id },
-      include: [{ model: BidProfile, as: 'profile', required: true }],
+      include: [{ model: BidProfile, as: 'profile', required: true, where: user.workspaceId ? { workspaceId: user.workspaceId } : undefined }],
       order: [['updatedAt', 'DESC']],
     });
     const profilesById = new Map();
@@ -501,13 +513,13 @@ export async function profilesVisibleToUser(user) {
 
   const [ownedProfiles, acceptedShares] = await Promise.all([
     BidProfile.findAll({
-      where: { userId: user.id },
+      where: { userId: user.id, ...(user.workspaceId ? { workspaceId: user.workspaceId } : {}) },
       order: [['createdAt', 'ASC']],
     }),
     ProfileShareRequest.findAll({
       where: { recipientUserId: user.id, status: 'accepted' },
       include: [
-        { model: BidProfile, as: 'profile', required: true },
+        { model: BidProfile, as: 'profile', required: true, where: user.workspaceId ? { workspaceId: user.workspaceId } : undefined },
         { model: WebUser, as: 'owner', required: true },
       ],
       order: [['updatedAt', 'ASC']],
