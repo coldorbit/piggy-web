@@ -29,8 +29,12 @@ export function findUserByUsernameCaseInsensitive(username) {
   });
 }
 
-export function listUsers() {
-  return getWebUserModel().findAll({ include: userWithWorkspace(), order: [['username', 'ASC']] });
+export function listUsers({ workspaceId } = {}) {
+  return getWebUserModel().findAll({
+    include: userWithWorkspace(),
+    where: workspaceId ? { workspaceId } : undefined,
+    order: [['username', 'ASC']],
+  });
 }
 
 export function findUserById(id) {

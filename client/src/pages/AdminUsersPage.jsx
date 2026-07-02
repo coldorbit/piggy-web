@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { Alert, Box, Chip, IconButton, Paper, Skeleton, Tab, Tabs, Typography } from '@mui/material';
+import SaveIcon from '@mui/icons-material/Save';
+import { Alert, Box, Button, Chip, FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import UserForm from '../components/admin/UserForm.jsx';
 import UsersTable from '../components/admin/UsersTable.jsx';
-import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '../lib/api.js';
+import { useAdminUsers, useAdminWorkspaces, useCreateUser, useCreateWorkspace, useDeleteUser, useDeleteWorkspace, useUpdateUser, useUpdateWorkspace } from '../lib/api.js';
 import { ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleLabel, roleOptionsFor } from '../lib/roles.js';
 
 const DEFAULT_USER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
 const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', workspaceId: '', dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE };
+const EMPTY_WORKSPACE_FORM = { name: '', slug: '' };
+const ALL_WORKSPACES = 'all';
 const ROLE_ORDER = [
   ROLES.superadmin,
   ROLES.admin,
@@ -41,14 +46,23 @@ export default function AdminUsersPage({ currentUser }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [editing, setEditing] = useState(EMPTY_FORM);
+  const [workspaceForm, setWorkspaceForm] = useState(EMPTY_WORKSPACE_FORM);
+  const [editingWorkspaceId, setEditingWorkspaceId] = useState(null);
+  const [editingWorkspace, setEditingWorkspace] = useState(EMPTY_WORKSPACE_FORM);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
   const [error, setError] = useState('');
   const [activeRole, setActiveRole] = useState(ROLES.user);
 
-  const { data: users = [], isLoading, error: usersError, refetch } = useAdminUsers();
+  const userFilters = activeWorkspaceId === ALL_WORKSPACES ? {} : { workspaceId: activeWorkspaceId };
+  const { data: users = [], isLoading, error: usersError, refetch } = useAdminUsers(userFilters);
+  const { data: workspaces = [], isLoading: workspacesLoading, error: workspacesError } = useAdminWorkspaces();
   const { mutate: createUser, isPending: isCreating } = useCreateUser();
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser();
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
-  const isSaving = isCreating || isUpdating || isDeleting;
+  const { mutate: createWorkspace, isPending: isCreatingWorkspace } = useCreateWorkspace();
+  const { mutate: updateWorkspace, isPending: isUpdatingWorkspace } = useUpdateWorkspace();
+  const { mutate: deleteWorkspace, isPending: isDeletingWorkspace } = useDeleteWorkspace();
+  const isSaving = isCreating || isUpdating || isDeleting || isCreatingWorkspace || isUpdatingWorkspace || isDeletingWorkspace;
   const roleSections = useMemo(() => roleSectionsForUsers(users), [users]);
   const activeSection = roleSections.find((section) => section.role === activeRole) || roleSections[0];
   const visibleUsers = useMemo(
@@ -57,26 +71,34 @@ export default function AdminUsersPage({ currentUser }) {
   );
   const createRoleValues = useMemo(() => new Set(roleOptionsFor(currentUser).map((option) => option.value)), [currentUser]);
   const canCreateActiveRole = createRoleValues.has(activeSection.role);
+  const defaultWorkspaceId = activeWorkspaceId !== ALL_WORKSPACES ? activeWorkspaceId : String(workspaces[0]?.id || '');
 
   useEffect(() => {
     if (!canCreateActiveRole) return;
     setForm((current) => {
-      if (current.role === activeSection.role) return current;
+      const nextWorkspaceId = current.workspaceId || defaultWorkspaceId;
+      if (current.role === activeSection.role && String(current.workspaceId || '') === String(nextWorkspaceId || '')) return current;
       return {
         ...current,
         role: activeSection.role,
+        workspaceId: nextWorkspaceId,
         dailyBidGoal: canHaveDailyBidGoal(activeSection.role)
           ? current.dailyBidGoal || defaultDailyBidGoalForRole(activeSection.role)
           : '',
       };
     });
-  }, [activeSection.role, canCreateActiveRole]);
+  }, [activeSection.role, canCreateActiveRole, defaultWorkspaceId]);
+
+  useEffect(() => {
+    if (activeWorkspaceId === ALL_WORKSPACES || workspaces.some((workspace) => String(workspace.id) === String(activeWorkspaceId))) return;
+    setActiveWorkspaceId(ALL_WORKSPACES);
+  }, [activeWorkspaceId, workspaces]);
 
   function handleCreateUser(event) {
     event.preventDefault();
     setError('');
-    createUser(form, {
-      onSuccess: () => setForm(EMPTY_FORM),
+    createUser({ ...form, workspaceId: form.workspaceId || defaultWorkspaceId }, {
+      onSuccess: () => setForm({ ...EMPTY_FORM, role: activeSection.role, workspaceId: defaultWorkspaceId }),
       onError: (err) => setError(err.message),
     });
   }
@@ -98,6 +120,48 @@ export default function AdminUsersPage({ currentUser }) {
   function handleDeleteUser(userId) {
     setError('');
     deleteUser(userId, {
+      onError: (err) => setError(err.message),
+    });
+  }
+
+  function handleCreateWorkspace(event) {
+    event.preventDefault();
+    setError('');
+    createWorkspace(workspaceForm, {
+      onSuccess: (workspace) => {
+        setWorkspaceForm(EMPTY_WORKSPACE_FORM);
+        setActiveWorkspaceId(String(workspace.id));
+      },
+      onError: (err) => setError(err.message),
+    });
+  }
+
+  function startEditingWorkspace(workspace) {
+    setEditingWorkspaceId(workspace.id);
+    setEditingWorkspace({ name: workspace.name, slug: workspace.slug });
+    setError('');
+  }
+
+  function handleSaveWorkspace(workspaceId) {
+    setError('');
+    updateWorkspace(
+      { workspaceId, workspaceData: editingWorkspace },
+      {
+        onSuccess: () => {
+          setEditingWorkspaceId(null);
+          setEditingWorkspace(EMPTY_WORKSPACE_FORM);
+        },
+        onError: (err) => setError(err.message),
+      },
+    );
+  }
+
+  function handleDeleteWorkspace(workspaceId) {
+    setError('');
+    deleteWorkspace(workspaceId, {
+      onSuccess: () => {
+        if (String(activeWorkspaceId) === String(workspaceId)) setActiveWorkspaceId(ALL_WORKSPACES);
+      },
       onError: (err) => setError(err.message),
     });
   }
@@ -124,7 +188,7 @@ export default function AdminUsersPage({ currentUser }) {
 
   return (
     <Box sx={{ minHeight: 0, display: 'grid', gap: 1.5, alignContent: 'start' }}>
-      {error || usersError ? <Alert severity="error">{error || usersError?.message}</Alert> : null}
+      {error || usersError || workspacesError ? <Alert severity="error">{error || usersError?.message || workspacesError?.message}</Alert> : null}
       <Box
         sx={{
           display: 'grid',
@@ -143,6 +207,29 @@ export default function AdminUsersPage({ currentUser }) {
           onRoleChange={handleRoleChange}
         />
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, minHeight: 0, minWidth: 0 }}>
+          <WorkspacePanel
+            activeWorkspaceId={activeWorkspaceId}
+            editingWorkspace={editingWorkspace}
+            editingWorkspaceId={editingWorkspaceId}
+            form={workspaceForm}
+            isLoading={workspacesLoading}
+            isSaving={isSaving}
+            workspaces={workspaces}
+            onActiveWorkspaceChange={(value) => {
+              setActiveWorkspaceId(value);
+              setEditingId(null);
+            }}
+            onCancelEdit={() => {
+              setEditingWorkspaceId(null);
+              setEditingWorkspace(EMPTY_WORKSPACE_FORM);
+            }}
+            onCreate={handleCreateWorkspace}
+            onDelete={handleDeleteWorkspace}
+            onEdit={startEditingWorkspace}
+            onEditingChange={setEditingWorkspace}
+            onFormChange={setWorkspaceForm}
+            onSave={handleSaveWorkspace}
+          />
           <Paper
             variant="outlined"
             sx={{
@@ -168,7 +255,7 @@ export default function AdminUsersPage({ currentUser }) {
             </IconButton>
           </Paper>
           {canCreateActiveRole ? (
-            <UserForm currentUser={currentUser} form={form} isSaving={isSaving} onChange={setForm} onSubmit={handleCreateUser} />
+            <UserForm currentUser={currentUser} form={form} isSaving={isSaving || !workspaces.length} workspaces={workspaces} onChange={setForm} onSubmit={handleCreateUser} />
           ) : null}
           <UsersTable
             currentUser={currentUser}
@@ -180,6 +267,7 @@ export default function AdminUsersPage({ currentUser }) {
             saving={isSaving}
             sx={{ flex: 1, minHeight: 0 }}
             users={visibleUsers}
+            workspaces={workspaces}
             onCancel={() => setEditingId(null)}
             onDelete={handleDeleteUser}
             onEdit={startEditing}
@@ -189,6 +277,125 @@ export default function AdminUsersPage({ currentUser }) {
         </Box>
       </Box>
     </Box>
+  );
+}
+
+function WorkspacePanel({
+  activeWorkspaceId,
+  editingWorkspace,
+  editingWorkspaceId,
+  form,
+  isLoading,
+  isSaving,
+  workspaces,
+  onActiveWorkspaceChange,
+  onCancelEdit,
+  onCreate,
+  onDelete,
+  onEdit,
+  onEditingChange,
+  onFormChange,
+  onSave,
+}) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 1.25,
+        display: 'grid',
+        gap: 1,
+        boxShadow: 1,
+        flexShrink: 0,
+      }}
+    >
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <Box minWidth={0}>
+          <Typography fontWeight={900}>Workspaces</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {workspaces.length.toLocaleString()} workspace{workspaces.length === 1 ? '' : 's'}
+          </Typography>
+        </Box>
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <InputLabel>View users</InputLabel>
+          <Select label="View users" value={String(activeWorkspaceId)} onChange={(event) => onActiveWorkspaceChange(event.target.value)}>
+            <MenuItem value={ALL_WORKSPACES}>All workspaces</MenuItem>
+            {workspaces.map((workspace) => (
+              <MenuItem key={workspace.id} value={String(workspace.id)}>
+                {workspace.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Box component="form" onSubmit={onCreate} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(180px, 1fr) minmax(160px, .7fr) auto' }, gap: 1 }}>
+        <TextField
+          label="Workspace name"
+          size="small"
+          value={form.name}
+          onChange={(event) => onFormChange((current) => ({ ...current, name: event.target.value }))}
+        />
+        <TextField
+          label="Slug"
+          size="small"
+          value={form.slug}
+          onChange={(event) => onFormChange((current) => ({ ...current, slug: event.target.value }))}
+        />
+        <Button type="submit" variant="outlined" disabled={isSaving || !form.name.trim()} startIcon={<AddIcon />}>
+          Add
+        </Button>
+      </Box>
+
+      {isLoading ? (
+        <Skeleton variant="rounded" height={38} />
+      ) : (
+        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+          {workspaces.map((workspace) => {
+            const isEditing = String(editingWorkspaceId || '') === String(workspace.id);
+            const canDelete = Number(workspace.userCount || 0) === 0;
+            return isEditing ? (
+              <Box key={workspace.id} sx={{ display: 'flex', gap: 0.75, alignItems: 'center', flexWrap: 'wrap' }}>
+                <TextField
+                  label="Name"
+                  size="small"
+                  value={editingWorkspace.name}
+                  onChange={(event) => onEditingChange((current) => ({ ...current, name: event.target.value }))}
+                />
+                <TextField
+                  label="Slug"
+                  size="small"
+                  value={editingWorkspace.slug}
+                  onChange={(event) => onEditingChange((current) => ({ ...current, slug: event.target.value }))}
+                />
+                <Tooltip title="Save workspace">
+                  <span>
+                    <IconButton disabled={isSaving || !editingWorkspace.name.trim()} onClick={() => onSave(workspace.id)} aria-label="Save workspace">
+                      <SaveIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Button type="button" size="small" onClick={onCancelEdit}>Cancel</Button>
+              </Box>
+            ) : (
+              <Chip
+                key={workspace.id}
+                label={`${workspace.name} · ${Number(workspace.userCount || 0).toLocaleString()} users`}
+                variant={String(activeWorkspaceId) === String(workspace.id) ? 'filled' : 'outlined'}
+                onClick={() => onActiveWorkspaceChange(String(workspace.id))}
+                onDelete={canDelete ? () => onDelete(workspace.id) : undefined}
+                deleteIcon={canDelete ? <DeleteIcon /> : undefined}
+                sx={{ fontWeight: 800 }}
+              />
+            );
+          })}
+          {workspaces.map((workspace) => (
+            <Button key={`edit-${workspace.id}`} type="button" size="small" onClick={() => onEdit(workspace)}>
+              Edit {workspace.name}
+            </Button>
+          ))}
+        </Box>
+      )}
+    </Paper>
   );
 }
 

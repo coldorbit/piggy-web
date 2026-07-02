@@ -35,6 +35,7 @@ export default function UsersTable({
   saving,
   sx,
   users,
+  workspaces = [],
   onCancel,
   onDelete,
   onEdit,
@@ -71,6 +72,7 @@ export default function UsersTable({
               editingId={editingId}
               saving={saving}
               user={user}
+              workspaces={workspaces}
               onCancel={onCancel}
               onDelete={onDelete}
               onEdit={onEdit}
@@ -114,7 +116,7 @@ function UserSkeletonRows() {
   ));
 }
 
-function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDelete, onEdit, onEditingChange, onSave }) {
+function UserRow({ currentUser, editing, editingId, saving, user, workspaces, onCancel, onDelete, onEdit, onEditingChange, onSave }) {
   const isEditing = String(editingId) === String(user.id);
   const isSelf = String(user.id) === String(currentUser.id);
   const roleOptions = roleOptionsWithCurrent(roleOptionsFor(currentUser), editing.role);
@@ -141,6 +143,23 @@ function UserRow({ currentUser, editing, editingId, saving, user, onCancel, onDe
             value={editing.username}
             onChange={(event) => onEditingChange((current) => ({ ...current, username: event.target.value }))}
           />
+          <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+            <InputLabel>Workspace</InputLabel>
+            <Select
+              label="Workspace"
+              value={String(editing.workspaceId || '')}
+              onChange={(event) => onEditingChange((current) => ({ ...current, workspaceId: event.target.value }))}
+            >
+              <MenuItem value="" disabled>
+                Select workspace
+              </MenuItem>
+              {workspaces.map((workspace) => (
+                <MenuItem key={workspace.id} value={String(workspace.id)}>
+                  {workspace.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </TableCell>
         <TableCell>
           <TextField

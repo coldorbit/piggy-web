@@ -2,7 +2,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { Button, FormControl, InputLabel, MenuItem, Paper, Select, TextField } from '@mui/material';
 import { canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleOptionsFor } from '../../lib/roles.js';
 
-export default function UserForm({ currentUser, form, isSaving, onChange, onSubmit }) {
+export default function UserForm({ currentUser, form, isSaving, workspaces = [], onChange, onSubmit }) {
   const roleOptions = roleOptionsFor(currentUser);
   const canSetDailyGoal = canHaveDailyBidGoal(form.role);
 
@@ -24,7 +24,7 @@ export default function UserForm({ currentUser, form, isSaving, onChange, onSubm
         display: 'grid',
         gridTemplateColumns: {
           xs: '1fr',
-          md: 'minmax(220px, 1fr) minmax(150px, .65fr) minmax(150px, .65fr) 135px minmax(190px, .8fr) 110px auto',
+          md: 'minmax(180px, 1fr) minmax(150px, .65fr) minmax(150px, .65fr) minmax(150px, .65fr) 135px minmax(180px, .75fr) 110px auto',
         },
         gap: 1.25,
         alignItems: 'center',
@@ -53,6 +53,19 @@ export default function UserForm({ currentUser, form, isSaving, onChange, onSubm
         value={form.password}
         onChange={(event) => onChange((current) => ({ ...current, password: event.target.value }))}
       />
+      <FormControl size="small">
+        <InputLabel>Workspace</InputLabel>
+        <Select label="Workspace" value={String(form.workspaceId || '')} onChange={(event) => onChange((current) => ({ ...current, workspaceId: event.target.value }))}>
+          <MenuItem value="" disabled>
+            Select workspace
+          </MenuItem>
+          {workspaces.map((workspace) => (
+            <MenuItem key={workspace.id} value={String(workspace.id)}>
+              {workspace.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
       <FormControl size="small">
         <InputLabel>Role</InputLabel>
         <Select label="Role" value={form.role} onChange={(event) => handleRoleChange(event.target.value)}>

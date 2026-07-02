@@ -2,13 +2,17 @@ import { requireAdmin, requireConsumptionAccess } from '../../../middleware/auth
 import {
   createConsumption,
   createUser,
+  createWorkspace,
   deleteConsumption,
   deleteUser,
+  deleteWorkspace,
   getDashboard,
   listConsumption,
   listUsers,
+  listWorkspaces,
   updateConsumption,
   updateUser,
+  updateWorkspace,
 } from './adminController.js';
 
 export function registerAdminRoutes(app) {
@@ -21,4 +25,8 @@ export function registerAdminRoutes(app) {
   app.post('/api/admin/users', requireAdmin, createUser);
   app.patch('/api/admin/users/:id', requireAdmin, updateUser);
   app.delete('/api/admin/users/:id', requireAdmin, deleteUser);
+  app.get('/api/admin/workspaces', requireAdmin, listWorkspaces);
+  app.post('/api/admin/workspaces', requireAdmin, createWorkspace);
+  app.patch('/api/admin/workspaces/:id', requireAdmin, updateWorkspace);
+  app.delete('/api/admin/workspaces/:id', requireAdmin, deleteWorkspace);
 }

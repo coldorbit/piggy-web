@@ -1,10 +1,61 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../authApi.js';
 
-export function useAdminUsers() {
+export function useAdminUsers(filters = {}) {
+  const queryParams = new URLSearchParams(filters).toString();
   return useQuery({
-    queryKey: ['admin', 'users'],
-    queryFn: () => api('/api/admin/users').then((data) => data.users),
+    queryKey: ['admin', 'users', filters],
+    queryFn: () => api(`/api/admin/users${queryParams ? `?${queryParams}` : ''}`).then((data) => data.users),
+  });
+}
+
+export function useAdminWorkspaces() {
+  return useQuery({
+    queryKey: ['admin', 'workspaces'],
+    queryFn: () => api('/api/admin/workspaces').then((data) => data.workspaces),
+  });
+}
+
+export function useCreateWorkspace() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (workspaceData) =>
+      api('/api/admin/workspaces', {
+        method: 'POST',
+        body: JSON.stringify(workspaceData),
+      }).then((data) => data.workspace),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+    },
+  });
+}
+
+export function useUpdateWorkspace() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workspaceId, workspaceData }) =>
+      api(`/api/admin/workspaces/${workspaceId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(workspaceData),
+      }).then((data) => data.workspace),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+}
+
+export function useDeleteWorkspace() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (workspaceId) =>
+      api(`/api/admin/workspaces/${workspaceId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
   });
 }
 

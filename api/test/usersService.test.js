@@ -27,6 +27,19 @@ describe('userAttributesFromBody daily bid goals', () => {
     assert.equal(attrs.timezone, 'America/New_York');
   });
 
+  it('accepts a workspace assignment', () => {
+    const attrs = userAttributesFromBody(validUserBody({ workspaceId: 42 }), { requirePassword: true });
+
+    assert.equal(attrs.workspaceId, 42);
+  });
+
+  it('rejects invalid workspace assignments', () => {
+    assert.throws(
+      () => userAttributesFromBody(validUserBody({ workspaceId: 'workspace' }), { requirePassword: true }),
+      /Workspace is required/,
+    );
+  });
+
   it('accepts valid IANA timezones', () => {
     const attrs = userAttributesFromBody(validUserBody({ role: 'user', timezone: 'America/Los_Angeles' }), { requirePassword: true });
 

@@ -11,3 +11,9 @@ export {
   listUsers,
   updateUser,
 } from './usersController.js';
+export {
+  createWorkspace,
+  deleteWorkspace,
+  listWorkspaces,
+  updateWorkspace,
+} from './workspacesController.js';

@@ -15,6 +15,7 @@ export function userAttributesFromBody(body, { requirePassword }) {
   const username = clean(body?.username).toLowerCase();
   const password = String(body?.password || '');
   const role = clean(body?.role || 'user');
+  const workspaceId = workspaceIdFromBody(body);
   const dailyBidGoal = dailyBidGoalFromBody(body, role);
   const timezone = timezoneFromBody(body);
 
@@ -30,7 +31,7 @@ export function userAttributesFromBody(body, { requirePassword }) {
     throw new InputError('Password must be at least 8 characters');
   }
 
-  return { email, username, password, role, dailyBidGoal, timezone };
+  return { email, username, password, role, workspaceId, dailyBidGoal, timezone };
 }
 
 export function defaultDailyBidGoalForRole(role) {
@@ -53,6 +54,15 @@ function dailyBidGoalFromBody(body, role) {
     throw new InputError('Daily bid goal must be a whole number from 1 to 1000');
   }
   return goal;
+}
+
+function workspaceIdFromBody(body) {
+  const value = body?.workspaceId ?? body?.workspace_id;
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) throw new InputError('Workspace is required');
+  return id;
 }
 
 function timezoneFromBody(body) {

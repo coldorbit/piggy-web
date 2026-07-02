@@ -1,16 +1,16 @@
 import { ensureDefaultUsers, hashPassword, publicUser } from '../../../../auth.js';
 import { ensureDefaultWorkspace, getWebUserModel, getWorkspaceModel, repositories } from '../../../../db.js';
 import { userAttributesFromBody } from '../application/usersService.js';
-import { handleUserWriteError } from '../../../utils/errors.js';
+import { InputError, handleUserWriteError } from '../../../utils/errors.js';
 import { ADMIN_ROLES, ROLES, canAssignAdminRole, isSuperadmin } from '../../../utils/roles.js';
 
-export async function listUsers(_req, res, next) {
+export async function listUsers(req, res, next) {
   try {
     await ensureDefaultUsers();
-    const users = await repositories.listUsers();
+    const users = await repositories.listUsers({ workspaceId: workspaceIdFromQuery(req.query?.workspaceId) });
     res.json({ users: users.map(publicUser) });
   } catch (error) {
-    next(error);
+    handleUserWriteError(error, res, next);
   }
 }
 
@@ -22,7 +22,7 @@ export async function createUser(req, res, next) {
       res.status(403).json({ error: 'Only superadmins can create admin users' });
       return;
     }
-    const workspace = await ensureDefaultWorkspace();
+    const workspace = await workspaceForUserAttrs(attrs);
     const user = await repositories.createUser({
       username: attrs.username,
       email: attrs.email,
@@ -73,26 +73,39 @@ export async function updateUser(req, res, next) {
       if (adminCount <= 1) return res.status(400).json({ error: 'At least one admin or superadmin user is required' });
     }
 
+    const workspace = await workspaceForUserAttrs(attrs);
     const updates = {
       username: attrs.username,
       email: attrs.email,
       role: attrs.role,
+      workspaceId: workspace.id,
       dailyBidGoal: attrs.dailyBidGoal,
       timezone: attrs.timezone,
     };
     if (attrs.password) updates.passwordHash = hashPassword(attrs.password);
     await user.update(updates);
-    if (!user.workspaceId) {
-      const workspace = await ensureDefaultWorkspace();
-      await user.update({ workspaceId: workspace.id });
-    }
-    if (!user.workspace) {
-      await user.reload({ include: [{ model: getWorkspaceModel(), as: 'workspace', required: false }] });
-    }
+    await user.reload({ include: [{ model: getWorkspaceModel(), as: 'workspace', required: false }] });
     res.json({ user: publicUser(user) });
   } catch (error) {
     handleUserWriteError(error, res, next);
   }
+}
+
+async function workspaceForUserAttrs(attrs) {
+  if (!attrs.workspaceId) return ensureDefaultWorkspace();
+
+  const workspace = await getWorkspaceModel().findByPk(attrs.workspaceId);
+  if (!workspace) {
+    throw new InputError('Workspace not found');
+  }
+  return workspace;
+}
+
+function workspaceIdFromQuery(value) {
+  if (!value || value === 'all') return null;
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) throw new InputError('Workspace filter is invalid');
+  return id;
 }
 
 export async function deleteUser(req, res, next) {

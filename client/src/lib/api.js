@@ -5,8 +5,12 @@ export {
   useAdminConsumption,
   useAdminDashboard,
   useAdminUsers,
+  useAdminWorkspaces,
   useCreateConsumptionRecord,
+  useCreateWorkspace,
   useDeleteConsumptionRecord,
+  useDeleteWorkspace,
+  useUpdateWorkspace,
   useUpdateConsumptionRecord,
 } from './api/adminApi.js';
 import { api, authUrl } from './authApi.js';
@@ -1084,6 +1088,7 @@ export function useCreateUser() {
       }).then((data) => data.user),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
     },
   });
@@ -1099,6 +1104,7 @@ export function useUpdateUser() {
       }).then((data) => data.user),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
     },
   });
@@ -1113,6 +1119,7 @@ export function useDeleteUser() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
     },
   });
