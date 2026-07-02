@@ -98,7 +98,7 @@ export function getBidProfileModel() {
       underscored: true,
       createdAt: 'createdAt',
       updatedAt: 'updatedAt',
-      indexes: [{ fields: ['user_id'] }, { fields: ['workspace_id'] }],
+      indexes: [{ fields: ['user_id'] }],
     },
   );
 
