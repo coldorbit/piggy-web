@@ -52,8 +52,8 @@ describe('dashboard queries', () => {
   it('applies workspace filters across dashboard datasets when provided', () => {
     const queries = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles', workspaceId: 42 });
 
-    assert.doesNotMatch(queries.overall, /scraped_jobs\.workspace_id = 42/);
-    assert.doesNotMatch(queries.trend, /scraped_jobs\.workspace_id = 42/);
+    assert.match(queries.overall, /WHERE job_bids\.job_id = scraped_jobs\.id[\s\S]*AND bid_profiles\.workspace_id = 42/);
+    assert.match(queries.trend, /WHERE job_bids\.job_id = scraped_jobs\.id[\s\S]*AND bid_profiles\.workspace_id = 42/);
     assert.match(queries.overall, /job_bids\.profile_id IN \(SELECT id FROM bid_profiles WHERE workspace_id = 42\)/);
     assert.match(queries.overall, /interviews\.profile_id IN \(SELECT id FROM bid_profiles WHERE workspace_id = 42\)/);
     assert.match(queries.overall, /tailored_resumes\.profile_id IN \(SELECT id FROM bid_profiles WHERE workspace_id = 42\)/);

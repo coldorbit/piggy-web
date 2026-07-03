@@ -66,6 +66,16 @@ function tailoredResumesWorkspace(id) {
   return `tailored_resumes.profile_id IN (SELECT id FROM bid_profiles WHERE workspace_id = ${id})`;
 }
 
+function scrapedJobsWorkspace(id) {
+  return `EXISTS (
+    SELECT 1
+    FROM job_bids
+    JOIN bid_profiles ON bid_profiles.id = job_bids.profile_id
+    WHERE job_bids.job_id = scraped_jobs.id
+      AND bid_profiles.workspace_id = ${id}
+  )`;
+}
+
 function bidProfilesWorkspace(id) {
   return `bid_profiles.workspace_id = ${id}`;
 }
@@ -180,6 +190,7 @@ function overallSql(grainConfig, timeZone, anchor, workspaceId) {
       FROM scraped_jobs
       CROSS JOIN current_period_utc
       WHERE ${timestampPeriodPredicate('scraped_at')}
+        ${workspaceAnd(workspaceId, scrapedJobsWorkspace)}
     ),
     bid_totals AS (
       SELECT
@@ -264,6 +275,7 @@ function trendSql(grainConfig, timeZone, anchor, workspaceId) {
       SELECT ${jobBucket} AS bucket_start, COUNT(*)::int AS jobs
       FROM scraped_jobs, range
       WHERE ${rangePredicate(jobBucket)}
+        ${workspaceAnd(workspaceId, scrapedJobsWorkspace)}
       GROUP BY 1
     ),
     bids AS (

@@ -1,3 +1,4 @@
+import ApartmentIcon from '@mui/icons-material/Apartment';
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -22,8 +23,9 @@ import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { GRAIN_OPTIONS, labelForGrain, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
 import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerformanceTable.jsx';
 import ProfileActivityTable from '../components/adminDashboard/ProfileActivityTable.jsx';
-import { useAdminDashboard } from '../lib/api.js';
+import { useAdminDashboard, useAdminWorkspaces } from '../lib/api.js';
 import { formatFirstNameLastInitial } from '../lib/formatters.js';
+import { isSuperadmin } from '../lib/roles.js';
 import { addDaysToDateKey, dateKeyDayOfWeek, zonedDateParts } from '../lib/timezone.js';
 
 export default function AdminDashboardPage({ currentUser }) {
@@ -32,9 +34,21 @@ export default function AdminDashboardPage({ currentUser }) {
   const dashboardSearch = searchParams.toString();
   const [grain, setGrain] = useState(() => dashboardGrainFrom(searchParams.get('grain')));
   const [anchorDate, setAnchorDate] = useState(() => dashboardAnchorFrom(searchParams.get('anchorDate')));
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => dashboardWorkspaceFrom(searchParams.get('workspaceId')));
   const dashboardTimeZone = currentUser?.timezone || '';
-  const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString(), timeZone: dashboardTimeZone }), [anchorDate, dashboardTimeZone, grain]);
+  const superadminView = isSuperadmin(currentUser);
+  const dashboardWorkspaceId = superadminView && activeWorkspaceId !== ALL_WORKSPACES ? activeWorkspaceId : '';
+  const dashboardFilters = useMemo(
+    () => ({
+      grain,
+      anchorDate: anchorDate.toISOString(),
+      timeZone: dashboardTimeZone,
+      ...(dashboardWorkspaceId ? { workspaceId: dashboardWorkspaceId } : {}),
+    }),
+    [anchorDate, dashboardTimeZone, dashboardWorkspaceId, grain],
+  );
   const { data: dashboard, isLoading, error } = useAdminDashboard(dashboardFilters);
+  const { data: workspaces = [], isLoading: workspacesLoading, error: workspacesError } = useAdminWorkspaces({ enabled: superadminView });
   const activeSection = dashboardSectionFor(section);
   const totals = dashboard?.totals || {};
   const trend = dashboard?.trend || [];
@@ -44,26 +58,38 @@ export default function AdminDashboardPage({ currentUser }) {
     const nextSearchParams = new URLSearchParams(dashboardSearch);
     const nextGrain = dashboardGrainFrom(nextSearchParams.get('grain'));
     const nextAnchorDate = dashboardAnchorFrom(nextSearchParams.get('anchorDate'));
+    const nextWorkspaceId = dashboardWorkspaceFrom(nextSearchParams.get('workspaceId'));
     setGrain((current) => (current === nextGrain ? current : nextGrain));
     setAnchorDate((current) => (sameDashboardDate(current, nextAnchorDate) ? current : nextAnchorDate));
+    setActiveWorkspaceId((current) => (current === nextWorkspaceId ? current : nextWorkspaceId));
   }, [dashboardSearch]);
+
+  useEffect(() => {
+    if (!superadminView || activeWorkspaceId === ALL_WORKSPACES || workspaces.some((workspace) => String(workspace.id) === String(activeWorkspaceId))) return;
+    updateDashboardFilters(grain, anchorDate, ALL_WORKSPACES);
+  }, [activeWorkspaceId, anchorDate, grain, superadminView, workspaces]);
 
   function changeGrain(nextGrain) {
     if (!nextGrain) return;
-    updateDashboardFilters(nextGrain, anchorDate);
+    updateDashboardFilters(nextGrain, anchorDate, activeWorkspaceId);
   }
 
   function movePeriod(direction) {
-    updateDashboardFilters(grain, addDashboardPeriod(anchorDate, grain, direction));
+    updateDashboardFilters(grain, addDashboardPeriod(anchorDate, grain, direction), activeWorkspaceId);
   }
 
   function resetToToday() {
-    updateDashboardFilters(grain, new Date());
+    updateDashboardFilters(grain, new Date(), activeWorkspaceId);
   }
 
-  function updateDashboardFilters(nextGrain, nextAnchorDate) {
+  function changeWorkspace(nextWorkspaceId) {
+    updateDashboardFilters(grain, anchorDate, nextWorkspaceId);
+  }
+
+  function updateDashboardFilters(nextGrain, nextAnchorDate, nextWorkspaceId = activeWorkspaceId) {
     setGrain(nextGrain);
     setAnchorDate(nextAnchorDate);
+    setActiveWorkspaceId(dashboardWorkspaceFrom(nextWorkspaceId));
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       if (nextGrain === DEFAULT_DASHBOARD_GRAIN) {
@@ -72,6 +98,12 @@ export default function AdminDashboardPage({ currentUser }) {
         next.set('grain', nextGrain);
       }
       next.set('anchorDate', nextAnchorDate.toISOString());
+      const normalizedWorkspaceId = dashboardWorkspaceFrom(nextWorkspaceId);
+      if (!superadminView || normalizedWorkspaceId === ALL_WORKSPACES) {
+        next.delete('workspaceId');
+      } else {
+        next.set('workspaceId', normalizedWorkspaceId);
+      }
       return next;
     }, { replace: true });
   }
@@ -83,12 +115,17 @@ export default function AdminDashboardPage({ currentUser }) {
         grain={grain}
         isLoading={isLoading}
         periodLabel={labelForDashboardPeriod(grain, anchorDate, dashboardTimeZone)}
+        showWorkspaceSelector={superadminView}
+        workspaceId={activeWorkspaceId}
+        workspaces={workspaces}
+        workspacesLoading={workspacesLoading}
         onGrainChange={changeGrain}
         onMove={movePeriod}
         onToday={resetToToday}
+        onWorkspaceChange={changeWorkspace}
       />
 
-      {error ? <Alert severity="error">{error.message}</Alert> : null}
+      {error || workspacesError ? <Alert severity="error">{error?.message || workspacesError?.message}</Alert> : null}
       {isLoading && !dashboard ? <LoadingPanel /> : null}
       {dashboard ? (
         activeSection ? (
@@ -281,6 +318,7 @@ function dashboardSectionFor(value) {
 }
 
 const DEFAULT_DASHBOARD_GRAIN = 'daily';
+const ALL_WORKSPACES = 'all';
 
 function dashboardGrainFrom(value) {
   return GRAIN_OPTIONS.some((option) => option.value === value) ? value : DEFAULT_DASHBOARD_GRAIN;
@@ -291,11 +329,29 @@ function dashboardAnchorFrom(value) {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
+function dashboardWorkspaceFrom(value) {
+  const normalized = String(value || '').trim();
+  return /^\d+$/.test(normalized) ? normalized : ALL_WORKSPACES;
+}
+
 function sameDashboardDate(left, right) {
   return left instanceof Date && right instanceof Date && left.getTime() === right.getTime();
 }
 
-function DashboardHeader({ generatedAt, grain, isLoading, onGrainChange, onMove, onToday, periodLabel }) {
+function DashboardHeader({
+  generatedAt,
+  grain,
+  isLoading,
+  onGrainChange,
+  onMove,
+  onToday,
+  onWorkspaceChange,
+  periodLabel,
+  showWorkspaceSelector = false,
+  workspaceId = ALL_WORKSPACES,
+  workspaces = [],
+  workspacesLoading = false,
+}) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) auto' }, gap: 1.25, alignItems: 'center' }}>
       <Box sx={{ minWidth: 0 }}>
@@ -350,6 +406,25 @@ function DashboardHeader({ generatedAt, grain, isLoading, onGrainChange, onMove,
             ))}
           </Select>
         </FormControl>
+        {showWorkspaceSelector ? (
+          <FormControl size="small" sx={{ width: { xs: '100%', sm: 240 } }}>
+            <InputLabel>Workspace</InputLabel>
+            <Select
+              disabled={workspacesLoading}
+              label="Workspace"
+              value={String(workspaceId)}
+              onChange={(event) => onWorkspaceChange(event.target.value)}
+              startAdornment={<ApartmentIcon fontSize="small" sx={{ color: 'text.secondary', mr: 0.75 }} />}
+            >
+              <MenuItem value={ALL_WORKSPACES}>All workspaces</MenuItem>
+              {workspaces.map((workspace) => (
+                <MenuItem key={workspace.id} value={String(workspace.id)}>
+                  {workspace.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        ) : null}
       </Stack>
     </Box>
   );
