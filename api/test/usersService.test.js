@@ -33,10 +33,29 @@ describe('userAttributesFromBody daily bid goals', () => {
     assert.equal(attrs.workspaceId, 42);
   });
 
+  it('accepts extra workspaces for bidder roles', () => {
+    const attrs = userAttributesFromBody(validUserBody({ role: 'editable_bidder', workspaceMembershipIds: ['42', 43] }), { requirePassword: true });
+
+    assert.deepEqual(attrs.workspaceMembershipIds, [42, 43]);
+  });
+
+  it('drops extra workspaces for non-bidder roles', () => {
+    const attrs = userAttributesFromBody(validUserBody({ role: 'user', workspaceMembershipIds: [42] }), { requirePassword: true });
+
+    assert.deepEqual(attrs.workspaceMembershipIds, []);
+  });
+
   it('rejects invalid workspace assignments', () => {
     assert.throws(
       () => userAttributesFromBody(validUserBody({ workspaceId: 'workspace' }), { requirePassword: true }),
       /Workspace is required/,
+    );
+  });
+
+  it('rejects invalid extra workspace assignments', () => {
+    assert.throws(
+      () => userAttributesFromBody(validUserBody({ role: 'readonly_bidder', workspaceMembershipIds: ['workspace'] }), { requirePassword: true }),
+      /Additional workspaces/,
     );
   });
 

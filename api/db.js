@@ -20,6 +20,7 @@ export {
   getScrapedJobModel,
   getTailoredResumeModel,
   getTeamConsumptionModel,
+  getUserWorkspaceMembershipModel,
   getWebUserModel,
   getWorkspaceModel,
   setupWebAssociations,

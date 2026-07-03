@@ -57,12 +57,32 @@ describe('session auth', () => {
       role: 'admin',
       workspaceId: 3,
       workspace: { id: 3, name: 'ApplyPilot', slug: 'default' },
+      workspaceMemberships: [
+        {
+          id: 11,
+          userId: 7,
+          workspaceId: 4,
+          accessRole: 'editable_bidder',
+          status: 'active',
+          workspace: { id: 4, name: 'Client B', slug: 'client-b' },
+        },
+      ],
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     });
 
     assert.equal(user.workspaceId, 3);
     assert.deepEqual(user.workspace, { id: 3, name: 'ApplyPilot', slug: 'default' });
+    assert.deepEqual(user.workspaceMemberships, [
+      {
+        id: 11,
+        userId: 7,
+        workspaceId: 4,
+        accessRole: 'editable_bidder',
+        status: 'active',
+        workspace: { id: 4, name: 'Client B', slug: 'client-b' },
+      },
+    ]);
   });
 });
 

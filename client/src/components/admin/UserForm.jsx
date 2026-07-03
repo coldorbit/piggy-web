@@ -1,15 +1,17 @@
 import AddIcon from '@mui/icons-material/Add';
-import { Button, FormControl, InputLabel, MenuItem, Paper, Select, TextField } from '@mui/material';
-import { canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleOptionsFor } from '../../lib/roles.js';
+import { Button, Checkbox, FormControl, InputLabel, ListItemText, MenuItem, Paper, Select, TextField } from '@mui/material';
+import { BIDDER_ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isSuperadmin, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UserForm({ currentUser, form, isSaving, workspaces = [], onChange, onSubmit }) {
   const roleOptions = roleOptionsFor(currentUser);
   const canSetDailyGoal = canHaveDailyBidGoal(form.role);
+  const canSetExtraWorkspaces = isSuperadmin(currentUser) && BIDDER_ROLES.includes(form.role);
 
   function handleRoleChange(role) {
     onChange((current) => ({
       ...current,
       role,
+      workspaceMembershipIds: BIDDER_ROLES.includes(role) ? current.workspaceMembershipIds || [] : [],
       dailyBidGoal: canHaveDailyBidGoal(role) ? current.dailyBidGoal || defaultDailyBidGoalForRole(role) : '',
     }));
   }
@@ -83,6 +85,14 @@ export default function UserForm({ currentUser, form, isSaving, workspaces = [],
         value={form.timezone || ''}
         onChange={(event) => onChange((current) => ({ ...current, timezone: event.target.value }))}
       />
+      {canSetExtraWorkspaces ? (
+        <AdditionalWorkspacesSelect
+          homeWorkspaceId={form.workspaceId}
+          value={form.workspaceMembershipIds || []}
+          workspaces={workspaces}
+          onChange={(workspaceMembershipIds) => onChange((current) => ({ ...current, workspaceMembershipIds }))}
+        />
+      ) : null}
       <TextField
         disabled={!canSetDailyGoal}
         inputProps={{ min: 1, max: 1000 }}
@@ -98,4 +108,38 @@ export default function UserForm({ currentUser, form, isSaving, workspaces = [],
       </Button>
     </Paper>
   );
+}
+
+function AdditionalWorkspacesSelect({ homeWorkspaceId, onChange, value, workspaces }) {
+  const selected = (value || []).map(String).filter((workspaceId) => String(workspaceId) !== String(homeWorkspaceId || ''));
+
+  return (
+    <FormControl size="small">
+      <InputLabel>Additional workspaces</InputLabel>
+      <Select
+        label="Additional workspaces"
+        multiple
+        value={selected}
+        onChange={(event) => {
+          const nextValue = typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
+          onChange(nextValue.map(String).filter((workspaceId) => String(workspaceId) !== String(homeWorkspaceId || '')));
+        }}
+        renderValue={(selectedIds) => selectedIds.map((workspaceId) => workspaceName(workspaces, workspaceId)).join(', ')}
+      >
+        {workspaces.map((workspace) => {
+          const disabled = String(workspace.id) === String(homeWorkspaceId || '');
+          return (
+            <MenuItem key={workspace.id} value={String(workspace.id)} disabled={disabled}>
+              <Checkbox checked={selected.includes(String(workspace.id))} />
+              <ListItemText primary={workspace.name} secondary={disabled ? 'Home workspace' : null} />
+            </MenuItem>
+          );
+        })}
+      </Select>
+    </FormControl>
+  );
+}
+
+function workspaceName(workspaces, workspaceId) {
+  return workspaces.find((workspace) => String(workspace.id) === String(workspaceId))?.name || `Workspace ${workspaceId}`;
 }

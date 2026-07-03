@@ -48,6 +48,7 @@ import {
   profilesWithSharing,
   isDraftProfile,
   isProfileInUserWorkspace,
+  canUserAccessWorkspace,
   workspaceProfileWhereForUser,
 } from '../application/profilesService.js';
 import { enqueueTailoredResumeRequest } from '../application/tailoringQueueService.js';
@@ -90,7 +91,10 @@ export async function listProfiles(req, res, next) {
     if (scope === 'applied-filter') {
       const activeProfileId = clean(req.query?.profileId);
       const activeProfile = activeProfileId ? await accessibleProfile(req, activeProfileId) : null;
-      profiles = await profilesForAppliedFilter(user, { profileBadge: activeProfile?.profileBadge });
+      profiles = await profilesForAppliedFilter(user, {
+        profileBadge: activeProfile?.profileBadge,
+        workspaceId: activeProfile ? activeProfile.workspaceId : user.workspaceId,
+      });
     } else if (scope === 'manage' && isAdminRole(user)) {
       profiles = await profilesManagedByUser(user);
     } else {
@@ -807,6 +811,10 @@ export async function shareProfile(req, res, next) {
     if (missingUsername) return res.status(404).json({ error: `User not found: ${missingUsername}` });
     if (recipients.some((recipient) => String(recipient.id) === String(profile.userId))) {
       return res.status(400).json({ error: 'You cannot share a profile with its owner' });
+    }
+    const blockedRecipient = recipients.find((recipient) => !canUserAccessWorkspace(recipient, profile.workspaceId));
+    if (blockedRecipient) {
+      return res.status(400).json({ error: `${blockedRecipient.username} does not have access to this workspace` });
     }
 
     const ProfileShareRequest = getProfileShareRequestModel();

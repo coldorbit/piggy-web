@@ -156,6 +156,7 @@ export async function clearActiveSession(req) {
 
 export function publicUser(row) {
   const lastSeenAt = row.lastSeenAt || null;
+  const workspaceMembershipRows = row.workspaceMemberships || row.get?.('workspaceMemberships') || [];
   return {
     id: row.id,
     username: row.username,
@@ -167,6 +168,18 @@ export function publicUser(row) {
       name: row.workspace.name,
       slug: row.workspace.slug,
     } : null,
+    workspaceMemberships: workspaceMembershipRows.map((membership) => ({
+      id: membership.id,
+      userId: membership.userId,
+      workspaceId: membership.workspaceId,
+      accessRole: membership.accessRole,
+      status: membership.status,
+      workspace: membership.workspace ? {
+        id: membership.workspace.id,
+        name: membership.workspace.name,
+        slug: membership.workspace.slug,
+      } : null,
+    })),
     dailyBidGoal: row.dailyBidGoal ?? null,
     timezone: row.timezone || 'America/New_York',
     lastLoginAt: row.lastLoginAt || null,

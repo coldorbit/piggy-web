@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { Op } from 'sequelize';
 import {
   appliedFilterProfileWhere,
   forwardingAliasForProfileName,
@@ -59,6 +60,29 @@ describe('profile workspace helpers', () => {
   it('builds exact workspace filters for non-superadmins', () => {
     assert.deepEqual(workspaceProfileWhereForUser({ role: ROLES.admin, workspaceId: 7 }), { workspaceId: 7 });
     assert.deepEqual(workspaceProfileWhereForUser({ role: ROLES.user, workspaceId: null }), { workspaceId: null });
+  });
+
+  it('allows active extra workspace memberships to extend bidder profile access', () => {
+    const user = {
+      role: ROLES.editableBidder,
+      workspaceId: 7,
+      workspaceMemberships: [{ workspaceId: 8, status: 'active' }],
+    };
+
+    assert.equal(isProfileInUserWorkspace({ workspaceId: 8 }, user), true);
+    assert.equal(isProfileInUserWorkspace({ workspaceId: 9 }, user), false);
+    assert.deepEqual(workspaceProfileWhereForUser(user), { workspaceId: { [Op.in]: [7, 8] } });
+  });
+
+  it('ignores inactive extra workspace memberships', () => {
+    const user = {
+      role: ROLES.readonlyBidder,
+      workspaceId: 7,
+      workspaceMemberships: [{ workspaceId: 8, status: 'revoked' }],
+    };
+
+    assert.equal(isProfileInUserWorkspace({ workspaceId: 8 }, user), false);
+    assert.deepEqual(workspaceProfileWhereForUser(user), { workspaceId: 7 });
   });
 });
 

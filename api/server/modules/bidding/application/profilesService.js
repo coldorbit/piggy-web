@@ -74,6 +74,7 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
 
   if (!APPLIED_PROFILE_FILTER_ROLES.includes(user.role)) return accessibleProfile(req, profileId);
   if ((appliedProfile.profileStatus || 'active') !== 'active') throw new NotFoundError('Profile not found');
+  if (String(appliedProfile.workspaceId ?? '') !== String(profile.workspaceId ?? '')) throw new NotFoundError('Profile not found');
   if ((appliedProfile.profileBadge || 'SWE') !== (profile.profileBadge || 'SWE')) throw new NotFoundError('Profile not found');
 
   return appliedProfile;
@@ -82,12 +83,47 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
 export function isProfileInUserWorkspace(profile, user) {
   if (isSuperadmin(user)) return true;
   if (!profile) return false;
-  return String(profile.workspaceId ?? '') === String(user?.workspaceId ?? '');
+  return workspaceIdsForUser(user).some((workspaceId) => String(profile.workspaceId ?? '') === String(workspaceId ?? ''));
 }
 
 export function workspaceProfileWhereForUser(user) {
   if (isSuperadmin(user)) return undefined;
-  return { workspaceId: user?.workspaceId ?? null };
+  const workspaceIds = workspaceIdsForUser(user);
+  if (workspaceIds.length === 1) return { workspaceId: workspaceIds[0] ?? null };
+  const nonNullWorkspaceIds = workspaceIds.filter((workspaceId) => workspaceId !== null && workspaceId !== undefined);
+  const hasNullWorkspace = workspaceIds.some((workspaceId) => workspaceId === null || workspaceId === undefined);
+  if (!nonNullWorkspaceIds.length) return { workspaceId: null };
+  if (hasNullWorkspace) {
+    return {
+      [Op.or]: [
+        { workspaceId: { [Op.in]: nonNullWorkspaceIds } },
+        { workspaceId: null },
+      ],
+    };
+  }
+  return { workspaceId: { [Op.in]: nonNullWorkspaceIds } };
+}
+
+export function workspaceIdsForUser(user) {
+  if (isSuperadmin(user)) return [];
+  const ids = [user?.workspaceId ?? null];
+  const memberships = user?.workspaceMemberships || user?.get?.('workspaceMemberships') || [];
+  for (const membership of memberships) {
+    if ((membership.status || 'active') !== 'active') continue;
+    ids.push(membership.workspaceId ?? null);
+  }
+  const seen = new Set();
+  return ids.filter((workspaceId) => {
+    const key = String(workspaceId ?? '');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function canUserAccessWorkspace(user, workspaceId) {
+  if (isSuperadmin(user)) return true;
+  return workspaceIdsForUser(user).some((candidateId) => String(candidateId ?? '') === String(workspaceId ?? ''));
 }
 
 export function formatProfile(row) {
@@ -466,13 +502,13 @@ export async function profilesManagedByUser(user) {
   return profilesVisibleToUser(user);
 }
 
-export async function profilesForAppliedFilter(user, { profileBadge } = {}) {
+export async function profilesForAppliedFilter(user, { profileBadge, workspaceId } = {}) {
   if (!APPLIED_PROFILE_FILTER_ROLES.includes(user?.role)) return [];
   const BidProfile = getBidProfileModel();
   const WebUser = getWebUserModel();
 
   return BidProfile.findAll({
-    where: appliedFilterProfileWhere({ profileBadge, workspaceId: user.workspaceId ?? null }),
+    where: appliedFilterProfileWhere({ profileBadge, workspaceId: workspaceId ?? user.workspaceId ?? null }),
     include: [
       {
         model: WebUser,

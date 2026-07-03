@@ -16,6 +16,7 @@ export function userAttributesFromBody(body, { requirePassword }) {
   const password = String(body?.password || '');
   const role = clean(body?.role || 'user');
   const workspaceId = workspaceIdFromBody(body);
+  const workspaceMembershipIds = workspaceMembershipIdsFromBody(body);
   const dailyBidGoal = dailyBidGoalFromBody(body, role);
   const timezone = timezoneFromBody(body);
 
@@ -31,7 +32,16 @@ export function userAttributesFromBody(body, { requirePassword }) {
     throw new InputError('Password must be at least 8 characters');
   }
 
-  return { email, username, password, role, workspaceId, dailyBidGoal, timezone };
+  return {
+    email,
+    username,
+    password,
+    role,
+    workspaceId,
+    workspaceMembershipIds: BIDDER_ROLES.includes(role) ? workspaceMembershipIds : [],
+    dailyBidGoal,
+    timezone,
+  };
 }
 
 export function defaultDailyBidGoalForRole(role) {
@@ -63,6 +73,23 @@ function workspaceIdFromBody(body) {
   const id = Number(value);
   if (!Number.isInteger(id) || id <= 0) throw new InputError('Workspace is required');
   return id;
+}
+
+function workspaceMembershipIdsFromBody(body) {
+  const rawValue = body?.workspaceMembershipIds ?? body?.workspace_membership_ids ?? body?.additionalWorkspaceIds;
+  const values = Array.isArray(rawValue)
+    ? rawValue
+    : rawValue === undefined || rawValue === null || String(rawValue).trim() === ''
+      ? []
+      : String(rawValue).split(',');
+  const ids = values
+    .map((value) => Number(value))
+    .filter((value, index, allValues) => Number.isInteger(value) && value > 0 && allValues.indexOf(value) === index);
+
+  if (ids.length !== values.filter((value) => String(value).trim() !== '').length) {
+    throw new InputError('Additional workspaces must be valid workspace IDs');
+  }
+  return ids;
 }
 
 function timezoneFromBody(body) {

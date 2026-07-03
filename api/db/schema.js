@@ -21,6 +21,7 @@ import {
   getScrapedJobModel,
   getTailoredResumeModel,
   getTeamConsumptionModel,
+  getUserWorkspaceMembershipModel,
   getWebUserModel,
   getWorkspaceModel,
   setupWebAssociations,
@@ -36,6 +37,7 @@ export async function ensureWebModels() {
       await getWorkspaceModel().sync();
       await getWebUserModel().sync();
       setupWebAssociations();
+      await getUserWorkspaceMembershipModel().sync();
       await getFaqModel().sync();
       await getBidProfileModel().sync();
       await getCollaborationEventModel().sync();
@@ -86,6 +88,7 @@ export async function ensureWebModels() {
       await ensureAssessmentIndexes();
       await ensureMarketplaceIndexes();
       await ensureWorkspaceIndexes();
+      await ensureUserWorkspaceMembershipIndexes();
     })().catch((error) => {
       initializationPromise = undefined;
       throw error;
@@ -93,6 +96,23 @@ export async function ensureWebModels() {
   }
 
   await initializationPromise;
+}
+
+async function ensureUserWorkspaceMembershipIndexes() {
+  const sequelize = getSequelize();
+
+  await sequelize.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS user_workspace_memberships_user_workspace_unique
+    ON user_workspace_memberships (user_id, workspace_id)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS user_workspace_memberships_workspace_status_idx
+    ON user_workspace_memberships (workspace_id, status)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS user_workspace_memberships_user_status_idx
+    ON user_workspace_memberships (user_id, status)
+  `);
 }
 
 export const DEFAULT_WORKSPACE_SLUG = 'default';

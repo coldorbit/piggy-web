@@ -10,10 +10,10 @@ import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace } from '
 import UserForm from '../components/admin/UserForm.jsx';
 import UsersTable from '../components/admin/UsersTable.jsx';
 import { useAdminUsers, useAdminWorkspaces, useCreateUser, useCreateWorkspace, useDeleteUser, useDeleteWorkspace, useUpdateUser, useUpdateWorkspace } from '../lib/api.js';
-import { ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isSuperadmin, roleLabel, roleOptionsFor } from '../lib/roles.js';
+import { BIDDER_ROLES, ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isSuperadmin, roleLabel, roleOptionsFor } from '../lib/roles.js';
 
 const DEFAULT_USER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
-const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', workspaceId: '', dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE };
+const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', workspaceId: '', workspaceMembershipIds: [], dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE };
 const EMPTY_WORKSPACE_FORM = { name: '', slug: '' };
 const ROLE_ORDER = [
   ROLES.superadmin,
@@ -83,10 +83,11 @@ export default function AdminUsersPage({ currentUser }) {
       const nextWorkspaceId = current.workspaceId || defaultWorkspaceId;
       if (current.role === activeSection.role && String(current.workspaceId || '') === String(nextWorkspaceId || '')) return current;
       return {
-        ...current,
-        role: activeSection.role,
-        workspaceId: nextWorkspaceId,
-        dailyBidGoal: canHaveDailyBidGoal(activeSection.role)
+      ...current,
+      role: activeSection.role,
+      workspaceId: nextWorkspaceId,
+      workspaceMembershipIds: BIDDER_ROLES.includes(activeSection.role) ? current.workspaceMembershipIds || [] : [],
+      dailyBidGoal: canHaveDailyBidGoal(activeSection.role)
           ? current.dailyBidGoal || defaultDailyBidGoalForRole(activeSection.role)
           : '',
       };
@@ -178,6 +179,7 @@ export default function AdminUsersPage({ currentUser }) {
       password: '',
       role: normalizeRole(user.role),
       workspaceId: user.workspaceId || '',
+      workspaceMembershipIds: (user.workspaceMemberships || []).map((membership) => String(membership.workspaceId)),
       dailyBidGoal: user.dailyBidGoal ?? '',
       timezone: user.timezone || DEFAULT_USER_TIMEZONE,
     });

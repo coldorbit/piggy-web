@@ -18,6 +18,7 @@ export { getProfileShareRequestModel } from './profileShareRequest.js';
 export { getScrapedJobModel } from './scrapedJob.js';
 export { getTailoredResumeModel } from './tailoredResume.js';
 export { getTeamConsumptionModel } from './teamConsumption.js';
+export { getUserWorkspaceMembershipModel } from './userWorkspaceMembership.js';
 export { getWebUserModel } from './webUser.js';
 export { getWorkspaceModel } from './workspace.js';
 
@@ -41,6 +42,7 @@ import { getProfileShareRequestModel } from './profileShareRequest.js';
 import { getScrapedJobModel } from './scrapedJob.js';
 import { getTailoredResumeModel } from './tailoredResume.js';
 import { getTeamConsumptionModel } from './teamConsumption.js';
+import { getUserWorkspaceMembershipModel } from './userWorkspaceMembership.js';
 import { getWebUserModel } from './webUser.js';
 import { getWorkspaceModel } from './workspace.js';
 
@@ -67,11 +69,18 @@ export function setupWebAssociations() {
   const ProfileShareRequestModel = getProfileShareRequestModel();
   const TailoredResumeModel = getTailoredResumeModel();
   const TeamConsumptionModel = getTeamConsumptionModel();
+  const UserWorkspaceMembershipModel = getUserWorkspaceMembershipModel();
 
   if (BidProfileModel.associations.user) return;
 
   WorkspaceModel.hasMany(WebUserModel, { foreignKey: 'workspaceId', as: 'users' });
   WebUserModel.belongsTo(WorkspaceModel, { foreignKey: 'workspaceId', as: 'workspace' });
+  WorkspaceModel.hasMany(UserWorkspaceMembershipModel, { foreignKey: 'workspaceId', as: 'userMemberships' });
+  UserWorkspaceMembershipModel.belongsTo(WorkspaceModel, { foreignKey: 'workspaceId', as: 'workspace' });
+  WebUserModel.hasMany(UserWorkspaceMembershipModel, { foreignKey: 'userId', as: 'workspaceMemberships' });
+  UserWorkspaceMembershipModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'user' });
+  WebUserModel.hasMany(UserWorkspaceMembershipModel, { foreignKey: 'createdByUserId', as: 'createdWorkspaceMemberships' });
+  UserWorkspaceMembershipModel.belongsTo(WebUserModel, { foreignKey: 'createdByUserId', as: 'createdBy' });
   WebUserModel.hasMany(BidProfileModel, { foreignKey: 'userId', as: 'bidProfiles' });
   BidProfileModel.belongsTo(WebUserModel, { foreignKey: 'userId', as: 'user' });
   WebUserModel.hasMany(CollaborationEventModel, { foreignKey: 'authorUserId', as: 'authoredCollaborationEvents' });

@@ -4,9 +4,11 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import {
   Chip,
+  Checkbox,
   FormControl,
   IconButton,
   InputLabel,
+  ListItemText,
   MenuItem,
   Paper,
   Skeleton,
@@ -23,7 +25,7 @@ import {
 } from '@mui/material';
 import EmptyState from '../common/EmptyState.jsx';
 import { formatDateTime } from '../../lib/formatters.js';
-import { canHaveDailyBidGoal, defaultDailyBidGoalForRole, isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
+import { BIDDER_ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UsersTable({
   currentUser,
@@ -122,12 +124,15 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
   const roleOptions = roleOptionsWithCurrent(roleOptionsFor(currentUser), editing.role);
   const canEditRole = isSuperadmin(currentUser) || !isAdminRole(user);
   const canSetDailyGoal = canHaveDailyBidGoal(editing.role);
+  const canSetExtraWorkspaces = isSuperadmin(currentUser) && BIDDER_ROLES.includes(editing.role);
   const workspaceLabel = user.workspace?.name || (user.workspaceId ? `Workspace ${user.workspaceId}` : 'Unassigned workspace');
+  const extraMemberships = (user.workspaceMemberships || []).filter((membership) => String(membership.workspaceId) !== String(user.workspaceId || ''));
 
   function handleRoleChange(role) {
     onEditingChange((current) => ({
       ...current,
       role,
+      workspaceMembershipIds: BIDDER_ROLES.includes(role) ? current.workspaceMembershipIds || [] : [],
       dailyBidGoal: canHaveDailyBidGoal(role) ? current.dailyBidGoal || defaultDailyBidGoalForRole(role) : '',
     }));
   }
@@ -160,6 +165,14 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
               ))}
             </Select>
           </FormControl>
+          {canSetExtraWorkspaces ? (
+            <AdditionalWorkspacesSelect
+              homeWorkspaceId={editing.workspaceId}
+              value={editing.workspaceMembershipIds || []}
+              workspaces={workspaces}
+              onChange={(workspaceMembershipIds) => onEditingChange((current) => ({ ...current, workspaceMembershipIds }))}
+            />
+          ) : null}
         </TableCell>
         <TableCell>
           <TextField
@@ -256,6 +269,13 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
             Current user
           </Typography>
         ) : null}
+        {extraMemberships.length ? (
+          <Chip
+            label={`Shared to ${extraMemberships.map((membership) => membership.workspace?.name || `Workspace ${membership.workspaceId}`).join(', ')}`}
+            size="small"
+            sx={{ mt: 0.5, maxWidth: 260, bgcolor: '#ecfeff', color: '#155e75', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+          />
+        ) : null}
       </TableCell>
       <TableCell>{user.email || '-'}</TableCell>
       <TableCell>
@@ -298,6 +318,40 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
       </TableCell>
     </TableRow>
   );
+}
+
+function AdditionalWorkspacesSelect({ homeWorkspaceId, onChange, value, workspaces }) {
+  const selected = (value || []).map(String).filter((workspaceId) => String(workspaceId) !== String(homeWorkspaceId || ''));
+
+  return (
+    <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+      <InputLabel>Additional workspaces</InputLabel>
+      <Select
+        label="Additional workspaces"
+        multiple
+        value={selected}
+        onChange={(event) => {
+          const nextValue = typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
+          onChange(nextValue.map(String).filter((workspaceId) => String(workspaceId) !== String(homeWorkspaceId || '')));
+        }}
+        renderValue={(selectedIds) => selectedIds.map((workspaceId) => workspaceName(workspaces, workspaceId)).join(', ')}
+      >
+        {workspaces.map((workspace) => {
+          const disabled = String(workspace.id) === String(homeWorkspaceId || '');
+          return (
+            <MenuItem key={workspace.id} value={String(workspace.id)} disabled={disabled}>
+              <Checkbox checked={selected.includes(String(workspace.id))} />
+              <ListItemText primary={workspace.name} secondary={disabled ? 'Home workspace' : null} />
+            </MenuItem>
+          );
+        })}
+      </Select>
+    </FormControl>
+  );
+}
+
+function workspaceName(workspaces, workspaceId) {
+  return workspaces.find((workspace) => String(workspace.id) === String(workspaceId))?.name || `Workspace ${workspaceId}`;
 }
 
 function roleOptionsWithCurrent(options, role) {

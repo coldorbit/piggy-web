@@ -1,4 +1,4 @@
-import { getWebUserModel, getWorkspaceModel } from '../models/index.js';
+import { getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel } from '../models/index.js';
 import { Op } from 'sequelize';
 
 export function findUserByUsername(username) {
@@ -46,5 +46,14 @@ export function createUser(values) {
 }
 
 function userWithWorkspace() {
-  return [{ model: getWorkspaceModel(), as: 'workspace', required: false }];
+  return [
+    { model: getWorkspaceModel(), as: 'workspace', required: false },
+    {
+      model: getUserWorkspaceMembershipModel(),
+      as: 'workspaceMemberships',
+      required: false,
+      where: { status: 'active' },
+      include: [{ model: getWorkspaceModel(), as: 'workspace', required: false }],
+    },
+  ];
 }
