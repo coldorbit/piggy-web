@@ -179,6 +179,13 @@ function ProfileTabLabel({ dailyGoalLabel, isDailyGoalCurrent, profile, onOpenPr
             sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: '#f3f4f6', color: '#4b5563', '& .MuiChip-label': { px: 0.75 } }}
           />
         ) : null}
+        {profile.workspaceName ? (
+          <Chip
+            label={profile.workspaceName}
+            size="small"
+            sx={{ height: 20, fontSize: 11, fontWeight: 900, bgcolor: '#ecfeff', color: '#155e75', '& .MuiChip-label': { px: 0.75 } }}
+          />
+        ) : null}
         <Chip
           label={profile.profileBadge || 'SWE'}
           size="small"

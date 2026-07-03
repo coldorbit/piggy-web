@@ -9,10 +9,11 @@ export function useAdminUsers(filters = {}) {
   });
 }
 
-export function useAdminWorkspaces() {
+export function useAdminWorkspaces(queryOptions = {}) {
   return useQuery({
     queryKey: ['admin', 'workspaces'],
     queryFn: () => api('/api/admin/workspaces').then((data) => data.workspaces),
+    ...queryOptions,
   });
 }
 

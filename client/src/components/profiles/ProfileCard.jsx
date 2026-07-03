@@ -129,6 +129,11 @@ export default function ProfileCard({
               <Chip label={`Owner ${profile.ownerUsername}`} size="small" variant="outlined" sx={profileChipSx} />
             </Stack>
           ) : null}
+          {profile.workspaceName ? (
+            <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
+              <Chip label={profile.workspaceName} size="small" sx={{ ...profileChipSx, bgcolor: '#ecfeff', color: '#155e75', fontWeight: 700 }} />
+            </Stack>
+          ) : null}
           {sharedWith.length ? (
             <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
               {sharedWith.map((share) => (

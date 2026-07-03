@@ -6,6 +6,7 @@ import BidJobsPanel from '../components/bids/BidJobsPanel.jsx';
 import BidProfileSummary from '../components/bids/BidProfileSummary.jsx';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BidWorkspaceProvider } from '../components/bids/BidWorkspaceContext.jsx';
+import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
 import SameCompanyTailoringDialog from '../components/bids/SameCompanyTailoringDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
@@ -13,6 +14,7 @@ import { BID_TABS, EMPTY_BID } from '../components/bids/bidConstants.js';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import { EMPTY_PROFILE, PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import {
+  useAdminWorkspaces,
   useBidJobs,
   useBidProfiles,
   useBulkRequestTailoredResumes,
@@ -28,7 +30,7 @@ import {
   useUpdateJobBid,
 } from '../lib/api.js';
 import { writePersistedFilters } from '../lib/persistedFilters.js';
-import { APPLIED_PROFILE_FILTER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole } from '../lib/roles.js';
+import { APPLIED_PROFILE_FILTER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../lib/roles.js';
 import {
   BID_FILTER_KEYS,
   BID_FILTERS_STORAGE_KEY,
@@ -63,8 +65,10 @@ export default function BidPage({ currentUser }) {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [tailoringByProfileJobId, setTailoringByProfileJobId] = useState({});
   const [sameCompanyConfirmation, setSameCompanyConfirmation] = useState(null);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const canUseTomorrowDateFilter = isAdminRole(currentUser);
+  const superadminView = isSuperadmin(currentUser);
   const dateFiltersForRole = useMemo(
     () => (canUseTomorrowDateFilter ? filters : withoutTomorrowDateFilter(filters)),
     [canUseTomorrowDateFilter, filters],
@@ -74,13 +78,25 @@ export default function BidPage({ currentUser }) {
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
     { ...(canUseTomorrowDateFilter ? { scope: 'manage' } : {}), ...profileGoalFilters },
   );
+  const { data: workspaces = [], isLoading: workspacesLoading } = useAdminWorkspaces({ enabled: superadminView });
   const activeProfiles = useMemo(
     () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
     [profiles],
   );
+  const activeProfilesWithWorkspace = useMemo(
+    () => activeProfiles.map((profile) => ({
+      ...profile,
+      workspaceName: superadminView ? workspaceLabel(workspaces, profile.workspaceId) : '',
+    })),
+    [activeProfiles, superadminView, workspaces],
+  );
+  const workspaceActiveProfiles = useMemo(
+    () => (superadminView ? filterRowsByWorkspace(activeProfilesWithWorkspace, activeWorkspaceId) : activeProfilesWithWorkspace),
+    [activeProfilesWithWorkspace, activeWorkspaceId, superadminView],
+  );
   const activeProfile = useMemo(
-    () => activeProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || activeProfiles[0] || null,
-    [activeProfiles, activeProfileId],
+    () => workspaceActiveProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || workspaceActiveProfiles[0] || null,
+    [activeProfileId, workspaceActiveProfiles],
   );
   const canUseCrossUserAppliedFilter = APPLIED_PROFILE_FILTER_ROLES.includes(currentUser?.role);
   const appliedFilterProfileParams = useMemo(
@@ -91,14 +107,18 @@ export default function BidPage({ currentUser }) {
     appliedFilterProfileParams,
     { enabled: canUseCrossUserAppliedFilter && Boolean(activeProfile?.id) },
   );
+  const workspaceAppliedFilterProfiles = useMemo(
+    () => (superadminView ? filterRowsByWorkspace(appliedFilterProfiles, activeWorkspaceId) : appliedFilterProfiles),
+    [activeWorkspaceId, appliedFilterProfiles, superadminView],
+  );
   const appliedProfileOptions = useMemo(
     () => appliedProfileOptionsForActiveProfile({
       activeProfile,
-      activeProfiles,
-      appliedFilterProfiles,
+      activeProfiles: workspaceActiveProfiles,
+      appliedFilterProfiles: workspaceAppliedFilterProfiles,
       canUseCrossUserAppliedFilter,
     }),
-    [activeProfile, activeProfiles, appliedFilterProfiles, canUseCrossUserAppliedFilter],
+    [activeProfile, workspaceActiveProfiles, workspaceAppliedFilterProfiles, canUseCrossUserAppliedFilter],
   );
   const { data: metaData, isLoading: metaLoading, error: metaError, refetch: refetchMeta } = useJobsMeta();
   const {
@@ -123,12 +143,12 @@ export default function BidPage({ currentUser }) {
   const dateFilteredProfile = bidJobsData?.profile;
   const profilesForDisplay = useMemo(
     () =>
-      activeProfiles.map((profile) =>
+      workspaceActiveProfiles.map((profile) =>
         String(profile.id) === String(dateFilteredProfile?.id)
           ? { ...profile, ...dateFilteredProfile, progress: dateFilteredProfile.progress || profile.progress }
           : profile,
       ),
-    [activeProfiles, dateFilteredProfile],
+    [workspaceActiveProfiles, dateFilteredProfile],
   );
   const activeProfileForDisplay = useMemo(
     () => profilesForDisplay.find((profile) => String(profile.id) === String(activeProfile?.id || '')) || activeProfile,
@@ -138,10 +158,10 @@ export default function BidPage({ currentUser }) {
   const isDailyGoalCurrent = isCurrentDailyGoalFilter(dateFiltersForRole);
 
   useEffect(() => {
-    if (!activeProfiles[0]) return;
-    const hasActiveProfile = activeProfiles.some((profile) => String(profile.id) === String(activeProfileId));
-    if (!activeProfileId || !hasActiveProfile) setActiveProfileId(activeProfiles[0].id);
-  }, [activeProfileId, activeProfiles]);
+    if (!workspaceActiveProfiles[0]) return;
+    const hasActiveProfile = workspaceActiveProfiles.some((profile) => String(profile.id) === String(activeProfileId));
+    if (!activeProfileId || !hasActiveProfile) setActiveProfileId(workspaceActiveProfiles[0].id);
+  }, [activeProfileId, workspaceActiveProfiles]);
 
   useEffect(() => {
     const nextProfileId = searchParams.get('profileId') || '';
@@ -445,21 +465,39 @@ export default function BidPage({ currentUser }) {
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
-      {!activeProfiles.length && !profilesLoading ? (
+      {superadminView ? (
+        <SuperadminWorkspaceLens
+          activeWorkspaceId={activeWorkspaceId}
+          isLoading={workspacesLoading}
+          rows={activeProfilesWithWorkspace}
+          subtitle={`${workspaceActiveProfiles.length.toLocaleString()} active bidding profiles in view`}
+          title="Bid workspaces"
+          workspaces={workspaces}
+          metrics={[
+            { label: 'Daily done', value: workspaceActiveProfiles.reduce((sum, profile) => sum + Number(profile.progress?.dailyFinished || 0), 0) },
+            { label: 'Planned', value: workspaceActiveProfiles.reduce((sum, profile) => sum + Number(profile.progress?.planned || 0), 0) },
+          ]}
+          onWorkspaceChange={(value) => {
+            setActiveWorkspaceId(value);
+            setError('');
+          }}
+        />
+      ) : null}
+      {!workspaceActiveProfiles.length && !profilesLoading ? (
         <EmptyState
           title="No active profiles available"
           detail="Activate or create a profile before starting bid work."
         />
       ) : null}
 
-      {profilesLoading || activeProfiles.length ? (
+      {profilesLoading || workspaceActiveProfiles.length ? (
         <Box
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)', xl: '240px minmax(0, 1fr)' },
             gap: 1.5,
             alignItems: 'stretch',
-            height: { xs: 'auto', md: 'calc(100vh - 108px)', xl: 'calc(100vh - 124px)' },
+            height: { xs: 'auto', md: superadminView ? 'calc(100vh - 214px)' : 'calc(100vh - 108px)', xl: superadminView ? 'calc(100vh - 230px)' : 'calc(100vh - 124px)' },
             minHeight: { md: 0 },
             minWidth: 0,
           }}

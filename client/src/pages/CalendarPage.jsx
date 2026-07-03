@@ -1,13 +1,15 @@
 import { Alert, Box } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
+import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
 import CalendarGrid from '../components/calendar/CalendarGrid.jsx';
 import CalendarProfileLegend from '../components/calendar/CalendarProfileLegend.jsx';
 import CalendarToolbar, { CALENDAR_VIEWS } from '../components/calendar/CalendarToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { api, downloadAuthenticatedFile, useUpdateInterviewCall, useUpdateJobBid } from '../lib/api.js';
+import { api, downloadAuthenticatedFile, useAdminWorkspaces, useUpdateInterviewCall, useUpdateJobBid } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
+import { isSuperadmin } from '../lib/roles.js';
 import {
   addDaysToDateKey,
   addMonthsToDateKey,
@@ -18,15 +20,18 @@ import {
   monthLabelForDateKey,
 } from '../lib/timezone.js';
 
-export default function CalendarPage() {
+export default function CalendarPage({ currentUser }) {
   const [view, setView] = useState(CALENDAR_VIEWS.week);
   const [cursorDate, setCursorDate] = useState(() => defaultTimezoneTodayKey());
   const [search, setSearch] = useState('');
   const [checkedProfileIds, setCheckedProfileIds] = useState([]);
   const [calendarActionError, setCalendarActionError] = useState('');
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
+  const superadminView = isSuperadmin(currentUser);
   const updateBid = useUpdateJobBid();
   const updateInterviewCall = useUpdateInterviewCall();
+  const { data: workspaces = [], isLoading: workspacesLoading } = useAdminWorkspaces({ enabled: superadminView });
   const {
     data: calendarData,
     isLoading: calendarLoading,
@@ -40,14 +45,19 @@ export default function CalendarPage() {
   const jobs = calendarData?.jobs || [];
   const callerUsers = calendarData?.callerUsers || [];
   const calendarMeta = calendarData?.calendar || {};
-  const currentUser = calendarData?.currentUser || {};
-  const calendarProfiles = useMemo(
+  const calendarCurrentUser = calendarData?.currentUser || {};
+  const allCalendarProfiles = useMemo(
     () =>
       profiles.map((profile) => ({
         ...profile,
         calendarColor: PROFILE_COLORS[profile.colorScheme] || PROFILE_COLORS.green,
+        workspaceName: superadminView ? workspaceLabel(workspaces, profile.workspaceId) : '',
       })),
-    [profiles],
+    [profiles, superadminView, workspaces],
+  );
+  const calendarProfiles = useMemo(
+    () => (superadminView ? filterRowsByWorkspace(allCalendarProfiles, activeWorkspaceId) : allCalendarProfiles),
+    [activeWorkspaceId, allCalendarProfiles, superadminView],
   );
   const profileById = useMemo(
     () => new Map(calendarProfiles.map((profile) => [String(profile.id), profile])),
@@ -92,6 +102,10 @@ export default function CalendarPage() {
   const scheduledCount = useMemo(
     () => scheduledInterviewCount(events, view, cursorDate, visibleDays),
     [cursorDate, events, view, visibleDays],
+  );
+  const visibleConflictCount = useMemo(
+    () => events.filter((event) => event.hasConflict).length,
+    [events],
   );
 
   function moveCursor(direction) {
@@ -168,15 +182,39 @@ export default function CalendarPage() {
         minHeight: 0,
         display: 'grid',
         gap: 1.5,
-        gridTemplateRows: pageError ? 'auto auto minmax(0, 1fr)' : 'auto minmax(0, 1fr)',
+        gridTemplateRows: [
+          pageError ? 'auto' : '',
+          superadminView ? 'auto' : '',
+          'auto',
+          'minmax(0, 1fr)',
+        ].filter(Boolean).join(' '),
         overflow: 'hidden',
       }}
     >
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
 
+      {superadminView ? (
+        <SuperadminWorkspaceLens
+          activeWorkspaceId={activeWorkspaceId}
+          isLoading={workspacesLoading}
+          rows={allCalendarProfiles}
+          subtitle={`${events.length.toLocaleString()} scheduled events in view`}
+          title="Calendar workspaces"
+          workspaces={workspaces}
+          metrics={[
+            { label: 'Profiles', value: calendarProfiles.length },
+            { label: 'Conflicts', value: visibleConflictCount },
+          ]}
+          onWorkspaceChange={(value) => {
+            setActiveWorkspaceId(value);
+            setCalendarActionError('');
+          }}
+        />
+      ) : null}
+
       <CalendarToolbar
         isLoading={loading}
-        conflictCount={calendarMeta.conflicts?.length || 0}
+        conflictCount={visibleConflictCount}
         onExportIcs={() => downloadAuthenticatedFile(calendarMeta.icsUrl || '/api/bid/calendar.ics', 'applypilot-interviews.ics')}
         rangeLabel={rangeLabel}
         scheduledCount={scheduledCount}
@@ -205,7 +243,7 @@ export default function CalendarPage() {
         />
 
         <CalendarGrid
-          currentUser={currentUser}
+          currentUser={calendarCurrentUser}
           callerUsers={callerUsers}
           cursorDate={cursorDate}
           eventsByDay={eventsByDay}

@@ -6,15 +6,15 @@ import SaveIcon from '@mui/icons-material/Save';
 import { Alert, Box, Button, Chip, FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Skeleton, Tab, Tabs, TextField, Tooltip, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace } from '../components/admin/SuperadminWorkspaceLens.jsx';
 import UserForm from '../components/admin/UserForm.jsx';
 import UsersTable from '../components/admin/UsersTable.jsx';
 import { useAdminUsers, useAdminWorkspaces, useCreateUser, useCreateWorkspace, useDeleteUser, useDeleteWorkspace, useUpdateUser, useUpdateWorkspace } from '../lib/api.js';
-import { ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleLabel, roleOptionsFor } from '../lib/roles.js';
+import { ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isSuperadmin, roleLabel, roleOptionsFor } from '../lib/roles.js';
 
 const DEFAULT_USER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
 const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', workspaceId: '', dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE };
 const EMPTY_WORKSPACE_FORM = { name: '', slug: '' };
-const ALL_WORKSPACES = 'all';
 const ROLE_ORDER = [
   ROLES.superadmin,
   ROLES.admin,
@@ -52,9 +52,9 @@ export default function AdminUsersPage({ currentUser }) {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
   const [error, setError] = useState('');
   const [activeRole, setActiveRole] = useState(ROLES.user);
+  const superadminView = isSuperadmin(currentUser);
 
-  const userFilters = activeWorkspaceId === ALL_WORKSPACES ? {} : { workspaceId: activeWorkspaceId };
-  const { data: users = [], isLoading, error: usersError, refetch } = useAdminUsers(userFilters);
+  const { data: users = [], isLoading, error: usersError, refetch } = useAdminUsers();
   const { data: workspaces = [], isLoading: workspacesLoading, error: workspacesError } = useAdminWorkspaces();
   const { mutate: createUser, isPending: isCreating } = useCreateUser();
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser();
@@ -63,11 +63,15 @@ export default function AdminUsersPage({ currentUser }) {
   const { mutate: updateWorkspace, isPending: isUpdatingWorkspace } = useUpdateWorkspace();
   const { mutate: deleteWorkspace, isPending: isDeletingWorkspace } = useDeleteWorkspace();
   const isSaving = isCreating || isUpdating || isDeleting || isCreatingWorkspace || isUpdatingWorkspace || isDeletingWorkspace;
-  const roleSections = useMemo(() => roleSectionsForUsers(users), [users]);
+  const workspaceUsers = useMemo(
+    () => filterRowsByWorkspace(users, activeWorkspaceId),
+    [activeWorkspaceId, users],
+  );
+  const roleSections = useMemo(() => roleSectionsForUsers(workspaceUsers), [workspaceUsers]);
   const activeSection = roleSections.find((section) => section.role === activeRole) || roleSections[0];
   const visibleUsers = useMemo(
-    () => users.filter((user) => normalizeRole(user.role) === activeSection.role),
-    [activeSection.role, users],
+    () => workspaceUsers.filter((user) => normalizeRole(user.role) === activeSection.role),
+    [activeSection.role, workspaceUsers],
   );
   const createRoleValues = useMemo(() => new Set(roleOptionsFor(currentUser).map((option) => option.value)), [currentUser]);
   const canCreateActiveRole = createRoleValues.has(activeSection.role);
@@ -189,13 +193,32 @@ export default function AdminUsersPage({ currentUser }) {
   return (
     <Box sx={{ minHeight: 0, display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {error || usersError || workspacesError ? <Alert severity="error">{error || usersError?.message || workspacesError?.message}</Alert> : null}
+      {superadminView ? (
+        <SuperadminWorkspaceLens
+          activeWorkspaceId={activeWorkspaceId}
+          isLoading={workspacesLoading}
+          rows={users}
+          subtitle={`${visibleUsers.length.toLocaleString()} ${activeSection.label} accounts in view`}
+          title="User workspaces"
+          workspaces={workspaces}
+          metrics={[
+            { label: 'Active', value: workspaceUsers.filter((user) => user.isActive).length },
+            { label: 'Admins', value: workspaceUsers.filter((user) => [ROLES.superadmin, ROLES.admin].includes(user.role)).length },
+          ]}
+          onWorkspaceChange={(value) => {
+            setActiveWorkspaceId(value);
+            setEditingId(null);
+            setError('');
+          }}
+        />
+      ) : null}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)', xl: '240px minmax(0, 1fr)' },
           gap: 1.5,
           alignItems: 'stretch',
-          height: { xs: 'auto', md: 'calc(100vh - 108px)', xl: 'calc(100vh - 124px)' },
+          height: { xs: 'auto', md: superadminView ? 'calc(100vh - 214px)' : 'calc(100vh - 108px)', xl: superadminView ? 'calc(100vh - 230px)' : 'calc(100vh - 124px)' },
           minHeight: { md: 0 },
           minWidth: 0,
         }}
@@ -247,7 +270,7 @@ export default function AdminUsersPage({ currentUser }) {
             <Box minWidth={0}>
               <Typography fontWeight={900}>{titleCase(activeSection.label)}</Typography>
               <Typography variant="body2" color="text.secondary">
-                {visibleUsers.length.toLocaleString()} of {users.length.toLocaleString()} back-office accounts
+                {visibleUsers.length.toLocaleString()} of {workspaceUsers.length.toLocaleString()} back-office accounts
               </Typography>
             </Box>
             <IconButton type="button" onClick={() => refetch()} title="Refresh users" aria-label="Refresh users">

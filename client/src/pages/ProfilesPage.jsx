@@ -35,8 +35,10 @@ import ProfileCard from '../components/profiles/ProfileCard.jsx';
 import CollaborationPanel from '../components/collaboration/CollaborationPanel.jsx';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
+import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
 import { EMPTY_PROFILE } from '../components/profiles/profileConstants.js';
 import {
+  useAdminWorkspaces,
   useBidProfiles,
   useChangeBidProfileOwner,
   useCreateBidProfile,
@@ -93,9 +95,19 @@ export default function ProfilesPage({ currentUser }) {
   const [form, setForm] = useState(EMPTY_PROFILE);
   const [error, setError] = useState('');
   const [activeStatus, setActiveStatus] = useState('active');
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
+  const superadminView = isSuperadmin(currentUser);
 
   const { data: profiles = [], isLoading, error: loadError, refetch } = useBidProfiles(
     isAdminRole(currentUser) ? { scope: 'manage' } : {},
+  );
+  const { data: workspaces = [], isLoading: workspacesLoading } = useAdminWorkspaces({ enabled: superadminView });
+  const profilesWithWorkspace = useMemo(
+    () => profiles.map((profile) => ({
+      ...profile,
+      workspaceName: superadminView ? workspaceLabel(workspaces, profile.workspaceId) : '',
+    })),
+    [profiles, superadminView, workspaces],
   );
   const { data: shareRequests = {}, error: sharesError } = useProfileShareRequests();
   const { data: shareRecipients = [], isLoading: recipientsLoading, error: recipientsError } = useProfileShareRecipients();
@@ -300,11 +312,15 @@ export default function ProfilesPage({ currentUser }) {
   const canRestoreProfiles = isAdminRole(currentUser);
   const canManageLegacyProfiles = isSuperadmin(currentUser);
   const highlightedProfileId = searchParams.get('profileId') || '';
-  const profileStatusSections = useMemo(() => profileStatusSectionsForProfiles(profiles), [profiles]);
+  const workspaceProfiles = useMemo(
+    () => (superadminView ? filterRowsByWorkspace(profilesWithWorkspace, activeWorkspaceId) : profilesWithWorkspace),
+    [activeWorkspaceId, profilesWithWorkspace, superadminView],
+  );
+  const profileStatusSections = useMemo(() => profileStatusSectionsForProfiles(workspaceProfiles), [workspaceProfiles]);
   const activeStatusSection = profileStatusSections.find((section) => section.status === activeStatus) || profileStatusSections[0];
   const visibleProfiles = useMemo(
-    () => profiles.filter((profile) => normalizedProfileStatus(profile.profileStatus) === activeStatusSection.status),
-    [activeStatusSection.status, profiles],
+    () => workspaceProfiles.filter((profile) => normalizedProfileStatus(profile.profileStatus) === activeStatusSection.status),
+    [activeStatusSection.status, workspaceProfiles],
   );
 
   useEffect(() => {
@@ -318,7 +334,8 @@ export default function ProfilesPage({ currentUser }) {
     const highlightedProfile = profiles.find((profile) => String(profile.id) === String(highlightedProfileId));
     if (!highlightedProfile) return;
     setActiveStatus(normalizedProfileStatus(highlightedProfile.profileStatus));
-  }, [highlightedProfileId, profiles]);
+    if (superadminView) setActiveWorkspaceId(String(highlightedProfile.workspaceId || 'unassigned'));
+  }, [highlightedProfileId, profiles, superadminView]);
 
   function handleStatusChange(status) {
     setActiveStatus(status);
@@ -371,13 +388,40 @@ export default function ProfilesPage({ currentUser }) {
         </Card>
       ) : null}
 
+      {superadminView ? (
+        <SuperadminWorkspaceLens
+          activeWorkspaceId={activeWorkspaceId}
+          isLoading={workspacesLoading}
+          rows={profilesWithWorkspace}
+          subtitle={`${visibleProfiles.length.toLocaleString()} ${activeStatusSection.label.toLowerCase()} profiles in view`}
+          title="Profile workspaces"
+          workspaces={workspaces}
+          metrics={[
+            { label: 'Active', value: workspaceProfiles.filter((profile) => normalizedProfileStatus(profile.profileStatus) === 'active').length },
+            { label: 'Interviews', value: workspaceProfiles.reduce((sum, profile) => sum + Number(profile.progress?.activeInterviews || 0), 0) },
+          ]}
+          onWorkspaceChange={(value) => {
+            setActiveWorkspaceId(value);
+            setError('');
+          }}
+        />
+      ) : null}
+
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)', xl: '240px minmax(0, 1fr)' },
           gap: 1.5,
           alignItems: 'stretch',
-          height: { xs: 'auto', md: incomingShares.length ? 'calc(100vh - 244px)' : 'calc(100vh - 108px)', xl: incomingShares.length ? 'calc(100vh - 260px)' : 'calc(100vh - 124px)' },
+          height: {
+            xs: 'auto',
+            md: superadminView
+              ? incomingShares.length ? 'calc(100vh - 350px)' : 'calc(100vh - 214px)'
+              : incomingShares.length ? 'calc(100vh - 244px)' : 'calc(100vh - 108px)',
+            xl: superadminView
+              ? incomingShares.length ? 'calc(100vh - 366px)' : 'calc(100vh - 230px)'
+              : incomingShares.length ? 'calc(100vh - 260px)' : 'calc(100vh - 124px)',
+          },
           minHeight: { md: 0 },
           minWidth: 0,
         }}
@@ -406,7 +450,7 @@ export default function ProfilesPage({ currentUser }) {
             <Box minWidth={0}>
               <Typography fontWeight={900}>{activeStatusSection.label} profiles</Typography>
               <Typography variant="body2" color="text.secondary">
-                {visibleProfiles.length.toLocaleString()} of {profiles.length.toLocaleString()} profiles
+                {visibleProfiles.length.toLocaleString()} of {workspaceProfiles.length.toLocaleString()} profiles
               </Typography>
             </Box>
             <Stack direction="row" spacing={0.75} alignItems="center">

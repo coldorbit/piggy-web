@@ -26,6 +26,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { APPLICATION_WORKFLOW_STATUSES, BID_TABS, DONE_STATUSES, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
+import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.jsx';
@@ -44,6 +45,7 @@ import {
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import {
   downloadAuthenticatedFile,
+  useAdminWorkspaces,
   useBidJobs,
   useBidProfiles,
   useCreateInterviewCall,
@@ -53,7 +55,7 @@ import {
   useUpdateJobBid,
 } from '../lib/api.js';
 import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
-import { canRegisterManualInterviewCalls, isAdminRole } from '../lib/roles.js';
+import { canRegisterManualInterviewCalls, isAdminRole, isSuperadmin } from '../lib/roles.js';
 import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
 const EMPTY_MANUAL_INTERVIEW = {
@@ -97,17 +99,31 @@ export default function InterviewsPage({ currentUser }) {
   const [pendingStepChangeSave, setPendingStepChangeSave] = useState(null);
   const [isJourneyExpanded, setIsJourneyExpanded] = useState(false);
   const [error, setError] = useState('');
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
+  const superadminView = isSuperadmin(currentUser);
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
     isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
+  const { data: workspaces = [], isLoading: workspacesLoading } = useAdminWorkspaces({ enabled: superadminView });
   const interviewProfiles = useMemo(
     () => profiles.filter((profile) => ['active', 'legacy'].includes(profile.profileStatus || 'active')),
     [profiles],
   );
+  const interviewProfilesWithWorkspace = useMemo(
+    () => interviewProfiles.map((profile) => ({
+      ...profile,
+      workspaceName: superadminView ? workspaceLabel(workspaces, profile.workspaceId) : '',
+    })),
+    [interviewProfiles, superadminView, workspaces],
+  );
+  const workspaceInterviewProfiles = useMemo(
+    () => (superadminView ? filterRowsByWorkspace(interviewProfilesWithWorkspace, activeWorkspaceId) : interviewProfilesWithWorkspace),
+    [activeWorkspaceId, interviewProfilesWithWorkspace, superadminView],
+  );
   const activeProfile = useMemo(
-    () => interviewProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || interviewProfiles[0] || null,
-    [interviewProfiles, activeProfileId],
+    () => workspaceInterviewProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || workspaceInterviewProfiles[0] || null,
+    [activeProfileId, workspaceInterviewProfiles],
   );
   const filters = useMemo(
     () => ({
@@ -142,10 +158,10 @@ export default function InterviewsPage({ currentUser }) {
   const { mutate: deleteInterview, isPending: deletingInterview } = useDeleteInterview();
 
   useEffect(() => {
-    if (!interviewProfiles[0]) return;
-    const hasActiveProfile = interviewProfiles.some((profile) => String(profile.id) === String(activeProfileId));
-    if (!activeProfileId || !hasActiveProfile) setActiveProfileId(interviewProfiles[0].id);
-  }, [activeProfileId, interviewProfiles]);
+    if (!workspaceInterviewProfiles[0]) return;
+    const hasActiveProfile = workspaceInterviewProfiles.some((profile) => String(profile.id) === String(activeProfileId));
+    if (!activeProfileId || !hasActiveProfile) setActiveProfileId(workspaceInterviewProfiles[0].id);
+  }, [activeProfileId, workspaceInterviewProfiles]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
@@ -454,21 +470,40 @@ export default function InterviewsPage({ currentUser }) {
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
-      {!interviewProfiles.length && !profilesLoading ? (
+      {superadminView ? (
+        <SuperadminWorkspaceLens
+          activeWorkspaceId={activeWorkspaceId}
+          isLoading={workspacesLoading}
+          rows={interviewProfilesWithWorkspace}
+          subtitle={`${workspaceInterviewProfiles.length.toLocaleString()} interview-ready profiles in view`}
+          title="Interview workspaces"
+          workspaces={workspaces}
+          metrics={[
+            { label: 'Active', value: workspaceInterviewProfiles.reduce((sum, profile) => sum + Number(profile.progress?.activeInterviews || 0), 0) },
+            { label: 'Total', value: workspaceInterviewProfiles.reduce((sum, profile) => sum + Number(profile.progress?.totalInterviews || 0), 0) },
+          ]}
+          onWorkspaceChange={(value) => {
+            setActiveWorkspaceId(value);
+            setSelectedInterviewId('');
+            setError('');
+          }}
+        />
+      ) : null}
+      {!workspaceInterviewProfiles.length && !profilesLoading ? (
         <EmptyState
           title="No interview profiles available"
           detail="Interview work appears after an active or legacy profile has applications in the interview pipeline."
         />
       ) : null}
 
-      {profilesLoading || interviewProfiles.length ? (
+      {profilesLoading || workspaceInterviewProfiles.length ? (
         <Box
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)', xl: '240px minmax(0, 1fr)' },
             gap: 1.5,
             alignItems: 'stretch',
-            height: { xs: 'auto', md: 'calc(100vh - 108px)', xl: 'calc(100vh - 124px)' },
+            height: { xs: 'auto', md: superadminView ? 'calc(100vh - 214px)' : 'calc(100vh - 108px)', xl: superadminView ? 'calc(100vh - 230px)' : 'calc(100vh - 124px)' },
             minHeight: { md: 0 },
             minWidth: 0,
           }}
@@ -477,7 +512,7 @@ export default function InterviewsPage({ currentUser }) {
             activeColor={activeColor}
             activeProfile={activeProfile}
             isLoading={profilesLoading}
-            profiles={interviewProfiles}
+            profiles={workspaceInterviewProfiles}
             showDailyGoal={false}
             showInterviewCounts
             onProfileChange={setActiveProfileId}
