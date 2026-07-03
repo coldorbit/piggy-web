@@ -52,8 +52,8 @@ export const INTERVIEW_STAGES = [
 ];
 
 export const INTERVIEW_OUTCOME_COLUMNS = [
-  { value: 'lost', label: 'Failed/Lost', status: 'lost' },
   { value: 'won', label: 'Hired', status: 'won' },
+  { value: 'lost', label: 'Failed/Lost', status: 'lost' },
 ];
 
 export const INTERVIEW_KANBAN_COLUMNS = [...INTERVIEW_STAGES, ...INTERVIEW_OUTCOME_COLUMNS];
