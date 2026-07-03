@@ -20,6 +20,7 @@ import { ROLES, canAccessPersonalDashboard, isAdminRole } from '../lib/roles.js'
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
 const AdminConsumptionPage = lazy(() => import('../pages/AdminConsumptionPage.jsx'));
 const AdminDashboardPage = lazy(() => import('../pages/AdminDashboardPage.jsx'));
+const AdminWorkspacesPage = lazy(() => import('../pages/AdminWorkspacesPage.jsx'));
 const AppLayout = lazy(() => import('../components/AppLayout.jsx'));
 const AssessmentsPage = lazy(() => import('../pages/AssessmentsPage.jsx'));
 const BidPage = lazy(() => import('../pages/BidPage.jsx'));
@@ -190,6 +191,14 @@ export function AuthenticatedRoutes({ user }) {
           element={
             <RequireAdmin user={user}>
               <AdminUsersPage currentUser={user} />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/workspaces"
+          element={
+            <RequireAdmin user={user}>
+              <AdminWorkspacesPage currentUser={user} />
             </RequireAdmin>
           }
         />

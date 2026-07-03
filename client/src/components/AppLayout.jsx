@@ -1,5 +1,6 @@
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
+import ApartmentIcon from '@mui/icons-material/Apartment';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BadgeIcon from '@mui/icons-material/Badge';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -93,6 +94,7 @@ export default function AppLayout({ user }) {
   const isConsumptionRoute = location.pathname.startsWith('/admin/consumption');
   const isAssessmentRoute = location.pathname.startsWith('/assessments');
   const isAdminRoute = location.pathname.startsWith('/admin/users');
+  const isWorkspaceRoute = location.pathname.startsWith('/admin/workspaces');
   const isBidRoute = location.pathname.startsWith('/bids');
   const isBidderRoute = location.pathname.startsWith('/bidders');
   const isCallerRoute = location.pathname.startsWith('/callers');
@@ -171,7 +173,7 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminDashboardRoute || isPersonalDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAssessmentRoute ? 'Assessments' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminDashboardRoute || isPersonalDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAssessmentRoute ? 'Assessments' : isWorkspaceRoute ? 'Workspaces' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminDashboardRoute
     ? 'Monitor user and bidder performance'
     : isPersonalDashboardRoute
@@ -180,6 +182,8 @@ export default function AppLayout({ user }) {
     ? 'Track team spend across currencies and channels'
     : isAssessmentRoute
     ? 'Register assessment links and deadlines by profile'
+    : isWorkspaceRoute
+    ? 'Manage workspace identities and bidder sharing readiness'
     : isAdminRoute
     ? 'Manage back-office accounts'
     : isTailoringRoute
@@ -325,6 +329,9 @@ export default function AppLayout({ user }) {
           <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           {isAdminRole(user) ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
+          ) : null}
+          {isAdminRole(user) ? (
+            <NavItem to="/admin/workspaces" icon={<ApartmentIcon />} label="Workspaces" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
         </List>
       </Box>

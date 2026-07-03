@@ -21,13 +21,14 @@ describe('workspace helpers', () => {
     );
   });
 
-  it('formats workspace rows with user counts', () => {
+  it('formats workspace rows with usage counts', () => {
     const workspace = formatWorkspace(
       { id: 1, name: 'Acme', slug: 'acme', createdAt: 'created', updatedAt: 'updated' },
-      { userCount: 3 },
+      { membershipCount: 2, userCount: 3 },
     );
 
     assert.equal(workspace.userCount, 3);
+    assert.equal(workspace.membershipCount, 2);
     assert.equal(workspace.slug, 'acme');
   });
 });

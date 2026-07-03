@@ -1,5 +1,5 @@
 import { fn, col } from 'sequelize';
-import { getWebUserModel, getWorkspaceModel } from '../../../../db.js';
+import { getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel } from '../../../../db.js';
 import { InputError, handleInputError } from '../../../utils/errors.js';
 import { formatWorkspace, workspaceAttributesFromBody } from '../application/workspacesService.js';
 
@@ -7,6 +7,7 @@ export async function listWorkspaces(_req, res, next) {
   try {
     const Workspace = getWorkspaceModel();
     const WebUser = getWebUserModel();
+    const Membership = getUserWorkspaceMembershipModel();
     const rows = await Workspace.findAll({
       attributes: {
         include: [[fn('COUNT', col('users.id')), 'userCount']],
@@ -15,9 +16,21 @@ export async function listWorkspaces(_req, res, next) {
       group: ['Workspace.id'],
       order: [['name', 'ASC']],
     });
+    const membershipRows = await Membership.findAll({
+      attributes: ['workspaceId', [fn('COUNT', col('id')), 'membershipCount']],
+      where: { status: 'active' },
+      group: ['workspaceId'],
+      raw: true,
+    });
+    const membershipCountByWorkspaceId = new Map(
+      membershipRows.map((row) => [String(row.workspaceId), Number(row.membershipCount || 0)]),
+    );
 
     res.json({
-      workspaces: rows.map((row) => formatWorkspace(row, { userCount: Number(row.get('userCount') || 0) })),
+      workspaces: rows.map((row) => formatWorkspace(row, {
+        membershipCount: membershipCountByWorkspaceId.get(String(row.id)) || 0,
+        userCount: Number(row.get('userCount') || 0),
+      })),
     });
   } catch (error) {
     next(error);
@@ -29,7 +42,7 @@ export async function createWorkspace(req, res, next) {
     const Workspace = getWorkspaceModel();
     const attrs = workspaceAttributesFromBody(req.body);
     const workspace = await Workspace.create(attrs);
-    res.status(201).json({ workspace: formatWorkspace(workspace, { userCount: 0 }) });
+    res.status(201).json({ workspace: formatWorkspace(workspace, { membershipCount: 0, userCount: 0 }) });
   } catch (error) {
     handleWorkspaceError(error, res, next);
   }
@@ -46,8 +59,8 @@ export async function updateWorkspace(req, res, next) {
 
     const attrs = workspaceAttributesFromBody(req.body);
     await workspace.update(attrs);
-    const userCount = await getWebUserModel().count({ where: { workspaceId: workspace.id } });
-    res.json({ workspace: formatWorkspace(workspace, { userCount }) });
+    const [userCount, membershipCount] = await workspaceUsageCounts(workspace.id);
+    res.json({ workspace: formatWorkspace(workspace, { membershipCount, userCount }) });
   } catch (error) {
     handleWorkspaceError(error, res, next);
   }
@@ -62,9 +75,12 @@ export async function deleteWorkspace(req, res, next) {
       return;
     }
 
-    const userCount = await getWebUserModel().count({ where: { workspaceId: workspace.id } });
+    const [userCount, membershipCount] = await workspaceUsageCounts(workspace.id);
     if (userCount > 0) {
       throw new InputError('Move or delete workspace users before deleting this workspace');
+    }
+    if (membershipCount > 0) {
+      throw new InputError('Remove bidder workspace memberships before deleting this workspace');
     }
 
     await workspace.destroy();
@@ -72,6 +88,13 @@ export async function deleteWorkspace(req, res, next) {
   } catch (error) {
     handleWorkspaceError(error, res, next);
   }
+}
+
+function workspaceUsageCounts(workspaceId) {
+  return Promise.all([
+    getWebUserModel().count({ where: { workspaceId } }),
+    getUserWorkspaceMembershipModel().count({ where: { workspaceId, status: 'active' } }),
+  ]);
 }
 
 function handleWorkspaceError(error, res, next) {
