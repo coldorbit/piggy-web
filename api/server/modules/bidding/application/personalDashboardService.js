@@ -350,7 +350,8 @@ function personalDashboardQueries(timeZone) {
         tr.id::text AS secondary_id
       FROM tailored_resumes tr
       JOIN bid_profiles p ON p.id = tr.profile_id
-      LEFT JOIN scraped_jobs sj ON sj.url = tr.job_url
+      LEFT JOIN scraped_jobs sj ON md5(sj.url) = md5(tr.job_url)
+        AND sj.url = tr.job_url
       WHERE p.user_id = :userId
         AND tr.status = 'ready'
         AND tr.file_path IS NOT NULL
@@ -432,6 +433,7 @@ function personalDashboardQueries(timeZone) {
         SELECT tr.*
         FROM tailored_resumes tr
         WHERE tr.profile_id = p.id
+          AND md5(tr.job_url) = md5(sj.url)
           AND tr.job_url = sj.url
           AND tr.status IN (:activeTailoringStatuses)
         ORDER BY COALESCE(tr.ready_at, tr.updated_at, tr.created_at) DESC

@@ -220,6 +220,18 @@ async function ensureTenantWorkspaceIndexes() {
 }
 
 async function ensureMd5TextIndex(indexName, tableName, columnName, { unique = false, where = null } = {}) {
+  await ensureExpressionIndex({
+    indexName,
+    tableName,
+    expectedExpression: `md5(${columnName})`,
+    createSql: `
+      CREATE ${unique ? 'UNIQUE ' : ''}INDEX IF NOT EXISTS ${indexName}
+      ON ${tableName} ((md5(${columnName})))${where ? `\n      WHERE ${where}` : ''}
+    `,
+  });
+}
+
+async function ensureExpressionIndex({ indexName, tableName, expectedExpression, createSql }) {
   const sequelize = getSequelize();
   const [{ currentSchema }] = await sequelize.query('SELECT current_schema() AS "currentSchema"', {
     type: QueryTypes.SELECT,
@@ -237,18 +249,12 @@ async function ensureMd5TextIndex(indexName, tableName, columnName, { unique = f
       type: QueryTypes.SELECT,
     },
   );
-  const expectedExpression = `md5(${columnName})`;
 
   if (index && !index.indexdef.includes(expectedExpression)) {
     await sequelize.query(`DROP INDEX IF EXISTS ${indexName}`);
   }
 
-  const uniqueSql = unique ? 'UNIQUE ' : '';
-  const whereSql = where ? `\n    WHERE ${where}` : '';
-  await sequelize.query(`
-    CREATE ${uniqueSql}INDEX IF NOT EXISTS ${indexName}
-    ON ${tableName} ((md5(${columnName})))${whereSql}
-  `);
+  await sequelize.query(createSql);
 }
 
 async function ensureAssessmentIndexes() {
@@ -671,14 +677,27 @@ async function ensureBidPageIndexes() {
     CREATE INDEX IF NOT EXISTS interviews_user_updated_at_idx
     ON interviews (user_id, updated_at DESC)
   `);
-  await sequelize.query(`
-    CREATE INDEX IF NOT EXISTS tailored_resumes_profile_job_status_idx
-    ON tailored_resumes (profile_id, job_url, status)
-  `);
-  await sequelize.query(`
-    CREATE INDEX IF NOT EXISTS tailored_resumes_profile_status_job_idx
-    ON tailored_resumes (profile_id, status, job_url)
-  `);
+  await sequelize.query('DROP INDEX IF EXISTS tailored_resumes_job_url');
+  await sequelize.query('DROP INDEX IF EXISTS tailored_resumes_job_url_idx');
+  await ensureExpressionIndex({
+    indexName: 'tailored_resumes_profile_job_status_idx',
+    tableName: 'tailored_resumes',
+    expectedExpression: 'md5(job_url)',
+    createSql: `
+      CREATE INDEX IF NOT EXISTS tailored_resumes_profile_job_status_idx
+      ON tailored_resumes (profile_id, (md5(job_url)), status)
+    `,
+  });
+  await ensureExpressionIndex({
+    indexName: 'tailored_resumes_profile_status_job_idx',
+    tableName: 'tailored_resumes',
+    expectedExpression: 'md5(job_url)',
+    createSql: `
+      CREATE INDEX IF NOT EXISTS tailored_resumes_profile_status_job_idx
+      ON tailored_resumes (profile_id, status, (md5(job_url)))
+    `,
+  });
+  await ensureMd5TextIndex('tailored_resumes_job_url_hash_idx', 'tailored_resumes', 'job_url');
 }
 
 async function ensureCollaborationIndexes() {

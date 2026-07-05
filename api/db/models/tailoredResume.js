@@ -102,7 +102,6 @@ export function getTailoredResumeModel() {
       createdAt: 'createdAt',
       updatedAt: 'updatedAt',
       indexes: [
-        { fields: ['job_url'] },
         { fields: ['profile_id'] },
         { fields: ['status'] },
       ],

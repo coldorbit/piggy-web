@@ -1,11 +1,11 @@
 import { ensureWebModels, getJobBidModel, getScrapedJobModel, getSequelize, getTailoredResumeModel } from '../../../../db.js';
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
+import { createHash } from 'node:crypto';
 import {
   buildJobQuery,
   buildJobDuplicateKey,
   canImportJobs,
   formatJob,
-  groupedJobsFromRows,
   jobDateFiltersForUser,
   jobsFromCsv,
   mergedJobSourceOptions,
@@ -79,19 +79,15 @@ export async function bulkMarkJobsSpam(req, res, next) {
     const ScrapedJob = getScrapedJobModel();
     const rows = await ScrapedJob.findAll({ where: { id: { [Op.in]: jobIds } } });
     const now = new Date();
-    const sequelize = getSequelize();
+    const values = {
+      isSpam,
+      spamReviewedAt: isSpam === null ? null : now,
+    };
 
-    await sequelize.transaction(async (transaction) => {
-      await Promise.all(rows.map((job) =>
-        job.update(
-          {
-            isSpam,
-            spamReviewedAt: isSpam === null ? null : now,
-          },
-          { transaction },
-        ),
-      ));
+    await ScrapedJob.update(values, {
+      where: { id: { [Op.in]: rows.map((job) => job.id) } },
     });
+    rows.forEach((job) => job.set(values));
 
     res.json({
       updated: rows.length,
@@ -145,19 +141,15 @@ export async function bulkMarkJobsHidden(req, res, next) {
     const ScrapedJob = getScrapedJobModel();
     const rows = await ScrapedJob.findAll({ where: { id: { [Op.in]: jobIds } } });
     const now = new Date();
-    const sequelize = getSequelize();
+    const values = {
+      isHidden,
+      hiddenAt: isHidden ? now : null,
+    };
 
-    await sequelize.transaction(async (transaction) => {
-      await Promise.all(rows.map((job) =>
-        job.update(
-          {
-            isHidden,
-            hiddenAt: isHidden ? now : null,
-          },
-          { transaction },
-        ),
-      ));
+    await ScrapedJob.update(values, {
+      where: { id: { [Op.in]: rows.map((job) => job.id) } },
     });
+    rows.forEach((job) => job.set(values));
 
     res.json({
       updated: rows.length,
@@ -278,16 +270,7 @@ export async function importJobsCsv(req, res, next) {
     const ScrapedJob = getScrapedJobModel();
     const sequelize = getSequelize();
     const { insertRows, duplicateCsvRows, duplicateExistingRows, categoryUpdates, locationUpdates } = await sequelize.transaction(async (transaction) => {
-      const existingRows = await ScrapedJob.findAll({
-        attributes: ['id', 'url', 'duplicateKey', 'title', 'company', 'category', 'location'],
-        where: {
-          [Op.or]: [
-            { url: { [Op.in]: rows.map((row) => row.url) } },
-            { duplicateKey: { [Op.in]: rows.map((row) => row.duplicateKey).filter(Boolean) } },
-          ],
-        },
-        transaction,
-      });
+      const existingRows = await existingImportedJobRows(sequelize, rows, { transaction });
       const plan = planCsvJobImport(rows, existingRows);
 
       if (plan.insertRows.length) await ScrapedJob.bulkCreate(plan.insertRows, { ignoreDuplicates: true, transaction });
@@ -410,13 +393,12 @@ export async function getMeta(_req, res, next) {
         group: ['source'],
         order: [['source', 'ASC']],
       }),
-      ScrapedJob.findAll(),
+      groupedJobCount(sequelize),
       ScrapedJob.max('scrapedAt'),
     ]);
-    const total = groupedJobsFromRows(allRows).length;
 
     res.json({
-      total,
+      total: allRows,
       latestScrapedAt: latest || null,
       sources: mergedJobSourceOptions(sourceRows.map((row) => ({
         source: row.get('source'),
@@ -426,4 +408,78 @@ export async function getMeta(_req, res, next) {
   } catch (error) {
     next(error);
   }
+}
+
+async function groupedJobCount(sequelize) {
+  const [row] = await sequelize.query(
+    `
+      SELECT COUNT(DISTINCT COALESCE(
+        NULLIF(btrim(duplicate_key), ''),
+        concat_ws(
+          '::',
+          COALESCE(NULLIF(regexp_replace(lower(btrim(coalesce(title, 'Untitled role'))), '\\s+', ' ', 'g'), ''), 'unknown'),
+          COALESCE(
+            NULLIF(normalized_company, ''),
+            NULLIF(btrim(regexp_replace(
+              regexp_replace(
+                lower(btrim(coalesce(company, 'Unknown company'))),
+                '\\m(incorporated|inc|llc|ltd|limited|corp|corporation|company|co)\\M\\.?$',
+                '',
+                'gi'
+              ),
+              '[^a-z0-9]+',
+              ' ',
+              'g'
+            )), ''),
+            NULLIF(regexp_replace(lower(btrim(coalesce(company, 'Unknown company'))), '\\s+', ' ', 'g'), ''),
+            'unknown'
+          )
+        )
+      ))::int AS count
+      FROM scraped_jobs
+    `,
+    { type: QueryTypes.SELECT },
+  );
+  return Number(row?.count || 0);
+}
+
+async function existingImportedJobRows(sequelize, rows, { transaction } = {}) {
+  const urls = [...new Set(rows.map((row) => clean(row.url)).filter(Boolean))];
+  const duplicateKeys = [...new Set(rows.map((row) => clean(row.duplicateKey)).filter(Boolean))];
+  if (!urls.length && !duplicateKeys.length) return [];
+
+  return sequelize.query(
+    `
+      SELECT id, url, duplicate_key AS "duplicateKey", title, company, category, location
+      FROM scraped_jobs
+      WHERE (
+          :hasUrls = true
+          AND md5(url) IN (:urlHashes)
+          AND url IN (:urls)
+        )
+        OR (
+          :hasDuplicateKeys = true
+          AND duplicate_key IS NOT NULL
+          AND md5(duplicate_key) IN (:duplicateKeyHashes)
+          AND duplicate_key IN (:duplicateKeys)
+        )
+    `,
+    {
+      replacements: {
+        hasUrls: urls.length > 0,
+        urls: urls.length ? urls : [''],
+        urlHashes: md5Values(urls),
+        hasDuplicateKeys: duplicateKeys.length > 0,
+        duplicateKeys: duplicateKeys.length ? duplicateKeys : [''],
+        duplicateKeyHashes: md5Values(duplicateKeys),
+      },
+      transaction,
+      type: QueryTypes.SELECT,
+    },
+  );
+}
+
+function md5Values(values) {
+  const hashes = values.map((value) => createHash('md5').update(String(value)).digest('hex'));
+  return hashes.length ? hashes : [''];
 }

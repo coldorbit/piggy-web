@@ -2024,7 +2024,8 @@ async function sameCompanyTailoringByJobUrl({ sequelize, profileId, jobs }) {
         scraped_jobs.scraped_at,
         scraped_jobs.url
       FROM tailored_resumes
-      JOIN scraped_jobs ON scraped_jobs.url = tailored_resumes.job_url
+      JOIN scraped_jobs ON md5(scraped_jobs.url) = md5(tailored_resumes.job_url)
+        AND scraped_jobs.url = tailored_resumes.job_url
       WHERE tailored_resumes.profile_id = :profileId
         AND tailored_resumes.status IN (:statuses)
         AND lower(regexp_replace(btrim(coalesce(scraped_jobs.company, '')), '\\s+', ' ', 'g')) IN (:companies)
@@ -2061,6 +2062,25 @@ async function sameCompanyTailoringByJobUrl({ sequelize, profileId, jobs }) {
   return result;
 }
 
+async function existingTailoredResumesByJobUrl({ profileId, jobs }) {
+  const jobUrls = [...new Set(jobs.map((job) => clean(job.url)).filter(Boolean))];
+  if (!jobUrls.length) return new Map();
+
+  const rows = await getTailoredResumeModel().findAll({
+    where: {
+      profileId,
+      jobUrl: { [Op.in]: jobUrls },
+    },
+    order: [['jobUrl', 'ASC'], ['updatedAt', 'DESC']],
+  });
+
+  const rowsByJobUrl = new Map();
+  for (const row of rows) {
+    if (!rowsByJobUrl.has(row.jobUrl)) rowsByJobUrl.set(row.jobUrl, row);
+  }
+  return rowsByJobUrl;
+}
+
 async function findSameCompanyTailoringConflicts({ sequelize, profileId, job }) {
   const company = normalizeCompany(job.company);
   if (!company || !job.url) return [];
@@ -2079,7 +2099,8 @@ async function findSameCompanyTailoringConflicts({ sequelize, profileId, job }) 
         scraped_jobs.scraped_at,
         scraped_jobs.url
       FROM tailored_resumes
-      JOIN scraped_jobs ON scraped_jobs.url = tailored_resumes.job_url
+      JOIN scraped_jobs ON md5(scraped_jobs.url) = md5(tailored_resumes.job_url)
+        AND scraped_jobs.url = tailored_resumes.job_url
       WHERE tailored_resumes.profile_id = :profileId
         AND tailored_resumes.job_url <> :jobUrl
         AND tailored_resumes.status IN (:statuses)
@@ -2205,6 +2226,29 @@ export async function bulkCreateTailoredResumes(req, res, next) {
     const TailoredResume = getTailoredResumeModel();
     const jobs = await ScrapedJob.findAll({ where: { id: { [Op.in]: jobIds } } });
     const jobsById = new Map(jobs.map((job) => [String(job.id), job]));
+    const [sameCompanyByJobUrl, existingByJobUrl] = await Promise.all([
+      sameCompanyTailoringByJobUrl({ sequelize, profileId: profile.id, jobs }),
+      existingTailoredResumesByJobUrl({ sequelize, profileId: profile.id, jobs }),
+    ]);
+    const priorIdsToInvalidate = confirmSameCompany
+      ? new Set([...sameCompanyByJobUrl.values()].filter((conflict) => conflict.requiresConfirmation).map((conflict) => conflict.priorTailoredResumeId))
+      : new Set();
+    if (priorIdsToInvalidate.size) {
+      await TailoredResume.update(
+        {
+          status: 'invalid',
+          lastError: 'Invalidated by newer same-company tailoring request',
+          deadLetterAt: new Date(),
+        },
+        {
+          where: {
+            id: { [Op.in]: [...priorIdsToInvalidate] },
+            profileId: profile.id,
+            status: { [Op.in]: ACTIVE_TAILORED_RESUME_STATUSES },
+          },
+        },
+      );
+    }
     const results = [];
 
     for (const jobId of jobIds) {
@@ -2215,40 +2259,19 @@ export async function bulkCreateTailoredResumes(req, res, next) {
       }
 
       try {
-        const sameCompanyConflicts = await findSameCompanyTailoringConflicts({ sequelize, profileId: profile.id, job });
-        if (sameCompanyConflicts.length && !confirmSameCompany) {
-          const prior = sameCompanyConflicts[0];
+        const sameCompanyConflict = sameCompanyByJobUrl.get(job.url);
+        if (sameCompanyConflict?.requiresConfirmation && !confirmSameCompany) {
           results.push({
             jobId: String(job.id),
             ok: false,
             code: 'same_company_tailoring_conflict',
-            error: `Different role at same company: ${prior.priorTitle} was tailored ${prior.daysSincePrior} day${prior.daysSincePrior === 1 ? '' : 's'} ago.`,
-            sameCompanyTailoring: prior,
+            error: `Different role at same company: ${sameCompanyConflict.priorTitle} was tailored ${sameCompanyConflict.daysSincePrior} day${sameCompanyConflict.daysSincePrior === 1 ? '' : 's'} ago.`,
+            sameCompanyTailoring: sameCompanyConflict,
           });
           continue;
         }
 
-        if (sameCompanyConflicts.length) {
-          await TailoredResume.update(
-            {
-              status: 'invalid',
-              lastError: 'Invalidated by newer same-company tailoring request',
-              deadLetterAt: new Date(),
-            },
-            {
-              where: {
-                id: { [Op.in]: sameCompanyConflicts.map((conflict) => conflict.priorTailoredResumeId) },
-                profileId: profile.id,
-                status: { [Op.in]: ACTIVE_TAILORED_RESUME_STATUSES },
-              },
-            },
-          );
-        }
-
-        const existing = await TailoredResume.findOne({
-          where: { profileId: profile.id, jobUrl: job.url },
-          order: [['updatedAt', 'DESC']],
-        });
+        const existing = existingByJobUrl.get(job.url);
         const attrs = tailoredResumeRequestAttrs({ userId: user.id, profileId: profile.id, jobUrl: job.url });
         const tailoredResume = existing ? await existing.update(attrs) : await TailoredResume.create(attrs);
         await enqueueTailoredResumeRequest({ tailoredResumeId: tailoredResume.id });
@@ -2464,7 +2487,8 @@ export async function listTailoringRequests(req, res, next) {
       LEFT JOIN web_users request_user ON request_user.id = tailored_resumes.user_id
       LEFT JOIN bid_profiles ON bid_profiles.id = tailored_resumes.profile_id
       LEFT JOIN web_users owner_user ON owner_user.id = bid_profiles.user_id
-      LEFT JOIN scraped_jobs ON scraped_jobs.url = tailored_resumes.job_url
+      LEFT JOIN scraped_jobs ON md5(scraped_jobs.url) = md5(tailored_resumes.job_url)
+        AND scraped_jobs.url = tailored_resumes.job_url
       ${whereSql}
       ORDER BY tailored_resumes.updated_at DESC
       LIMIT :limit
@@ -2481,7 +2505,8 @@ export async function listTailoringRequests(req, res, next) {
         LEFT JOIN web_users request_user ON request_user.id = tailored_resumes.user_id
         LEFT JOIN bid_profiles ON bid_profiles.id = tailored_resumes.profile_id
         LEFT JOIN web_users owner_user ON owner_user.id = bid_profiles.user_id
-        LEFT JOIN scraped_jobs ON scraped_jobs.url = tailored_resumes.job_url
+        LEFT JOIN scraped_jobs ON md5(scraped_jobs.url) = md5(tailored_resumes.job_url)
+          AND scraped_jobs.url = tailored_resumes.job_url
         ${whereSql}
         `,
         { replacements, type: QueryTypes.SELECT },
@@ -2493,7 +2518,8 @@ export async function listTailoringRequests(req, res, next) {
         LEFT JOIN web_users request_user ON request_user.id = tailored_resumes.user_id
         LEFT JOIN bid_profiles ON bid_profiles.id = tailored_resumes.profile_id
         LEFT JOIN web_users owner_user ON owner_user.id = bid_profiles.user_id
-        LEFT JOIN scraped_jobs ON scraped_jobs.url = tailored_resumes.job_url
+        LEFT JOIN scraped_jobs ON md5(scraped_jobs.url) = md5(tailored_resumes.job_url)
+          AND scraped_jobs.url = tailored_resumes.job_url
         ${baseWhereSql}
         GROUP BY status
         ORDER BY status ASC

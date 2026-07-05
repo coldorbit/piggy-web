@@ -107,7 +107,8 @@ function tailoredResumeExistsSql({ profileId, sequelize }) {
   return `EXISTS (
     SELECT 1
     FROM tailored_resumes tailored_resume
-    WHERE tailored_resume.job_url = "ScrapedJob"."url"
+    WHERE md5(tailored_resume.job_url) = md5("ScrapedJob"."url")
+      AND tailored_resume.job_url = "ScrapedJob"."url"
       AND tailored_resume.status IN (${activeTailoredResumeStatusesSql(sequelize)})
       AND tailored_resume.profile_id = ${escapedProfileId}
   )`;
@@ -127,7 +128,8 @@ function tailoredResumeTimestampSql({ profileId, sequelize, column }) {
   return `(
     SELECT MAX(tailored_resume.${column})
     FROM tailored_resumes tailored_resume
-    WHERE tailored_resume.job_url = "ScrapedJob"."url"
+    WHERE md5(tailored_resume.job_url) = md5("ScrapedJob"."url")
+      AND tailored_resume.job_url = "ScrapedJob"."url"
       AND tailored_resume.status IN (${activeTailoredResumeStatusesSql(sequelize)})
       AND tailored_resume.profile_id = ${escapedProfileId}
   )`;
