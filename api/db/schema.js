@@ -1,4 +1,4 @@
-import { DataTypes } from 'sequelize';
+import { DataTypes, QueryTypes } from 'sequelize';
 import { getSequelize } from './connection.js';
 import {
   getAssessmentModel,
@@ -215,9 +215,39 @@ async function ensureTenantWorkspaceIndexes() {
   await sequelize.query('DROP INDEX IF EXISTS scraped_jobs_workspace_scraped_at_idx');
   await sequelize.query('DROP INDEX IF EXISTS scraped_jobs_workspace_url_unique');
   await sequelize.query('DROP INDEX IF EXISTS scraped_jobs_workspace_duplicate_key_idx');
+  await sequelize.query('ALTER TABLE scraped_jobs DROP CONSTRAINT IF EXISTS scraped_jobs_url_key');
+  await ensureMd5TextIndex('scraped_jobs_url_unique', 'scraped_jobs', 'url', { unique: true });
+}
+
+async function ensureMd5TextIndex(indexName, tableName, columnName, { unique = false, where = null } = {}) {
+  const sequelize = getSequelize();
+  const [{ currentSchema }] = await sequelize.query('SELECT current_schema() AS "currentSchema"', {
+    type: QueryTypes.SELECT,
+  });
+  const [index] = await sequelize.query(
+    `
+      SELECT indexdef
+      FROM pg_indexes
+      WHERE schemaname = :schema
+        AND tablename = :tableName
+        AND indexname = :indexName
+    `,
+    {
+      replacements: { schema: currentSchema, tableName, indexName },
+      type: QueryTypes.SELECT,
+    },
+  );
+  const expectedExpression = `md5(${columnName})`;
+
+  if (index && !index.indexdef.includes(expectedExpression)) {
+    await sequelize.query(`DROP INDEX IF EXISTS ${indexName}`);
+  }
+
+  const uniqueSql = unique ? 'UNIQUE ' : '';
+  const whereSql = where ? `\n    WHERE ${where}` : '';
   await sequelize.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS scraped_jobs_url_unique
-    ON scraped_jobs (url)
+    CREATE ${uniqueSql}INDEX IF NOT EXISTS ${indexName}
+    ON ${tableName} ((md5(${columnName})))${whereSql}
   `);
 }
 
@@ -579,11 +609,9 @@ async function ensureBidPageIndexes() {
     CREATE INDEX IF NOT EXISTS scraped_jobs_source_idx
     ON scraped_jobs (source)
   `);
-  await sequelize.query(`
-    CREATE INDEX IF NOT EXISTS scraped_jobs_duplicate_key_idx
-    ON scraped_jobs (duplicate_key)
-    WHERE duplicate_key IS NOT NULL
-  `);
+  await ensureMd5TextIndex('scraped_jobs_duplicate_key_idx', 'scraped_jobs', 'duplicate_key', {
+    where: 'duplicate_key IS NOT NULL',
+  });
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS scraped_jobs_normalized_company_idx
     ON scraped_jobs (normalized_company)

@@ -21,7 +21,6 @@ export function getScrapedJobModel() {
       url: {
         type: DataTypes.TEXT,
         allowNull: false,
-        unique: true,
       },
       duplicateKey: {
         type: DataTypes.TEXT,
