@@ -612,11 +612,9 @@ async function ensureBidPageIndexes() {
   await ensureMd5TextIndex('scraped_jobs_duplicate_key_idx', 'scraped_jobs', 'duplicate_key', {
     where: 'duplicate_key IS NOT NULL',
   });
-  await sequelize.query(`
-    CREATE INDEX IF NOT EXISTS scraped_jobs_normalized_company_idx
-    ON scraped_jobs (normalized_company)
-    WHERE normalized_company IS NOT NULL
-  `);
+  await ensureMd5TextIndex('scraped_jobs_normalized_company_idx', 'scraped_jobs', 'normalized_company', {
+    where: 'normalized_company IS NOT NULL',
+  });
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS scraped_jobs_category_idx
     ON scraped_jobs (category)
