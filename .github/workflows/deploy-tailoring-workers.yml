@@ -61,10 +61,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push worker image
         uses: docker/build-push-action@v6
         with:
           context: ./worker
+          pull: true
+          no-cache: true
           push: true
           tags: |
             ${{ steps.image.outputs.image }}
