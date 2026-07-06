@@ -20,6 +20,9 @@ import {
   monthLabelForDateKey,
 } from '../lib/timezone.js';
 
+const EMPTY_ARRAY = [];
+const EMPTY_OBJECT = {};
+
 export default function CalendarPage({ currentUser }) {
   const [view, setView] = useState(CALENDAR_VIEWS.week);
   const [cursorDate, setCursorDate] = useState(() => defaultTimezoneTodayKey());
@@ -31,7 +34,7 @@ export default function CalendarPage({ currentUser }) {
   const superadminView = isSuperadmin(currentUser);
   const updateBid = useUpdateJobBid();
   const updateInterviewCall = useUpdateInterviewCall();
-  const { data: workspaces = [], isLoading: workspacesLoading } = useAdminWorkspaces({ enabled: superadminView });
+  const { data: workspaces = EMPTY_ARRAY, isLoading: workspacesLoading } = useAdminWorkspaces({ enabled: superadminView });
   const {
     data: calendarData,
     isLoading: calendarLoading,
@@ -41,11 +44,11 @@ export default function CalendarPage({ currentUser }) {
     queryFn: fetchCalendarInterviews,
     staleTime: 30_000,
   });
-  const profiles = calendarData?.profiles || [];
-  const jobs = calendarData?.jobs || [];
-  const callerUsers = calendarData?.callerUsers || [];
-  const calendarMeta = calendarData?.calendar || {};
-  const calendarCurrentUser = calendarData?.currentUser || {};
+  const profiles = calendarData?.profiles || EMPTY_ARRAY;
+  const jobs = calendarData?.jobs || EMPTY_ARRAY;
+  const callerUsers = calendarData?.callerUsers || EMPTY_ARRAY;
+  const calendarMeta = calendarData?.calendar || EMPTY_OBJECT;
+  const calendarCurrentUser = calendarData?.currentUser || EMPTY_OBJECT;
   const allCalendarProfiles = useMemo(
     () =>
       profiles.map((profile) => ({
@@ -59,6 +62,11 @@ export default function CalendarPage({ currentUser }) {
     () => (superadminView ? filterRowsByWorkspace(allCalendarProfiles, activeWorkspaceId) : allCalendarProfiles),
     [activeWorkspaceId, allCalendarProfiles, superadminView],
   );
+  const calendarProfileIds = useMemo(
+    () => calendarProfiles.map((profile) => String(profile.id)),
+    [calendarProfiles],
+  );
+  const calendarProfileIdsKey = calendarProfileIds.join('\n');
   const profileById = useMemo(
     () => new Map(calendarProfiles.map((profile) => [String(profile.id), profile])),
     [calendarProfiles],
@@ -79,16 +87,17 @@ export default function CalendarPage({ currentUser }) {
 
   useEffect(() => {
     setCheckedProfileIds((currentIds) => {
-      const activeIds = calendarProfiles.map((profile) => String(profile.id));
+      const activeIds = calendarProfileIdsKey ? calendarProfileIdsKey.split('\n') : EMPTY_ARRAY;
       const activeIdSet = new Set(activeIds);
       const keptIds = currentIds.map(String).filter((id) => activeIdSet.has(id));
       const addedIds = activeIds.filter((id) => !keptIds.includes(id));
-      return [...keptIds, ...addedIds];
+      const nextIds = [...keptIds, ...addedIds];
+      return sameStringArray(currentIds, nextIds) ? currentIds : nextIds;
     });
-  }, [calendarProfiles]);
+  }, [calendarProfileIdsKey]);
 
   const events = useMemo(
-    () => calendarEvents(jobs, profileById, checkedProfileIds, search, calendarMeta.conflicts || []),
+    () => calendarEvents(jobs, profileById, checkedProfileIds, search, calendarMeta.conflicts || EMPTY_ARRAY),
     [jobs, profileById, checkedProfileIds, search, calendarMeta.conflicts],
   );
   const loading = calendarLoading;
@@ -118,7 +127,8 @@ export default function CalendarPage({ currentUser }) {
       const currentSet = new Set(currentIds.map(String));
       if (checked) currentSet.add(id);
       else currentSet.delete(id);
-      return calendarProfiles.map((profile) => String(profile.id)).filter((activeId) => currentSet.has(activeId));
+      const nextIds = calendarProfileIds.filter((activeId) => currentSet.has(activeId));
+      return sameStringArray(currentIds, nextIds) ? currentIds : nextIds;
     });
   }
 
@@ -238,7 +248,7 @@ export default function CalendarPage({ currentUser }) {
           checkedProfileIds={checkedProfileIds}
           profiles={calendarProfiles}
           onChange={toggleProfile}
-          onSelectAll={() => setCheckedProfileIds(calendarProfiles.map((profile) => String(profile.id)))}
+          onSelectAll={() => setCheckedProfileIds(calendarProfileIds)}
           onSelectNone={() => setCheckedProfileIds([])}
         />
 
@@ -303,6 +313,11 @@ function conflictEventIds(conflicts) {
     }
   }
   return ids;
+}
+
+function sameStringArray(left = [], right = []) {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => String(value) === String(right[index]));
 }
 
 function fetchCalendarInterviews() {
