@@ -85,6 +85,34 @@ describe('buildBidTabQuery', () => {
     assert.equal(query.order[1][1], 'DESC NULLS LAST');
   });
 
+  it('moves static profile ready bids to the tailored tab', () => {
+    const query = buildBidTabQuery({
+      where: {},
+      tab: 'tailored',
+      profileId: 42,
+      isStaticProfile: true,
+      JobBid,
+      sequelize,
+    });
+
+    assert.equal(query.include[0].required, true);
+    assert.equal(query.include[0].where.status, 'ready');
+    assert.equal(literalsFor(query).some((sql) => sql.includes('tailored_resumes')), false);
+  });
+
+  it('excludes static profile ready bids from the todo tab', () => {
+    const query = buildBidTabQuery({
+      where: {},
+      tab: 'todo',
+      profileId: 42,
+      isStaticProfile: true,
+      JobBid,
+      sequelize,
+    });
+
+    assert.deepEqual(todoStatusesFor(query), ['planned', 'queued', 'tailoring']);
+  });
+
   it('requires submitted-style bids on the done tab', () => {
     const query = buildBidTabQuery({
       where: {},
@@ -252,6 +280,13 @@ function assertHasPlannedBidClause(query) {
     ),
     true,
   );
+}
+
+function todoStatusesFor(query) {
+  const clause = (query.where[Op.and] || []).find((item) =>
+    item?.[Op.or]?.some((condition) => condition?.['$bids.status$']?.[Op.in]),
+  );
+  return clause?.[Op.or]?.find((condition) => condition?.['$bids.status$']?.[Op.in])?.['$bids.status$']?.[Op.in] || [];
 }
 
 function assertNoReviewBidClause(query) {

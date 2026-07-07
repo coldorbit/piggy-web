@@ -267,7 +267,7 @@ export default function BidPage({ currentUser }) {
   function tailorResume(job, options = {}) {
     if (!activeProfile) return;
     if (activeProfile.isStatic) {
-      saveBid(job, { status: 'submitted' });
+      saveBid(job, { status: 'ready' });
       return;
     }
     const jobId = bidJobActionId(job);
@@ -386,7 +386,7 @@ export default function BidPage({ currentUser }) {
           jobId: bidJobActionId(job),
           bidId: job.bid?.id || null,
         })),
-        'submitted',
+        'ready',
       );
       return;
     }
@@ -410,7 +410,7 @@ export default function BidPage({ currentUser }) {
 
   const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'];
   const jobs = bidJobsData?.jobs || [];
-  const visibleJobs = jobs.filter((job) => isJobVisibleForTab(job, activeBidTab, draftFor(job)));
+  const visibleJobs = jobs.filter((job) => isJobVisibleForTab(job, activeBidTab, draftFor(job), { isStaticProfile: Boolean(activeProfile?.isStatic) }));
   const total = bidJobsData?.total || 0;
   const currentBidUser = useMemo(
     () => ({ ...(currentUser || {}), ...(bidJobsData?.currentUser || {}) }),

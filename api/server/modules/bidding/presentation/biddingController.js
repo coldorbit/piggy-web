@@ -1120,6 +1120,7 @@ export async function listBidJobs(req, res, next) {
       profileId: profile.id,
       appliedProfileId,
       bidDateRange: activeBidDateRange,
+      isStaticProfile: Boolean(profile.isStatic),
       JobBid,
       sequelize,
     });
@@ -1136,6 +1137,7 @@ export async function listBidJobs(req, res, next) {
         profileId: profile.id,
         appliedProfileId: tab === 'todo' && tab === bidTab ? appliedProfileId : '',
         bidDateRange: bidDateRangeForTab(query, tab, user),
+        isStaticProfile: Boolean(profile.isStatic),
         JobBid,
         sequelize,
       });
@@ -1895,6 +1897,7 @@ async function countBidTabForProfile({ profile, tab, query, user, appliedProfile
     profileId: profile.id,
     appliedProfileId,
     bidDateRange: bidDateRangeForTab(query, tab, user),
+    isStaticProfile: Boolean(profile.isStatic),
     JobBid,
     sequelize,
   });

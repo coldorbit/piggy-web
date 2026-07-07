@@ -79,7 +79,8 @@ export default function BidJobCard({
   const showStatusControl = activeTab === BID_TABS.interviews || activeTab === BID_TABS.done || canRecoverBadWorkJob;
   const statusControlLabel = canRecoverBadWorkJob ? 'Recover' : 'Status';
   const statusControlValue = canRecoverBadWorkJob && isInvalidReviewJob ? '' : draft.status || statusDefault || 'planned';
-  const showAppliedAction = (activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready') || (activeProfileIsStatic && activeTab === BID_TABS.todo);
+  const showReadyToApplyAction = activeProfileIsStatic && activeTab === BID_TABS.todo;
+  const showAppliedAction = (activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready') || (activeProfileIsStatic && activeTab === BID_TABS.tailored);
   const bidChipLabel = reviewStatusLabel(bidStatus) || (job.bid
     ? `Bid ${formatDate(job.bid.bidAt)}`
     : draft.status === 'planned'
@@ -428,6 +429,18 @@ export default function BidJobCard({
                     sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
                   >
                     Mark as applied
+                  </Button>
+                ) : null}
+                {showReadyToApplyAction ? (
+                  <Button
+                    disabled={isInvalidReviewJob || draft.status === 'ready'}
+                    onClick={() => onTailorResume(job)}
+                    size="small"
+                    startIcon={<CheckCircleIcon />}
+                    variant="contained"
+                    sx={{ minHeight: 32, whiteSpace: 'nowrap' }}
+                  >
+                    Ready to apply
                   </Button>
                 ) : null}
                 {hasDownloadableResume ? (

@@ -1,6 +1,6 @@
 import ApartmentIcon from '@mui/icons-material/Apartment';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import { Box, Chip, FormControl, InputLabel, MenuItem, Paper, Select, Typography } from '@mui/material';
+import { Box, FormControl, InputLabel, MenuItem, Paper, Select, Typography } from '@mui/material';
 import { useMemo } from 'react';
 
 export const ALL_WORKSPACES = 'all';
@@ -103,23 +103,6 @@ export default function SuperadminWorkspaceLens({
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 0.75, overflowX: 'auto', pb: 0.25 }}>
-        <WorkspaceChip
-          active={activeWorkspaceId === ALL_WORKSPACES}
-          label="All"
-          count={rows.length}
-          onClick={() => onWorkspaceChange?.(ALL_WORKSPACES)}
-        />
-        {workspaceOptions.map((workspace) => (
-          <WorkspaceChip
-            key={workspace.id}
-            active={String(activeWorkspaceId) === String(workspace.id)}
-            label={workspace.name}
-            count={workspace.count}
-            onClick={() => onWorkspaceChange?.(String(workspace.id))}
-          />
-        ))}
-      </Box>
     </Paper>
   );
 }
@@ -159,27 +142,6 @@ function MetricChip({ metric }) {
         {formatMetricValue(metric.value)}
       </Typography>
     </Box>
-  );
-}
-
-function WorkspaceChip({ active, count, label, onClick }) {
-  return (
-    <Chip
-      clickable
-      label={`${label} · ${Number(count || 0).toLocaleString()}`}
-      onClick={onClick}
-      variant={active ? 'filled' : 'outlined'}
-      sx={{
-        flexShrink: 0,
-        bgcolor: active ? '#0f172a' : 'rgba(255,255,255,0.72)',
-        borderColor: active ? '#0f172a' : 'rgba(100, 116, 139, 0.28)',
-        color: active ? '#fff' : '#334155',
-        fontWeight: 900,
-        '&:hover': {
-          bgcolor: active ? '#1e293b' : '#f8fafc',
-        },
-      }}
-    />
   );
 }
 

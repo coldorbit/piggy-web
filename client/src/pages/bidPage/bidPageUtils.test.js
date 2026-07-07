@@ -3,7 +3,9 @@ import { describe, it } from 'node:test';
 import {
   appliedProfileOptionsForActiveProfile,
   isAppliedProfileFilterValid,
+  isJobVisibleForTab,
 } from './bidPageUtils.js';
+import { BID_TABS } from '../../components/bids/bidConstants.js';
 
 describe('appliedProfileOptionsForActiveProfile', () => {
   it('returns active same-category profiles except the current profile', () => {
@@ -53,6 +55,24 @@ describe('isAppliedProfileFilterValid', () => {
   it('rejects selections outside the applied profile options', () => {
     assert.equal(isAppliedProfileFilterValid(2, [profile({ id: 2 })]), true);
     assert.equal(isAppliedProfileFilterValid(3, [profile({ id: 2 })]), false);
+  });
+});
+
+describe('isJobVisibleForTab', () => {
+  it('routes static ready bids to tailored instead of todo', () => {
+    const job = { bid: { status: 'ready' } };
+    const draft = { status: 'ready' };
+
+    assert.equal(isJobVisibleForTab(job, BID_TABS.todo, draft, { isStaticProfile: true }), false);
+    assert.equal(isJobVisibleForTab(job, BID_TABS.tailored, draft, { isStaticProfile: true }), true);
+  });
+
+  it('routes submitted static bids to done', () => {
+    const job = { bid: { status: 'submitted' } };
+    const draft = { status: 'submitted' };
+
+    assert.equal(isJobVisibleForTab(job, BID_TABS.tailored, draft, { isStaticProfile: true }), false);
+    assert.equal(isJobVisibleForTab(job, BID_TABS.done, draft, { isStaticProfile: true }), true);
   });
 });
 

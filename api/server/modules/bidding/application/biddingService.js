@@ -16,9 +16,10 @@ const FINISHED_BID_AT_STATUSES = new Set(['submitted', 'needs_follow_up', 'stale
 const APPLICATION_SUBMITTED_STATUS = 'submitted';
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const OPEN_BID_STATUSES = ['planned', 'queued', 'tailoring', 'ready'];
+const STATIC_TODO_BID_STATUSES = ['planned', 'queued', 'tailoring'];
 export const REVIEW_BID_STATUSES = new Set(['mismatching_bid', 'spam_job']);
 
-export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', bidDateRange = null, JobBid, sequelize }) {
+export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '', bidDateRange = null, isStaticProfile = false, JobBid, sequelize }) {
   const tabWhere = { ...where };
   const isDoneTab = tab === 'done';
   const isBadWorkTab = tab === 'bad_work';
@@ -60,21 +61,26 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
   }
 
   if (isTailoredTab) {
-    tabWhere[Op.and] = [
-      ...(Array.isArray(tabWhere[Op.and]) ? tabWhere[Op.and] : []),
-      Sequelize.literal(tailoredResumeExistsSql({ profileId, sequelize })),
-      {
-        [Op.or]: [
-          { '$bids.id$': { [Op.is]: null } },
-          { '$bids.status$': { [Op.in]: OPEN_BID_STATUSES } },
-        ],
-      },
-    ];
+    if (isStaticProfile) {
+      include[0].required = true;
+      include[0].where.status = 'ready';
+    } else {
+      tabWhere[Op.and] = [
+        ...(Array.isArray(tabWhere[Op.and]) ? tabWhere[Op.and] : []),
+        Sequelize.literal(tailoredResumeExistsSql({ profileId, sequelize })),
+        {
+          [Op.or]: [
+            { '$bids.id$': { [Op.is]: null } },
+            { '$bids.status$': { [Op.in]: OPEN_BID_STATUSES } },
+          ],
+        },
+      ];
+    }
   } else if (!isDoneTab && !isBadWorkTab && !isInterviewsTab) {
     tabWhere[Op.and] = [
       ...(Array.isArray(tabWhere[Op.and]) ? tabWhere[Op.and] : []),
       {
-        [Op.or]: [{ '$bids.id$': { [Op.is]: null } }, { '$bids.status$': { [Op.in]: OPEN_BID_STATUSES } }],
+        [Op.or]: [{ '$bids.id$': { [Op.is]: null } }, { '$bids.status$': { [Op.in]: isStaticProfile ? STATIC_TODO_BID_STATUSES : OPEN_BID_STATUSES } }],
       },
     ];
   }

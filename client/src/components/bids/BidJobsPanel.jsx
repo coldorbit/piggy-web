@@ -328,7 +328,7 @@ export default function BidJobsPanel() {
                   },
                 }}
               >
-                {activeProfileIsStatic ? 'Mark selected applied' : 'Tailor selected'}
+                {activeProfileIsStatic ? 'Mark selected ready' : 'Tailor selected'}
               </Button>
             </>
           ) : (
