@@ -18,6 +18,7 @@ import {
   PerformanceRateChart,
   PerformanceShareChart,
   PerformanceVolumeChart,
+  ProfileInterviewTrendChart,
 } from '../components/adminDashboard/DashboardCharts.jsx';
 import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { GRAIN_OPTIONS, labelForGrain, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
@@ -173,7 +174,7 @@ function DashboardSection({ dashboard, section }) {
   if (section === 'users') return <UserPerformanceCharts users={dashboard.users || []} />;
   if (section === 'bidders') return <BidderPerformanceCharts bidders={dashboard.bidders || []} />;
   if (section === 'callers') return <CallerPerformanceCharts callers={dashboard.callers || []} />;
-  if (section === 'profiles') return <ProfilePerformanceCharts profiles={dashboard.funnels?.profiles || []} />;
+  if (section === 'profiles') return <ProfilePerformanceCharts profiles={dashboard.funnels?.profiles || []} profileInterviewTrend={dashboard.profileInterviewTrend || []} />;
   return null;
 }
 
@@ -213,10 +214,13 @@ function CallerPerformanceCharts({ callers }) {
   );
 }
 
-function ProfilePerformanceCharts({ profiles }) {
+function ProfilePerformanceCharts({ profileInterviewTrend = [], profiles }) {
   const rows = namedPerformanceRows(displayProfileRows(profiles));
   return (
     <PerformanceChartGrid>
+      <Box sx={{ gridColumn: { xs: 'auto', xl: 'span 2' } }}>
+        <ProfileInterviewTrendChart title="Profile interviews over time" data={displayProfileTrendRows(profileInterviewTrend)} />
+      </Box>
       <PerformanceVolumeChart title="Profile volume" data={rows} bars={PROFILE_VOLUME_BARS} />
       <PerformanceShareChart title="Application share by profile" data={rows} dataKey="applications" />
       <PerformanceRateChart title="Profile conversion rates" data={rows} bars={BIDDER_RATE_BARS} />
@@ -244,6 +248,13 @@ function displayProfileRows(rows = []) {
   return rows.map((row) => ({
     ...row,
     name: formatFirstNameLastInitial(row.name, 'Unknown'),
+  }));
+}
+
+function displayProfileTrendRows(rows = []) {
+  return rows.map((row) => ({
+    ...row,
+    profileName: formatFirstNameLastInitial(row.profileName, 'Unknown'),
   }));
 }
 

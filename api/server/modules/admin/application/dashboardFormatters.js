@@ -8,6 +8,7 @@ export function formatDashboardResponse({
   bidders,
   callers,
   profileFunnels,
+  profileInterviewTrend = [],
   roleFamilyFunnels,
   userSources,
   userCategories,
@@ -38,6 +39,7 @@ export function formatDashboardResponse({
     })),
     bidders: bidders.map(formatBidderRow),
     callers: callers.map((row) => formatCallerRow(row, { bucketCount })),
+    profileInterviewTrend: profileInterviewTrend.map(formatProfileInterviewTrendRow),
     profileActivity: profileActivity.map(formatProfileActivityRow),
     funnels: {
       profiles: profileFunnels.map(formatFunnelRow('profile_name')),
@@ -49,6 +51,17 @@ export function formatDashboardResponse({
       interviewStages: interviewStages.map(formatCountRow('stage')),
       interviewStatuses: interviewStatuses.map(formatCountRow('status')),
     },
+  };
+}
+
+function formatProfileInterviewTrendRow(row) {
+  return {
+    label: row.label,
+    bucketStart: row.bucket_start,
+    profileId: row.profile_id,
+    profileName: row.profile_name || 'Unknown profile',
+    totalInterviews: Number(row.total_interviews || 0),
+    interviews: Number(row.interviews || 0),
   };
 }
 

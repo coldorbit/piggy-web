@@ -135,4 +135,14 @@ describe('dashboard queries', () => {
     assert.doesNotMatch(sql, /job_bids\.status IN \('interviewing', 'won', 'lost'\)/);
     assert.doesNotMatch(sql, /COALESCE\(interviews\.status, job_bids\.status\)/);
   });
+
+  it('builds profile interview trends from selected-period interview creation buckets', () => {
+    const sql = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles', workspaceId: 42 }).profileInterviewTrend;
+
+    assert.match(sql, /top_profiles AS \([\s\S]*JOIN interviews ON interviews\.profile_id = bid_profiles\.id/);
+    assert.match(sql, /timezone\('America\/Los_Angeles', interviews\.created_at\)\) >= range\.starts_at[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
+    assert.match(sql, /bid_profiles\.workspace_id = 42/);
+    assert.match(sql, /COALESCE\(profile_buckets\.interviews, 0\)::int AS interviews/);
+    assert.match(sql, /FROM buckets[\s\S]*CROSS JOIN top_profiles[\s\S]*LEFT JOIN profile_buckets/);
+  });
 });

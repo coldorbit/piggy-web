@@ -233,6 +233,81 @@ export function PerformanceShareChart({ data = [], dataKey, title, nameKey = 'na
   );
 }
 
+export function ProfileInterviewTrendChart({ data = [], title }) {
+  const { rows, profiles } = profileInterviewTrendSeries(data);
+
+  return (
+    <ChartPanel title={title}>
+      {rows.length && profiles.length ? (
+        <ResponsiveContainer width="100%" height={340}>
+          <LineChart data={rows} margin={{ top: 10, right: 24, bottom: 0, left: -18 }}>
+            <CartesianGrid stroke="#E2E8F0" vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <YAxis allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <Tooltip formatter={(value, name) => [number(value), name]} />
+            <Legend />
+            {profiles.map((profile, index) => (
+              <Line
+                key={profile.key}
+                type="monotone"
+                dataKey={profile.key}
+                name={profile.name}
+                stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                strokeWidth={2.4}
+                dot={{ r: 2.5 }}
+                activeDot={{ r: 5 }}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <ChartEmptyState title="No profile interviews" detail="Interview trends will appear once profiles receive interviews in this period." height={340} />
+      )}
+    </ChartPanel>
+  );
+}
+
+function profileInterviewTrendSeries(data = []) {
+  const profiles = [];
+  const profileById = new Map();
+  const rowsByBucket = new Map();
+
+  for (const item of data) {
+    const profileId = String(item.profileId || item.profileName || 'unknown');
+    const key = `profile_${profileId.replace(/[^a-zA-Z0-9_]/g, '_')}`;
+    if (!profileById.has(profileId)) {
+      const profile = {
+        id: profileId,
+        key,
+        name: item.profileName || 'Unknown profile',
+        totalInterviews: Number(item.totalInterviews || 0),
+      };
+      profileById.set(profileId, profile);
+      profiles.push(profile);
+    }
+
+    const bucketKey = String(item.bucketStart || item.label || '');
+    const row = rowsByBucket.get(bucketKey) || { label: item.label || '', bucketStart: item.bucketStart || bucketKey };
+    row[key] = Number(item.interviews || 0);
+    rowsByBucket.set(bucketKey, row);
+  }
+
+  const sortedProfiles = profiles
+    .filter((profile) => Number(profile.totalInterviews || 0) > 0)
+    .sort((left, right) => right.totalInterviews - left.totalInterviews || left.name.localeCompare(right.name));
+  const rows = [...rowsByBucket.values()]
+    .sort((left, right) => String(left.bucketStart || '').localeCompare(String(right.bucketStart || '')))
+    .map((row) => {
+      const filled = { ...row };
+      sortedProfiles.forEach((profile) => {
+        if (filled[profile.key] === undefined) filled[profile.key] = 0;
+      });
+      return filled;
+    });
+
+  return { profiles: sortedProfiles, rows };
+}
+
 function ChartEmptyState({ detail, height, title }) {
   return (
     <Box sx={{ height, display: 'grid', placeItems: 'center' }}>

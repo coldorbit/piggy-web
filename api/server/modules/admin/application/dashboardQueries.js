@@ -27,6 +27,7 @@ export function dashboardQueries(grainConfig, { anchorDate, timeZone = DEFAULT_T
     bidders: bidderPerformanceSql(grainConfig, timeZone, anchor, workspaceId),
     callers: callerPerformanceSql(grainConfig, timeZone, anchor, workspaceId),
     profileFunnels: profileFunnelSql(grainConfig, timeZone, anchor, workspaceId),
+    profileInterviewTrend: profileInterviewTrendSql(grainConfig, timeZone, anchor, workspaceId),
     roleFamilyFunnels: roleFamilyFunnelSql(grainConfig, timeZone, anchor, workspaceId),
     userSources: userSourceMixSql(grainConfig, timeZone, anchor, workspaceId),
     userCategories: userCategoryMixSql(grainConfig, timeZone, anchor, workspaceId),
@@ -673,6 +674,55 @@ function profileFunnelSql(grainConfig, timeZone, anchor, workspaceId) {
     FULL OUTER JOIN interview_metrics ON interview_metrics.id = application_metrics.id
     ORDER BY offers DESC, interviews DESC, applications DESC, profile_name ASC
     LIMIT 24
+  `;
+}
+
+function profileInterviewTrendSql(grainConfig, timeZone, anchor, workspaceId) {
+  const interviewCreatedBucket = bucketExpression('interviews.created_at', grainConfig, timeZone);
+
+  return `
+    ${rangeCte(grainConfig, timeZone, anchor)},
+    buckets AS (
+      SELECT generate_series(starts_at, ends_at, bucket_step) AS bucket_start
+      FROM range
+    ),
+    top_profiles AS (
+      SELECT
+        bid_profiles.id,
+        COALESCE(NULLIF(bid_profiles.name, ''), 'Unknown profile') AS profile_name,
+        COUNT(DISTINCT interviews.id)::int AS total_interviews
+      FROM bid_profiles
+      JOIN interviews ON interviews.profile_id = bid_profiles.id
+      CROSS JOIN range
+      WHERE ${rangePredicate(interviewCreatedBucket)}
+        ${workspaceAnd(workspaceId, bidProfilesWorkspace)}
+      GROUP BY bid_profiles.id, bid_profiles.name
+      ORDER BY total_interviews DESC, profile_name ASC
+      LIMIT 8
+    ),
+    profile_buckets AS (
+      SELECT
+        ${interviewCreatedBucket} AS bucket_start,
+        interviews.profile_id,
+        COUNT(DISTINCT interviews.id)::int AS interviews
+      FROM interviews
+      JOIN top_profiles ON top_profiles.id = interviews.profile_id
+      CROSS JOIN range
+      WHERE ${rangePredicate(interviewCreatedBucket)}
+      GROUP BY 1, interviews.profile_id
+    )
+    SELECT
+      to_char(buckets.bucket_start, '${grainConfig.labelFormat}') AS label,
+      buckets.bucket_start,
+      top_profiles.id AS profile_id,
+      top_profiles.profile_name,
+      top_profiles.total_interviews,
+      COALESCE(profile_buckets.interviews, 0)::int AS interviews
+    FROM buckets
+    CROSS JOIN top_profiles
+    LEFT JOIN profile_buckets ON profile_buckets.bucket_start = buckets.bucket_start
+      AND profile_buckets.profile_id = top_profiles.id
+    ORDER BY top_profiles.total_interviews DESC, top_profiles.profile_name ASC, buckets.bucket_start ASC
   `;
 }
 
