@@ -61,11 +61,13 @@ describe('dashboard queries', () => {
     assert.match(queries.profileFunnels, /bid_profiles\.workspace_id = 42/);
   });
 
-  it('counts user interviews by creation date while keeping outcomes activity-based', () => {
+  it('counts user performance inside the selected period while keeping outcomes activity-based', () => {
     const sql = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles' }).users;
 
-    assert.match(sql, /interview_created_metrics AS \([\s\S]*COUNT\(\*\)::int AS interviews[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\)\) >= range\.starts_at[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
-    assert.match(sql, /interview_activity_metrics AS \([\s\S]*timezone\('America\/Los_Angeles', COALESCE\(interviews\.updated_at, interviews\.created_at\)\)\) >= range\.starts_at[\s\S]*timezone\('America\/Los_Angeles', COALESCE\(interviews\.updated_at, interviews\.created_at\)\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
+    assert.match(sql, /current_period AS \([\s\S]*date_trunc\('day', timezone\('America\/Los_Angeles', now\(\)\)\) AS starts_at/);
+    assert.match(sql, /bid_metrics AS \([\s\S]*timezone\('America\/Los_Angeles', bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', bid_at\) < current_period\.ends_at/);
+    assert.match(sql, /interview_created_metrics AS \([\s\S]*COUNT\(\*\)::int AS interviews[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\) < current_period\.ends_at/);
+    assert.match(sql, /interview_activity_metrics AS \([\s\S]*timezone\('America\/Los_Angeles', COALESCE\(interviews\.updated_at, interviews\.created_at\)\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', COALESCE\(interviews\.updated_at, interviews\.created_at\)\) < current_period\.ends_at/);
     assert.doesNotMatch(sql, /interview_activity_metrics AS \([\s\S]*COUNT\(\*\)::int AS interviews/);
   });
 
@@ -118,7 +120,7 @@ describe('dashboard queries', () => {
       assert.doesNotMatch(sql, />=\s*starts_at/);
     }
 
-    assert.match(queries.profileActivity, /job_bids\.bid_at\)\) >= range\.starts_at[\s\S]*job_bids\.bid_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
+    assert.match(queries.profileActivity, /job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*job_bids\.bid_at\) < current_period\.ends_at/);
     assert.match(queries.sources, /job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*job_bids\.bid_at\) < current_period\.ends_at/);
     assert.match(queries.bidStatuses, /bid_at\) >= current_period\.starts_at[\s\S]*bid_at\) < current_period\.ends_at/);
   });
@@ -130,10 +132,24 @@ describe('dashboard queries', () => {
     assert.match(sql, /COUNT\(DISTINCT interviews\.id\) FILTER \(WHERE interviews\.status = 'won'\)::int AS offers/);
     assert.match(sql, /COUNT\(DISTINCT interviews\.id\) FILTER \(WHERE interviews\.status = 'lost'\)::int AS lost/);
     assert.match(sql, /JOIN interviews ON interviews\.profile_id = bid_profiles\.id/);
-    assert.match(sql, /timezone\('America\/Los_Angeles', interviews\.created_at\)\) >= range\.starts_at[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
+    assert.match(sql, /current_period AS \([\s\S]*date_trunc\('day', timezone\('America\/Los_Angeles', now\(\)\)\) AS starts_at/);
+    assert.match(sql, /timezone\('America\/Los_Angeles', interviews\.created_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\) < current_period\.ends_at/);
     assert.doesNotMatch(sql, /LEFT JOIN interviews ON interviews\.job_bid_id = job_bids\.id/);
     assert.doesNotMatch(sql, /job_bids\.status IN \('interviewing', 'won', 'lost'\)/);
     assert.doesNotMatch(sql, /COALESCE\(interviews\.status, job_bids\.status\)/);
+  });
+
+  it('excludes admin actors from dashboard KPI queries', () => {
+    const queries = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles' });
+
+    assert.match(queries.overall, /dashboard_non_admin_users\.role NOT IN \('superadmin', 'admin'\)/);
+    assert.match(queries.trend, /dashboard_non_admin_users\.role NOT IN \('superadmin', 'admin'\)/);
+    assert.match(queries.users, /WHERE web_users\.role NOT IN \('superadmin', 'admin'\)/);
+    assert.match(queries.bidders, /WHERE web_users\.role NOT IN \('superadmin', 'admin'\)/);
+    assert.match(queries.callers, /WHERE web_users\.role NOT IN \('superadmin', 'admin'\)/);
+    assert.match(queries.profileFunnels, /dashboard_non_admin_users\.role NOT IN \('superadmin', 'admin'\)/);
+    assert.match(queries.profileActivity, /web_users\.role NOT IN \('superadmin', 'admin'\)/);
+    assert.doesNotMatch(queries.overall, /web_users\.role IN \('user', 'admin', 'superadmin', 'finance_manager', 'internal'\)/);
   });
 
   it('builds profile interview trends from selected-period interview creation buckets', () => {
