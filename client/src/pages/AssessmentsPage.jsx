@@ -16,14 +16,10 @@ import {
   Paper,
   Skeleton,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState.jsx';
@@ -36,7 +32,6 @@ import {
   useJobs,
 } from '../lib/api.js';
 import { formatDateTime } from '../lib/formatters.js';
-import { PROFILE_BADGE_COLORS, PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { isAdminRole } from '../lib/roles.js';
 
 const ASSESSMENT_CATEGORY_OPTIONS = [
@@ -55,10 +50,11 @@ const EMPTY_ASSESSMENT_FORM = {
   category: 'coding',
   expiresAt: '',
 };
+const ALL_ASSESSMENTS = 'all';
 
 export default function AssessmentsPage({ currentUser }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
+  const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || ALL_ASSESSMENTS);
   const [form, setForm] = useState(EMPTY_ASSESSMENT_FORM);
   const [selectedJob, setSelectedJob] = useState(null);
   const [jobSearch, setJobSearch] = useState('');
@@ -66,7 +62,7 @@ export default function AssessmentsPage({ currentUser }) {
 
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useAssessmentProfiles();
   const activeProfile = useMemo(
-    () => profiles.find((profile) => String(profile.id) === String(activeProfileId)) || profiles[0] || null,
+    () => profiles.find((profile) => String(profile.id) === String(activeProfileId)) || null,
     [activeProfileId, profiles],
   );
   const {
@@ -75,7 +71,7 @@ export default function AssessmentsPage({ currentUser }) {
     isFetching: assessmentsFetching,
     error: assessmentsError,
     refetch: refetchAssessments,
-  } = useAssessments(activeProfile?.id);
+  } = useAssessments(activeProfile?.id || ALL_ASSESSMENTS);
 
   const jobFilters = useMemo(
     () => ({
@@ -91,7 +87,6 @@ export default function AssessmentsPage({ currentUser }) {
   const createAssessment = useCreateAssessment();
   const deleteAssessment = useDeleteAssessment();
   const markAssessmentDone = useMarkAssessmentDone();
-  const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'] || PROFILE_COLORS.green;
   const assessments = assessmentsData?.assessments || [];
   const stats = assessmentStats(assessments);
   const errorMessage =
@@ -105,14 +100,14 @@ export default function AssessmentsPage({ currentUser }) {
   const canRegister = Boolean(activeProfile?.id && form.assessmentLink.trim() && form.category && !createAssessment.isPending);
 
   useEffect(() => {
-    if (!profiles[0]) return;
+    if (profilesLoading || activeProfileId === ALL_ASSESSMENTS) return;
     const hasProfile = profiles.some((profile) => String(profile.id) === String(activeProfileId));
-    if (!activeProfileId || !hasProfile) setActiveProfileId(profiles[0].id);
-  }, [activeProfileId, profiles]);
+    if (!hasProfile) setActiveProfileId(ALL_ASSESSMENTS);
+  }, [activeProfileId, profiles, profilesLoading]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams();
-    if (activeProfileId) nextParams.set('profileId', activeProfileId);
+    if (activeProfileId && activeProfileId !== ALL_ASSESSMENTS) nextParams.set('profileId', activeProfileId);
     if (nextParams.toString() !== searchParams.toString()) setSearchParams(nextParams, { replace: true });
   }, [activeProfileId, searchParams, setSearchParams]);
 
@@ -177,187 +172,101 @@ export default function AssessmentsPage({ currentUser }) {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)', xl: '240px minmax(0, 1fr)' },
+            gridTemplateRows: 'auto auto auto minmax(0, 1fr)',
             gap: 1.5,
-            alignItems: 'stretch',
             height: { xs: 'auto', md: 'calc(100vh - 108px)', xl: 'calc(100vh - 124px)' },
             minHeight: { md: 0 },
             minWidth: 0,
           }}
         >
-          <AssessmentProfileTabs
-            activeColor={activeColor}
+          <AssessmentProfileFilter
             activeProfile={activeProfile}
+            value={activeProfileId}
             isLoading={profilesLoading}
             profiles={profiles}
             showOwner={isAdminRole(currentUser)}
             onProfileChange={setActiveProfileId}
           />
 
-          <Box sx={{ display: 'grid', gridTemplateRows: 'auto auto minmax(0, 1fr)', gap: 1.5, minHeight: 0, minWidth: 0 }}>
-            <AssessmentForm
-              activeProfile={activeProfile}
-              form={form}
-              isSaving={createAssessment.isPending}
-              jobOptions={jobsData?.jobs || []}
-              jobSearch={jobSearch}
-              jobsFetching={jobsFetching}
-              selectedJob={selectedJob}
-              canRegister={canRegister}
-              onFormChange={updateForm}
-              onJobChange={setSelectedJob}
-              onJobSearchChange={setJobSearch}
-              onSubmit={submitAssessment}
-            />
-            <AssessmentStats
-              isFetching={assessmentsFetching}
-              stats={stats}
-              onRefresh={refetchAssessments}
-            />
-            <AssessmentList
-              activeProfile={activeProfile}
-              assessments={assessments}
-              currentUser={currentUser}
-              isDeleting={deleteAssessment.isPending}
-              isMarkingDone={markAssessmentDone.isPending}
-              isLoading={assessmentsLoading && !assessmentsData}
-              onDelete={removeAssessment}
-              onMarkDone={completeAssessment}
-            />
-          </Box>
+          <AssessmentForm
+            activeProfile={activeProfile}
+            form={form}
+            isSaving={createAssessment.isPending}
+            jobOptions={jobsData?.jobs || []}
+            jobSearch={jobSearch}
+            jobsFetching={jobsFetching}
+            selectedJob={selectedJob}
+            canRegister={canRegister}
+            onFormChange={updateForm}
+            onJobChange={setSelectedJob}
+            onJobSearchChange={setJobSearch}
+            onSubmit={submitAssessment}
+          />
+          <AssessmentStats
+            isFetching={assessmentsFetching}
+            stats={stats}
+            onRefresh={refetchAssessments}
+          />
+          <AssessmentList
+            activeProfile={activeProfile}
+            assessments={assessments}
+            currentUser={currentUser}
+            isDeleting={deleteAssessment.isPending}
+            isMarkingDone={markAssessmentDone.isPending}
+            isLoading={assessmentsLoading && !assessmentsData}
+            onDelete={removeAssessment}
+            onMarkDone={completeAssessment}
+          />
         </Box>
       ) : null}
     </Box>
   );
 }
 
-function AssessmentProfileTabs({ activeColor, activeProfile, isLoading, onProfileChange, profiles, showOwner }) {
-  const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
-
+function AssessmentProfileFilter({ activeProfile, isLoading, onProfileChange, profiles, showOwner, value }) {
   return (
     <Paper
       variant="outlined"
       sx={{
-        display: 'grid',
-        gridTemplateRows: 'auto minmax(0, 1fr)',
-        overflow: 'hidden',
+        p: 1.25,
         boxShadow: 1,
-        alignSelf: 'stretch',
-        height: { xs: 'auto', md: '100%' },
-        minHeight: 0,
       }}
     >
-      <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase' }}>
-          Profiles
-        </Typography>
-      </Box>
-      {profiles.length ? (
-        <Tabs
-          orientation={isDesktop ? 'vertical' : 'horizontal'}
-          value={activeProfile ? String(activeProfile.id) : false}
-          onChange={(_event, value) => onProfileChange(value)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            minHeight: 0,
-            bgcolor: 'rgba(255, 255, 255, 0.72)',
-            '& .MuiTabs-indicator': { backgroundColor: activeColor.main },
-            '& .MuiTabs-scroller': { overflowY: { md: 'auto !important' } },
-            '& .MuiTabs-flexContainer': { alignItems: 'stretch' },
-            '& .MuiTab-root': {
-              minHeight: 64,
-              alignItems: isDesktop ? 'stretch' : 'center',
-              borderRadius: 0,
-              borderBottom: isDesktop ? 1 : 0,
-              borderRight: isDesktop ? 0 : 1,
-              borderColor: 'divider',
-              px: 1.25,
-              py: 1,
-            },
-          }}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between">
+        <TextField
+          select
+          label="Profile"
+          size="small"
+          value={isLoading ? ALL_ASSESSMENTS : value}
+          disabled={isLoading}
+          onChange={(event) => onProfileChange(event.target.value)}
+          sx={{ width: { xs: '100%', sm: 320 } }}
         >
-          {profiles.map((profile) => {
-            const color = PROFILE_COLORS[profile.colorScheme] || PROFILE_COLORS.green;
-            return (
-              <Tab
-                key={profile.id}
-                value={String(profile.id)}
-                label={<ProfileAssessmentTabLabel profile={profile} showOwner={showOwner} />}
-                sx={{
-                  color: color.dark,
-                  fontWeight: 800,
-                  textAlign: 'left',
-                  '&.Mui-selected': {
-                    color: color.dark,
-                    backgroundColor: color.soft,
-                  },
-                }}
-              />
-            );
-          })}
-        </Tabs>
-      ) : isLoading ? (
-        <ProfileTabSkeletons />
-      ) : (
-        <EmptyState
-          title="No profiles yet"
-          detail="Profiles will appear here once they are active and available."
-          variant="plain"
-          sx={{ flex: 1, p: 1.5, justifyItems: 'start', textAlign: 'left', bgcolor: 'transparent' }}
-        />
-      )}
+          <MenuItem value={ALL_ASSESSMENTS}>All assessments</MenuItem>
+          {profiles.map((profile) => (
+            <MenuItem key={profile.id} value={String(profile.id)}>
+              {profileOptionLabel(profile, showOwner)}
+            </MenuItem>
+          ))}
+        </TextField>
+        <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap sx={{ flexWrap: 'wrap' }}>
+          <Chip
+            label={`${profiles.reduce((total, profile) => total + Number(profile.assessmentCount || 0), 0).toLocaleString()} total`}
+            size="small"
+            sx={{ bgcolor: '#EEF2FF', color: '#3730A3', fontWeight: 800 }}
+          />
+          {activeProfile ? (
+            <Chip label={`${Number(activeProfile.assessmentCount || 0).toLocaleString()} selected`} size="small" variant="outlined" sx={{ fontWeight: 800 }} />
+          ) : null}
+        </Stack>
+      </Stack>
     </Paper>
   );
 }
 
-function ProfileAssessmentTabLabel({ profile, showOwner }) {
-  return (
-    <Box sx={{ display: 'grid', gap: 0.5, justifyItems: 'stretch', minWidth: 0, width: '100%' }}>
-      <Typography component="span" variant="body2" fontWeight={800} noWrap>
-        {profile.name}
-      </Typography>
-      {showOwner && profile.ownerUsername ? (
-        <Typography component="span" variant="caption" color="text.secondary" noWrap>
-          {profile.ownerUsername}
-        </Typography>
-      ) : null}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-        <Chip
-          label={profile.profileBadge || 'SWE'}
-          size="small"
-          sx={{
-            ...(PROFILE_BADGE_COLORS[profile.profileBadge || 'SWE'] || {}),
-            height: 20,
-            fontSize: 11,
-            fontWeight: 800,
-            '& .MuiChip-label': { px: 0.75 },
-          }}
-        />
-        <Chip
-          label={`${Number(profile.assessmentCount || 0).toLocaleString()} assessments`}
-          size="small"
-          sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: '#EEF2FF', color: '#3730A3', '& .MuiChip-label': { px: 0.75 } }}
-        />
-      </Box>
-    </Box>
-  );
-}
-
-function ProfileTabSkeletons() {
-  return (
-    <Box sx={{ display: 'grid', alignContent: 'start' }}>
-      {Array.from({ length: 6 }).map((_, index) => (
-        <Box key={`assessment-profile-loading-${index}`} sx={{ minHeight: 64, px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-          <Skeleton width="72%" />
-          <Skeleton width="46%" />
-        </Box>
-      ))}
-    </Box>
-  );
+function profileOptionLabel(profile, showOwner) {
+  const owner = showOwner && profile.ownerUsername ? ` - ${profile.ownerUsername}` : '';
+  return `${profile.name}${owner}`;
 }
 
 function AssessmentForm({
@@ -476,7 +385,11 @@ function AssessmentForm({
           </Typography>
           <Chip label={activeProfile.name} size="small" sx={{ fontWeight: 800 }} />
         </Stack>
-      ) : null}
+      ) : (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+          Choose a profile from the filter to register a new assessment.
+        </Typography>
+      )}
     </Paper>
   );
 }
@@ -542,7 +455,7 @@ function AssessmentList({ activeProfile, assessments, currentUser, isDeleting, i
     return (
       <EmptyState
         title="No assessments registered"
-        detail="Registered assessments for this profile will appear here."
+        detail={activeProfile ? 'Registered assessments for this profile will appear here.' : 'Registered assessments will appear here.'}
         sx={{ alignSelf: 'start' }}
       />
     );
@@ -569,9 +482,10 @@ function AssessmentList({ activeProfile, assessments, currentUser, isDeleting, i
 function AssessmentCard({ activeProfile, assessment, currentUser, isDeleting, isMarkingDone, onDelete, onMarkDone }) {
   const deadline = assessmentDeadline(assessment);
   const job = assessment.job;
+  const profile = activeProfile || assessment.profile;
   const title = job ? jobOptionTitle(job) : assessment.categoryLabel || 'Assessment';
   const isDone = assessment.status === 'done' || Boolean(assessment.completedAt);
-  const canMarkDone = !isDone && canMarkAssessmentDone(currentUser, assessment, activeProfile);
+  const canMarkDone = !isDone && canMarkAssessmentDone(currentUser, assessment, profile);
 
   return (
     <Paper
@@ -590,6 +504,7 @@ function AssessmentCard({ activeProfile, assessment, currentUser, isDeleting, is
           <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
             <Chip label={assessment.categoryLabel || assessment.category} size="small" sx={{ bgcolor: '#EEF2FF', color: '#3730A3', fontWeight: 800 }} />
             <Chip label={deadline.label} size="small" sx={{ bgcolor: deadline.bgcolor, color: deadline.color, fontWeight: 800 }} />
+            {!activeProfile && profile?.name ? <Chip label={profile.name} size="small" variant="outlined" sx={{ fontWeight: 800 }} /> : null}
             {job?.source ? <Chip label={job.source} size="small" variant="outlined" sx={{ fontWeight: 800 }} /> : null}
           </Stack>
           <Typography fontWeight={900} noWrap>

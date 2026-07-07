@@ -65,9 +65,7 @@ export function ensureAssessmentAccess(user) {
 export async function assessmentProfilesForUser(user) {
   ensureAssessmentAccess(user);
   const Assessment = getAssessmentModel();
-  const profiles = isAdminRole(user) ? await profilesManagedByUser(user) : await profilesVisibleToUser(user);
-  const activeProfiles = sortProfilesForDisplay(await profilesWithSharing(profiles))
-    .filter((profile) => (profile.profileStatus || 'active') === 'active');
+  const activeProfiles = await activeAssessmentProfilesForUser(user);
   const profileIds = activeProfiles.map((profile) => profile.id);
 
   const countRows = profileIds.length
@@ -88,8 +86,30 @@ export async function assessmentProfilesForUser(user) {
 
 export async function assessmentsForProfile(user, profileId) {
   ensureAssessmentAccess(user);
-  const profile = await assessmentProfileForUser(user, profileId);
+  const id = clean(profileId);
   const Assessment = getAssessmentModel();
+
+  if (!id || id === 'all') {
+    const profiles = await activeAssessmentProfilesForUser(user);
+    const profileIds = profiles.map((profile) => profile.id);
+    const rows = profileIds.length
+      ? await Assessment.findAll({
+          where: { profileId: profileIds },
+          include: assessmentIncludes(),
+          order: [
+            ['expiresAt', 'ASC NULLS LAST'],
+            ['createdAt', 'DESC'],
+          ],
+        })
+      : [];
+
+    return {
+      profile: null,
+      assessments: rows.map(formatAssessment),
+    };
+  }
+
+  const profile = await assessmentProfileForUser(user, id);
   const rows = await Assessment.findAll({
     where: { profileId: profile.id },
     include: assessmentIncludes(),
@@ -166,6 +186,7 @@ export function formatAssessment(row) {
     profileId: row.profileId,
     userId: row.userId,
     jobId: row.jobId,
+    profile: row.profile ? formatProfile(row.profile) : null,
     category: row.category,
     categoryLabel: categoryLabel(row.category),
     assessmentLink: row.assessmentLink,
@@ -190,6 +211,12 @@ function optionalDateFromBody(value, label) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) throw new InputError(`${label} must be a valid date and time`);
   return date;
+}
+
+async function activeAssessmentProfilesForUser(user) {
+  const profiles = isAdminRole(user) ? await profilesManagedByUser(user) : await profilesVisibleToUser(user);
+  return sortProfilesForDisplay(await profilesWithSharing(profiles))
+    .filter((profile) => (profile.profileStatus || 'active') === 'active');
 }
 
 async function assessmentProfileForUser(user, profileId) {

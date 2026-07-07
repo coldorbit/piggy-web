@@ -101,11 +101,12 @@ export function useAssessmentProfiles(queryOptions = {}) {
 }
 
 export function useAssessments(profileId, queryOptions = {}) {
-  const params = new URLSearchParams({ profileId: String(profileId || '') });
+  const normalizedProfileId = String(profileId || '').trim();
+  const params = new URLSearchParams();
+  if (normalizedProfileId && normalizedProfileId !== 'all') params.set('profileId', normalizedProfileId);
   return useQuery({
-    queryKey: ['assessments', profileId],
-    queryFn: () => api(`/api/assessments?${params}`),
-    enabled: Boolean(profileId),
+    queryKey: ['assessments', normalizedProfileId || 'all'],
+    queryFn: () => api(`/api/assessments${params.size ? `?${params}` : ''}`),
     staleTime: 15_000,
     ...queryOptions,
   });

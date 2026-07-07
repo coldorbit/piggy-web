@@ -105,4 +105,31 @@ describe('formatAssessment', () => {
     assert.equal(assessment.status, 'done');
     assert.equal(assessment.completedAt, '2026-06-18T12:00:00.000Z');
   });
+
+  it('includes profile details when assessments are listed across profiles', () => {
+    const row = {
+      id: '1',
+      profileId: '2',
+      userId: '3',
+      jobId: null,
+      category: 'coding',
+      assessmentLink: 'https://example.com/assessment',
+      expiresAt: null,
+      completedAt: null,
+      profile: {
+        id: '2',
+        userId: '3',
+        name: 'Ada Lovelace',
+        profileBadge: 'SWE',
+        profileStatus: 'active',
+      },
+      createdAt: new Date('2026-06-18T10:00:00Z'),
+      updatedAt: new Date('2026-06-18T12:00:00Z'),
+    };
+
+    const assessment = formatAssessment(row);
+
+    assert.equal(assessment.profile.name, 'Ada Lovelace');
+    assert.equal(assessment.profile.profileStatus, 'active');
+  });
 });
