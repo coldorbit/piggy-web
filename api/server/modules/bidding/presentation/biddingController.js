@@ -997,6 +997,27 @@ export async function deleteProfile(req, res, next) {
   }
 }
 
+export async function downloadProfileStaticResume(req, res, next) {
+  try {
+    await ensureWebModels();
+    const profile = await accessibleProfile(req, req.params.id);
+    if (!profile.isStatic || !profile.staticResumeData || !profile.staticResumeFilename) {
+      res.status(404).json({ error: 'Static resume not found' });
+      return;
+    }
+
+    const data = Buffer.isBuffer(profile.staticResumeData)
+      ? profile.staticResumeData
+      : Buffer.from(profile.staticResumeData);
+    res.setHeader('content-type', profile.staticResumeContentType || 'application/octet-stream');
+    res.setHeader('content-disposition', `attachment; filename="${escapeHeaderValue(profile.staticResumeFilename)}"`);
+    res.setHeader('content-length', String(data.length));
+    res.send(data);
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 function canManageProfiles(req, res) {
   if (!BIDDER_ROLES.includes(req.user?.role)) return true;
   res.status(403).json({ error: 'Bidders cannot add, edit, share, or remove profiles' });
@@ -1938,6 +1959,13 @@ function ensureProfileBidEligible(profile, res) {
   return false;
 }
 
+function ensureProfileTailoringEligible(profile, res) {
+  if (!ensureProfileBidEligible(profile, res)) return false;
+  if (!profile.isStatic) return true;
+  res.status(400).json({ error: 'Static profiles use their uploaded resume and cannot request tailoring' });
+  return false;
+}
+
 function isInterviewBidStatus(status) {
   return ['interviewing', 'won', 'lost'].includes(status);
 }
@@ -2155,7 +2183,7 @@ export async function createTailoredResume(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const profile = await accessibleProfile(req, req.body?.profileId);
-    if (!ensureProfileBidEligible(profile, res)) return;
+    if (!ensureProfileTailoringEligible(profile, res)) return;
     const sequelize = getSequelize();
     const job = await getScrapedJobModel().findByPk(req.params.jobId);
     if (!job) {
@@ -2218,7 +2246,7 @@ export async function bulkCreateTailoredResumes(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const profile = await accessibleProfile(req, req.body?.profileId);
-    if (!ensureProfileBidEligible(profile, res)) return;
+    if (!ensureProfileTailoringEligible(profile, res)) return;
     const jobIds = numericBatchIds(req.body?.jobIds || req.body?.ids, 'jobIds');
     const confirmSameCompany = req.body?.confirmSameCompany === true;
     const sequelize = getSequelize();
@@ -2296,7 +2324,7 @@ export async function createManualTailoredResume(req, res, next) {
     await ensureWebModels();
     const user = await currentDbUser(req);
     const profile = await accessibleProfile(req, req.body?.profileId);
-    if (!ensureProfileBidEligible(profile, res)) return;
+    if (!ensureProfileTailoringEligible(profile, res)) return;
     const attrs = manualTailoringAttributesFromBody(req.body);
     const TailoredResume = getTailoredResumeModel();
     const tailoredResume = await TailoredResume.create({

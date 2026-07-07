@@ -129,6 +129,38 @@ describe('profile status helpers', () => {
     );
   });
 
+  it('accepts static profile resume uploads', () => {
+    const attrs = profileAttributesFromBody({
+      name: 'Static SWE',
+      isStatic: true,
+      staticResumeUpload: {
+        filename: 'resume.docx',
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        dataBase64: Buffer.from('resume file').toString('base64'),
+      },
+    });
+
+    assert.equal(attrs.isStatic, true);
+    assert.equal(attrs.staticResumeFilename, 'resume.docx');
+    assert.equal(attrs.staticResumeData.toString(), 'resume file');
+    assert.equal(attrs.staticResumeContentType, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    assert.ok(attrs.staticResumeUploadedAt instanceof Date);
+  });
+
+  it('rejects static resume uploads unless the profile is marked static', () => {
+    assert.throws(
+      () => profileAttributesFromBody({
+        name: 'Dynamic SWE',
+        staticResumeUpload: {
+          filename: 'resume.pdf',
+          contentType: 'application/pdf',
+          dataBase64: Buffer.from('resume file').toString('base64'),
+        },
+      }),
+      /Mark the profile as static/,
+    );
+  });
+
   it('rejects invalid profile daily bid goals', () => {
     assert.throws(
       () => profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '2.5' }, { canSetDailyBidGoal: true }),

@@ -49,6 +49,7 @@ import {
   useShareBidProfile,
   useUpdateBidProfile,
   useUpdateBidProfileStatus,
+  downloadAuthenticatedFile,
 } from '../lib/api.js';
 import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../lib/roles.js';
 
@@ -138,6 +139,9 @@ export default function ProfilesPage({ currentUser }) {
       yearsOfExperience: profile.yearsOfExperience || '',
       resumeText: profile.resumeText || '',
       resumeTemplate: profile.resumeTemplate || 'classic',
+      isStatic: Boolean(profile.isStatic),
+      staticResumeFilename: profile.staticResumeFilename || '',
+      staticResumeUpload: null,
       colorScheme: profile.colorScheme || 'green',
       profileBadge: profile.profileBadge || 'SWE',
       dailyBidGoal: profile.dailyBidGoal ?? '',
@@ -835,6 +839,13 @@ function ProfileReadOnlyDialog({ assignableUsers = [], profile, onClose }) {
 }
 
 function ProfileReadOnlyDialogContent({ assignableUsers, profile, onClose }) {
+  function downloadStaticResume() {
+    downloadAuthenticatedFile(
+      `/api/bid/profiles/${encodeURIComponent(profile.id)}/static-resume/download`,
+      profile.staticResumeFilename || 'static-resume',
+    );
+  }
+
   return (
     <Dialog open={Boolean(profile)} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>{profile.name || 'Profile'}</DialogTitle>
@@ -850,9 +861,32 @@ function ProfileReadOnlyDialogContent({ assignableUsers, profile, onClose }) {
             <ReadOnlyField label="Badge" value={profile.profileBadge || 'SWE'} />
             <ReadOnlyField label="Color" value={profile.colorScheme} />
             <ReadOnlyField label="Status" value={profile.profileStatus || 'active'} />
+            <ReadOnlyField label="Profile type" value={profile.isStatic ? 'Static' : 'Tailored'} />
           </Box>
 
           <Divider />
+          {profile.isStatic ? (
+            <>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <Box minWidth={0}>
+                  <Typography variant="subtitle2" fontWeight={900}>
+                    Static resume
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                    {profile.staticResumeFilename || 'No static resume uploaded.'}
+                  </Typography>
+                </Box>
+                <Button
+                  variant="outlined"
+                  disabled={!profile.hasStaticResume}
+                  onClick={downloadStaticResume}
+                >
+                  Download resume
+                </Button>
+              </Box>
+              <Divider />
+            </>
+          ) : null}
           <ReadOnlySection label="Resume text" value={profile.resumeText} preserveText />
           <Divider />
           <CollaborationPanel

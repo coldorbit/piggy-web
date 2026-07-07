@@ -140,6 +140,11 @@ export function formatProfile(row) {
     yearsOfExperience: row.yearsOfExperience,
     resumeText: row.resumeText,
     resumeTemplate: row.resumeTemplate || 'classic',
+    isStatic: Boolean(row.isStatic),
+    hasStaticResume: Boolean(row.staticResumeData && row.staticResumeFilename),
+    staticResumeFilename: row.staticResumeFilename || null,
+    staticResumeContentType: row.staticResumeContentType || null,
+    staticResumeUploadedAt: row.staticResumeUploadedAt || null,
     colorScheme: row.colorScheme,
     profileBadge: row.profileBadge || 'SWE',
     profileStatus: row.profileStatus || 'active',
@@ -585,6 +590,7 @@ export async function profilesVisibleToUser(user) {
 }
 
 const DEFAULT_PROFILE_DAILY_BID_GOAL = 60;
+const MAX_STATIC_RESUME_BYTES = 8 * 1024 * 1024;
 const ALLOWED_PROFILE_COLORS = new Set(['green', 'blue', 'violet', 'amber', 'rose', 'slate', 'teal', 'cyan', 'pink', 'indigo', 'lime', 'orange']);
 
 export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, currentDailyBidGoal = DEFAULT_PROFILE_DAILY_BID_GOAL } = {}) {
@@ -592,16 +598,19 @@ export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, cu
   const colorScheme = clean(body?.colorScheme || 'green');
   const profileBadge = profileBadgeFromBody(body?.profileBadge);
   const resumeTemplate = clean(body?.resumeTemplate || 'classic');
+  const isStatic = booleanFromBody(body?.isStatic || body?.staticProfile);
+  const staticResume = staticResumeFromBody(body);
   const allowedResumeTemplates = new Set(['classic', 'compact', 'modern']);
 
   if (!name) throw new InputError('Profile name is required');
   if (!ALLOWED_PROFILE_COLORS.has(colorScheme)) throw new InputError('Choose a valid profile color');
   if (!allowedResumeTemplates.has(resumeTemplate)) throw new InputError('Choose a valid resume template');
+  if (staticResume && !isStatic) throw new InputError('Mark the profile as static before uploading a static resume');
   const dailyBidGoal = canSetDailyBidGoal
     ? dailyBidGoalFromBody(body?.dailyBidGoal)
     : Number(currentDailyBidGoal ?? DEFAULT_PROFILE_DAILY_BID_GOAL);
 
-  return {
+  const attrs = {
     name,
     location: clean(body?.location) || null,
     phone: clean(body?.phone) || null,
@@ -611,10 +620,18 @@ export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, cu
     yearsOfExperience: clean(body?.yearsOfExperience) || null,
     resumeText: clean(body?.resumeText) || null,
     resumeTemplate,
+    isStatic,
     colorScheme,
     profileBadge,
     dailyBidGoal,
   };
+  if (staticResume) {
+    attrs.staticResumeData = staticResume.data;
+    attrs.staticResumeFilename = staticResume.filename;
+    attrs.staticResumeContentType = staticResume.contentType;
+    attrs.staticResumeUploadedAt = new Date();
+  }
+  return attrs;
 }
 
 export function forwardingAliasForProfileName(name) {
@@ -672,4 +689,32 @@ function dailyBidGoalFromBody(value) {
     throw new InputError('Daily bid goal must be a whole number between 0 and 10000');
   }
   return goal;
+}
+
+function booleanFromBody(value) {
+  if (value === true || value === 'true' || value === '1' || value === 1) return true;
+  return false;
+}
+
+function staticResumeFromBody(body = {}) {
+  const upload = body.staticResumeUpload || body.staticResume || null;
+  if (!upload || typeof upload !== 'object' || Array.isArray(upload)) return null;
+  const filename = clean(upload.filename || upload.name);
+  const contentType = clean(upload.contentType || upload.type) || 'application/octet-stream';
+  const rawBase64 = clean(upload.dataBase64 || upload.base64 || upload.data);
+  const dataBase64 = rawBase64.replace(/^data:[^;]+;base64,/, '');
+
+  if (!filename) throw new InputError('Static resume filename is required');
+  if (!dataBase64) throw new InputError('Static resume file is required');
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(dataBase64)) throw new InputError('Static resume file is invalid');
+
+  const data = Buffer.from(dataBase64, 'base64');
+  if (!data.length) throw new InputError('Static resume file is empty');
+  if (data.length > MAX_STATIC_RESUME_BYTES) throw new InputError('Static resume file must be 8 MB or smaller');
+
+  return { data, filename: filenameFromUpload(filename), contentType };
+}
+
+function filenameFromUpload(value) {
+  return clean(value).replace(/[\\/]+/g, '-').replace(/[^\w.\- ()]+/g, '').trim() || 'static-resume';
 }

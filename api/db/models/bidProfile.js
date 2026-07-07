@@ -50,6 +50,28 @@ export function getBidProfileModel() {
         defaultValue: 'classic',
         field: 'resume_template',
       },
+      isStatic: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'is_static',
+      },
+      staticResumeData: {
+        type: DataTypes.BLOB('long'),
+        field: 'static_resume_data',
+      },
+      staticResumeFilename: {
+        type: DataTypes.TEXT,
+        field: 'static_resume_filename',
+      },
+      staticResumeContentType: {
+        type: DataTypes.TEXT,
+        field: 'static_resume_content_type',
+      },
+      staticResumeUploadedAt: {
+        type: DataTypes.DATE,
+        field: 'static_resume_uploaded_at',
+      },
       colorScheme: {
         type: DataTypes.TEXT,
         allowNull: false,

@@ -23,6 +23,7 @@ import {
   deleteProfile,
   deleteInterview,
   deleteInterviewCall,
+  downloadProfileStaticResume,
   downloadTailoredResume,
   downloadTailoredResumesZip,
   listBidders,
@@ -81,6 +82,7 @@ export function registerBidRoutes(app) {
   app.patch('/api/bid/profiles/:id', requireBidWorkspaceAccess, updateProfile);
   app.patch('/api/bid/profiles/:id/owner', requireBidWorkspaceAccess, changeProfileOwner);
   app.patch('/api/bid/profiles/:id/status', requireBidWorkspaceAccess, updateProfileStatus);
+  app.get('/api/bid/profiles/:id/static-resume/download', requireBidWorkspaceAccess, downloadProfileStaticResume);
   app.delete('/api/bid/profiles/:id', requireBidWorkspaceAccess, deleteProfile);
   app.post('/api/bid/profiles/:id/share', requireBidWorkspaceAccess, shareProfile);
   app.patch('/api/bid/profile-shares/:id', requireBidWorkspaceAccess, respondToProfileShare);

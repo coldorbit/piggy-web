@@ -161,6 +161,13 @@ export default function ProfileCard({
               }}
             />
             {isClosed && profile.closedReason ? <Chip label={profile.closedReason} size="small" variant="outlined" sx={profileChipSx} /> : null}
+            {profile.isStatic ? (
+              <Chip
+                label={profile.hasStaticResume ? 'Static resume' : 'Static profile'}
+                size="small"
+                sx={{ ...profileChipSx, bgcolor: '#ecfeff', color: '#155e75', fontWeight: 700 }}
+              />
+            ) : null}
           </Stack>
           <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
             <Chip

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import {
@@ -32,6 +33,7 @@ import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 export default function BidJobsPanel() {
   const {
     activeColor,
+    activeProfileIsStatic = false,
     activeProfileId,
     activeTab,
     callerUsers = [],
@@ -62,7 +64,7 @@ export default function BidJobsPanel() {
     .map((job) => job.tailoredResume)
     .filter((resume) => resume?.status === 'ready' && resume.filePath)
     .map((resume) => resume.id);
-  const selectableJobs = jobs.filter((job) => !isJobSelectionDisabled(job, activeTab, currentUser));
+  const selectableJobs = jobs.filter((job) => !isJobSelectionDisabled(job, activeTab, currentUser, activeProfileIsStatic));
   const visibleJobKeys = selectableJobs.map((job) => bidJobCardKey(job));
   const visibleJobIdsKey = visibleJobKeys.join('|');
   const selectedVisibleJobs = selectableJobs.filter((job) => selectedJobIds.has(bidJobCardKey(job)));
@@ -312,7 +314,7 @@ export default function BidJobsPanel() {
                 disabled={!selectedVisibleJobs.length || isBulkUpdating}
                 onClick={tailorSelectedJobs}
                 size="small"
-                startIcon={<AutoAwesomeIcon />}
+                startIcon={activeProfileIsStatic ? <CheckCircleIcon /> : <AutoAwesomeIcon />}
                 variant="contained"
                 sx={{
                   my: 0.75,
@@ -326,7 +328,7 @@ export default function BidJobsPanel() {
                   },
                 }}
               >
-                Tailor selected
+                {activeProfileIsStatic ? 'Mark selected applied' : 'Tailor selected'}
               </Button>
             </>
           ) : (
@@ -374,7 +376,7 @@ export default function BidJobsPanel() {
               selectionId={bidJobCardKey(job)}
               job={job}
               isSelected={selectedJobIds.has(bidJobCardKey(job))}
-              isSelectionDisabled={isJobSelectionDisabled(job, activeTab, currentUser)}
+              isSelectionDisabled={isJobSelectionDisabled(job, activeTab, currentUser, activeProfileIsStatic)}
               onSelectedChange={toggleJobSelected}
               onResumeDownload={markTailoredResumesDownloaded}
             />
@@ -437,9 +439,9 @@ export default function BidJobsPanel() {
   );
 }
 
-function isJobSelectionDisabled(job, activeTab, currentUser) {
+function isJobSelectionDisabled(job, activeTab, currentUser, activeProfileIsStatic = false) {
   const canRecoverReviewedBid = activeTab === BID_TABS.badWork && isSuperadmin(currentUser);
-  return (isReviewBidStatus(job.bid?.status) && !canRecoverReviewedBid) || (activeTab === BID_TABS.todo && isTodoTailoringLocked(job));
+  return (isReviewBidStatus(job.bid?.status) && !canRecoverReviewedBid) || (!activeProfileIsStatic && activeTab === BID_TABS.todo && isTodoTailoringLocked(job));
 }
 
 function bidJobCardKey(job) {

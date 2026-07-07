@@ -48,7 +48,7 @@ app.use((req, res, next) => {
 
 app.use(securityHeaders);
 app.use(requestLogger);
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '12mb' }));
 
 registerApiRoutes(app);
 

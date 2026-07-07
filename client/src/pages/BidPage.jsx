@@ -266,6 +266,10 @@ export default function BidPage({ currentUser }) {
 
   function tailorResume(job, options = {}) {
     if (!activeProfile) return;
+    if (activeProfile.isStatic) {
+      saveBid(job, { status: 'submitted' });
+      return;
+    }
     const jobId = bidJobActionId(job);
     const scopedJobId = profileJobKey(activeProfile.id, bidJobCardKey(job));
     if (tailoringByProfileJobId[scopedJobId]) return;
@@ -376,6 +380,16 @@ export default function BidPage({ currentUser }) {
 
   function batchTailorResumes(selectedJobs) {
     if (!activeProfile || !selectedJobs?.length) return;
+    if (activeProfile.isStatic) {
+      batchUpdateStatus(
+        selectedJobs.map((job) => ({
+          jobId: bidJobActionId(job),
+          bidId: job.bid?.id || null,
+        })),
+        'submitted',
+      );
+      return;
+    }
     const jobIds = selectedJobs.map((job) => bidJobActionId(job)).filter(Boolean);
     setError('');
     bulkRequestTailoredResumes(
@@ -407,6 +421,7 @@ export default function BidPage({ currentUser }) {
   const bidWorkspace = useMemo(
     () => ({
       activeColor,
+      activeProfileIsStatic: Boolean(activeProfile?.isStatic),
       activeProfileId: activeProfile?.id || '',
       activeTab: activeBidTab,
       callerUsers: bidJobsData?.callerUsers || [],
@@ -440,6 +455,7 @@ export default function BidPage({ currentUser }) {
     [
       activeBidTab,
       activeColor,
+      activeProfile?.isStatic,
       activeProfile?.id,
       bidJobsData?.currentUser,
       bidJobsData?.callerUsers,

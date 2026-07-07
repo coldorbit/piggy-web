@@ -60,6 +60,7 @@ export async function ensureWebModels() {
       await getConsumptionLedgerEntryModel().sync();
       await ensureWebUserSessionColumns();
       await ensureBidProfileColumns();
+      await ensureBidProfileStaticResumeColumns();
       await ensureJobBidInterviewColumns();
       await ensureInterviewJourneyColumns();
       await ensureTailoredResumeStatusColumns();
@@ -202,6 +203,20 @@ async function ensureTenantWorkspaceColumn(queryInterface, tableName) {
       onUpdate: 'CASCADE',
       onDelete: 'RESTRICT',
     },
+  });
+}
+
+async function ensureBidProfileStaticResumeColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'bid_profiles';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    is_static: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    static_resume_data: { type: DataTypes.BLOB('long'), allowNull: true },
+    static_resume_filename: { type: DataTypes.TEXT, allowNull: true },
+    static_resume_content_type: { type: DataTypes.TEXT, allowNull: true },
+    static_resume_uploaded_at: { type: DataTypes.DATE, allowNull: true },
   });
 }
 

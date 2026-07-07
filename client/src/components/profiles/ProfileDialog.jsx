@@ -6,12 +6,15 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   FormControl,
   FormHelperText,
   InputLabel,
   MenuItem,
   Select,
+  Switch,
   TextField,
+  Typography,
 } from '@mui/material';
 import {
   COLOR_OPTIONS,
@@ -23,6 +26,23 @@ import {
 } from './profileConstants.js';
 
 export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpen, isSaving, mode = 'create', onChange, onClose, onSubmit }) {
+  async function handleStaticResumeChange(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    const dataBase64 = await fileToBase64(file);
+    onChange((current) => ({
+      ...current,
+      isStatic: true,
+      staticResumeFilename: file.name,
+      staticResumeUpload: {
+        filename: file.name,
+        contentType: file.type || 'application/octet-stream',
+        dataBase64,
+      },
+    }));
+  }
+
   return (
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="md">
       <form onSubmit={onSubmit}>
@@ -84,6 +104,41 @@ export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpe
               </Select>
               <FormHelperText>Rotate ATS-friendly single-column DOCX layouts by profile.</FormHelperText>
             </FormControl>
+            <Box sx={{ display: 'grid', gap: 1 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={Boolean(form.isStatic)}
+                    onChange={(event) =>
+                      onChange((current) => ({
+                        ...current,
+                        isStatic: event.target.checked,
+                        staticResumeUpload: event.target.checked ? current.staticResumeUpload : null,
+                      }))
+                    }
+                  />
+                }
+                label="Static profile"
+              />
+              {form.isStatic ? (
+                <Box sx={{ display: 'grid', gap: 0.75 }}>
+                  <Button component="label" variant="outlined" size="small">
+                    {form.staticResumeFilename ? 'Replace static resume' : 'Upload static resume'}
+                    <input
+                      hidden
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      onChange={handleStaticResumeChange}
+                    />
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                    {form.staticResumeFilename || 'No static resume uploaded.'}
+                  </Typography>
+                </Box>
+              ) : (
+                <FormHelperText>Default profiles can tailor the original resume per job.</FormHelperText>
+              )}
+            </Box>
             <FormControl>
               <InputLabel>Color</InputLabel>
               <Select
@@ -148,6 +203,15 @@ export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpe
       </form>
     </Dialog>
   );
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = () => reject(reader.error || new Error('Unable to read resume file'));
+    reader.readAsDataURL(file);
+  });
 }
 
 function ColorOption({ color }) {

@@ -45,6 +45,7 @@ export default function BidJobCard({
 }) {
   const {
     activeColor: accent,
+    activeProfileIsStatic = false,
     activeTab,
     currentUser,
     draftsForJob,
@@ -78,15 +79,15 @@ export default function BidJobCard({
   const showStatusControl = activeTab === BID_TABS.interviews || activeTab === BID_TABS.done || canRecoverBadWorkJob;
   const statusControlLabel = canRecoverBadWorkJob ? 'Recover' : 'Status';
   const statusControlValue = canRecoverBadWorkJob && isInvalidReviewJob ? '' : draft.status || statusDefault || 'planned';
-  const showAppliedAction = activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready';
+  const showAppliedAction = (activeTab === BID_TABS.tailored && job.tailoredResume?.status === 'ready') || (activeProfileIsStatic && activeTab === BID_TABS.todo);
   const bidChipLabel = reviewStatusLabel(bidStatus) || (job.bid
     ? `Bid ${formatDate(job.bid.bidAt)}`
     : draft.status === 'planned'
       ? 'Not bid yet'
       : `Bid ${statusLabel(draft.status)}`);
   const tailoredStatus = job.tailoredResume?.status || '';
-  const showTailorAction = activeTab === BID_TABS.todo || tailoredStatus === 'dead_letter';
-  const showRetailorAction = activeTab === BID_TABS.tailored && tailoredStatus === 'ready';
+  const showTailorAction = !activeProfileIsStatic && (activeTab === BID_TABS.todo || tailoredStatus === 'dead_letter');
+  const showRetailorAction = !activeProfileIsStatic && activeTab === BID_TABS.tailored && tailoredStatus === 'ready';
   const showStopTailoringAction = activeTab === BID_TABS.tailored && ['requested', 'processing'].includes(tailoredStatus);
   const appliedByLabel = appliedByChipLabel(job.bid, currentUser);
   const tailoringInFlight = tailoredStatus === 'requested' || tailoredStatus === 'processing';
