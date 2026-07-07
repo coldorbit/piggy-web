@@ -76,11 +76,6 @@ export default function CalendarProfileLegend({ checkedProfileIds, profiles, onC
                     <Typography variant="body2" fontWeight={900} noWrap>
                       {profile.name}
                     </Typography>
-                    {profile.workspaceName ? (
-                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                        {profile.workspaceName}
-                      </Typography>
-                    ) : null}
                   </Box>
                 </Box>
               </Box>
