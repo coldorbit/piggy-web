@@ -2959,7 +2959,6 @@ async function logTailoredResumeDownloadRow(id, tailoredResume) {
     JSON.stringify({
       id,
       sequelizeFilePath: tailoredResume?.filePath || null,
-      row: rows[0]?.row || null,
     }),
   );
 }
