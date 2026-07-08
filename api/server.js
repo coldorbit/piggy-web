@@ -48,7 +48,7 @@ app.use((req, res, next) => {
 
 app.use(securityHeaders);
 app.use(requestLogger);
-app.use(express.json({ limit: '12mb' }));
+app.use(express.json({ limit: '15mb' }));
 
 registerApiRoutes(app);
 
@@ -58,7 +58,11 @@ app.get('/api/health', (_req, res) => {
 
 app.use((error, _req, res, _next) => {
   console.error(error);
-  res.status(500).json({ error: ENV.NODE_ENV === 'production' ? 'Unexpected server error' : error.message || 'Unexpected server error' });
+  const status = Number(error.status || error.statusCode || 500);
+  const isClientError = status >= 400 && status < 500;
+  res.status(isClientError ? status : 500).json({
+    error: isClientError ? error.message : ENV.NODE_ENV === 'production' ? 'Unexpected server error' : error.message || 'Unexpected server error',
+  });
 });
 
 await ensureWebModels();

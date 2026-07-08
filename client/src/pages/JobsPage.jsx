@@ -24,6 +24,8 @@ import { ROLES, isAdminRole } from '../lib/roles.js';
 const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'locationRegion', 'since', 'dateFrom', 'dateTo', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const JOB_FILTERS_STORAGE_KEY = 'applypilot.jobs.filters.v2';
 const PASTED_JOB_HEADERS = ['title', 'company', 'url', 'location', 'category', 'postedAt', 'source', 'sourceUrl', 'listingText'];
+const MAX_CSV_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_CSV_UPLOAD_LABEL = '10 MB';
 
 const DEFAULT_FILTERS = {
   search: '',
@@ -241,7 +243,16 @@ export default function JobsPage({ currentUser }) {
   async function readCsvFile(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    setImportResult(null);
+    if (file.size > MAX_CSV_UPLOAD_BYTES) {
+      setCsvText('');
+      setImportMessage(`CSV file must be ${MAX_CSV_UPLOAD_LABEL} or smaller`);
+      event.target.value = '';
+      return;
+    }
+    setImportMessage('');
     setCsvText(await file.text());
+    event.target.value = '';
   }
 
   const error = jobsError?.message || metaError?.message || '';
@@ -375,7 +386,7 @@ export default function JobsPage({ currentUser }) {
               <input type="file" accept=".csv,text/csv" hidden onChange={readCsvFile} />
             </Button>
             <Typography color="text.secondary" variant="body2">
-              {csvText ? `${csvText.length.toLocaleString()} characters ready` : 'No file selected'}
+              {csvText ? `${csvText.length.toLocaleString()} characters ready` : `No file selected. Maximum ${MAX_CSV_UPLOAD_LABEL}.`}
             </Typography>
           </DialogContent>
           <DialogActions>
