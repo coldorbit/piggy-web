@@ -129,6 +129,7 @@ describe('dashboard queries', () => {
 
   it('uses interviews table rows as the dashboard funnel source of truth', () => {
     const sql = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles' }).profileFunnels;
+    const roleFamilySql = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles' }).roleFamilyFunnels;
 
     assert.match(sql, /COUNT\(DISTINCT interviews\.id\)::int AS interviews/);
     assert.match(sql, /COUNT\(DISTINCT interviews\.id\) FILTER \(WHERE interviews\.status = 'won'\)::int AS offers/);
@@ -139,6 +140,11 @@ describe('dashboard queries', () => {
     assert.doesNotMatch(sql, /LEFT JOIN interviews ON interviews\.job_bid_id = job_bids\.id/);
     assert.doesNotMatch(sql, /job_bids\.status IN \('interviewing', 'won', 'lost'\)/);
     assert.doesNotMatch(sql, /COALESCE\(interviews\.status, job_bids\.status\)/);
+
+    assert.match(roleFamilySql, /application_metrics AS \([\s\S]*FROM job_bids[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) < current_period\.ends_at/);
+    assert.match(roleFamilySql, /interview_metrics AS \([\s\S]*COUNT\(DISTINCT interviews\.id\)::int AS interviews[\s\S]*FROM interviews[\s\S]*LEFT JOIN scraped_jobs ON scraped_jobs\.id = interviews\.job_id[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', interviews\.created_at\) < current_period\.ends_at/);
+    assert.match(roleFamilySql, /FULL OUTER JOIN interview_metrics ON interview_metrics\.role_family = application_metrics\.role_family/);
+    assert.doesNotMatch(roleFamilySql, /LEFT JOIN interviews ON interviews\.job_bid_id = job_bids\.id/);
   });
 
   it('excludes admin actors from dashboard KPI queries', () => {

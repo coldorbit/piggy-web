@@ -122,15 +122,6 @@ function scrapedJobsDashboardPredicate(workspaceId) {
     )`;
 }
 
-function funnelMetricsSelect() {
-  return `
-    COUNT(DISTINCT job_bids.id)::int AS applications,
-    COUNT(DISTINCT interviews.id)::int AS interviews,
-    COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'won')::int AS offers,
-    COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'lost')::int AS lost
-  `;
-}
-
 function rangeCte({ sql, step, lookback }, timeZone, anchor = 'now()') {
   const bucket = anchorBucketSql(sql, timeZone, anchor);
   return `
@@ -803,35 +794,44 @@ function profileInterviewTrendSql(grainConfig, timeZone, anchor, workspaceId) {
 }
 
 function roleFamilyFunnelSql(grainConfig, timeZone, anchor, workspaceId) {
-  return funnelByDimensionSql({
-    grainConfig,
-    dimension: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')",
-    idColumn: 'NULL',
-    alias: 'role_family',
-    joins: 'JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id',
-    groupBy: "COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')",
-    anchor,
-    timeZone,
-    workspaceId,
-  });
-}
-
-function funnelByDimensionSql({ grainConfig, dimension, idColumn, alias, joins, groupBy, timeZone, anchor, workspaceId }) {
   return `
-    WITH ${currentPeriodCte(grainConfig, timeZone, anchor)}
+    WITH ${currentPeriodCte(grainConfig, timeZone, anchor)},
+    application_metrics AS (
+      SELECT
+        COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized') AS role_family,
+        COUNT(DISTINCT job_bids.id)::int AS applications
+      FROM job_bids
+      JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+      CROSS JOIN current_period
+      WHERE ${currentPeriodPredicate('job_bids.bid_at', timeZone)}
+        AND ${nonAdminJobBidPredicate()}
+        ${workspaceAnd(workspaceId, jobBidsWorkspace)}
+      GROUP BY COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')
+    ),
+    interview_metrics AS (
+      SELECT
+        COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized') AS role_family,
+        COUNT(DISTINCT interviews.id)::int AS interviews,
+        COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'won')::int AS offers,
+        COUNT(DISTINCT interviews.id) FILTER (WHERE interviews.status = 'lost')::int AS lost
+      FROM interviews
+      LEFT JOIN scraped_jobs ON scraped_jobs.id = interviews.job_id
+      CROSS JOIN current_period
+      WHERE ${currentPeriodPredicate('interviews.created_at', timeZone)}
+        AND ${nonAdminInterviewPredicate()}
+        ${workspaceAnd(workspaceId, interviewsWorkspace)}
+      GROUP BY COALESCE(NULLIF(scraped_jobs.category, ''), 'Uncategorized')
+    )
     SELECT
-      ${idColumn} AS id,
-      ${dimension} AS ${alias},
-      ${funnelMetricsSelect()}
-    FROM job_bids
-    ${joins}
-    LEFT JOIN interviews ON interviews.job_bid_id = job_bids.id
-    CROSS JOIN current_period
-    WHERE ${currentPeriodPredicate('job_bids.bid_at', timeZone)}
-      AND ${nonAdminJobBidPredicate()}
-      ${workspaceAnd(workspaceId, jobBidsWorkspace)}
-    GROUP BY ${groupBy}
-    ORDER BY offers DESC, interviews DESC, applications DESC, ${alias} ASC
+      NULL AS id,
+      COALESCE(application_metrics.role_family, interview_metrics.role_family, 'Uncategorized') AS role_family,
+      COALESCE(application_metrics.applications, 0)::int AS applications,
+      COALESCE(interview_metrics.interviews, 0)::int AS interviews,
+      COALESCE(interview_metrics.offers, 0)::int AS offers,
+      COALESCE(interview_metrics.lost, 0)::int AS lost
+    FROM application_metrics
+    FULL OUTER JOIN interview_metrics ON interview_metrics.role_family = application_metrics.role_family
+    ORDER BY offers DESC, interviews DESC, applications DESC, role_family ASC
     LIMIT 24
   `;
 }
