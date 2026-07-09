@@ -83,7 +83,7 @@ export default function SuperadminWorkspaceLens({
           {preparedMetrics.map((metric) => (
             <MetricChip key={metric.label} metric={metric} />
           ))}
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 230 } }}>
+          <FormControl size="small" sx={{ width: { xs: '100%', sm: 300, lg: 340 }, flexShrink: 0 }}>
             <InputLabel>Workspace</InputLabel>
             <Select
               disabled={isLoading}

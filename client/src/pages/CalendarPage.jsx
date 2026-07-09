@@ -107,13 +107,21 @@ export default function CalendarPage({ currentUser }) {
     () => calendarEvents(jobs, profileById, calendarProfileIds, search, calendarMeta.conflicts || EMPTY_ARRAY),
     [jobs, profileById, calendarProfileIds, search, calendarMeta.conflicts],
   );
+  const visibleDays = useMemo(
+    () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
+    [cursorDate, view],
+  );
+  const rangeFilteredSearchableEvents = useMemo(
+    () => filterEventsByVisibleRange(searchableEvents, view, cursorDate, visibleDays),
+    [cursorDate, searchableEvents, view, visibleDays],
+  );
   const profileFilteredEvents = useMemo(
-    () => filterEventsByProfiles(searchableEvents, checkedProfileIds),
-    [searchableEvents, checkedProfileIds],
+    () => filterEventsByProfiles(rangeFilteredSearchableEvents, checkedProfileIds),
+    [rangeFilteredSearchableEvents, checkedProfileIds],
   );
   const profileGroups = useMemo(
-    () => profileScheduleGroups(calendarProfiles, searchableEvents),
-    [calendarProfiles, searchableEvents],
+    () => profileScheduleGroups(calendarProfiles, rangeFilteredSearchableEvents),
+    [calendarProfiles, rangeFilteredSearchableEvents],
   );
   const userGroups = useMemo(
     () => ownerScheduleGroups(profileFilteredEvents),
@@ -143,10 +151,6 @@ export default function CalendarPage({ currentUser }) {
   );
   const loading = calendarLoading;
   const pageError = calendarActionError || calendarError?.message || workspaceError?.message || '';
-  const visibleDays = useMemo(
-    () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
-    [cursorDate, view],
-  );
   const eventsByDay = useMemo(() => groupEventsByDay(events), [events]);
   const rangeLabel = view === CALENDAR_VIEWS.week ? weekRangeLabel(cursorDate) : monthLabel(cursorDate);
   const scheduledCount = useMemo(
@@ -349,6 +353,19 @@ function filterEventsByProfiles(events, checkedProfileIds) {
   return events.filter((event) => checkedProfileIdSet.has(String(event.profile?.id || '')));
 }
 
+function filterEventsByVisibleRange(events, view, cursorDate, visibleDays) {
+  if (view === CALENDAR_VIEWS.week) {
+    const visibleDaySet = new Set(visibleDays);
+    return events.filter((event) => visibleDaySet.has(defaultTimezoneDateKey(event.startsAt)));
+  }
+
+  const monthKey = dateKeyMonth(cursorDate);
+  return events.filter((event) => {
+    const day = defaultTimezoneDateKey(event.startsAt);
+    return dateKeyMonth(day) === monthKey && isWeekday(day);
+  });
+}
+
 function profileScheduleGroups(profiles, events) {
   const eventsByProfileId = new Map();
   events.forEach((event) => addEventToGroup(eventsByProfileId, profileGroupBase(event.profile), event));
@@ -512,16 +529,7 @@ function groupEventsByDay(events) {
 }
 
 function scheduledInterviewCount(events, view, cursorDate, visibleDays) {
-  if (view === CALENDAR_VIEWS.week) {
-    const visibleDaySet = new Set(visibleDays);
-    return events.filter((event) => visibleDaySet.has(defaultTimezoneDateKey(event.startsAt))).length;
-  }
-
-  const monthKey = dateKeyMonth(cursorDate);
-  return events.filter((event) => {
-    const day = defaultTimezoneDateKey(event.startsAt);
-    return dateKeyMonth(day) === monthKey && isWeekday(day);
-  }).length;
+  return filterEventsByVisibleRange(events, view, cursorDate, visibleDays).length;
 }
 
 function monthDays(dateKey) {

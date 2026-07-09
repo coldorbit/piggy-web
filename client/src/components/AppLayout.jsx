@@ -664,7 +664,8 @@ function HeaderWorkspaceSelect({ activeWorkspaceId, isLoading, onChange, workspa
       size="small"
       sx={{
         display: { xs: 'none', md: 'block' },
-        width: { md: 210, lg: 250 },
+        width: { md: 300, lg: 340 },
+        flexShrink: 0,
         '& .MuiInputBase-root': {
           bgcolor: 'rgba(255, 255, 255, 0.72)',
         },

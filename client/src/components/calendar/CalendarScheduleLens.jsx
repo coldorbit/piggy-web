@@ -18,21 +18,18 @@ import { formatDateInDefaultTimezone } from '../../lib/formatters.js';
 const SECTIONS = {
   users: {
     label: 'Users',
-    eyebrow: 'User schedules',
     empty: 'No user meetings in this view.',
     icon: <PersonIcon fontSize="small" />,
     color: { main: '#2563EB', dark: '#1E40AF', soft: '#DBEAFE' },
   },
   callers: {
     label: 'Callers',
-    eyebrow: 'Caller schedules',
     empty: 'No caller meetings in this view.',
     icon: <HeadsetMicIcon fontSize="small" />,
     color: { main: '#D97706', dark: '#92400E', soft: '#FEF3C7' },
   },
   profiles: {
     label: 'Profiles',
-    eyebrow: 'Profile filters',
     empty: 'No scheduled profiles.',
     icon: <WorkspacesIcon fontSize="small" />,
     color: { main: '#64748B', dark: '#334155', soft: '#F1F5F9' },
@@ -169,10 +166,7 @@ export default function CalendarScheduleLens({
         </ToggleButtonGroup>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', alignItems: 'center', gap: 0.75 }}>
-          <Box minWidth={0}>
-            <Typography variant="caption" color="text.secondary" fontWeight={900} noWrap>
-              {activeConfig.eyebrow}
-            </Typography>
+          <Box minWidth={0} sx={{ display: 'flex', alignItems: 'center', minHeight: 30 }}>
             <Typography variant="caption" color="text.secondary" display="block" noWrap>
               {selectedCount.toLocaleString()} of {activeData.rows.length.toLocaleString()} visible
             </Typography>
