@@ -325,6 +325,7 @@ export function formatMailboxNotificationMessage(message, profile = null, match 
 export function formatStoredMailboxMessage(row, profileOverride = null) {
   const profile = profileOverride || rowValue(row, 'profile');
   const message = mailboxMessageFromStoredRow(row);
+  const storedClassification = rowValue(row, 'classification') || null;
   const match = rowValue(row, 'matchValue')
     ? {
         value: rowValue(row, 'matchValue'),
@@ -333,7 +334,7 @@ export function formatStoredMailboxMessage(row, profileOverride = null) {
     : null;
 
   return formatMailboxMessage(message, profile, match, {
-    classification: rowValue(row, 'classification') || null,
+    classification: normalizedStoredMailboxClassification(message, storedClassification),
     application: rowValue(row, 'application') || null,
     calendarEvent: rowValue(row, 'calendarEvent') || null,
   });
@@ -384,6 +385,11 @@ export function classifyMailboxMessageIntent(message) {
 
 function mailboxClassification(type, label, suggestedAction, confidence) {
   return { type, label, suggestedAction, confidence };
+}
+
+function normalizedStoredMailboxClassification(message, classification) {
+  if (!['assessment_link', 'declined'].includes(classification?.type)) return classification || null;
+  return classifyMailboxMessageIntent(message);
 }
 
 export function classifyForwardedMessage(message, profiles) {
@@ -1057,13 +1063,21 @@ function searchableMessageText(message) {
 }
 
 function isDeclinedMessageText(text) {
-  return [
+  const strongDeclinePatterns = [
     /unfortunately[\s\S]{0,240}(not|unable|won't|will not|cannot|can't)/i,
-    /(not|no longer|won't|will not)[\s\S]{0,120}(move forward|proceed|be proceeding|continue|advance)/i,
     /(not selected|not be selected|not chosen|pursue other candidates|other candidates|another candidate)/i,
     /(regret to inform|we regret|sorry to inform)/i,
     /(application|candidacy)[\s\S]{0,120}(declined|unsuccessful|rejected)/i,
-  ].some((pattern) => pattern.test(text));
+  ];
+  if (strongDeclinePatterns.some((pattern) => pattern.test(text))) return true;
+
+  const conditionalApplicationInstructionPatterns = [
+    /if you did not[\s\S]{0,80}(proceed|complete|finish)[\s\S]{0,120}(final step|application process|form)/i,
+    /if you did not apply[\s\S]{0,120}(email in error|remove yourself)/i,
+  ];
+  if (conditionalApplicationInstructionPatterns.some((pattern) => pattern.test(text))) return false;
+
+  return /(not|no longer|won't|will not)[\s\S]{0,120}(move forward|proceed|be proceeding|continue|advance)/i.test(text);
 }
 
 function isApplicationConfirmationText(text) {
@@ -1078,9 +1092,10 @@ function isApplicationConfirmationText(text) {
 
 function isAssessmentLinkText(text) {
   return [
-    /(assessment|test|coding challenge|take-home|take home|hackerrank|codility|codesignal|criteriacorp|testgorilla)/i,
-    /(complete|submit|finish)[\s\S]{0,120}(assessment|test|challenge)/i,
-    /(expires|deadline|due)[\s\S]{0,120}(assessment|test|challenge)/i,
+    /\b(assessment|coding challenge|take[-\s]?home|hackerrank|codility|codesignal|criteriacorp|testgorilla)\b/i,
+    /\b(online|technical|coding|skills?|aptitude|pre-employment)\s+(assessment|test|challenge)\b/i,
+    /\b(assessment|test|challenge)\b[\s\S]{0,120}\b(link|url|complete|submit|finish|expires|deadline|due)\b/i,
+    /\b(complete|submit|finish|expires|deadline|due)\b[\s\S]{0,120}\b(assessment|test|challenge)\b/i,
   ].some((pattern) => pattern.test(text));
 }
 

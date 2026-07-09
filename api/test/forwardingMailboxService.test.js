@@ -282,6 +282,81 @@ describe('forwarding mailbox helpers', () => {
     });
   });
 
+  it('rechecks stored assessment classifications before formatting inbox messages', () => {
+    const formatted = formatStoredMailboxMessage({
+      messageId: 'INBOX:43',
+      subject: 'Complete your candidate profile',
+      fromName: 'Recruiter',
+      fromAddress: 'recruiter@example.com',
+      senderName: 'Recruiter',
+      senderAddress: 'recruiter@example.com',
+      toAddresses: [{ name: 'Maya', address: 'maya@example.com' }],
+      ccAddresses: [],
+      bccAddresses: [],
+      receivedAt: new Date('2026-06-16T12:05:00Z'),
+      bodyPreview: 'Please complete your profile.',
+      bodyHtml: '<p>Please complete your profile and review <a href="https://example.com/careers/testimonials">testimonials</a>.</p>',
+      bodyText: 'Please complete your profile and review testimonials: https://example.com/careers/testimonials',
+      mailboxPath: 'INBOX',
+      isRead: false,
+      matchValue: 'service+maya@co-bounce.com',
+      matchSource: 'forwardingEmail:address',
+      classification: { type: 'assessment_link', label: 'Assessment link' },
+      application: null,
+      profile: {
+        id: '9',
+        name: 'Maya Patel',
+        email: 'maya@example.com',
+        forwardingEmail: 'service+maya@co-bounce.com',
+      },
+    });
+
+    assert.equal(formatted.classification, null);
+  });
+
+  it('rechecks stored declined classifications before formatting inbox messages', () => {
+    const formatted = formatStoredMailboxMessage({
+      messageId: 'INBOX:44',
+      subject: 'Thank You for Submitting Your Resume/CV',
+      fromName: 'Talent Acquisition',
+      fromAddress: 'talent@example.com',
+      senderName: 'Talent Acquisition',
+      senderAddress: 'talent@example.com',
+      toAddresses: [{ name: 'Maya', address: 'maya@example.com' }],
+      ccAddresses: [],
+      bccAddresses: [],
+      receivedAt: new Date('2026-06-16T12:10:00Z'),
+      bodyPreview: 'Your application for Data Scientist & Engineer',
+      bodyHtml: '',
+      bodyText: [
+        'Your application for Data Scientist & Engineer',
+        'IMPORTANT: If you did not proceed to the final step of the application process earlier, please complete this form now to be considered for employment.',
+        "We're always looking for great people and we really appreciate the time you've taken to apply.",
+        'Our team will reach out after they have a moment to review your application.',
+        'If you did not apply to this job and feel that you have received this email in error, please click here to remove yourself.',
+      ].join('\n'),
+      mailboxPath: 'INBOX',
+      isRead: false,
+      matchValue: 'service+maya@co-bounce.com',
+      matchSource: 'forwardingEmail:address',
+      classification: { type: 'declined', label: 'Declined email' },
+      application: null,
+      profile: {
+        id: '9',
+        name: 'Maya Patel',
+        email: 'maya@example.com',
+        forwardingEmail: 'service+maya@co-bounce.com',
+      },
+    });
+
+    assert.deepEqual(formatted.classification, {
+      type: 'application_confirmation',
+      label: 'Application confirmation',
+      suggestedAction: 'Confirm the matching application is submitted.',
+      confidence: 0.88,
+    });
+  });
+
   it('classifies declined emails', () => {
     const classification = classifyMailboxMessageIntent({
       subject: 'Your application for Software Engineer',
@@ -307,6 +382,55 @@ describe('forwarding mailbox helpers', () => {
       label: 'Application confirmation',
       suggestedAction: 'Confirm the matching application is submitted.',
       confidence: 0.88,
+    });
+  });
+
+  it('does not classify conditional final-step instructions as declined emails', () => {
+    const classification = classifyMailboxMessageIntent({
+      subject: 'Thank You for Submitting Your Resume/CV',
+      bodyText: [
+        'Your application for Data Scientist & Engineer',
+        'IMPORTANT: If you did not proceed to the final step of the application process earlier, please complete this form now to be considered for employment.',
+        "We're always looking for great people and we really appreciate the time you've taken to apply.",
+        'Our team will reach out after they have a moment to review your application.',
+        'You can withdraw your application at any time by visiting the link below and retrieving your Candidate Profile by entering your email address.',
+        'If you did not apply to this job and feel that you have received this email in error, please click here to remove yourself.',
+        'NYU Langone Health Talent Acquisition Team',
+        'You received this email based on your application with NYU Langone Health.',
+      ].join('\n'),
+    });
+
+    assert.deepEqual(classification, {
+      type: 'application_confirmation',
+      label: 'Application confirmation',
+      suggestedAction: 'Confirm the matching application is submitted.',
+      confidence: 0.88,
+    });
+  });
+
+  it('does not classify generic linked emails as assessments', () => {
+    const classification = classifyMailboxMessageIntent({
+      subject: 'Complete your candidate profile',
+      bodyText: [
+        'Please complete your profile and review our company pages.',
+        'Learn more from our testimonials: https://example.com/careers/testimonials',
+      ].join('\n'),
+    });
+
+    assert.equal(classification, null);
+  });
+
+  it('classifies explicit assessment emails', () => {
+    const classification = classifyMailboxMessageIntent({
+      subject: 'Technical assessment for Software Engineer',
+      bodyText: 'Please complete the technical assessment by Friday: https://example.com/assessment',
+    });
+
+    assert.deepEqual(classification, {
+      type: 'assessment_link',
+      label: 'Assessment link',
+      suggestedAction: 'Create an assessment item and complete it before expiration.',
+      confidence: 0.86,
     });
   });
 
