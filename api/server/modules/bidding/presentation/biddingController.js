@@ -1241,10 +1241,21 @@ export async function listCalendarInterviews(req, res, next) {
 
     const interviews = calendarEventsForInterviews(await calendarInterviewsForUser(user));
     const tailoredResumesByEvent = await tailoredResumesForCalendarEvents(interviews);
+    const ownerUserIds = [...new Set(interviews.map((interview) => interview.userId).filter(Boolean).map(String))];
+    const ownerUsers = ownerUserIds.length
+      ? await getWebUserModel().findAll({
+          where: { id: { [Op.in]: ownerUserIds }, ...workspaceFilterForUser(user) },
+          order: [['username', 'ASC']],
+        })
+      : [];
+    const ownerUsersById = new Map(ownerUsers.map((owner) => [String(owner.id), owner]));
     const callerUsers = canRegisterManualInterviewCalls(user)
       ? await getWebUserModel().findAll({ where: { role: 'caller', ...workspaceFilterForUser(user) }, order: [['username', 'ASC']] })
       : [];
-    const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
+    const callerUsersForDisplay = user.role === 'caller' && !callerUsers.some((caller) => String(caller.id) === String(user.id))
+      ? [...callerUsers, user]
+      : callerUsers;
+    const callerUsersById = new Map(callerUsersForDisplay.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
     const profilesById = new Map();
     for (const interview of interviews) {
@@ -1256,9 +1267,9 @@ export async function listCalendarInterviews(req, res, next) {
     res.json({
       profiles: sortProfilesForDisplay([...profilesById.values()]).map(formatProfile),
       jobs: interviews.map((interview) => (
-        formatInterviewAsJob(interview, new Map(), callerUsersById, tailoredResumesByEvent.get(calendarResumeKey(interview)) || null)
+        formatInterviewAsJob(interview, ownerUsersById, callerUsersById, tailoredResumesByEvent.get(calendarResumeKey(interview)) || null)
       )),
-      callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
+      callerUsers: callerUsersForDisplay.map((caller) => ({ id: caller.id, username: caller.username })),
       calendar: {
         generatedAt: new Date().toISOString(),
         icsUrl: '/api/bid/calendar.ics',

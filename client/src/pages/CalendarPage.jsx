@@ -1,15 +1,16 @@
 import { Alert, Box } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
+import { filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
+import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import CalendarGrid from '../components/calendar/CalendarGrid.jsx';
-import CalendarProfileLegend from '../components/calendar/CalendarProfileLegend.jsx';
+import CalendarScheduleLens from '../components/calendar/CalendarScheduleLens.jsx';
 import CalendarToolbar, { CALENDAR_VIEWS } from '../components/calendar/CalendarToolbar.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { api, downloadAuthenticatedFile, useAdminWorkspaces, useUpdateInterviewCall, useUpdateJobBid } from '../lib/api.js';
+import { api, downloadAuthenticatedFile, useUpdateInterviewCall, useUpdateJobBid } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
-import { isSuperadmin } from '../lib/roles.js';
+import { ROLES, isSuperadmin } from '../lib/roles.js';
 import {
   addDaysToDateKey,
   addMonthsToDateKey,
@@ -22,19 +23,27 @@ import {
 
 const EMPTY_ARRAY = [];
 const EMPTY_OBJECT = {};
+const UNASSIGNED_CALLER_ID = '__unassigned_caller__';
+const UNKNOWN_OWNER_ID = '__unknown_owner__';
+const USER_COLOR = { main: '#2563EB', dark: '#1E40AF', soft: '#DBEAFE' };
+const FINANCE_COLOR = { main: '#059669', dark: '#047857', soft: '#D1FAE5' };
+const CALLER_COLOR = { main: '#D97706', dark: '#92400E', soft: '#FEF3C7' };
+const UNASSIGNED_COLOR = { main: '#94A3B8', dark: '#475569', soft: '#F1F5F9' };
 
 export default function CalendarPage({ currentUser }) {
   const [view, setView] = useState(CALENDAR_VIEWS.week);
   const [cursorDate, setCursorDate] = useState(() => defaultTimezoneTodayKey());
   const [search, setSearch] = useState('');
   const [checkedProfileIds, setCheckedProfileIds] = useState([]);
+  const [checkedUserIds, setCheckedUserIds] = useState([]);
+  const [checkedFinanceManagerIds, setCheckedFinanceManagerIds] = useState([]);
+  const [checkedCallerIds, setCheckedCallerIds] = useState([]);
   const [calendarActionError, setCalendarActionError] = useState('');
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
+  const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const superadminView = isSuperadmin(currentUser);
   const updateBid = useUpdateJobBid();
   const updateInterviewCall = useUpdateInterviewCall();
-  const { data: workspaces = EMPTY_ARRAY, isLoading: workspacesLoading } = useAdminWorkspaces({ enabled: superadminView });
   const {
     data: calendarData,
     isLoading: calendarLoading,
@@ -96,12 +105,56 @@ export default function CalendarPage({ currentUser }) {
     });
   }, [calendarProfileIdsKey]);
 
+  const searchableEvents = useMemo(
+    () => calendarEvents(jobs, profileById, calendarProfileIds, search, calendarMeta.conflicts || EMPTY_ARRAY),
+    [jobs, profileById, calendarProfileIds, search, calendarMeta.conflicts],
+  );
+  const profileFilteredEvents = useMemo(
+    () => filterEventsByProfiles(searchableEvents, checkedProfileIds),
+    [searchableEvents, checkedProfileIds],
+  );
+  const profileGroups = useMemo(
+    () => profileScheduleGroups(calendarProfiles, searchableEvents),
+    [calendarProfiles, searchableEvents],
+  );
+  const userGroups = useMemo(
+    () => ownerScheduleGroups(profileFilteredEvents, 'users'),
+    [profileFilteredEvents],
+  );
+  const financeManagerGroups = useMemo(
+    () => ownerScheduleGroups(profileFilteredEvents, 'finance'),
+    [profileFilteredEvents],
+  );
+  const callerGroups = useMemo(
+    () => callerScheduleGroups(profileFilteredEvents),
+    [profileFilteredEvents],
+  );
+
+  useEffect(() => {
+    setCheckedUserIds((currentIds) => syncCheckedIds(currentIds, userGroups.map((group) => group.id)));
+  }, [userGroups]);
+
+  useEffect(() => {
+    setCheckedFinanceManagerIds((currentIds) => syncCheckedIds(currentIds, financeManagerGroups.map((group) => group.id)));
+  }, [financeManagerGroups]);
+
+  useEffect(() => {
+    setCheckedCallerIds((currentIds) => syncCheckedIds(currentIds, callerGroups.map((group) => group.id)));
+  }, [callerGroups]);
+
   const events = useMemo(
-    () => calendarEvents(jobs, profileById, checkedProfileIds, search, calendarMeta.conflicts || EMPTY_ARRAY),
-    [jobs, profileById, checkedProfileIds, search, calendarMeta.conflicts],
+    () => filterEventsByScheduleLens(profileFilteredEvents, {
+      callerGroups,
+      checkedCallerIds,
+      checkedFinanceManagerIds,
+      checkedUserIds,
+      financeManagerGroups,
+      userGroups,
+    }),
+    [callerGroups, checkedCallerIds, checkedFinanceManagerIds, checkedUserIds, financeManagerGroups, profileFilteredEvents, userGroups],
   );
   const loading = calendarLoading;
-  const pageError = calendarActionError || calendarError?.message || '';
+  const pageError = calendarActionError || calendarError?.message || workspaceError?.message || '';
   const visibleDays = useMemo(
     () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
     [cursorDate, view],
@@ -130,6 +183,20 @@ export default function CalendarPage({ currentUser }) {
       const nextIds = calendarProfileIds.filter((activeId) => currentSet.has(activeId));
       return sameStringArray(currentIds, nextIds) ? currentIds : nextIds;
     });
+  }
+
+  function toggleUser(userId, checked) {
+    setCheckedUserIds((currentIds) => toggleCheckedId(currentIds, userId, checked, userGroups.map((group) => group.id)));
+  }
+
+  function toggleFinanceManager(userId, checked) {
+    setCheckedFinanceManagerIds((currentIds) =>
+      toggleCheckedId(currentIds, userId, checked, financeManagerGroups.map((group) => group.id)),
+    );
+  }
+
+  function toggleCaller(callerId, checked) {
+    setCheckedCallerIds((currentIds) => toggleCheckedId(currentIds, callerId, checked, callerGroups.map((group) => group.id)));
   }
 
   function moveCalendarEvent(event, startsAt) {
@@ -194,7 +261,6 @@ export default function CalendarPage({ currentUser }) {
         gap: 1.5,
         gridTemplateRows: [
           pageError ? 'auto' : '',
-          superadminView ? 'auto' : '',
           'auto',
           'minmax(0, 1fr)',
         ].filter(Boolean).join(' '),
@@ -202,25 +268,6 @@ export default function CalendarPage({ currentUser }) {
       }}
     >
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
-
-      {superadminView ? (
-        <SuperadminWorkspaceLens
-          activeWorkspaceId={activeWorkspaceId}
-          isLoading={workspacesLoading}
-          rows={allCalendarProfiles}
-          subtitle={`${events.length.toLocaleString()} scheduled events in view`}
-          title="Calendar workspaces"
-          workspaces={workspaces}
-          metrics={[
-            { label: 'Profiles', value: calendarProfiles.length },
-            { label: 'Conflicts', value: visibleConflictCount },
-          ]}
-          onWorkspaceChange={(value) => {
-            setActiveWorkspaceId(value);
-            setCalendarActionError('');
-          }}
-        />
-      ) : null}
 
       <CalendarToolbar
         isLoading={loading}
@@ -244,12 +291,27 @@ export default function CalendarPage({ currentUser }) {
           overflow: 'hidden',
         }}
       >
-        <CalendarProfileLegend
+        <CalendarScheduleLens
+          callerGroups={callerGroups}
+          checkedCallerIds={checkedCallerIds}
+          checkedFinanceManagerIds={checkedFinanceManagerIds}
           checkedProfileIds={checkedProfileIds}
-          profiles={calendarProfiles}
-          onChange={toggleProfile}
-          onSelectAll={() => setCheckedProfileIds(calendarProfileIds)}
-          onSelectNone={() => setCheckedProfileIds([])}
+          checkedUserIds={checkedUserIds}
+          financeManagerGroups={financeManagerGroups}
+          profileGroups={profileGroups}
+          userGroups={userGroups}
+          onCallerChange={toggleCaller}
+          onCallerSelectAll={() => setCheckedCallerIds(callerGroups.map((group) => group.id))}
+          onCallerSelectNone={() => setCheckedCallerIds([])}
+          onFinanceManagerChange={toggleFinanceManager}
+          onFinanceManagerSelectAll={() => setCheckedFinanceManagerIds(financeManagerGroups.map((group) => group.id))}
+          onFinanceManagerSelectNone={() => setCheckedFinanceManagerIds([])}
+          onProfileChange={toggleProfile}
+          onProfileSelectAll={() => setCheckedProfileIds(calendarProfileIds)}
+          onProfileSelectNone={() => setCheckedProfileIds([])}
+          onUserChange={toggleUser}
+          onUserSelectAll={() => setCheckedUserIds(userGroups.map((group) => group.id))}
+          onUserSelectNone={() => setCheckedUserIds([])}
         />
 
         <CalendarGrid
@@ -305,6 +367,124 @@ function calendarEvents(jobs, profileById, checkedProfileIds, search, conflicts 
     .sort((left, right) => left.startsAt - right.startsAt);
 }
 
+function filterEventsByProfiles(events, checkedProfileIds) {
+  const checkedProfileIdSet = new Set(checkedProfileIds.map(String));
+  return events.filter((event) => checkedProfileIdSet.has(String(event.profile?.id || '')));
+}
+
+function profileScheduleGroups(profiles, events) {
+  const eventsByProfileId = new Map();
+  events.forEach((event) => addEventToGroup(eventsByProfileId, profileGroupBase(event.profile), event));
+
+  return profiles
+    .map((profile) => {
+      const id = String(profile.id);
+      const eventGroup = eventsByProfileId.get(id);
+      return {
+        ...profileGroupBase(profile),
+        count: eventGroup?.count || 0,
+        nextAt: eventGroup?.nextAt || null,
+      };
+    })
+    .sort(scheduleGroupSort);
+}
+
+function ownerScheduleGroups(events, kind) {
+  const groups = new Map();
+  events.forEach((event) => {
+    const ownerGroup = ownerGroupBase(event);
+    if (kind === 'finance' && !ownerGroup.isFinanceManager) return;
+    if (kind === 'users' && ownerGroup.isFinanceManager) return;
+    addEventToGroup(groups, ownerGroup, event);
+  });
+  return [...groups.values()].sort(scheduleGroupSort);
+}
+
+function callerScheduleGroups(events) {
+  const groups = new Map();
+  events.forEach((event) => addEventToGroup(groups, callerGroupBase(event), event));
+  return [...groups.values()].sort(scheduleGroupSort);
+}
+
+function filterEventsByScheduleLens(events, { callerGroups, checkedCallerIds, checkedFinanceManagerIds, checkedUserIds, financeManagerGroups, userGroups }) {
+  const userGroupIds = new Set(userGroups.map((group) => String(group.id)));
+  const financeManagerGroupIds = new Set(financeManagerGroups.map((group) => String(group.id)));
+  const callerGroupIds = new Set(callerGroups.map((group) => String(group.id)));
+  const checkedUserIdSet = new Set(checkedUserIds.map(String));
+  const checkedFinanceManagerIdSet = new Set(checkedFinanceManagerIds.map(String));
+  const checkedCallerIdSet = new Set(checkedCallerIds.map(String));
+
+  return events.filter((event) => {
+    const ownerGroup = ownerGroupBase(event);
+    const ownerId = String(ownerGroup.id);
+    if (ownerGroup.isFinanceManager && financeManagerGroupIds.has(ownerId) && !checkedFinanceManagerIdSet.has(ownerId)) return false;
+    if (!ownerGroup.isFinanceManager && userGroupIds.has(ownerId) && !checkedUserIdSet.has(ownerId)) return false;
+
+    const callerId = String(callerGroupBase(event).id);
+    if (callerGroupIds.has(callerId) && !checkedCallerIdSet.has(callerId)) return false;
+    return true;
+  });
+}
+
+function profileGroupBase(profile = {}) {
+  const color = profile.calendarColor || PROFILE_COLORS[profile.colorScheme] || PROFILE_COLORS.green;
+  return {
+    id: String(profile.id || ''),
+    label: profile.name || 'Profile',
+    color,
+    count: 0,
+    nextAt: null,
+  };
+}
+
+function ownerGroupBase(event) {
+  const owner = event.job?.bid?.user || null;
+  const ownerId = owner?.id || event.job?.bid?.userId || UNKNOWN_OWNER_ID;
+  const isFinanceManager = owner?.role === ROLES.financeManager;
+  return {
+    id: String(ownerId),
+    label: owner?.username || (ownerId === UNKNOWN_OWNER_ID ? 'Unknown owner' : `User #${ownerId}`),
+    color: isFinanceManager ? FINANCE_COLOR : USER_COLOR,
+    count: 0,
+    isFinanceManager,
+    nextAt: null,
+  };
+}
+
+function callerGroupBase(event) {
+  const caller = event.job?.bid?.callerUser || null;
+  const callerId = caller?.id || event.job?.bid?.callerUserId || UNASSIGNED_CALLER_ID;
+  const isUnassigned = callerId === UNASSIGNED_CALLER_ID;
+  return {
+    id: String(callerId),
+    label: caller?.username || (isUnassigned ? 'Unassigned caller' : `Caller #${callerId}`),
+    color: isUnassigned ? UNASSIGNED_COLOR : CALLER_COLOR,
+    count: 0,
+    nextAt: null,
+  };
+}
+
+function addEventToGroup(groups, baseGroup, event) {
+  if (!baseGroup.id) return;
+  const id = String(baseGroup.id);
+  if (!groups.has(id)) groups.set(id, { ...baseGroup });
+  const group = groups.get(id);
+  group.count += 1;
+  if (!group.nextAt || event.startsAt < group.nextAt) group.nextAt = event.startsAt;
+}
+
+function scheduleGroupSort(left, right) {
+  const countDiff = right.count - left.count;
+  if (countDiff) return countDiff;
+  if (left.nextAt && right.nextAt) {
+    const dateDiff = left.nextAt - right.nextAt;
+    if (dateDiff) return dateDiff;
+  }
+  if (left.nextAt) return -1;
+  if (right.nextAt) return 1;
+  return String(left.label).localeCompare(String(right.label));
+}
+
 function conflictEventIds(conflicts) {
   const ids = new Set();
   for (const conflict of conflicts || []) {
@@ -318,6 +498,23 @@ function conflictEventIds(conflicts) {
 function sameStringArray(left = [], right = []) {
   if (left.length !== right.length) return false;
   return left.every((value, index) => String(value) === String(right[index]));
+}
+
+function syncCheckedIds(currentIds, activeIds) {
+  const activeIdSet = new Set(activeIds.map(String));
+  const keptIds = currentIds.map(String).filter((id) => activeIdSet.has(id));
+  const addedIds = activeIds.map(String).filter((id) => !keptIds.includes(id));
+  const nextIds = [...keptIds, ...addedIds];
+  return sameStringArray(currentIds, nextIds) ? currentIds : nextIds;
+}
+
+function toggleCheckedId(currentIds, rawId, checked, activeIds) {
+  const id = String(rawId);
+  const currentSet = new Set(currentIds.map(String));
+  if (checked) currentSet.add(id);
+  else currentSet.delete(id);
+  const nextIds = activeIds.map(String).filter((activeId) => currentSet.has(activeId));
+  return sameStringArray(currentIds, nextIds) ? currentIds : nextIds;
 }
 
 function fetchCalendarInterviews() {

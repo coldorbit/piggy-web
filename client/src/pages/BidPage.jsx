@@ -6,7 +6,8 @@ import BidJobsPanel from '../components/bids/BidJobsPanel.jsx';
 import BidProfileSummary from '../components/bids/BidProfileSummary.jsx';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { BidWorkspaceProvider } from '../components/bids/BidWorkspaceContext.jsx';
-import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
+import { filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
+import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import SameCompanyTailoringDialog from '../components/bids/SameCompanyTailoringDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
@@ -14,7 +15,6 @@ import { BID_TABS, EMPTY_BID } from '../components/bids/bidConstants.js';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import { EMPTY_PROFILE, PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import {
-  useAdminWorkspaces,
   useBidJobs,
   useBidProfiles,
   useBulkRequestTailoredResumes,
@@ -65,8 +65,8 @@ export default function BidPage({ currentUser }) {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [tailoringByProfileJobId, setTailoringByProfileJobId] = useState({});
   const [sameCompanyConfirmation, setSameCompanyConfirmation] = useState(null);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
+  const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const canUseTomorrowDateFilter = isAdminRole(currentUser);
   const superadminView = isSuperadmin(currentUser);
   const dateFiltersForRole = useMemo(
@@ -78,7 +78,6 @@ export default function BidPage({ currentUser }) {
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
     { ...(canUseTomorrowDateFilter ? { scope: 'manage' } : {}), ...profileGoalFilters },
   );
-  const { data: workspaces = [], isLoading: workspacesLoading } = useAdminWorkspaces({ enabled: superadminView });
   const activeProfiles = useMemo(
     () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
     [profiles],
@@ -416,7 +415,7 @@ export default function BidPage({ currentUser }) {
     () => ({ ...(currentUser || {}), ...(bidJobsData?.currentUser || {}) }),
     [bidJobsData?.currentUser, currentUser],
   );
-  const pageError = error || profilesError?.message || jobsError?.message || metaError?.message || '';
+  const pageError = error || profilesError?.message || jobsError?.message || metaError?.message || workspaceError?.message || '';
   const loading = profilesLoading || metaLoading || (jobsLoading && !bidJobsData);
   const bidWorkspace = useMemo(
     () => ({
@@ -481,24 +480,6 @@ export default function BidPage({ currentUser }) {
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
-      {superadminView ? (
-        <SuperadminWorkspaceLens
-          activeWorkspaceId={activeWorkspaceId}
-          isLoading={workspacesLoading}
-          rows={activeProfilesWithWorkspace}
-          subtitle={`${workspaceActiveProfiles.length.toLocaleString()} active bidding profiles in view`}
-          title="Bid workspaces"
-          workspaces={workspaces}
-          metrics={[
-            { label: 'Daily done', value: workspaceActiveProfiles.reduce((sum, profile) => sum + Number(profile.progress?.dailyFinished || 0), 0) },
-            { label: 'Planned', value: workspaceActiveProfiles.reduce((sum, profile) => sum + Number(profile.progress?.planned || 0), 0) },
-          ]}
-          onWorkspaceChange={(value) => {
-            setActiveWorkspaceId(value);
-            setError('');
-          }}
-        />
-      ) : null}
       {!workspaceActiveProfiles.length && !profilesLoading ? (
         <EmptyState
           title="No active profiles available"
@@ -513,7 +494,7 @@ export default function BidPage({ currentUser }) {
             gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)', xl: '240px minmax(0, 1fr)' },
             gap: 1.5,
             alignItems: 'stretch',
-            height: { xs: 'auto', md: superadminView ? 'calc(100vh - 214px)' : 'calc(100vh - 108px)', xl: superadminView ? 'calc(100vh - 230px)' : 'calc(100vh - 124px)' },
+            height: { xs: 'auto', md: 'calc(100vh - 108px)', xl: 'calc(100vh - 124px)' },
             minHeight: { md: 0 },
             minWidth: 0,
           }}

@@ -35,10 +35,10 @@ import ProfileCard from '../components/profiles/ProfileCard.jsx';
 import CollaborationPanel from '../components/collaboration/CollaborationPanel.jsx';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
-import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
+import { filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
+import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import { EMPTY_PROFILE } from '../components/profiles/profileConstants.js';
 import {
-  useAdminWorkspaces,
   useBidProfiles,
   useChangeBidProfileOwner,
   useCreateBidProfile,
@@ -96,13 +96,12 @@ export default function ProfilesPage({ currentUser }) {
   const [form, setForm] = useState(EMPTY_PROFILE);
   const [error, setError] = useState('');
   const [activeStatus, setActiveStatus] = useState('active');
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
+  const { activeWorkspaceId, setActiveWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const superadminView = isSuperadmin(currentUser);
 
   const { data: profiles = [], isLoading, error: loadError, refetch } = useBidProfiles(
     isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
-  const { data: workspaces = [], isLoading: workspacesLoading } = useAdminWorkspaces({ enabled: superadminView });
   const profilesWithWorkspace = useMemo(
     () => profiles.map((profile) => ({
       ...profile,
@@ -310,7 +309,7 @@ export default function ProfilesPage({ currentUser }) {
   const ownerRecipientOptions = shareRecipients.filter(
     (user) => ADMIN_MANAGED_PROFILE_OWNER_ROLES.includes(user.role) && String(user.id) !== String(ownerProfile?.userId),
   );
-  const pageError = error || loadError?.message || sharesError?.message || recipientsError?.message || '';
+  const pageError = error || loadError?.message || sharesError?.message || recipientsError?.message || workspaceError?.message || '';
   const canManageProfiles = !BIDDER_ROLES.includes(currentUser?.role);
   const canUpdateProfileStatus = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
   const canRestoreProfiles = isAdminRole(currentUser);
@@ -339,7 +338,7 @@ export default function ProfilesPage({ currentUser }) {
     if (!highlightedProfile) return;
     setActiveStatus(normalizedProfileStatus(highlightedProfile.profileStatus));
     if (superadminView) setActiveWorkspaceId(String(highlightedProfile.workspaceId || 'unassigned'));
-  }, [highlightedProfileId, profiles, superadminView]);
+  }, [highlightedProfileId, profiles, setActiveWorkspaceId, superadminView]);
 
   function handleStatusChange(status) {
     setActiveStatus(status);
@@ -392,25 +391,6 @@ export default function ProfilesPage({ currentUser }) {
         </Card>
       ) : null}
 
-      {superadminView ? (
-        <SuperadminWorkspaceLens
-          activeWorkspaceId={activeWorkspaceId}
-          isLoading={workspacesLoading}
-          rows={profilesWithWorkspace}
-          subtitle={`${visibleProfiles.length.toLocaleString()} ${activeStatusSection.label.toLowerCase()} profiles in view`}
-          title="Profile workspaces"
-          workspaces={workspaces}
-          metrics={[
-            { label: 'Active', value: workspaceProfiles.filter((profile) => normalizedProfileStatus(profile.profileStatus) === 'active').length },
-            { label: 'Interviews', value: workspaceProfiles.reduce((sum, profile) => sum + Number(profile.progress?.activeInterviews || 0), 0) },
-          ]}
-          onWorkspaceChange={(value) => {
-            setActiveWorkspaceId(value);
-            setError('');
-          }}
-        />
-      ) : null}
-
       <Box
         sx={{
           display: 'grid',
@@ -419,12 +399,8 @@ export default function ProfilesPage({ currentUser }) {
           alignItems: 'stretch',
           height: {
             xs: 'auto',
-            md: superadminView
-              ? incomingShares.length ? 'calc(100vh - 350px)' : 'calc(100vh - 214px)'
-              : incomingShares.length ? 'calc(100vh - 244px)' : 'calc(100vh - 108px)',
-            xl: superadminView
-              ? incomingShares.length ? 'calc(100vh - 366px)' : 'calc(100vh - 230px)'
-              : incomingShares.length ? 'calc(100vh - 260px)' : 'calc(100vh - 124px)',
+            md: incomingShares.length ? 'calc(100vh - 244px)' : 'calc(100vh - 108px)',
+            xl: incomingShares.length ? 'calc(100vh - 260px)' : 'calc(100vh - 124px)',
           },
           minHeight: { md: 0 },
           minWidth: 0,

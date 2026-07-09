@@ -381,7 +381,7 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
     <Tooltip
       title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
         event.profile?.name || 'Profile'
-      }`}
+      } · ${calendarPeopleLabel(event)}`}
     >
       <Box
         component="button"
@@ -569,7 +569,7 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
     <Tooltip
       title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
         event.profile?.name || 'Profile'
-      }`}
+      } · ${calendarPeopleLabel(event)}`}
     >
       <Box
         component="button"
@@ -675,6 +675,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
           <DialogContent sx={{ display: 'grid', gap: 1.25, pt: 2 }}>
             <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)}`} />
             <DetailRow label="Profile" value={event.profile?.name || 'Profile'} />
+            {event.job?.bid?.user ? <DetailRow label={event.job.bid.user.role === 'finance_manager' ? 'Finance manager' : 'User'} value={event.job.bid.user.username} /> : null}
             <DetailRow label="Company" value={event.company || 'Unknown company'} />
             <DetailRow label="Role" value={event.title || 'Untitled role'} />
             {event.location ? <DetailRow label="Location" value={event.location} /> : null}
@@ -926,6 +927,15 @@ function durationLabel(durationMinutes = 60) {
 
 function compactEventLabel(event) {
   return [event.profile?.name || 'Profile', event.company || 'Unknown company'].filter(Boolean).join(' · ');
+}
+
+function calendarPeopleLabel(event) {
+  const owner = event.job?.bid?.user?.username;
+  const caller = event.job?.bid?.callerUser?.username;
+  return [
+    owner ? `User: ${owner}` : '',
+    caller ? `Caller: ${caller}` : event.job?.bid?.callerUserId ? `Caller #${event.job.bid.callerUserId}` : 'Unassigned caller',
+  ].filter(Boolean).join(' · ');
 }
 
 function externalJobUrl(event) {

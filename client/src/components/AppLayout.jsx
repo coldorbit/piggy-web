@@ -37,12 +37,16 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
   IconButton,
   InputAdornment,
+  InputLabel,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  MenuItem,
+  Select,
   TextField,
   Toolbar,
   Tooltip,
@@ -50,9 +54,10 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useUpdateMe } from '../lib/authApi.js';
+import { useAdminWorkspaces } from '../lib/api.js';
 import { useMailboxNotifications } from '../lib/mailboxNotifications.js';
 import {
   MARKETPLACE_ACCESS_ROLES,
@@ -67,8 +72,11 @@ import {
   canAccessPersonalDashboard,
   canManageCallers,
   isAdminRole,
+  isSuperadmin,
   roleLabel,
 } from '../lib/roles.js';
+import { ALL_WORKSPACES, UNASSIGNED_WORKSPACE, workspaceLabel } from './admin/SuperadminWorkspaceLens.jsx';
+import { WorkspaceFilterProvider } from './admin/WorkspaceFilterContext.jsx';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 
 const DRAWER_WIDTH = 248;
@@ -87,8 +95,11 @@ export default function AppLayout({ user }) {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [accountUsername, setAccountUsername] = useState(user.username || '');
   const [accountError, setAccountError] = useState('');
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
   const { mutate: logout } = useLogout();
   const { mutate: updateMe, isPending: isUpdatingMe } = useUpdateMe();
+  const canUseWorkspaceFilter = isSuperadmin(user);
+  const { data: workspaces = [], isLoading: workspacesLoading, error: workspaceError } = useAdminWorkspaces({ enabled: isAdminRole(user) });
   const isAdminDashboardRoute = location.pathname.startsWith('/admin/dashboard');
   const isPersonalDashboardRoute = location.pathname.startsWith('/dashboard');
   const isConsumptionRoute = location.pathname.startsWith('/admin/consumption');
@@ -110,6 +121,16 @@ export default function AppLayout({ user }) {
     () => ({ search: headerSearch, setSearch: setHeaderSearch }),
     [headerSearch],
   );
+  const workspaceFilterContext = useMemo(
+    () => ({
+      activeWorkspaceId,
+      setActiveWorkspaceId,
+      workspaceError,
+      workspaces,
+      workspacesLoading,
+    }),
+    [activeWorkspaceId, workspaceError, workspaces, workspacesLoading],
+  );
   const canViewInterviews = canAccessInterviews(user);
   const canAccessMarketplace = MARKETPLACE_ACCESS_ROLES.includes(user.role);
   const canViewCallers = canManageCallers(user);
@@ -123,6 +144,13 @@ export default function AppLayout({ user }) {
   const isDrawerCollapsed = isDesktop && isSidebarCollapsed;
   const drawerWidth = isDrawerCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH;
   const adminDashboardSearch = isAdminDashboardRoute ? location.search : '';
+
+  useEffect(() => {
+    if (!canUseWorkspaceFilter || activeWorkspaceId === ALL_WORKSPACES) return;
+    if (activeWorkspaceId === UNASSIGNED_WORKSPACE) return;
+    if (workspaces.some((workspace) => String(workspace.id) === String(activeWorkspaceId))) return;
+    setActiveWorkspaceId(ALL_WORKSPACES);
+  }, [activeWorkspaceId, canUseWorkspaceFilter, workspaces]);
   const handleOpenMailboxNotification = useCallback((message) => {
     const profileId = message?.matchedProfile?.id;
     const params = new URLSearchParams();
@@ -516,6 +544,14 @@ export default function AppLayout({ user }) {
               />
             ) : null}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, order: { xs: 2, sm: 3 } }}>
+              {canUseWorkspaceFilter && !isWorkspaceRoute ? (
+                <HeaderWorkspaceSelect
+                  activeWorkspaceId={activeWorkspaceId}
+                  isLoading={workspacesLoading}
+                  workspaces={workspaces}
+                  onChange={setActiveWorkspaceId}
+                />
+              ) : null}
               <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.75 }}>
                 <AccountCircleIcon color="action" />
                 <Typography color="text.secondary" noWrap>
@@ -579,7 +615,9 @@ export default function AppLayout({ user }) {
             boxSizing: 'border-box',
           }}
         >
-          <Outlet />
+          <WorkspaceFilterProvider value={workspaceFilterContext}>
+            <Outlet />
+          </WorkspaceFilterProvider>
         </Box>
       </Box>
         <Dialog open={isAccountDialogOpen} onClose={closeAccountDialog} fullWidth maxWidth="xs">
@@ -616,6 +654,41 @@ function mailboxNotificationTooltip(mailboxNotifications) {
   if (mailboxNotifications.permission === 'denied') return 'Email notifications blocked';
   if (mailboxNotifications.isEnabled) return 'Disable email notifications';
   return 'Enable email notifications';
+}
+
+function HeaderWorkspaceSelect({ activeWorkspaceId, isLoading, onChange, workspaces = [] }) {
+  const activeLabel = activeWorkspaceId === ALL_WORKSPACES ? 'All workspaces' : workspaceLabel(workspaces, activeWorkspaceId);
+
+  return (
+    <FormControl
+      size="small"
+      sx={{
+        display: { xs: 'none', md: 'block' },
+        width: { md: 210, lg: 250 },
+        '& .MuiInputBase-root': {
+          bgcolor: 'rgba(255, 255, 255, 0.72)',
+        },
+      }}
+    >
+      <InputLabel>Workspace</InputLabel>
+      <Select
+        disabled={isLoading}
+        label="Workspace"
+        value={String(activeWorkspaceId)}
+        onChange={(event) => onChange(event.target.value)}
+        renderValue={() => activeLabel}
+        startAdornment={<ApartmentIcon fontSize="small" sx={{ color: 'text.secondary', mr: 0.75 }} />}
+      >
+        <MenuItem value={ALL_WORKSPACES}>All workspaces</MenuItem>
+        <MenuItem value={UNASSIGNED_WORKSPACE}>Unassigned workspace</MenuItem>
+        {workspaces.map((workspace) => (
+          <MenuItem key={workspace.id} value={String(workspace.id)}>
+            {workspace.name}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
 }
 
 function DashboardNavGroup({ collapsed = false, isOpen = false, onNavigate, onToggle, search = '' }) {

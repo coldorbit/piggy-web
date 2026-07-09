@@ -3,11 +3,12 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { Alert, Box, Chip, IconButton, Paper, Skeleton, Tab, Tabs, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import SuperadminWorkspaceLens, { ALL_WORKSPACES, filterRowsByWorkspace } from '../components/admin/SuperadminWorkspaceLens.jsx';
+import { ALL_WORKSPACES, filterRowsByWorkspace } from '../components/admin/SuperadminWorkspaceLens.jsx';
+import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import UserForm from '../components/admin/UserForm.jsx';
 import UsersTable from '../components/admin/UsersTable.jsx';
-import { useAdminUsers, useAdminWorkspaces, useCreateUser, useDeleteUser, useUpdateUser } from '../lib/api.js';
-import { BIDDER_ROLES, ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isSuperadmin, roleLabel, roleOptionsFor } from '../lib/roles.js';
+import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '../lib/api.js';
+import { BIDDER_ROLES, ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleLabel, roleOptionsFor } from '../lib/roles.js';
 
 const DEFAULT_USER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
 const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', workspaceId: '', workspaceMembershipIds: [], dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE };
@@ -42,13 +43,11 @@ export default function AdminUsersPage({ currentUser }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [editing, setEditing] = useState(EMPTY_FORM);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
+  const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const [error, setError] = useState('');
   const [activeRole, setActiveRole] = useState(ROLES.user);
-  const superadminView = isSuperadmin(currentUser);
 
   const { data: users = [], isLoading, error: usersError, refetch } = useAdminUsers();
-  const { data: workspaces = [], isLoading: workspacesLoading, error: workspacesError } = useAdminWorkspaces();
   const { mutate: createUser, isPending: isCreating } = useCreateUser();
   const { mutate: updateUser, isPending: isUpdating } = useUpdateUser();
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
@@ -85,9 +84,10 @@ export default function AdminUsersPage({ currentUser }) {
   }, [activeSection.role, canCreateActiveRole, defaultWorkspaceId]);
 
   useEffect(() => {
-    if (activeWorkspaceId === ALL_WORKSPACES || workspaces.some((workspace) => String(workspace.id) === String(activeWorkspaceId))) return;
-    setActiveWorkspaceId(ALL_WORKSPACES);
-  }, [activeWorkspaceId, workspaces]);
+    setEditingId(null);
+    setEditing(EMPTY_FORM);
+    setError('');
+  }, [activeWorkspaceId]);
 
   function handleCreateUser(event) {
     event.preventDefault();
@@ -142,33 +142,14 @@ export default function AdminUsersPage({ currentUser }) {
 
   return (
     <Box sx={{ minHeight: 0, display: 'grid', gap: 1.5, alignContent: 'start' }}>
-      {error || usersError || workspacesError ? <Alert severity="error">{error || usersError?.message || workspacesError?.message}</Alert> : null}
-      {superadminView ? (
-        <SuperadminWorkspaceLens
-          activeWorkspaceId={activeWorkspaceId}
-          isLoading={workspacesLoading}
-          rows={users}
-          subtitle={`${visibleUsers.length.toLocaleString()} ${activeSection.label} accounts in view`}
-          title="User workspaces"
-          workspaces={workspaces}
-          metrics={[
-            { label: 'Active', value: workspaceUsers.filter((user) => user.isActive).length },
-            { label: 'Admins', value: workspaceUsers.filter((user) => [ROLES.superadmin, ROLES.admin].includes(user.role)).length },
-          ]}
-          onWorkspaceChange={(value) => {
-            setActiveWorkspaceId(value);
-            setEditingId(null);
-            setError('');
-          }}
-        />
-      ) : null}
+      {error || usersError || workspaceError ? <Alert severity="error">{error || usersError?.message || workspaceError?.message}</Alert> : null}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)', xl: '240px minmax(0, 1fr)' },
           gap: 1.5,
           alignItems: 'stretch',
-          height: { xs: 'auto', md: superadminView ? 'calc(100vh - 214px)' : 'calc(100vh - 108px)', xl: superadminView ? 'calc(100vh - 230px)' : 'calc(100vh - 124px)' },
+          height: { xs: 'auto', md: 'calc(100vh - 108px)', xl: 'calc(100vh - 124px)' },
           minHeight: { md: 0 },
           minWidth: 0,
         }}
