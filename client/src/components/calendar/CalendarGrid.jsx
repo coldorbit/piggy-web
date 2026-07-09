@@ -405,7 +405,7 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
           height,
           left,
           width,
-          minHeight: 18,
+          minHeight: 0,
           borderLeft: isSelected ? 5 : 3,
           borderColor: color.main,
           bgcolor: isSelected ? color.main : color.soft,
@@ -418,7 +418,7 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
           boxShadow: isSelected ? '0 4px 10px rgba(60, 64, 67, 0.28)' : 'none',
           overflow: 'hidden',
           display: 'grid',
-          alignContent: 'start',
+          alignContent: isCompact ? 'center' : 'start',
           gap: 0,
           borderTop: 0,
           borderRight: 0,
@@ -442,7 +442,7 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
         }}
       >
         {isCompact ? (
-          <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.25 }}>
+          <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.15 }}>
             {compactEventLabel(event)}
           </Typography>
         ) : (
@@ -852,7 +852,7 @@ function hourLabel(hour) {
 function eventTop(value) {
   const parts = zonedDateParts(value);
   const minutes = parts.hour * 60 + parts.minute;
-  return (minutes / 60) * HOUR_HEIGHT + 4;
+  return (minutes / 60) * HOUR_HEIGHT;
 }
 
 function layoutOverlappingEvents(events) {
@@ -924,7 +924,7 @@ function eventEndMinutes(event) {
 }
 
 function eventHeight(durationMinutes = 60) {
-  return Math.max((Number(durationMinutes || 60) / 60) * HOUR_HEIGHT - 8, 18);
+  return Math.max((Number(durationMinutes || 60) / 60) * HOUR_HEIGHT, 1);
 }
 
 function durationLabel(durationMinutes = 60) {
