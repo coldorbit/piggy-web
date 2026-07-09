@@ -37,6 +37,8 @@ const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DISPLAY_WEEKDAYS = WEEKDAY_LABELS.slice(1, 6);
 const HOURS = Array.from({ length: 24 }, (_item, hour) => hour);
 const HOUR_HEIGHT = 64;
+const GOOGLE_CALENDAR_BORDER = '#DADCE0';
+const GOOGLE_CALENDAR_MUTED = '#5F6368';
 
 export default function CalendarGrid({
   callerUsers = [],
@@ -77,9 +79,12 @@ export default function CalendarGrid({
           minHeight: 0,
           height: '100%',
           overflow: 'hidden',
-          boxShadow: 1,
+          boxShadow: 'none',
+          borderColor: GOOGLE_CALENDAR_BORDER,
+          borderRadius: 2,
           display: 'grid',
           gridTemplateRows: view === CALENDAR_VIEWS.week ? '1fr' : 'auto 1fr',
+          bgcolor: '#FFFFFF',
         }}
       >
         {view === CALENDAR_VIEWS.week ? (
@@ -122,15 +127,20 @@ export default function CalendarGrid({
 function MonthCalendar({ cursorDate, days, draggedEventId, eventsByDay, selectedEventId, onDragEnd, onDragStart, onEventClick, onEventDrop }) {
   return (
     <>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', borderBottom: 1, borderColor: 'divider' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', borderBottom: `1px solid ${GOOGLE_CALENDAR_BORDER}`, bgcolor: '#FFFFFF' }}>
         {DISPLAY_WEEKDAYS.map((day) => (
           <Typography
             key={day}
             align="center"
-            color="text.secondary"
-            fontWeight={900}
+            color={GOOGLE_CALENDAR_MUTED}
+            fontWeight={500}
             variant="caption"
-            sx={{ py: 1, bgcolor: '#F8FAFC', borderRight: day === 'Fri' ? 0 : 1, borderColor: 'divider' }}
+            sx={{
+              py: 0.75,
+              borderRight: day === 'Fri' ? 0 : `1px solid ${GOOGLE_CALENDAR_BORDER}`,
+              fontSize: 11,
+              letterSpacing: 0,
+            }}
           >
             {day}
           </Typography>
@@ -144,7 +154,7 @@ function MonthCalendar({ cursorDate, days, draggedEventId, eventsByDay, selected
           display: 'grid',
           gridTemplateColumns: 'repeat(5, minmax(128px, 1fr))',
           gridAutoRows: 148,
-          bgcolor: 'divider',
+          bgcolor: GOOGLE_CALENDAR_BORDER,
           gap: '1px',
         }}
       >
@@ -192,7 +202,7 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
   }, [days, now]);
 
   return (
-    <Box ref={scrollRef} sx={{ height: '100%', minHeight: 0, overflow: 'auto', bgcolor: 'background.paper', overscrollBehavior: 'contain' }}>
+    <Box ref={scrollRef} sx={{ height: '100%', minHeight: 0, overflow: 'auto', bgcolor: '#FFFFFF', overscrollBehavior: 'contain' }}>
       <Box
         sx={{
           minWidth: { xs: 660, md: 0 },
@@ -206,9 +216,8 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
             position: 'sticky',
             top: 0,
             zIndex: 4,
-            bgcolor: 'background.paper',
-            borderBottom: 1,
-            borderColor: 'divider',
+            bgcolor: '#FFFFFF',
+            borderBottom: `1px solid ${GOOGLE_CALENDAR_BORDER}`,
           }}
         />
         {days.map((day) => (
@@ -222,9 +231,8 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
             position: 'sticky',
             left: 0,
             zIndex: 3,
-            bgcolor: 'background.paper',
-            borderRight: 1,
-            borderColor: 'divider',
+            bgcolor: '#FFFFFF',
+            borderRight: `1px solid ${GOOGLE_CALENDAR_BORDER}`,
           }}
         >
           {HOURS.map((hour) => (
@@ -238,7 +246,9 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
                 pr: 1,
                 textAlign: 'right',
                 transform: 'translateY(-0.65em)',
-                fontWeight: 700,
+                fontWeight: 400,
+                color: GOOGLE_CALENDAR_MUTED,
+                fontSize: 10,
               }}
             >
               {hourLabel(hour)}
@@ -275,16 +285,15 @@ function WeekDayHeader({ day }) {
         position: 'sticky',
         top: 0,
         zIndex: 4,
-        bgcolor: 'background.paper',
-        borderBottom: 1,
-        borderLeft: 1,
-        borderColor: 'divider',
+        bgcolor: '#FFFFFF',
+        borderBottom: `1px solid ${GOOGLE_CALENDAR_BORDER}`,
+        borderLeft: `1px solid ${GOOGLE_CALENDAR_BORDER}`,
         display: 'grid',
         placeItems: 'center',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={900}>
+      <Box sx={{ display: 'grid', justifyItems: 'center', gap: 0.25 }}>
+        <Typography variant="caption" color={GOOGLE_CALENDAR_MUTED} fontWeight={500} sx={{ fontSize: 11 }}>
           {weekday}
         </Typography>
         <Typography
@@ -298,7 +307,7 @@ function WeekDayHeader({ day }) {
             borderRadius: '50%',
             bgcolor: isToday ? 'primary.main' : 'transparent',
             color: isToday ? 'primary.contrastText' : 'text.primary',
-            fontWeight: 900,
+            fontWeight: 500,
           }}
         >
           {dateKeyDay(day)}
@@ -336,9 +345,8 @@ function WeekDayColumn({ day, column, draggedEventId, events, now, selectedEvent
         gridRow: '2 / 3',
         position: 'relative',
         minWidth: 0,
-        borderLeft: 1,
-        borderColor: 'divider',
-        backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_HEIGHT - 1}px, rgba(148, 163, 184, 0.32) ${HOUR_HEIGHT - 1}px, rgba(148, 163, 184, 0.32) ${HOUR_HEIGHT}px)`,
+        borderLeft: `1px solid ${GOOGLE_CALENDAR_BORDER}`,
+        backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_HEIGHT - 1}px, ${GOOGLE_CALENDAR_BORDER} ${HOUR_HEIGHT - 1}px, ${GOOGLE_CALENDAR_BORDER} ${HOUR_HEIGHT}px)`,
       }}
     >
       {isToday ? (
@@ -402,16 +410,16 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
           borderColor: color.main,
           bgcolor: isSelected ? color.main : color.soft,
           color: isSelected ? '#FFFFFF' : color.dark,
-          borderRadius: 1,
+          borderRadius: '4px',
           px: 0.75,
-          py: 0.5,
+          py: 0,
           outline: isSelected ? '2px solid rgba(15, 23, 42, 0.28)' : '1px solid transparent',
           outlineOffset: isSelected ? 1 : 0,
-          boxShadow: isSelected ? '0 8px 18px rgba(15, 23, 42, 0.28)' : '0 1px 3px rgba(15, 23, 42, 0.16)',
+          boxShadow: isSelected ? '0 4px 10px rgba(60, 64, 67, 0.28)' : 'none',
           overflow: 'hidden',
           display: 'grid',
           alignContent: 'start',
-          gap: 0.1,
+          gap: 0,
           borderTop: 0,
           borderRight: 0,
           borderBottom: 0,
@@ -421,7 +429,7 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
           textAlign: 'left',
           zIndex: isSelected ? 20 : layout?.column + 1 || 1,
           '&:hover': {
-            boxShadow: isSelected ? '0 10px 22px rgba(15, 23, 42, 0.32)' : '0 2px 7px rgba(15, 23, 42, 0.22)',
+            boxShadow: isSelected ? '0 5px 12px rgba(60, 64, 67, 0.3)' : '0 1px 4px rgba(60, 64, 67, 0.24)',
             zIndex: isSelected ? 20 : 10,
           },
           '&:active': {
@@ -434,19 +442,19 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
         }}
       >
         {isCompact ? (
-          <Typography variant="caption" fontWeight={900} noWrap>
+          <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.25 }}>
             {compactEventLabel(event)}
           </Typography>
         ) : (
           <>
-            <Typography variant="caption" fontWeight={900} noWrap>
+            <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.25 }}>
               {event.title}
             </Typography>
-            <Typography variant="caption" noWrap sx={{ opacity: isSelected ? 1 : 0.9 }}>
+            <Typography variant="caption" noWrap sx={{ opacity: isSelected ? 1 : 0.9, lineHeight: 1.25 }}>
               {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {compactEventLabel(event)}
             </Typography>
             {event.hasConflict ? (
-              <Typography variant="caption" fontWeight={900} noWrap sx={{ opacity: isSelected ? 1 : 0.95 }}>
+              <Typography variant="caption" fontWeight={700} noWrap sx={{ opacity: isSelected ? 1 : 0.95, lineHeight: 1.25 }}>
                 Conflict
               </Typography>
             ) : null}
@@ -511,11 +519,11 @@ function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEven
       sx={{
         minWidth: 0,
         minHeight: 0,
-        bgcolor: isCurrentMonth ? 'background.paper' : '#F8FAFC',
-        p: 0.75,
+        bgcolor: isCurrentMonth ? '#FFFFFF' : '#F8F9FA',
+        p: 0.5,
         display: 'grid',
         gridTemplateRows: 'auto 1fr',
-        gap: 0.75,
+        gap: 0.5,
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.75 }}>
@@ -529,19 +537,19 @@ function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEven
             placeItems: 'center',
             borderRadius: '50%',
             bgcolor: isToday ? 'primary.main' : 'transparent',
-            color: isToday ? 'primary.contrastText' : isCurrentMonth ? 'text.primary' : 'text.secondary',
-            fontWeight: isToday ? 900 : 700,
+            color: isToday ? 'primary.contrastText' : isCurrentMonth ? '#202124' : GOOGLE_CALENDAR_MUTED,
+            fontWeight: isToday ? 500 : 400,
           }}
         >
           {dateKeyDay(day)}
         </Typography>
         {events.length ? (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color={GOOGLE_CALENDAR_MUTED}>
             {events.length}
           </Typography>
         ) : null}
       </Box>
-      <Box sx={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start', gap: 0.5 }}>
+      <Box sx={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start', gap: 0.25 }}>
         {displayedEvents.map((event) => (
           <CalendarEvent
             key={event.id}
@@ -554,7 +562,7 @@ function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEven
           />
         ))}
         {hiddenCount > 0 ? (
-          <Typography variant="caption" color="text.secondary" sx={{ px: 0.25 }}>
+          <Typography variant="caption" color={GOOGLE_CALENDAR_MUTED} sx={{ px: 0.25 }}>
             +{hiddenCount} more
           </Typography>
         ) : null}
@@ -588,20 +596,20 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
           borderColor: color.main,
           bgcolor: isSelected ? color.main : color.soft,
           color: isSelected ? '#FFFFFF' : color.dark,
-          borderRadius: 1,
+          borderRadius: '4px',
           px: 0.75,
-          py: 0.5,
+          py: 0,
           display: 'grid',
-          gap: 0.1,
+          gap: 0,
           cursor: event.canDrag ? 'grab' : 'pointer',
           opacity: isDragging ? 0.55 : 1,
           font: 'inherit',
           textAlign: 'left',
           outline: isSelected ? '2px solid rgba(15, 23, 42, 0.25)' : '1px solid transparent',
           outlineOffset: isSelected ? 1 : 0,
-          boxShadow: isSelected ? '0 5px 12px rgba(15, 23, 42, 0.24)' : 'none',
+          boxShadow: isSelected ? '0 4px 10px rgba(60, 64, 67, 0.28)' : 'none',
           '&:hover': {
-            boxShadow: isSelected ? '0 7px 16px rgba(15, 23, 42, 0.28)' : '0 1px 4px rgba(15, 23, 42, 0.18)',
+            boxShadow: isSelected ? '0 5px 12px rgba(60, 64, 67, 0.3)' : '0 1px 4px rgba(60, 64, 67, 0.24)',
           },
           '&:active': {
             cursor: event.canDrag ? 'grabbing' : 'pointer',
@@ -612,14 +620,14 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
           },
         }}
       >
-        <Typography variant="caption" fontWeight={900} noWrap>
+        <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.25 }}>
           {compactEventLabel(event)}
         </Typography>
-          <Typography variant="caption" noWrap sx={{ opacity: 0.9 }}>
+          <Typography variant="caption" noWrap sx={{ opacity: 0.9, lineHeight: 1.25 }}>
             {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)}
           </Typography>
           {event.hasConflict ? (
-            <Typography variant="caption" fontWeight={900} noWrap>
+            <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.25 }}>
               Conflict
             </Typography>
           ) : null}

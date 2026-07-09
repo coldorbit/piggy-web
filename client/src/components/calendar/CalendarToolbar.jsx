@@ -27,13 +27,16 @@ export default function CalendarToolbar({ conflictCount = 0, isLoading, onExport
       variant="outlined"
       sx={{
         px: { xs: 1.25, md: 1.75 },
-        py: 1.25,
+        py: 0.75,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: 1,
         flexWrap: 'wrap',
-        boxShadow: 1,
+        boxShadow: 'none',
+        borderColor: '#DADCE0',
+        borderRadius: 2,
+        bgcolor: '#FFFFFF',
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
@@ -47,15 +50,15 @@ export default function CalendarToolbar({ conflictCount = 0, isLoading, onExport
             <ChevronRightIcon />
           </IconButton>
         </Tooltip>
-        <Button startIcon={<TodayIcon />} onClick={onToday} variant="outlined" sx={{ whiteSpace: 'nowrap' }}>
+        <Button startIcon={<TodayIcon />} onClick={onToday} variant="outlined" sx={{ whiteSpace: 'nowrap', borderColor: '#DADCE0', color: '#3C4043' }}>
           Today
         </Button>
         <Divider flexItem orientation="vertical" sx={{ display: { xs: 'none', sm: 'block' } }} />
         <Box minWidth={0}>
-          <Typography variant="h6" fontWeight={900} noWrap>
+          <Typography variant="h6" fontWeight={400} noWrap sx={{ color: '#3C4043' }}>
             {rangeLabel}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{ color: '#5F6368' }}>
             {scheduledCount.toLocaleString()} scheduled interviews · {DEFAULT_TIME_ZONE_LABEL}
           </Typography>
         </Box>
@@ -68,7 +71,7 @@ export default function CalendarToolbar({ conflictCount = 0, isLoading, onExport
             {conflictCount.toLocaleString()} conflict{conflictCount === 1 ? '' : 's'}
           </Typography>
         ) : null}
-        <Button startIcon={<DownloadIcon />} onClick={onExportIcs} variant="outlined" sx={{ whiteSpace: 'nowrap' }}>
+        <Button startIcon={<DownloadIcon />} onClick={onExportIcs} variant="outlined" sx={{ whiteSpace: 'nowrap', borderColor: '#DADCE0', color: '#3C4043' }}>
           ICS
         </Button>
         <ToggleButtonGroup
@@ -82,7 +85,13 @@ export default function CalendarToolbar({ conflictCount = 0, isLoading, onExport
             '& .MuiToggleButton-root': {
               px: 1.5,
               minWidth: 72,
-              fontWeight: 800,
+              fontWeight: 500,
+              borderColor: '#DADCE0',
+              color: '#3C4043',
+              '&.Mui-selected': {
+                bgcolor: '#E8F0FE',
+                color: '#1967D2',
+              },
             },
           }}
         >
@@ -98,6 +107,7 @@ const calendarIconButtonSx = {
   width: 36,
   height: 36,
   border: 1,
-  borderColor: 'divider',
-  bgcolor: 'background.paper',
+  borderColor: '#DADCE0',
+  bgcolor: '#FFFFFF',
+  color: '#3C4043',
 };
