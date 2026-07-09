@@ -78,12 +78,14 @@ describe('dashboard queries', () => {
     assert.match(sql, /caller_activity_metrics AS \([\s\S]*timezone\('America\/Los_Angeles', COALESCE\(updated_at, created_at\)\)\) >= range\.starts_at[\s\S]*timezone\('America\/Los_Angeles', COALESCE\(updated_at, created_at\)\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
   });
 
-  it('counts bidder interviews by scheduled date without relying on application dates', () => {
+  it('counts bidder page metrics inside the selected period', () => {
     const sql = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles' }).bidders;
 
-    assert.match(sql, /bid_metrics AS \([\s\S]*WHERE date_trunc\('day', timezone\('America\/Los_Angeles', job_bids\.bid_at\)\) >= range\.starts_at[\s\S]*date_trunc\('day', timezone\('America\/Los_Angeles', job_bids\.bid_at\)\) < \(range\.ends_at \+ range\.bucket_step\)/);
+    assert.match(sql, /bid_metrics AS \([\s\S]*CROSS JOIN current_period[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) < current_period\.ends_at/);
+    assert.match(sql, /tailoring_metrics AS \([\s\S]*COUNT\(\*\)::int AS tailored_resume_requests[\s\S]*CROSS JOIN current_period[\s\S]*timezone\('America\/Los_Angeles', tailored_resumes\.created_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', tailored_resumes\.created_at\) < current_period\.ends_at/);
     assert.match(sql, /scheduled_interview_metrics AS \([\s\S]*COALESCE\(job_bids\.user_id, interviews\.user_id\) AS user_id[\s\S]*LEFT JOIN job_bids ON job_bids\.id = interviews\.job_bid_id[\s\S]*interviews\.interview_next_at IS NOT NULL[\s\S]*timezone\('America\/Los_Angeles', interviews\.interview_next_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', interviews\.interview_next_at\) < current_period\.ends_at/);
     assert.match(sql, /GROUP BY COALESCE\(job_bids\.user_id, interviews\.user_id\)/);
+    assert.match(sql, /web_users\.role IN \('user', 'finance_manager', 'internal', 'bidder', 'readonly_bidder', 'editable_bidder'\)/);
     assert.doesNotMatch(sql, /WHERE timezone\('America\/Los_Angeles', job_bids\.bid_at\)\) >= starts_at[\s\S]*COUNT\(DISTINCT job_bids\.id\) FILTER \([\s\S]*interviews/);
   });
 

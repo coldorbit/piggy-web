@@ -21,6 +21,7 @@ import {
 } from '../components/adminDashboard/DashboardCharts.jsx';
 import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { GRAIN_OPTIONS, labelForGrain, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
+import BidderPerformanceTable from '../components/adminDashboard/BidderPerformanceTable.jsx';
 import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerformanceTable.jsx';
 import ProfileActivityTable from '../components/adminDashboard/ProfileActivityTable.jsx';
 import { ALL_WORKSPACES } from '../components/admin/SuperadminWorkspaceLens.jsx';
@@ -171,12 +172,15 @@ function UserPerformanceCharts({ users }) {
 function BidderPerformanceCharts({ bidders }) {
   const rows = namedPerformanceRows(bidders);
   return (
-    <PerformanceChartGrid>
-      <PerformanceVolumeChart title="Bidder volume" data={rows} bars={BIDDER_VOLUME_BARS} />
-      <PerformanceShareChart title="Application share by bidder" data={rows} dataKey="applications" />
-      <PerformanceRateChart title="Bidder conversion rates" data={rows} bars={BIDDER_RATE_BARS} />
-      <PerformanceVolumeChart title="Bidder outcomes" data={rows} bars={BIDDER_OUTCOME_BARS} />
-    </PerformanceChartGrid>
+    <Box sx={{ display: 'grid', gap: 1.5 }}>
+      <PerformanceChartGrid>
+        <PerformanceVolumeChart title="Tailoring to interview volume" data={rows} bars={BIDDER_VOLUME_BARS} />
+        <PerformanceShareChart title="Tailoring request share" data={rows} dataKey="tailoredResumeRequests" />
+        <PerformanceRateChart title="Tailoring efficiency rates" data={rows} bars={BIDDER_RATE_BARS} />
+        <PerformanceVolumeChart title="Interview outcomes" data={rows} bars={BIDDER_OUTCOME_BARS} />
+      </PerformanceChartGrid>
+      <BidderPerformanceTable bidders={bidders} />
+    </Box>
   );
 }
 
@@ -257,9 +261,9 @@ const USER_OUTCOME_BARS = [
 ];
 
 const BIDDER_VOLUME_BARS = [
+  { key: 'tailoredResumeRequests', label: 'Tailor requests', color: '#D97706' },
   { key: 'applications', label: 'Applications', color: '#2563EB' },
   { key: 'interviews', label: 'Interviews', color: '#0F766E' },
-  { key: 'offers', label: 'Offers', color: '#7C3AED' },
 ];
 
 const BIDDER_OUTCOME_BARS = [
@@ -269,8 +273,9 @@ const BIDDER_OUTCOME_BARS = [
 ];
 
 const BIDDER_RATE_BARS = [
-  ...FUNNEL_RATE_BARS,
-  { key: 'lossRate', label: 'Loss rate', color: '#DC2626' },
+  { key: 'tailoringToApplicationRate', label: 'Tailor to app', color: '#D97706' },
+  { key: 'tailoringToInterviewRate', label: 'Tailor to interview', color: '#0F766E' },
+  { key: 'applicationToInterviewRate', label: 'App to interview', color: '#2563EB' },
 ];
 
 const CALLER_WORKLOAD_BARS = [

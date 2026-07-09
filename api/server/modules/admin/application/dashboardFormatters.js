@@ -85,6 +85,10 @@ function formatProfileActivityRow(row) {
 
 function formatBidderRow(row) {
   const values = camelizeKeys(numberFields(row, [
+    'tailored_resume_requests',
+    'ready_tailored_resumes',
+    'failed_tailored_resumes',
+    'downloaded_tailored_resumes',
     'applications',
     'interviews',
     'offers',
@@ -100,6 +104,9 @@ function formatBidderRow(row) {
     ...values,
     firstApplicationAt: row.first_application_at || null,
     lastApplicationAt: row.last_application_at || null,
+    tailoringToApplicationRate: rate(values.applications, values.tailoredResumeRequests),
+    tailoringToInterviewRate: rate(values.interviews, values.tailoredResumeRequests),
+    tailoringReadyRate: rate(values.readyTailoredResumes, values.tailoredResumeRequests),
     applicationToInterviewRate: rate(values.interviews, values.applications),
     interviewToOfferRate: rate(values.offers, values.interviews),
     applicationToOfferRate: rate(values.offers, values.applications),

@@ -619,11 +619,8 @@ function callerPerformanceSql(grainConfig, timeZone, anchor, workspaceId) {
 }
 
 function bidderPerformanceSql(grainConfig, timeZone, anchor, workspaceId) {
-  const bidBucket = bucketExpression('job_bids.bid_at', grainConfig, timeZone);
-
   return `
-    ${rangeCte(grainConfig, timeZone, anchor)},
-    ${currentPeriodCte(grainConfig, timeZone, anchor)},
+    WITH ${currentPeriodCte(grainConfig, timeZone, anchor)},
     bid_metrics AS (
       SELECT
         job_bids.user_id,
@@ -636,11 +633,25 @@ function bidderPerformanceSql(grainConfig, timeZone, anchor, workspaceId) {
         MAX(job_bids.bid_at) AS last_application_at
       FROM job_bids
       LEFT JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
-      CROSS JOIN range
-      WHERE ${rangePredicate(bidBucket)}
+      CROSS JOIN current_period
+      WHERE ${currentPeriodPredicate('job_bids.bid_at', timeZone)}
         AND ${nonAdminJobBidPredicate()}
         ${workspaceAnd(workspaceId, jobBidsWorkspace)}
       GROUP BY job_bids.user_id
+    ),
+    tailoring_metrics AS (
+      SELECT
+        tailored_resumes.user_id,
+        COUNT(*)::int AS tailored_resume_requests,
+        COUNT(*) FILTER (WHERE tailored_resumes.status = 'ready')::int AS ready_tailored_resumes,
+        COUNT(*) FILTER (WHERE tailored_resumes.status = 'dead_letter')::int AS failed_tailored_resumes,
+        COUNT(*) FILTER (WHERE tailored_resumes.downloaded_at IS NOT NULL)::int AS downloaded_tailored_resumes
+      FROM tailored_resumes
+      CROSS JOIN current_period
+      WHERE ${currentPeriodPredicate('tailored_resumes.created_at', timeZone)}
+        AND ${nonAdminTailoredResumePredicate()}
+        ${workspaceAnd(workspaceId, tailoredResumesWorkspace)}
+      GROUP BY tailored_resumes.user_id
     ),
     scheduled_interview_metrics AS (
       SELECT
@@ -661,6 +672,10 @@ function bidderPerformanceSql(grainConfig, timeZone, anchor, workspaceId) {
       web_users.id,
       web_users.username,
       web_users.role,
+      COALESCE(tailoring_metrics.tailored_resume_requests, 0)::int AS tailored_resume_requests,
+      COALESCE(tailoring_metrics.ready_tailored_resumes, 0)::int AS ready_tailored_resumes,
+      COALESCE(tailoring_metrics.failed_tailored_resumes, 0)::int AS failed_tailored_resumes,
+      COALESCE(tailoring_metrics.downloaded_tailored_resumes, 0)::int AS downloaded_tailored_resumes,
       COALESCE(bid_metrics.applications, 0)::int AS applications,
       COALESCE(scheduled_interview_metrics.interviews, 0)::int AS interviews,
       COALESCE(scheduled_interview_metrics.offers, 0)::int AS offers,
@@ -671,14 +686,20 @@ function bidderPerformanceSql(grainConfig, timeZone, anchor, workspaceId) {
       bid_metrics.last_application_at
     FROM web_users
     LEFT JOIN bid_metrics ON bid_metrics.user_id = web_users.id
+    LEFT JOIN tailoring_metrics ON tailoring_metrics.user_id = web_users.id
     LEFT JOIN scheduled_interview_metrics ON scheduled_interview_metrics.user_id = web_users.id
     WHERE ${nonAdminWebUserPredicate()}
+      AND web_users.role IN ('user', 'finance_manager', 'internal', 'bidder', 'readonly_bidder', 'editable_bidder')
       AND (
-      COALESCE(bid_metrics.applications, 0) > 0
+      COALESCE(tailoring_metrics.tailored_resume_requests, 0) > 0
+      OR COALESCE(bid_metrics.applications, 0) > 0
       OR COALESCE(scheduled_interview_metrics.interviews, 0) > 0
     )
       ${workspaceAnd(workspaceId, webUsersWorkspace)}
-    ORDER BY offers DESC, interviews DESC, applications DESC, web_users.username ASC
+    ORDER BY COALESCE(tailoring_metrics.tailored_resume_requests, 0) DESC,
+      COALESCE(bid_metrics.applications, 0) ASC,
+      COALESCE(scheduled_interview_metrics.interviews, 0) ASC,
+      web_users.username ASC
   `;
 }
 
