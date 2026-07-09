@@ -73,7 +73,6 @@ export default function CalendarPage({ currentUser }) {
     () => calendarProfiles.map((profile) => String(profile.id)),
     [calendarProfiles],
   );
-  const calendarProfileIdsKey = calendarProfileIds.join('\n');
   const profileById = useMemo(
     () => new Map(calendarProfiles.map((profile) => [String(profile.id), profile])),
     [calendarProfiles],
@@ -91,17 +90,6 @@ export default function CalendarPage({ currentUser }) {
   useEffect(() => {
     return () => setHeaderSearch(EMPTY_HEADER_SEARCH);
   }, [setHeaderSearch]);
-
-  useEffect(() => {
-    setCheckedProfileIds((currentIds) => {
-      const activeIds = calendarProfileIdsKey ? calendarProfileIdsKey.split('\n') : EMPTY_ARRAY;
-      const activeIdSet = new Set(activeIds);
-      const keptIds = currentIds.map(String).filter((id) => activeIdSet.has(id));
-      const addedIds = activeIds.filter((id) => !keptIds.includes(id));
-      const nextIds = [...keptIds, ...addedIds];
-      return sameStringArray(currentIds, nextIds) ? currentIds : nextIds;
-    });
-  }, [calendarProfileIdsKey]);
 
   const searchableEvents = useMemo(
     () => calendarEvents(jobs, profileById, calendarProfileIds, search, calendarMeta.conflicts || EMPTY_ARRAY),
@@ -123,6 +111,11 @@ export default function CalendarPage({ currentUser }) {
     () => profileScheduleGroups(calendarProfiles, rangeFilteredSearchableEvents),
     [calendarProfiles, rangeFilteredSearchableEvents],
   );
+  const profileGroupIds = useMemo(
+    () => profileGroups.map((group) => group.id),
+    [profileGroups],
+  );
+  const profileGroupIdsKey = profileGroupIds.join('\n');
   const userGroups = useMemo(
     () => ownerScheduleGroups(profileFilteredEvents),
     [profileFilteredEvents],
@@ -131,6 +124,10 @@ export default function CalendarPage({ currentUser }) {
     () => callerScheduleGroups(profileFilteredEvents),
     [profileFilteredEvents],
   );
+
+  useEffect(() => {
+    setCheckedProfileIds((currentIds) => syncCheckedIds(currentIds, profileGroupIds));
+  }, [profileGroupIdsKey]);
 
   useEffect(() => {
     setCheckedUserIds((currentIds) => syncCheckedIds(currentIds, userGroups.map((group) => group.id)));
@@ -172,7 +169,7 @@ export default function CalendarPage({ currentUser }) {
       const currentSet = new Set(currentIds.map(String));
       if (checked) currentSet.add(id);
       else currentSet.delete(id);
-      const nextIds = calendarProfileIds.filter((activeId) => currentSet.has(activeId));
+      const nextIds = profileGroupIds.filter((activeId) => currentSet.has(activeId));
       return sameStringArray(currentIds, nextIds) ? currentIds : nextIds;
     });
   }
@@ -288,7 +285,7 @@ export default function CalendarPage({ currentUser }) {
           onCallerSelectAll={() => setCheckedCallerIds(callerGroups.map((group) => group.id))}
           onCallerSelectNone={() => setCheckedCallerIds([])}
           onProfileChange={toggleProfile}
-          onProfileSelectAll={() => setCheckedProfileIds(calendarProfileIds)}
+          onProfileSelectAll={() => setCheckedProfileIds(profileGroupIds)}
           onProfileSelectNone={() => setCheckedProfileIds([])}
           onUserChange={toggleUser}
           onUserSelectAll={() => setCheckedUserIds(userGroups.map((group) => group.id))}
@@ -374,12 +371,14 @@ function profileScheduleGroups(profiles, events) {
     .map((profile) => {
       const id = String(profile.id);
       const eventGroup = eventsByProfileId.get(id);
+      if (!eventGroup) return null;
       return {
         ...profileGroupBase(profile),
-        count: eventGroup?.count || 0,
-        nextAt: eventGroup?.nextAt || null,
+        count: eventGroup.count,
+        nextAt: eventGroup.nextAt,
       };
     })
+    .filter(Boolean)
     .sort(scheduleGroupSort);
 }
 
