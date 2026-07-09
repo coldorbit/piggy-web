@@ -131,13 +131,13 @@ export default function JobDetail({
             <Chip
               label={job.source}
               size="small"
-              sx={{ height: 22, bgcolor: '#EFF6FF', color: 'primary.dark' }}
+              sx={{ height: 22, bgcolor: 'rgba(0, 103, 192, 0.10)', color: 'primary.dark' }}
             />
             {job.isManual ? (
               <Chip
                 label="Manual import"
                 size="small"
-                sx={{ height: 22, bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
+                sx={{ height: 22, bgcolor: '#ECFDF5', color: '#486860', fontWeight: 900 }}
               />
             ) : null}
           </Stack>

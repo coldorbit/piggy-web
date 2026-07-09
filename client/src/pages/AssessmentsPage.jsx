@@ -418,10 +418,10 @@ function AssessmentStats({ isFetching, onRefresh, stats }) {
 function AssessmentStat({ label, tone, value }) {
   const styles = {
     amber: { bgcolor: '#FFFBEB', borderColor: '#FDE68A', color: '#92400E' },
-    blue: { bgcolor: '#EFF6FF', borderColor: '#BFDBFE', color: '#1D4ED8' },
+    blue: { bgcolor: 'rgba(0, 103, 192, 0.10)', borderColor: 'rgba(0, 103, 192, 0.28)', color: '#005A9E' },
     green: { bgcolor: '#F0FDF4', borderColor: '#BBF7D0', color: '#166534' },
     rose: { bgcolor: '#FFF1F2', borderColor: '#FECDD3', color: '#9F1239' },
-    slate: { bgcolor: '#F8FAFC', borderColor: '#E2E8F0', color: '#334155' },
+    slate: { bgcolor: 'rgba(246, 248, 251, 0.86)', borderColor: 'rgba(0, 0, 0, 0.09)', color: '#334155' },
   }[tone];
 
   return (
@@ -610,17 +610,17 @@ function assessmentDeadline(assessment) {
     return {
       state: 'done',
       label: 'Done',
-      bgcolor: '#DBEAFE',
+      bgcolor: 'rgba(0, 103, 192, 0.16)',
       borderColor: '#93C5FD',
-      color: '#1D4ED8',
+      color: '#005A9E',
     };
   }
   if (!assessment.expiresAt) {
     return {
       state: 'none',
       label: 'No expiry',
-      bgcolor: '#F8FAFC',
-      borderColor: '#E2E8F0',
+      bgcolor: 'rgba(246, 248, 251, 0.86)',
+      borderColor: 'rgba(0, 0, 0, 0.09)',
       color: '#475569',
     };
   }
@@ -629,8 +629,8 @@ function assessmentDeadline(assessment) {
     return {
       state: 'none',
       label: 'No expiry',
-      bgcolor: '#F8FAFC',
-      borderColor: '#E2E8F0',
+      bgcolor: 'rgba(246, 248, 251, 0.86)',
+      borderColor: 'rgba(0, 0, 0, 0.09)',
       color: '#475569',
     };
   }

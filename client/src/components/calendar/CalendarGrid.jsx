@@ -470,7 +470,7 @@ function CurrentTimeLine({ top }) {
         left: 0,
         right: 0,
         height: 0,
-        borderTop: '2px solid #DC2626',
+        borderTop: '2px solid #C42B1C',
         zIndex: 2,
         pointerEvents: 'none',
         '&::before': {
@@ -481,7 +481,7 @@ function CurrentTimeLine({ top }) {
           width: 10,
           height: 10,
           borderRadius: '50%',
-          bgcolor: '#DC2626',
+          bgcolor: '#C42B1C',
         },
       }}
     />

@@ -632,7 +632,7 @@ export default function InterviewsPage({ currentUser }) {
               sx={{ mt: 1 }}
             />
             {selectedApplicationJob ? (
-              <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.75, bgcolor: '#F8FAFC' }}>
+              <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.75, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                   <Box minWidth={0}>
                     <Typography fontWeight={900} noWrap>
@@ -818,7 +818,7 @@ export default function InterviewsPage({ currentUser }) {
                     inputLabel: { shrink: true, sx: { bgcolor: 'background.paper', px: 0.5 } },
                   }}
                 />
-                <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 1, bgcolor: '#F8FAFC' }}>
+                <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 1, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                     <Typography variant="body2" fontWeight={900}>
                       Calls
@@ -874,7 +874,7 @@ export default function InterviewsPage({ currentUser }) {
                                 <Chip
                                   label={callSourceLabel(call.sourceType)}
                                   size="small"
-                                  sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 800, maxWidth: '100%' }}
+                                  sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 800, maxWidth: '100%' }}
                                 />
                               ) : null}
                               {meetingUrl ? (
@@ -908,7 +908,7 @@ export default function InterviewsPage({ currentUser }) {
                   )}
                 </Paper>
                 {selectedDraft.logs?.length ? (
-                  <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: isJourneyExpanded ? 0.75 : 0, bgcolor: '#F8FAFC' }}>
+                  <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: isJourneyExpanded ? 0.75 : 0, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
                     <Button
                       aria-expanded={isJourneyExpanded}
                       endIcon={
@@ -1040,7 +1040,7 @@ export default function InterviewsPage({ currentUser }) {
                     Resume
                   </Button>
                 ) : selectedResumeStatus ? (
-                  <Chip label={`Resume: ${selectedResumeStatus}`} size="small" sx={{ justifySelf: 'start', bgcolor: '#F8FAFC', color: '#475569', fontWeight: 900 }} />
+                  <Chip label={`Resume: ${selectedResumeStatus}`} size="small" sx={{ justifySelf: 'start', bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569', fontWeight: 900 }} />
                 ) : null}
                 {selectedMeetingUrl ? (
                   <Button component="a" href={selectedMeetingUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="contained">
@@ -1085,7 +1085,7 @@ export default function InterviewsPage({ currentUser }) {
           <DialogTitle>Register call</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 2 }}>
             {selectedJob ? (
-              <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.35, bgcolor: '#F8FAFC' }}>
+              <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.35, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
                 <Typography fontWeight={900} noWrap>
                   {selectedJob.title || 'Untitled role'}
                 </Typography>

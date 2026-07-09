@@ -50,7 +50,7 @@ export default function CalendarProfileLegend({ checkedProfileIds, profiles, onC
                   gap: 0.75,
                   border: 1,
                   borderColor: checked ? color.main : 'divider',
-                  bgcolor: checked ? color.soft : '#F8FAFC',
+                  bgcolor: checked ? color.soft : 'rgba(246, 248, 251, 0.86)',
                   color: checked ? color.dark : 'text.secondary',
                   borderRadius: 1,
                   px: 0.75,

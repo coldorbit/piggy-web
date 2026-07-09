@@ -82,7 +82,12 @@ import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext
 const DRAWER_WIDTH = 248;
 const COLLAPSED_DRAWER_WIDTH = 72;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'applypilot-sidebar-collapsed';
-const shellLine = '#E2E8F0';
+const shellLine = 'rgba(0, 0, 0, 0.09)';
+const micaPane = 'rgba(255, 255, 255, 0.72)';
+const micaPaneStrong = 'rgba(255, 255, 255, 0.88)';
+const accentSoft = 'rgba(0, 103, 192, 0.1)';
+const accentLine = 'rgba(0, 103, 192, 0.28)';
+const accentText = '#004E8C';
 
 export default function AppLayout({ user }) {
   const location = useLocation();
@@ -244,7 +249,8 @@ export default function AppLayout({ user }) {
           px: isDrawerCollapsed ? 1 : 1.5,
           borderBottom: 1,
           borderColor: shellLine,
-          bgcolor: '#ffffff',
+          bgcolor: micaPaneStrong,
+          backdropFilter: 'blur(26px) saturate(1.25)',
           justifyContent: isDrawerCollapsed ? 'center' : 'space-between',
         }}
       >
@@ -258,10 +264,10 @@ export default function AppLayout({ user }) {
                   display: 'grid',
                   placeItems: 'center',
                   border: 1,
-                  borderColor: '#DBEAFE',
+                  borderColor: accentLine,
                   borderRadius: 2,
-                  bgcolor: '#EFF6FF',
-                  boxShadow: '0 10px 24px rgba(37, 99, 235, 0.14)',
+                  bgcolor: accentSoft,
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.7) inset, 0 10px 24px rgba(0, 0, 0, 0.08)',
                   flexShrink: 0,
                 }}
               >
@@ -273,7 +279,7 @@ export default function AppLayout({ user }) {
                 />
               </Box>
               <Box minWidth={0}>
-                <Typography fontWeight={900} lineHeight={1.1} sx={{ color: 'primary.dark', letterSpacing: 0.2 }}>
+                <Typography fontWeight={800} lineHeight={1.1} sx={{ color: accentText, letterSpacing: 0 }}>
                   ApplyPilot
                 </Typography>
               </Box>
@@ -290,12 +296,13 @@ export default function AppLayout({ user }) {
               sx={{
                 border: 1,
                 borderColor: shellLine,
-                bgcolor: '#ffffff',
+                bgcolor: 'rgba(255,255,255,0.58)',
                 color: 'text.secondary',
                 width: 34,
                 height: 34,
                 flexShrink: 0,
-                '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE', color: 'primary.dark' },
+                boxShadow: '0 1px 0 rgba(255,255,255,0.75) inset',
+                '&:hover': { bgcolor: accentSoft, borderColor: accentLine, color: accentText },
               }}
             >
               {isDrawerCollapsed ? <MenuIcon fontSize="small" /> : <MenuOpenIcon fontSize="small" />}
@@ -377,9 +384,10 @@ export default function AppLayout({ user }) {
                 display: 'flex',
                 border: 1,
                 borderColor: shellLine,
-                bgcolor: '#F8FAFC',
-                color: 'primary.dark',
-                '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE' },
+                bgcolor: 'rgba(255,255,255,0.58)',
+                color: accentText,
+                boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
+                '&:hover': { bgcolor: accentSoft, borderColor: accentLine },
               }}
             >
               <AccountCircleIcon />
@@ -392,7 +400,8 @@ export default function AppLayout({ user }) {
               borderColor: shellLine,
               borderRadius: 1,
               p: 1,
-              bgcolor: '#F8FAFC',
+              bgcolor: 'rgba(255,255,255,0.56)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
             }}
           >
             <Typography variant="caption" color="text.secondary">
@@ -411,7 +420,7 @@ export default function AppLayout({ user }) {
                 {user.email}
               </Typography>
             ) : null}
-            <Chip label={roleLabel(user.role)} size="small" sx={{ mt: 1, bgcolor: 'secondary.main', color: '#ffffff' }} />
+            <Chip label={roleLabel(user.role)} size="small" sx={{ mt: 1, bgcolor: 'rgba(72, 104, 96, 0.13)', color: '#324B45', border: 1, borderColor: 'rgba(72, 104, 96, 0.24)' }} />
           </Box>
         )}
       </Box>
@@ -425,6 +434,8 @@ export default function AppLayout({ user }) {
           minHeight: '100vh',
           display: 'flex',
           bgcolor: 'background.default',
+          background:
+            'linear-gradient(135deg, rgba(255,255,255,0.72), rgba(245,248,252,0.6) 48%, rgba(238,243,249,0.72))',
         }}
       >
       <Drawer
@@ -445,8 +456,9 @@ export default function AppLayout({ user }) {
             boxSizing: 'border-box',
             borderRight: 1,
             borderColor: shellLine,
-            background: '#ffffff',
-            boxShadow: { xs: 4, md: '8px 0 26px rgba(15, 23, 42, 0.05)' },
+            background: 'rgba(255, 255, 255, 0.68)',
+            backdropFilter: 'blur(28px) saturate(1.25)',
+            boxShadow: { xs: 4, md: '8px 0 26px rgba(0, 0, 0, 0.06)' },
             display: 'flex',
             overflowX: 'hidden',
             transition: (theme) => theme.transitions.create('width', {
@@ -484,7 +496,7 @@ export default function AppLayout({ user }) {
             borderBottom: 1,
             borderColor: shellLine,
             backdropFilter: 'blur(18px)',
-            bgcolor: 'rgba(255, 255, 255, 0.88)',
+            bgcolor: micaPane,
             flexShrink: 0,
           }}
         >
@@ -508,11 +520,11 @@ export default function AppLayout({ user }) {
                 minWidth={0}
                 sx={{
                   borderLeft: { xs: 0, sm: 2 },
-                  borderColor: 'primary.main',
+                  borderColor: '#0067C0',
                   pl: { xs: 0, sm: 1.25 },
                 }}
               >
-                <Typography variant="h5" fontWeight={900} noWrap sx={{ color: 'text.primary', letterSpacing: 0.2 }}>
+                <Typography variant="h5" fontWeight={750} noWrap sx={{ color: 'text.primary', letterSpacing: 0 }}>
                   {title}
                 </Typography>
                 <Typography color="text.secondary" noWrap sx={{ display: { xs: 'none', sm: 'block' } }}>
@@ -569,10 +581,11 @@ export default function AppLayout({ user }) {
                       onClick={mailboxNotifications.toggleNotifications}
                       sx={{
                         border: 1,
-                        borderColor: mailboxNotifications.isEnabled ? '#BFDBFE' : shellLine,
-                        bgcolor: mailboxNotifications.isEnabled ? '#EFF6FF' : 'rgba(255, 255, 255, 0.72)',
-                        color: mailboxNotifications.isEnabled ? 'primary.dark' : 'text.secondary',
-                        '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE', color: 'primary.dark' },
+                        borderColor: mailboxNotifications.isEnabled ? accentLine : shellLine,
+                        bgcolor: mailboxNotifications.isEnabled ? accentSoft : 'rgba(255, 255, 255, 0.58)',
+                        color: mailboxNotifications.isEnabled ? accentText : 'text.secondary',
+                        boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
+                        '&:hover': { bgcolor: accentSoft, borderColor: accentLine, color: accentText },
                       }}
                     >
                       {mailboxNotifications.isEnabled ? (
@@ -593,8 +606,9 @@ export default function AppLayout({ user }) {
                 sx={{
                   border: 1,
                   borderColor: shellLine,
-                  bgcolor: 'rgba(255, 255, 255, 0.72)',
-                  '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE' },
+                  bgcolor: 'rgba(255, 255, 255, 0.58)',
+                  boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
+                  '&:hover': { bgcolor: accentSoft, borderColor: accentLine },
                 }}
               >
                 <LogoutIcon />
@@ -729,15 +743,16 @@ function DashboardNavGroup({ collapsed = false, isOpen = false, onNavigate, onTo
               width: 34,
               height: 34,
               border: 1,
-              borderColor: isOpen ? '#0D9488' : shellLine,
+              borderColor: isOpen ? accentLine : shellLine,
               borderRadius: 1,
-              color: isOpen ? '#0F766E' : 'text.secondary',
-              bgcolor: isOpen ? '#CCFBF1' : '#ffffff',
+              color: isOpen ? accentText : 'text.secondary',
+              bgcolor: isOpen ? accentSoft : 'rgba(255,255,255,0.58)',
               flexShrink: 0,
+              boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
               '&:hover': {
-                bgcolor: '#CCFBF1',
-                borderColor: '#0D9488',
-                color: '#115E59',
+                bgcolor: accentSoft,
+                borderColor: accentLine,
+                color: accentText,
               },
               '& .MuiSvgIcon-root': {
                 transition: (theme) => theme.transitions.create('transform', {
@@ -792,23 +807,22 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
   const hasBadge = badgeCount > 0;
   const accessibleLabel = hasBadge ? `${label}, ${badgeCount.toLocaleString()} unread` : label;
   const highlightedStyles = {
-    bgcolor: 'primary.main',
-    borderColor: 'primary.main',
-    boxShadow: '0 10px 24px rgba(37, 99, 235, 0.22)',
-    color: 'primary.contrastText',
-    fontWeight: 800,
-    '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
-    '& .MuiListItemText-primary': { color: 'primary.contrastText' },
+    bgcolor: 'rgba(0, 103, 192, 0.12)',
+    borderColor: accentLine,
+    boxShadow: 'inset 3px 0 0 #0067C0, 0 1px 0 rgba(255,255,255,0.72) inset',
+    color: accentText,
+    fontWeight: 750,
+    '& .MuiListItemIcon-root': { color: accentText },
+    '& .MuiListItemText-primary': { color: accentText },
   };
   const persistentHighlightStyles = {
-    bgcolor: '#F0FDFA',
-    borderColor: '#14B8A6',
-    borderLeftWidth: 4,
-    color: '#0F766E',
-    boxShadow: 'inset 0 0 0 1px rgba(20, 184, 166, 0.12)',
-    fontWeight: 800,
-    '& .MuiListItemIcon-root': { color: '#0F766E' },
-    '& .MuiListItemText-primary': { color: '#0F766E' },
+    bgcolor: 'rgba(72, 104, 96, 0.1)',
+    borderColor: 'rgba(72, 104, 96, 0.22)',
+    color: '#324B45',
+    boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
+    fontWeight: 750,
+    '& .MuiListItemIcon-root': { color: '#324B45' },
+    '& .MuiListItemText-primary': { color: '#324B45' },
   };
 
   const button = (
@@ -826,14 +840,14 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
         mx: collapsed ? 'auto' : 0,
         px: collapsed ? 0 : nested ? 0.75 : 1,
         justifyContent: collapsed ? 'center' : 'flex-start',
-        color: alwaysHighlighted ? '#0F766E' : 'text.secondary',
-        '& .MuiListItemIcon-root': { color: alwaysHighlighted ? '#0F766E' : 'text.secondary' },
+        color: alwaysHighlighted ? '#324B45' : 'text.secondary',
+        '& .MuiListItemIcon-root': { color: alwaysHighlighted ? '#324B45' : 'text.secondary' },
         '&:hover': {
-          bgcolor: alwaysHighlighted ? '#CCFBF1' : '#EFF6FF',
-          borderColor: alwaysHighlighted ? '#0D9488' : '#DBEAFE',
-          color: alwaysHighlighted ? '#115E59' : 'primary.dark',
-          '& .MuiListItemIcon-root': { color: alwaysHighlighted ? '#115E59' : 'primary.dark' },
-          '& .MuiListItemText-primary': { color: alwaysHighlighted ? '#115E59' : 'primary.dark' },
+          bgcolor: alwaysHighlighted ? 'rgba(72, 104, 96, 0.14)' : accentSoft,
+          borderColor: alwaysHighlighted ? 'rgba(72, 104, 96, 0.28)' : accentLine,
+          color: alwaysHighlighted ? '#324B45' : accentText,
+          '& .MuiListItemIcon-root': { color: alwaysHighlighted ? '#324B45' : accentText },
+          '& .MuiListItemText-primary': { color: alwaysHighlighted ? '#324B45' : accentText },
         },
         ...(alwaysHighlighted ? persistentHighlightStyles : {}),
         '&.active': highlightedStyles,
@@ -875,7 +889,7 @@ const unreadIconBadgeSx = {
     height: 16,
     px: 0.45,
     border: '2px solid #ffffff',
-    bgcolor: '#DC2626',
+    bgcolor: '#C42B1C',
     color: '#ffffff',
     fontSize: 10,
     fontWeight: 900,

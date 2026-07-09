@@ -7,7 +7,7 @@ export default function BidderMetricChip({ label }) {
       icon={<TrendingUpIcon />}
       label={label}
       size="small"
-      sx={{ bgcolor: '#EFF6FF', color: '#1D4ED8', fontWeight: 900, '& .MuiChip-icon': { color: '#1D4ED8' } }}
+      sx={{ bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E', fontWeight: 900, '& .MuiChip-icon': { color: '#005A9E' } }}
     />
   );
 }

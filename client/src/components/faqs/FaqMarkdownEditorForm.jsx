@@ -11,7 +11,7 @@ export default function FaqMarkdownEditorForm({ form, onChange }) {
         display: 'grid',
         gap: 1.5,
         border: 1,
-        borderColor: '#E2E8F0',
+        borderColor: 'rgba(0, 0, 0, 0.09)',
         borderRadius: 1,
         bgcolor: '#FFFFFF',
         p: { xs: 1.25, sm: 1.75 },
@@ -47,7 +47,7 @@ export default function FaqMarkdownEditorForm({ form, onChange }) {
               overflowY: 'auto !important',
             },
             '& .w-md-editor-toolbar': {
-              borderBottomColor: '#E2E8F0',
+              borderBottomColor: 'rgba(0, 0, 0, 0.09)',
             },
             '& .wmde-markdown': {
               fontSize: 14,

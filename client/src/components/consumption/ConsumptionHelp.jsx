@@ -26,7 +26,7 @@ export default function ConsumptionHelp({ isOpen, onClose }) {
         sx: {
           width: { xs: '100%', sm: 420 },
           maxWidth: '100vw',
-          bgcolor: '#F8FAFC',
+          bgcolor: 'rgba(246, 248, 251, 0.86)',
         },
       }}
     >
@@ -52,7 +52,7 @@ export default function ConsumptionHelp({ isOpen, onClose }) {
               display: 'grid',
               placeItems: 'center',
               borderRadius: 1,
-              bgcolor: '#EFF6FF',
+              bgcolor: 'rgba(0, 103, 192, 0.10)',
               color: 'primary.main',
               flexShrink: 0,
             }}
@@ -94,7 +94,7 @@ const closeButtonSx = {
   borderRadius: 1,
   bgcolor: 'background.paper',
   '&:hover': {
-    bgcolor: '#F8FAFC',
+    bgcolor: 'rgba(246, 248, 251, 0.86)',
   },
 };
 

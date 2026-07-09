@@ -44,10 +44,10 @@ export const EMPTY_CONSUMPTION_FORM = {
 };
 
 export const CURRENCY_STYLES = {
-  USDC: { bg: '#EFF6FF', border: '#60A5FA', fg: '#1D4ED8' },
+  USDC: { bg: 'rgba(0, 103, 192, 0.10)', border: '#60A5FA', fg: '#005A9E' },
   USDT: { bg: '#ECFDF5', border: '#34D399', fg: '#047857' },
   ETH: { bg: '#F5F3FF', border: '#A78BFA', fg: '#6D28D9' },
-  USD: { bg: '#F8FAFC', border: '#94A3B8', fg: '#334155' },
+  USD: { bg: 'rgba(246, 248, 251, 0.86)', border: '#94A3B8', fg: '#334155' },
   SOL: { bg: '#FDF4FF', border: '#E879F9', fg: '#A21CAF' },
   TRX: { bg: '#FEF2F2', border: '#F87171', fg: '#B91C1C' },
   BTC: { bg: '#FFF7ED', border: '#FB923C', fg: '#C2410C' },

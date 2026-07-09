@@ -202,12 +202,12 @@ function ProfileTabLabel({ dailyGoalLabel, isDailyGoalCurrent, profile, onOpenPr
             <Chip
               label={`${Number(profile.progress?.totalInterviews || 0).toLocaleString()} total`}
               size="small"
-              sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: '#EFF6FF', color: '#1D4ED8', '& .MuiChip-label': { px: 0.75 } }}
+              sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E', '& .MuiChip-label': { px: 0.75 } }}
             />
             <Chip
               label={`${Number(profile.progress?.activeInterviews || 0).toLocaleString()} active`}
               size="small"
-              sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: '#ECFDF5', color: '#0F766E', '& .MuiChip-label': { px: 0.75 } }}
+              sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: '#ECFDF5', color: '#486860', '& .MuiChip-label': { px: 0.75 } }}
             />
           </>
         ) : null}

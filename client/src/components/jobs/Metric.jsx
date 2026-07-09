@@ -18,7 +18,7 @@ export default function Metric({ icon, label, value, action }) {
           width: 86,
           height: 86,
           borderRadius: '50%',
-          bgcolor: '#EFF6FF',
+          bgcolor: 'rgba(0, 103, 192, 0.10)',
           pointerEvents: 'none',
           zIndex: 0,
         },
@@ -34,7 +34,7 @@ export default function Metric({ icon, label, value, action }) {
               placeItems: 'center',
               borderRadius: 2,
               color: 'primary.dark',
-              bgcolor: '#EFF6FF',
+              bgcolor: 'rgba(0, 103, 192, 0.10)',
               flexShrink: 0,
             }}
           >

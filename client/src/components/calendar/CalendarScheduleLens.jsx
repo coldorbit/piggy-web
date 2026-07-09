@@ -20,19 +20,19 @@ const SECTIONS = {
     label: 'Users',
     empty: 'No user meetings in this view.',
     icon: <PersonIcon fontSize="small" />,
-    color: { main: '#2563EB', dark: '#1E40AF', soft: '#DBEAFE' },
+    color: { main: '#0067C0', dark: '#004E8C', soft: 'rgba(0, 103, 192, 0.16)' },
   },
   callers: {
     label: 'Callers',
     empty: 'No caller meetings in this view.',
     icon: <HeadsetMicIcon fontSize="small" />,
-    color: { main: '#D97706', dark: '#92400E', soft: '#FEF3C7' },
+    color: { main: '#C77700', dark: '#92400E', soft: '#FEF3C7' },
   },
   profiles: {
     label: 'Profiles',
     empty: 'No scheduled profiles.',
     icon: <WorkspacesIcon fontSize="small" />,
-    color: { main: '#64748B', dark: '#334155', soft: '#F1F5F9' },
+    color: { main: '#5F5F5F', dark: '#334155', soft: '#F1F5F9' },
   },
 };
 
@@ -217,7 +217,7 @@ function ScheduleLensRow({ checked, maxCount, row, sectionColor, onChange }) {
           gap: 0.75,
           border: 1,
           borderColor: checked ? color.main : 'divider',
-          bgcolor: checked ? color.soft : '#F8FAFC',
+          bgcolor: checked ? color.soft : 'rgba(246, 248, 251, 0.86)',
           color: checked ? color.dark : 'text.secondary',
           borderRadius: 1,
           px: 0.75,
@@ -251,7 +251,7 @@ function ScheduleLensRow({ checked, maxCount, row, sectionColor, onChange }) {
               sx={{
                 height: 5,
                 borderRadius: 1,
-                bgcolor: '#E2E8F0',
+                bgcolor: 'rgba(0, 0, 0, 0.09)',
                 '& .MuiLinearProgress-bar': {
                   borderRadius: 1,
                   bgcolor: color.main,

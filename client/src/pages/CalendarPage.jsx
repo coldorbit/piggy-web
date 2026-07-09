@@ -25,8 +25,8 @@ const EMPTY_ARRAY = [];
 const EMPTY_OBJECT = {};
 const UNASSIGNED_CALLER_ID = '__unassigned_caller__';
 const UNKNOWN_OWNER_ID = '__unknown_owner__';
-const USER_COLOR = { main: '#2563EB', dark: '#1E40AF', soft: '#DBEAFE' };
-const CALLER_COLOR = { main: '#D97706', dark: '#92400E', soft: '#FEF3C7' };
+const USER_COLOR = { main: '#0067C0', dark: '#004E8C', soft: 'rgba(0, 103, 192, 0.16)' };
+const CALLER_COLOR = { main: '#C77700', dark: '#92400E', soft: '#FEF3C7' };
 const UNASSIGNED_COLOR = { main: '#94A3B8', dark: '#475569', soft: '#F1F5F9' };
 
 export default function CalendarPage({ currentUser }) {

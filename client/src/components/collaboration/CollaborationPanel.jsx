@@ -123,12 +123,12 @@ export default function CollaborationPanel({ entityType = 'profile', entityId, p
           </Paper>
         ) : null}
         {!isLoading && !sortedEvents.length ? (
-          <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1, bgcolor: '#F8FAFC' }}>
+          <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
             <Typography variant="body2" color="text.secondary">No collaboration notes yet.</Typography>
           </Paper>
         ) : null}
         {sortedEvents.map((event) => (
-          <Paper key={event.id} variant="outlined" sx={{ p: 1.25, borderRadius: 1, bgcolor: event.resolvedAt ? '#F8FAFC' : 'background.paper' }}>
+          <Paper key={event.id} variant="outlined" sx={{ p: 1.25, borderRadius: 1, bgcolor: event.resolvedAt ? 'rgba(246, 248, 251, 0.86)' : 'background.paper' }}>
             <Stack spacing={0.75}>
               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center">
                 <Chip size="small" label={eventLabel(event.eventType)} color={event.eventType === 'change' ? 'default' : 'primary'} variant={event.eventType === 'change' ? 'outlined' : 'filled'} />

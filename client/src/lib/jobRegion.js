@@ -16,8 +16,8 @@ export function jobRegion(job) {
     return {
       value: 'us_worldwide',
       label: 'US/Worldwide',
-      color: '#1D4ED8',
-      bgcolor: '#DBEAFE',
+      color: '#005A9E',
+      bgcolor: 'rgba(0, 103, 192, 0.16)',
     };
   }
 

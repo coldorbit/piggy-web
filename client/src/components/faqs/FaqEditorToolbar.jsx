@@ -12,7 +12,7 @@ export default function FaqEditorToolbar({ isSaving, status, title, onBack, onPu
       spacing={1.5}
       sx={{
         border: 1,
-        borderColor: '#E2E8F0',
+        borderColor: 'rgba(0, 0, 0, 0.09)',
         borderRadius: 1,
         bgcolor: '#FFFFFF',
         px: { xs: 1.25, sm: 1.75 },

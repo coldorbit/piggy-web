@@ -6,7 +6,7 @@ export const GRAIN_OPTIONS = [
   { value: 'annually', label: 'Annually' },
 ];
 
-export const CHART_COLORS = ['#2563EB', '#0F766E', '#DC2626', '#7C3AED', '#D97706', '#0891B2', '#4F46E5', '#BE123C'];
+export const CHART_COLORS = ['#0067C0', '#486860', '#C42B1C', '#7C3AED', '#C77700', '#0891B2', '#4F46E5', '#BE123C'];
 
 export function number(value) {
   return Number(value || 0).toLocaleString();

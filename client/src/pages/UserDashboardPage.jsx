@@ -122,7 +122,7 @@ function ActionQueuePanel({ queue }) {
 
 function ActionQueueItem({ item }) {
   return (
-    <Box sx={{ p: 1, border: 1, borderColor: '#E2E8F0', borderRadius: 1, bgcolor: '#FFFFFF', display: 'grid', gap: 0.35, minWidth: 0 }}>
+    <Box sx={{ p: 1, border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, bgcolor: '#FFFFFF', display: 'grid', gap: 0.35, minWidth: 0 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
         <PriorityChip value={item.priority} />
         <Typography variant="body2" fontWeight={950} noWrap>{item.title || labelize(item.type)}</Typography>
@@ -148,8 +148,8 @@ function PriorityChip({ value }) {
     : value === 'high'
     ? { bg: '#FFF7ED', color: '#C2410C' }
     : value === 'medium'
-    ? { bg: '#EFF6FF', color: '#1D4ED8' }
-    : { bg: '#F8FAFC', color: '#475569' };
+    ? { bg: 'rgba(0, 103, 192, 0.10)', color: '#005A9E' }
+    : { bg: 'rgba(246, 248, 251, 0.86)', color: '#475569' };
   return <Chip size="small" label={labelize(value)} sx={{ borderRadius: 1, fontWeight: 900, bgcolor: palette.bg, color: palette.color }} />;
 }
 
@@ -159,28 +159,28 @@ const COMMAND_CENTER_SECTIONS = [
     title: 'Needs action today',
     empty: 'No same-day actions.',
     icon: <TodayIcon fontSize="small" />,
-    color: '#2563EB',
+    color: '#0067C0',
   },
   {
     key: 'overdueAssessments',
     title: 'Overdue assessments',
     empty: 'No overdue assessments.',
     icon: <WarningAmberIcon fontSize="small" />,
-    color: '#DC2626',
+    color: '#C42B1C',
   },
   {
     key: 'readyResumes',
     title: 'Resumes ready to download',
     empty: 'No undownloaded ready resumes.',
     icon: <DownloadIcon fontSize="small" />,
-    color: '#0F766E',
+    color: '#486860',
   },
   {
     key: 'interviewsWithoutMeetingLinks',
     title: 'Interviews without links',
     empty: 'All active interviews have links.',
     icon: <LinkOffIcon fontSize="small" />,
-    color: '#D97706',
+    color: '#C77700',
   },
   {
     key: 'mailboxMessagesNeedingReview',
@@ -206,7 +206,7 @@ function CommandCenterPanel({ commandCenter }) {
             {number(totalActions)} role-specific action{totalActions === 1 ? '' : 's'} queued across profiles.
           </Typography>
         </Box>
-        <Chip label="Today" size="small" sx={{ borderRadius: 1, fontWeight: 900, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
+        <Chip label="Today" size="small" sx={{ borderRadius: 1, fontWeight: 900, bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E' }} />
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
         {COMMAND_CENTER_SECTIONS.map((section) => (
@@ -219,9 +219,9 @@ function CommandCenterPanel({ commandCenter }) {
 
 function CommandCenterColumn({ rows, section }) {
   return (
-    <Box sx={{ border: 1, borderColor: '#E2E8F0', borderRadius: 1, bgcolor: '#F8FAFC', minWidth: 0, overflow: 'hidden' }}>
-      <Box sx={{ px: 1, py: 0.85, display: 'flex', alignItems: 'center', gap: 0.75, borderBottom: 1, borderColor: '#E2E8F0', bgcolor: '#FFFFFF' }}>
-        <Box sx={{ width: 28, height: 28, display: 'grid', placeItems: 'center', borderRadius: 1, color: section.color, bgcolor: '#F8FAFC', flexShrink: 0 }}>
+    <Box sx={{ border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, bgcolor: 'rgba(246, 248, 251, 0.86)', minWidth: 0, overflow: 'hidden' }}>
+      <Box sx={{ px: 1, py: 0.85, display: 'flex', alignItems: 'center', gap: 0.75, borderBottom: 1, borderColor: 'rgba(0, 0, 0, 0.09)', bgcolor: '#FFFFFF' }}>
+        <Box sx={{ width: 28, height: 28, display: 'grid', placeItems: 'center', borderRadius: 1, color: section.color, bgcolor: 'rgba(246, 248, 251, 0.86)', flexShrink: 0 }}>
           {section.icon}
         </Box>
         <Box minWidth={0}>
@@ -248,7 +248,7 @@ function CommandCenterColumn({ rows, section }) {
 function CommandCenterItem({ row }) {
   const href = commandCenterHref(row);
   return (
-    <Box sx={{ display: 'grid', gap: 0.35, p: 0.75, border: 1, borderColor: '#E2E8F0', borderRadius: 1, bgcolor: '#FFFFFF' }}>
+    <Box sx={{ display: 'grid', gap: 0.35, p: 0.75, border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, bgcolor: '#FFFFFF' }}>
       <Typography variant="body2" fontWeight={900} noWrap>{row.title || 'Action item'}</Typography>
       <Typography variant="caption" color="text.secondary" noWrap>
         {[formatFirstNameLastInitial(row.profileName, 'Unknown profile'), row.company].filter(Boolean).join(' · ')}
@@ -298,7 +298,7 @@ function JourneyTimeline({ rows }) {
 
 function JourneyRow({ row }) {
   return (
-    <Box sx={{ display: 'grid', gap: 0.75, p: 1, border: 1, borderColor: '#E2E8F0', borderRadius: 1, bgcolor: '#FFFFFF' }}>
+    <Box sx={{ display: 'grid', gap: 0.75, p: 1, border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, bgcolor: '#FFFFFF' }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) auto' }, gap: 0.75, alignItems: 'center' }}>
         <Box minWidth={0}>
           <Typography component={row.url ? 'a' : 'span'} href={row.url || undefined} target={row.url ? '_blank' : undefined} rel={row.url ? 'noreferrer' : undefined} fontWeight={950} color="text.primary" sx={{ textDecoration: 'none', '&:hover': { color: 'primary.main', textDecoration: 'underline' } }} noWrap>
@@ -336,9 +336,9 @@ function JourneyStep({ event }) {
 
 function journeyPalette(status) {
   if (status === 'done' || status === 'won') return { bg: '#ECFDF5', border: '#BBF7D0', dot: '#059669' };
-  if (status === 'active') return { bg: '#EFF6FF', border: '#BFDBFE', dot: '#2563EB' };
-  if (status === 'blocked' || status === 'lost') return { bg: '#FEF2F2', border: '#FECACA', dot: '#DC2626' };
-  return { bg: '#F8FAFC', border: '#E2E8F0', dot: '#94A3B8' };
+  if (status === 'active') return { bg: 'rgba(0, 103, 192, 0.10)', border: 'rgba(0, 103, 192, 0.28)', dot: '#0067C0' };
+  if (status === 'blocked' || status === 'lost') return { bg: '#FEF2F2', border: '#FECACA', dot: '#C42B1C' };
+  return { bg: 'rgba(246, 248, 251, 0.86)', border: 'rgba(0, 0, 0, 0.09)', dot: '#94A3B8' };
 }
 
 function DashboardHeader({ dashboard }) {
@@ -377,7 +377,7 @@ function GoalProgressPanel({ totals }) {
         <LinearProgress
           variant={hasGoal ? 'determinate' : 'indeterminate'}
           value={progress * 100}
-          sx={{ height: 9, borderRadius: 1, bgcolor: '#E2E8F0', '& .MuiLinearProgress-bar': { borderRadius: 1 } }}
+          sx={{ height: 9, borderRadius: 1, bgcolor: 'rgba(0, 0, 0, 0.09)', '& .MuiLinearProgress-bar': { borderRadius: 1 } }}
         />
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1 }}>
           <MiniStat label="Planned" value={totals.plannedApplications} />
@@ -391,7 +391,7 @@ function GoalProgressPanel({ totals }) {
 
 function MiniStat({ label, value }) {
   return (
-    <Box sx={{ p: 1, border: 1, borderColor: '#E2E8F0', borderRadius: 1, bgcolor: '#F8FAFC', minWidth: 0 }}>
+    <Box sx={{ p: 1, border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, bgcolor: 'rgba(246, 248, 251, 0.86)', minWidth: 0 }}>
       <Typography variant="caption" color="text.secondary" fontWeight={800} textTransform="uppercase">
         {label}
       </Typography>
@@ -406,15 +406,15 @@ function PersonalActivityTrend({ trend }) {
       {trend.length ? (
         <ResponsiveContainer width="100%" height={320}>
           <LineChart data={trend} margin={{ top: 10, right: 24, bottom: 0, left: -18 }}>
-            <CartesianGrid stroke="#E2E8F0" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
-            <YAxis allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <CartesianGrid stroke="rgba(0, 0, 0, 0.09)" vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <YAxis allowDecimals={false} tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
             <Tooltip formatter={(value, name) => [number(value), labelize(name)]} />
             <Legend formatter={(value) => labelize(value)} />
-            <Line type="monotone" dataKey="applications" stroke="#2563EB" strokeWidth={2.5} dot={false} />
-            <Line type="monotone" dataKey="interviews" stroke="#0F766E" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="applications" stroke="#0067C0" strokeWidth={2.5} dot={false} />
+            <Line type="monotone" dataKey="interviews" stroke="#486860" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
             <Line type="monotone" dataKey="offers" stroke="#7C3AED" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-            <Line type="monotone" dataKey="tailoredResumes" name="Tailored resumes" stroke="#D97706" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="tailoredResumes" name="Tailored resumes" stroke="#C77700" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       ) : (

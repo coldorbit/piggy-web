@@ -33,15 +33,15 @@ export function ActivityTrendChart({ title, trend }) {
     <ChartPanel title={title}>
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={trend} margin={{ top: 10, right: 24, bottom: 0, left: -18 }}>
-          <CartesianGrid stroke="#E2E8F0" vertical={false} />
-          <XAxis dataKey="label" tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
-          <YAxis yAxisId="volume" allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
-          <YAxis yAxisId="outcomes" orientation="right" allowDecimals={false} tick={{ fill: '#0F766E', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <CartesianGrid stroke="rgba(0, 0, 0, 0.09)" vertical={false} />
+          <XAxis dataKey="label" tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis yAxisId="volume" allowDecimals={false} tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis yAxisId="outcomes" orientation="right" allowDecimals={false} tick={{ fill: '#486860', fontSize: 11 }} tickLine={false} axisLine={false} />
           <Tooltip formatter={(value, name) => [number(value), name]} />
           <Legend />
-          <Line yAxisId="volume" type="monotone" dataKey="jobs" name="Jobs" stroke="#64748B" strokeWidth={2} dot={false} />
-          <Line yAxisId="volume" type="monotone" dataKey="applications" name="Applications" stroke="#2563EB" strokeWidth={2} dot={false} />
-          <Line yAxisId="outcomes" type="monotone" dataKey="interviews" name="Interviews" stroke="#0F766E" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          <Line yAxisId="volume" type="monotone" dataKey="jobs" name="Jobs" stroke="#5F5F5F" strokeWidth={2} dot={false} />
+          <Line yAxisId="volume" type="monotone" dataKey="applications" name="Applications" stroke="#0067C0" strokeWidth={2} dot={false} />
+          <Line yAxisId="outcomes" type="monotone" dataKey="interviews" name="Interviews" stroke="#486860" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
           <Line yAxisId="outcomes" type="monotone" dataKey="offers" name="Offers" stroke="#7C3AED" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
         </LineChart>
       </ResponsiveContainer>
@@ -54,15 +54,15 @@ export function InterviewOutcomeChart({ trend }) {
     <ChartPanel title="Interview outcomes">
       <ResponsiveContainer width="100%" height={320}>
         <BarChart data={trend} margin={{ top: 10, right: 12, bottom: 0, left: -18 }}>
-          <CartesianGrid stroke="#E2E8F0" vertical={false} />
-          <XAxis dataKey="label" tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
-          <YAxis allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <CartesianGrid stroke="rgba(0, 0, 0, 0.09)" vertical={false} />
+          <XAxis dataKey="label" tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis allowDecimals={false} tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
           <Tooltip formatter={(value) => number(value)} />
           <Legend />
-          <Bar dataKey="successfulTechnicalInterviews" name="Successful technical" fill="#0F766E" maxBarSize={28} />
-          <Bar dataKey="successfulFinalInterviews" name="Successful final" fill="#2563EB" maxBarSize={28} />
+          <Bar dataKey="successfulTechnicalInterviews" name="Successful technical" fill="#486860" maxBarSize={28} />
+          <Bar dataKey="successfulFinalInterviews" name="Successful final" fill="#0067C0" maxBarSize={28} />
           <Bar dataKey="offers" name="Offers" fill="#7C3AED" maxBarSize={28} />
-          <Bar dataKey="lostInterviews" name="Lost / failed" fill="#DC2626" maxBarSize={28} />
+          <Bar dataKey="lostInterviews" name="Lost / failed" fill="#C42B1C" maxBarSize={28} />
         </BarChart>
       </ResponsiveContainer>
     </ChartPanel>
@@ -115,13 +115,13 @@ export function FunnelConversionChart({ data = [], title }) {
       {data.length ? (
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data.slice(0, 10)} margin={{ top: 10, right: 12, bottom: 0, left: -18 }}>
-            <CartesianGrid stroke="#E2E8F0" vertical={false} />
-            <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={72} />
-            <YAxis tickFormatter={(value) => percent(value)} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <CartesianGrid stroke="rgba(0, 0, 0, 0.09)" vertical={false} />
+            <XAxis dataKey="name" tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={72} />
+            <YAxis tickFormatter={(value) => percent(value)} tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
             <Tooltip formatter={(value) => percent(value)} />
             <Legend />
-            <Bar dataKey="applicationToInterviewRate" name="App to interview" fill="#2563EB" maxBarSize={26} minPointSize={3} />
-            <Bar dataKey="interviewToOfferRate" name="Interview to offer" fill="#0F766E" maxBarSize={26} minPointSize={3} />
+            <Bar dataKey="applicationToInterviewRate" name="App to interview" fill="#0067C0" maxBarSize={26} minPointSize={3} />
+            <Bar dataKey="interviewToOfferRate" name="Interview to offer" fill="#486860" maxBarSize={26} minPointSize={3} />
             <Bar dataKey="applicationToOfferRate" name="App to offer" fill="#7C3AED" maxBarSize={26} minPointSize={3} />
           </BarChart>
         </ResponsiveContainer>
@@ -145,9 +145,9 @@ export function PerformanceVolumeChart({ bars = [], data = [], title, xKey = 'na
       {data.length ? (
         <ResponsiveContainer width="100%" height={320}>
           <BarChart data={data.slice(0, 12)} margin={{ top: 10, right: 12, bottom: 0, left: -18 }}>
-            <CartesianGrid stroke="#E2E8F0" vertical={false} />
-            <XAxis dataKey={xKey} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={76} />
-            <YAxis allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <CartesianGrid stroke="rgba(0, 0, 0, 0.09)" vertical={false} />
+            <XAxis dataKey={xKey} tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={76} />
+            <YAxis allowDecimals={false} tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
             <Tooltip formatter={(value) => number(value)} />
             <Legend />
             {bars.map((bar, index) => (
@@ -175,9 +175,9 @@ export function PerformanceRateChart({ bars = [], data = [], title, xKey = 'name
       {data.length ? (
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data.slice(0, 12)} margin={{ top: 10, right: 12, bottom: 0, left: -18 }}>
-            <CartesianGrid stroke="#E2E8F0" vertical={false} />
-            <XAxis dataKey={xKey} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={76} />
-            <YAxis tickFormatter={(value) => percent(value)} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <CartesianGrid stroke="rgba(0, 0, 0, 0.09)" vertical={false} />
+            <XAxis dataKey={xKey} tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={76} />
+            <YAxis tickFormatter={(value) => percent(value)} tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
             <Tooltip formatter={(value) => percent(value)} />
             <Legend />
             {bars.map((bar, index) => (
@@ -241,9 +241,9 @@ export function ProfileInterviewTrendChart({ data = [], title }) {
       {rows.length && profiles.length ? (
         <ResponsiveContainer width="100%" height={340}>
           <LineChart data={rows} margin={{ top: 10, right: 24, bottom: 0, left: -18 }}>
-            <CartesianGrid stroke="#E2E8F0" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
-            <YAxis allowDecimals={false} tick={{ fill: '#64748B', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <CartesianGrid stroke="rgba(0, 0, 0, 0.09)" vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
+            <YAxis allowDecimals={false} tick={{ fill: '#5F5F5F', fontSize: 11 }} tickLine={false} axisLine={false} />
             <Tooltip formatter={(value, name) => [number(value), name]} />
             <Legend />
             {profiles.map((profile, index) => (

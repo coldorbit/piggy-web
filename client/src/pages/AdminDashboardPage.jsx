@@ -241,69 +241,69 @@ function displayProfileTrendRows(rows = []) {
 }
 
 const FUNNEL_RATE_BARS = [
-  { key: 'applicationToInterviewRate', label: 'App to interview', color: '#2563EB' },
-  { key: 'interviewToOfferRate', label: 'Interview to offer', color: '#0F766E' },
+  { key: 'applicationToInterviewRate', label: 'App to interview', color: '#0067C0' },
+  { key: 'interviewToOfferRate', label: 'Interview to offer', color: '#486860' },
   { key: 'applicationToOfferRate', label: 'App to offer', color: '#7C3AED' },
 ];
 
 const USER_VOLUME_BARS = [
-  { key: 'applications', label: 'Applications', color: '#2563EB' },
-  { key: 'submitted', label: 'Submitted', color: '#0F766E' },
+  { key: 'applications', label: 'Applications', color: '#0067C0' },
+  { key: 'submitted', label: 'Submitted', color: '#486860' },
   { key: 'interviews', label: 'Interviews', color: '#7C3AED' },
-  { key: 'offers', label: 'Offers', color: '#D97706' },
+  { key: 'offers', label: 'Offers', color: '#C77700' },
 ];
 
 const USER_OUTCOME_BARS = [
-  { key: 'successfulTechnicalInterviews', label: 'Tech success', color: '#0F766E' },
-  { key: 'successfulFinalInterviews', label: 'Final success', color: '#2563EB' },
+  { key: 'successfulTechnicalInterviews', label: 'Tech success', color: '#486860' },
+  { key: 'successfulFinalInterviews', label: 'Final success', color: '#0067C0' },
   { key: 'offers', label: 'Offers', color: '#7C3AED' },
-  { key: 'lostInterviews', label: 'Lost', color: '#DC2626' },
+  { key: 'lostInterviews', label: 'Lost', color: '#C42B1C' },
 ];
 
 const BIDDER_VOLUME_BARS = [
-  { key: 'tailoredResumeRequests', label: 'Tailor requests', color: '#D97706' },
-  { key: 'applications', label: 'Applications', color: '#2563EB' },
-  { key: 'interviews', label: 'Interviews', color: '#0F766E' },
+  { key: 'tailoredResumeRequests', label: 'Tailor requests', color: '#C77700' },
+  { key: 'applications', label: 'Applications', color: '#0067C0' },
+  { key: 'interviews', label: 'Interviews', color: '#486860' },
 ];
 
 const BIDDER_OUTCOME_BARS = [
-  { key: 'interviews', label: 'Interviews', color: '#0F766E' },
+  { key: 'interviews', label: 'Interviews', color: '#486860' },
   { key: 'offers', label: 'Offers', color: '#7C3AED' },
-  { key: 'lost', label: 'Lost', color: '#DC2626' },
+  { key: 'lost', label: 'Lost', color: '#C42B1C' },
 ];
 
 const BIDDER_RATE_BARS = [
-  { key: 'tailoringToApplicationRate', label: 'Tailor to app', color: '#D97706' },
-  { key: 'tailoringToInterviewRate', label: 'Tailor to interview', color: '#0F766E' },
-  { key: 'applicationToInterviewRate', label: 'App to interview', color: '#2563EB' },
+  { key: 'tailoringToApplicationRate', label: 'Tailor to app', color: '#C77700' },
+  { key: 'tailoringToInterviewRate', label: 'Tailor to interview', color: '#486860' },
+  { key: 'applicationToInterviewRate', label: 'App to interview', color: '#0067C0' },
 ];
 
 const CALLER_WORKLOAD_BARS = [
-  { key: 'assignedInterviews', label: 'Assigned', color: '#2563EB' },
-  { key: 'activeInterviews', label: 'Active', color: '#0F766E' },
+  { key: 'assignedInterviews', label: 'Assigned', color: '#0067C0' },
+  { key: 'activeInterviews', label: 'Active', color: '#486860' },
   { key: 'upcomingInterviews', label: 'Upcoming', color: '#7C3AED' },
-  { key: 'unscheduledActiveInterviews', label: 'Unscheduled', color: '#D97706' },
+  { key: 'unscheduledActiveInterviews', label: 'Unscheduled', color: '#C77700' },
 ];
 
 const CALLER_OUTCOME_BARS = [
-  { key: 'completedInterviews', label: 'Completed', color: '#2563EB' },
-  { key: 'wonInterviews', label: 'Won', color: '#0F766E' },
-  { key: 'lostInterviews', label: 'Lost', color: '#DC2626' },
+  { key: 'completedInterviews', label: 'Completed', color: '#0067C0' },
+  { key: 'wonInterviews', label: 'Won', color: '#486860' },
+  { key: 'lostInterviews', label: 'Lost', color: '#C42B1C' },
   { key: 'technicalInterviews', label: 'Technical', color: '#0891B2' },
   { key: 'finalInterviews', label: 'Final', color: '#7C3AED' },
 ];
 
 const CALLER_RATE_BARS = [
-  { key: 'meetingLinkCoverageRate', label: 'Meeting links', color: '#2563EB' },
-  { key: 'callerOfferRate', label: 'Win rate', color: '#0F766E' },
-  { key: 'callerLossRate', label: 'Loss rate', color: '#DC2626' },
+  { key: 'meetingLinkCoverageRate', label: 'Meeting links', color: '#0067C0' },
+  { key: 'callerOfferRate', label: 'Win rate', color: '#486860' },
+  { key: 'callerLossRate', label: 'Loss rate', color: '#C42B1C' },
 ];
 
 const PROFILE_VOLUME_BARS = [
-  { key: 'applications', label: 'Applications', color: '#2563EB' },
-  { key: 'interviews', label: 'Interviews', color: '#0F766E' },
+  { key: 'applications', label: 'Applications', color: '#0067C0' },
+  { key: 'interviews', label: 'Interviews', color: '#486860' },
   { key: 'offers', label: 'Offers', color: '#7C3AED' },
-  { key: 'lost', label: 'Lost', color: '#DC2626' },
+  { key: 'lost', label: 'Lost', color: '#C42B1C' },
 ];
 
 function dashboardSectionFor(value) {
@@ -517,7 +517,7 @@ const periodIconButtonSx = {
   border: 1,
   borderColor: 'divider',
   bgcolor: '#ffffff',
-  '&:hover': { bgcolor: '#EFF6FF', borderColor: '#BFDBFE' },
+  '&:hover': { bgcolor: 'rgba(0, 103, 192, 0.10)', borderColor: 'rgba(0, 103, 192, 0.28)' },
 };
 
 const toolbarButtonSx = {

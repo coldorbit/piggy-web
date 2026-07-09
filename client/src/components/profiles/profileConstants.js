@@ -41,19 +41,19 @@ export const PROFILE_BADGE_OPTIONS = [
 ];
 
 export const PROFILE_BADGE_COLORS = {
-  ML: { bgcolor: '#EFF6FF', color: '#1E40AF' },
-  DE: { bgcolor: '#ECFDF5', color: '#0F766E' },
-  SWE: { bgcolor: '#F8FAFC', color: '#0F172A' },
+  ML: { bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#004E8C' },
+  DE: { bgcolor: '#ECFDF5', color: '#486860' },
+  SWE: { bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#1B1B1B' },
 };
 
 export const PROFILE_COLORS = {
-  green: { main: '#16A34A', dark: '#166534', soft: '#ECFDF5' },
-  blue: { main: '#2563EB', dark: '#1E40AF', soft: '#EFF6FF' },
+  green: { main: '#0E7A3E', dark: '#166534', soft: '#ECFDF5' },
+  blue: { main: '#0067C0', dark: '#004E8C', soft: 'rgba(0, 103, 192, 0.10)' },
   violet: { main: '#6366F1', dark: '#4338CA', soft: '#EEF2FF' },
-  amber: { main: '#D97706', dark: '#92400E', soft: '#FFFBEB' },
-  rose: { main: '#DC2626', dark: '#991B1B', soft: '#FEF2F2' },
-  slate: { main: '#64748B', dark: '#334155', soft: '#F1F5F9' },
-  teal: { main: '#0D9488', dark: '#115E59', soft: '#F0FDFA' },
+  amber: { main: '#C77700', dark: '#92400E', soft: '#FFFBEB' },
+  rose: { main: '#C42B1C', dark: '#991B1B', soft: '#FEF2F2' },
+  slate: { main: '#5F5F5F', dark: '#334155', soft: '#F1F5F9' },
+  teal: { main: '#0D9488', dark: '#324B45', soft: '#F0FDFA' },
   cyan: { main: '#0891B2', dark: '#155E75', soft: '#ECFEFF' },
   pink: { main: '#DB2777', dark: '#9D174D', soft: '#FDF2F8' },
   indigo: { main: '#4F46E5', dark: '#3730A3', soft: '#EEF2FF' },

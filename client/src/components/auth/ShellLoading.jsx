@@ -1,9 +1,11 @@
 import { Avatar, Box, LinearProgress, Skeleton, Stack, Typography } from '@mui/material';
 
 const DRAWER_WIDTH = 248;
-const shellLine = '#E2E8F0';
-const surface = '#FFFFFF';
-const mutedSurface = '#F8FAFC';
+const shellLine = 'rgba(0, 0, 0, 0.09)';
+const surface = 'rgba(255, 255, 255, 0.86)';
+const mutedSurface = '#F3F3F3';
+const accentSoft = 'rgba(0, 103, 192, 0.1)';
+const accentLine = 'rgba(0, 103, 192, 0.28)';
 const navWidths = ['84%', '72%', '92%', '68%', '78%', '88%', '64%', '74%'];
 
 export default function ShellLoading() {
@@ -15,6 +17,8 @@ export default function ShellLoading() {
         minHeight: '100vh',
         display: 'flex',
         bgcolor: mutedSurface,
+        background:
+          'linear-gradient(135deg, rgba(255,255,255,0.74), rgba(245,248,252,0.62) 48%, rgba(238,243,249,0.76))',
         color: 'text.primary',
       }}
     >
@@ -29,6 +33,7 @@ export default function ShellLoading() {
           borderRight: 1,
           borderColor: shellLine,
           bgcolor: surface,
+          backdropFilter: 'blur(28px) saturate(1.25)',
         }}
       >
         <Stack
@@ -43,10 +48,10 @@ export default function ShellLoading() {
               display: 'grid',
               placeItems: 'center',
               border: 1,
-              borderColor: '#DBEAFE',
+              borderColor: accentLine,
               borderRadius: 2,
-              bgcolor: '#EFF6FF',
-              boxShadow: '0 10px 24px rgba(37, 99, 235, 0.14)',
+              bgcolor: accentSoft,
+              boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset, 0 10px 24px rgba(0, 0, 0, 0.08)',
             }}
           >
             <Avatar
@@ -57,7 +62,7 @@ export default function ShellLoading() {
             />
           </Box>
           <Box sx={{ minWidth: 0 }}>
-            <Typography fontWeight={900} sx={{ color: 'primary.dark', letterSpacing: 0, lineHeight: 1.1 }}>
+            <Typography fontWeight={800} sx={{ color: '#004E8C', letterSpacing: 0, lineHeight: 1.1 }}>
               ApplyPilot
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -78,7 +83,9 @@ export default function ShellLoading() {
                 gap: 1,
                 px: 1,
                 borderRadius: 1,
-                bgcolor: index === 0 ? '#EFF6FF' : 'transparent',
+                bgcolor: index === 0 ? accentSoft : 'transparent',
+                border: 1,
+                borderColor: index === 0 ? accentLine : 'transparent',
               }}
             >
               <Skeleton variant="rounded" width={22} height={22} sx={{ borderRadius: 1 }} />
@@ -96,7 +103,8 @@ export default function ShellLoading() {
               border: 1,
               borderColor: shellLine,
               borderRadius: 1,
-              bgcolor: mutedSurface,
+              bgcolor: 'rgba(255,255,255,0.56)',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
             }}
           >
             <Skeleton variant="text" width="44%" height={14} />
@@ -117,7 +125,8 @@ export default function ShellLoading() {
             px: { xs: 2, md: 2.5 },
             borderBottom: 1,
             borderColor: shellLine,
-            bgcolor: 'rgba(255, 255, 255, 0.96)',
+            bgcolor: 'rgba(255, 255, 255, 0.72)',
+            backdropFilter: 'blur(28px) saturate(1.25)',
             position: 'relative',
           }}
         >
@@ -128,7 +137,7 @@ export default function ShellLoading() {
               variant="rounded"
               sx={{ width: 32, height: 32, bgcolor: 'background.paper', border: 1, borderColor: 'divider' }}
             />
-            <Typography fontWeight={900} sx={{ color: 'primary.dark', letterSpacing: 0 }}>
+            <Typography fontWeight={800} sx={{ color: '#004E8C', letterSpacing: 0 }}>
               ApplyPilot
             </Typography>
           </Stack>
@@ -188,6 +197,7 @@ export default function ShellLoading() {
                 borderColor: shellLine,
                 borderRadius: 1,
                 bgcolor: surface,
+                backdropFilter: 'blur(22px) saturate(1.2)',
               }}
             >
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'space-between' }}>
@@ -210,7 +220,7 @@ export default function ShellLoading() {
                 {Array.from({ length: 3 }).map((_, index) => (
                   <Box
                     key={`shell-metric-loading-${index}`}
-                    sx={{ display: 'grid', gap: 0.75, p: 1, border: 1, borderColor: shellLine, borderRadius: 1 }}
+                    sx={{ display: 'grid', gap: 0.75, p: 1, border: 1, borderColor: shellLine, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.52)' }}
                   >
                     <Skeleton variant="text" width="42%" height={14} />
                     <Skeleton variant="text" width="64%" height={28} />
@@ -229,6 +239,7 @@ export default function ShellLoading() {
                 borderColor: shellLine,
                 borderRadius: 1,
                 bgcolor: surface,
+                backdropFilter: 'blur(22px) saturate(1.2)',
               }}
             >
               <Skeleton variant="text" width="46%" height={18} />
@@ -299,6 +310,7 @@ export default function ShellLoading() {
                 borderColor: shellLine,
                 borderRadius: 1,
                 bgcolor: surface,
+                backdropFilter: 'blur(22px) saturate(1.2)',
               }}
             >
               <Skeleton variant="text" width="52%" height={22} />

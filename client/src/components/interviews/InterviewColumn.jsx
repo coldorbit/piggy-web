@@ -36,7 +36,7 @@ export default function InterviewColumn({
         minHeight: 0,
         minWidth: 0,
         overflow: 'hidden',
-        bgcolor: isActiveDrop ? accent.soft : '#F8FAFC',
+        bgcolor: isActiveDrop ? accent.soft : 'rgba(246, 248, 251, 0.86)',
         borderColor: isActiveDrop ? accent.main : 'divider',
       }}
     >

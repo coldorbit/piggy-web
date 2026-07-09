@@ -74,7 +74,7 @@ export default function MaintenancePage() {
                   mb: 2.5,
                   bgcolor: '#EEF2FF',
                   color: '#3730A3',
-                  '& .MuiChip-icon': { color: '#2563EB' },
+                  '& .MuiChip-icon': { color: '#0067C0' },
                 }}
               />
               <Typography
@@ -118,7 +118,7 @@ export default function MaintenancePage() {
                         display: 'grid',
                         placeItems: 'center',
                         borderRadius: 1,
-                        bgcolor: '#EFF6FF',
+                        bgcolor: 'rgba(0, 103, 192, 0.10)',
                         color: 'primary.main',
                         flexShrink: 0,
                         '& svg': { fontSize: 20 },
@@ -138,7 +138,7 @@ export default function MaintenancePage() {
                 alignContent: 'space-between',
                 gap: 2,
                 p: { xs: 2.5, md: 3 },
-                bgcolor: '#0F172A',
+                bgcolor: '#1B1B1B',
                 color: '#FFFFFF',
               }}
             >

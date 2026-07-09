@@ -120,10 +120,10 @@ export default function InterviewCard({
             icon={<CalendarMonthIcon />}
             label={draft.interviewNextAt ? formatDateTimeInDefaultTimezone(draft.interviewNextAt) : 'No next date'}
             size="small"
-            sx={{ ...chipSx, bgcolor: '#ECFDF5', color: '#0F766E', '& .MuiChip-icon': { color: '#0F766E' } }}
+            sx={{ ...chipSx, bgcolor: '#ECFDF5', color: '#486860', '& .MuiChip-icon': { color: '#486860' } }}
           />
           {owner ? <Chip label={owner} size="small" sx={{ ...chipSx, bgcolor: '#edf0ff', color: '#343f91' }} /> : null}
-          <Chip label={stageLabel(currentStage)} size="small" sx={{ ...chipSx, bgcolor: '#EFF6FF', color: '#1D4ED8' }} />
+          <Chip label={stageLabel(currentStage)} size="small" sx={{ ...chipSx, bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E' }} />
           {!hasAssociatedCall ? <Chip label="Missing call" size="small" sx={{ ...chipSx, bgcolor: '#FEF3C7', color: '#92400E' }} /> : null}
           {scheduledStepCount > 1 ? <Chip label={`${scheduledStepCount} interviews`} size="small" sx={{ ...chipSx, bgcolor: '#F5F3FF', color: '#6D28D9' }} /> : null}
           <Chip label={formatDate(job.bid?.updatedAt)} size="small" sx={{ ...chipSx, bgcolor: '#f7ead1', color: '#70400d' }} />
@@ -166,7 +166,7 @@ export default function InterviewCard({
               Resume
             </Button>
           ) : job.tailoredResume?.status ? (
-            <Chip label={`Resume: ${job.tailoredResume.status}`} size="small" sx={{ ...chipSx, bgcolor: '#F8FAFC', color: '#475569' }} />
+            <Chip label={`Resume: ${job.tailoredResume.status}`} size="small" sx={{ ...chipSx, bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569' }} />
           ) : null}
         </Box>
       </CardContent>

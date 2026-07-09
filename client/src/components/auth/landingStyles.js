@@ -1,5 +1,5 @@
 const imageOverlay =
-  'linear-gradient(90deg, rgba(5, 10, 20, 0.86) 0%, rgba(9, 18, 32, 0.72) 42%, rgba(13, 24, 42, 0.42) 100%)';
+  'linear-gradient(90deg, rgba(12, 24, 39, 0.78) 0%, rgba(24, 48, 76, 0.58) 46%, rgba(243, 246, 250, 0.18) 100%)';
 const heroImage =
   'image-set(url("/assets/landing-workspace.webp") type("image/webp"), url("/assets/landing-workspace.jpg") type("image/jpeg"))';
 
@@ -9,12 +9,12 @@ export const authPageSx = {
   placeItems: 'center',
   p: 3,
   background:
-    'radial-gradient(circle at 12% 8%, rgba(37, 99, 235, 0.13), transparent 24rem), radial-gradient(circle at 88% 12%, rgba(15, 118, 110, 0.12), transparent 24rem), #F8FAFC',
+    'linear-gradient(145deg, rgba(255,255,255,0.88), rgba(244,247,251,0.78) 46%, rgba(235,241,248,0.9)), #F3F3F3',
 };
 
 export const landingPageSx = {
   minHeight: '100vh',
-  bgcolor: '#F8FAFC',
+  bgcolor: '#F3F3F3',
   color: 'text.primary',
   position: 'relative',
   overflowX: 'hidden',
@@ -32,7 +32,7 @@ export const heroBackdropSx = {
     position: 'absolute',
     inset: 0,
     background:
-      'linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, rgba(248, 250, 252, 0) 72%, #F8FAFC 100%)',
+      'linear-gradient(180deg, rgba(243, 243, 243, 0) 0%, rgba(243, 243, 243, 0) 72%, #F3F3F3 100%)',
   },
 };
 
@@ -47,11 +47,11 @@ export const topbarSx = {
   gap: 2,
   px: { xs: 1.25, sm: 1.5 },
   py: 1,
-  border: '1px solid rgba(255, 255, 255, 0.2)',
+  border: '1px solid rgba(255, 255, 255, 0.34)',
   borderRadius: 1.5,
-  bgcolor: 'rgba(15, 23, 42, 0.58)',
-  boxShadow: '0 18px 50px rgba(0, 0, 0, 0.22)',
-  backdropFilter: 'blur(20px)',
+  bgcolor: 'rgba(26, 34, 44, 0.48)',
+  boxShadow: '0 18px 50px rgba(0, 0, 0, 0.18)',
+  backdropFilter: 'blur(26px) saturate(1.25)',
   position: 'relative',
   zIndex: 2,
 };
@@ -93,10 +93,10 @@ export const metricItemSx = {
   border: 1,
   borderColor: 'rgba(255, 255, 255, 0.24)',
   borderRadius: 1,
-  bgcolor: 'rgba(255, 255, 255, 0.12)',
+  bgcolor: 'rgba(255, 255, 255, 0.16)',
   p: 1.5,
   color: '#FFFFFF',
-  backdropFilter: 'blur(16px)',
+  backdropFilter: 'blur(22px) saturate(1.2)',
   '& .MuiTypography-root:last-child': {
     color: 'rgba(255, 255, 255, 0.72)',
   },
@@ -106,10 +106,10 @@ export const heroDashboardSx = {
   alignSelf: 'center',
   p: { xs: 1.25, sm: 1.5 },
   borderRadius: 1.5,
-  borderColor: 'rgba(255, 255, 255, 0.28)',
-  bgcolor: 'rgba(255, 255, 255, 0.86)',
-  boxShadow: '0 34px 100px rgba(0, 0, 0, 0.36)',
-  backdropFilter: 'blur(22px)',
+  borderColor: 'rgba(255, 255, 255, 0.48)',
+  bgcolor: 'rgba(255, 255, 255, 0.72)',
+  boxShadow: '0 34px 90px rgba(0, 0, 0, 0.24)',
+  backdropFilter: 'blur(30px) saturate(1.32)',
   transform: { lg: 'translateY(32px)' },
 };
 
@@ -128,12 +128,13 @@ export const commandCenterSx = {
 
 export const dashboardCardSx = {
   border: 1,
-  borderColor: '#DBEAFE',
+  borderColor: 'rgba(0, 0, 0, 0.08)',
   borderRadius: 1,
-  bgcolor: '#FFFFFF',
+  bgcolor: 'rgba(255,255,255,0.82)',
   p: 1.5,
   display: 'grid',
   gap: 1.25,
+  boxShadow: '0 1px 0 rgba(255,255,255,0.75) inset',
 };
 
 export const dashboardListItemSx = {
@@ -143,8 +144,8 @@ export const dashboardListItemSx = {
   gap: 1.5,
   p: 1.25,
   borderRadius: 1,
-  bgcolor: '#F8FAFC',
-  border: '1px solid #E2E8F0',
+  bgcolor: 'rgba(246, 248, 251, 0.84)',
+  border: '1px solid rgba(0, 0, 0, 0.08)',
 };
 
 export const audienceBandSx = {
@@ -167,9 +168,9 @@ export const audienceCardSx = {
   px: 2,
   py: 1.5,
   borderRadius: 1,
-  bgcolor: '#0F172A',
+  bgcolor: 'rgba(27, 27, 27, 0.92)',
   color: '#FFFFFF',
-  boxShadow: '0 18px 48px rgba(15, 23, 42, 0.18)',
+  boxShadow: '0 18px 48px rgba(0, 0, 0, 0.16)',
 };
 
 export const sectionSx = {
@@ -195,12 +196,13 @@ export const phaseCardSx = {
   minHeight: 220,
   p: 2.5,
   borderRadius: 1,
-  borderColor: '#C7D2FE',
-  bgcolor: '#FFFFFF',
+  borderColor: 'rgba(0, 103, 192, 0.18)',
+  bgcolor: 'rgba(255, 255, 255, 0.84)',
   display: 'grid',
   alignContent: 'space-between',
   gap: 2,
-  boxShadow: '0 18px 50px rgba(15, 23, 42, 0.08)',
+  boxShadow: '0 18px 50px rgba(0, 0, 0, 0.07)',
+  backdropFilter: 'blur(22px) saturate(1.2)',
 };
 
 export const featureGridSx = {
@@ -212,11 +214,12 @@ export const featureGridSx = {
 export const featureCardSx = {
   p: 2.25,
   borderRadius: 1,
-  borderColor: '#D7E3F8',
-  bgcolor: 'rgba(255, 255, 255, 0.9)',
+  borderColor: 'rgba(0, 0, 0, 0.08)',
+  bgcolor: 'rgba(255, 255, 255, 0.82)',
   display: 'grid',
   gap: 1.25,
-  boxShadow: '0 14px 36px rgba(15, 23, 42, 0.06)',
+  boxShadow: '0 14px 36px rgba(0, 0, 0, 0.06)',
+  backdropFilter: 'blur(22px) saturate(1.2)',
 };
 
 export const featureIconSx = {
@@ -225,7 +228,7 @@ export const featureIconSx = {
   borderRadius: 1,
   display: 'grid',
   placeItems: 'center',
-  bgcolor: '#EEF2FF',
+  bgcolor: 'rgba(0, 103, 192, 0.1)',
   color: 'primary.main',
 };
 
@@ -239,12 +242,13 @@ export const portfolioCardSx = {
   minHeight: 300,
   p: { xs: 2.25, md: 2.75 },
   borderRadius: 1,
-  borderColor: '#CBD5E1',
-  bgcolor: '#FFFFFF',
+  borderColor: 'rgba(0, 0, 0, 0.09)',
+  bgcolor: 'rgba(255, 255, 255, 0.84)',
   display: 'grid',
   gap: 2,
   alignContent: 'space-between',
-  boxShadow: '0 18px 54px rgba(15, 23, 42, 0.08)',
+  boxShadow: '0 18px 54px rgba(0, 0, 0, 0.07)',
+  backdropFilter: 'blur(22px) saturate(1.2)',
 };
 
 export const portfolioMetaSx = {
@@ -256,8 +260,8 @@ export const portfolioMetaSx = {
 export const portfolioMetaItemSx = {
   p: 1.25,
   borderRadius: 1,
-  border: '1px solid #E2E8F0',
-  bgcolor: '#F8FAFC',
+  border: '1px solid rgba(0, 0, 0, 0.08)',
+  bgcolor: 'rgba(246, 248, 251, 0.82)',
   minWidth: 0,
 };
 
@@ -271,16 +275,17 @@ export const signinBandSx = {
   gap: { xs: 3, md: 5 },
   alignItems: 'center',
   borderRadius: 1.5,
-  bgcolor: '#FFFFFF',
-  border: '1px solid #D7E3F8',
-  boxShadow: '0 24px 70px rgba(15, 23, 42, 0.1)',
+  bgcolor: 'rgba(255, 255, 255, 0.82)',
+  border: '1px solid rgba(0, 103, 192, 0.16)',
+  boxShadow: '0 24px 70px rgba(0, 0, 0, 0.09)',
+  backdropFilter: 'blur(24px) saturate(1.22)',
 };
 
 export const signinCardSx = {
   p: { xs: 2.25, sm: 3 },
   width: '100%',
   boxShadow: 'none',
-  borderColor: '#D7E3F8',
-  backdropFilter: 'blur(18px)',
-  bgcolor: 'rgba(255, 255, 255, 0.95)',
+  borderColor: 'rgba(0, 0, 0, 0.08)',
+  backdropFilter: 'blur(24px) saturate(1.22)',
+  bgcolor: 'rgba(255, 255, 255, 0.82)',
 };

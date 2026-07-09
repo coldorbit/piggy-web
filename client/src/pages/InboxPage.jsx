@@ -32,9 +32,9 @@ import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { useBidProfiles, useForwardedMailboxMessages, useForwardedMailboxSummary, useForwardedProfileMessages, useForwardingMailboxStatus, useMarkProfileMailboxMessageRead } from '../lib/api.js';
 import { isAdminRole } from '../lib/roles.js';
 
-const INBOX_MESSAGE_ACCENT = { main: '#2563EB', soft: '#E0ECFF', dark: '#1D4ED8' };
+const INBOX_MESSAGE_ACCENT = { main: '#0067C0', soft: '#E0ECFF', dark: '#005A9E' };
 const DECLINED_ACCENT = { main: '#E11D48', soft: '#FFF1F2', dark: '#BE123C' };
-const CONFIRMATION_ACCENT = { main: '#0F766E', soft: '#ECFDF5', dark: '#047857' };
+const CONFIRMATION_ACCENT = { main: '#486860', soft: '#ECFDF5', dark: '#047857' };
 const INTERVIEW_ACCENT = { main: '#7C3AED', soft: '#F3E8FF', dark: '#6D28D9' };
 const COMPACT_MESSAGE_ROW_HEIGHT = 96;
 const MAILBOX_GROUPS = Object.freeze({
@@ -377,7 +377,7 @@ function MailboxSidebar({
         borderRight: { lg: 1 },
         borderBottom: { xs: 1, lg: 0 },
         borderColor: 'divider',
-        bgcolor: '#F8FAFC',
+        bgcolor: 'rgba(246, 248, 251, 0.86)',
         minWidth: 0,
         minHeight: 0,
         display: 'flex',
@@ -507,11 +507,11 @@ function AllInboxesFolderRow({ count, isSelected, onClick, unreadCount }) {
         minHeight: 42,
         width: '100%',
         border: 1,
-        borderColor: isSelected ? INBOX_MESSAGE_ACCENT.main : '#BFDBFE',
+        borderColor: isSelected ? INBOX_MESSAGE_ACCENT.main : 'rgba(0, 103, 192, 0.28)',
         borderRadius: 1,
         px: 0.85,
         py: 0.75,
-        bgcolor: isSelected ? '#DBEAFE' : '#EFF6FF',
+        bgcolor: isSelected ? 'rgba(0, 103, 192, 0.16)' : 'rgba(0, 103, 192, 0.10)',
         color: INBOX_MESSAGE_ACCENT.dark,
         cursor: 'pointer',
         display: 'grid',
@@ -520,7 +520,7 @@ function AllInboxesFolderRow({ count, isSelected, onClick, unreadCount }) {
         gap: 0.75,
         textAlign: 'left',
         boxShadow: isSelected ? '0 10px 22px rgba(37, 99, 235, 0.16)' : 'inset 0 0 0 1px rgba(37, 99, 235, 0.04)',
-        '&:hover': { bgcolor: isSelected ? '#DBEAFE' : '#E0ECFF' },
+        '&:hover': { bgcolor: isSelected ? 'rgba(0, 103, 192, 0.16)' : '#E0ECFF' },
         '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 1 },
       }}
     >
@@ -533,7 +533,7 @@ function AllInboxesFolderRow({ count, isSelected, onClick, unreadCount }) {
           placeItems: 'center',
           bgcolor: '#ffffff',
           border: 1,
-          borderColor: '#BFDBFE',
+          borderColor: 'rgba(0, 103, 192, 0.28)',
           color: INBOX_MESSAGE_ACCENT.dark,
         }}
       >
@@ -560,7 +560,7 @@ function AllInboxesFolderRow({ count, isSelected, onClick, unreadCount }) {
           fontWeight: 900,
           bgcolor: '#ffffff',
           color: INBOX_MESSAGE_ACCENT.dark,
-          border: '1px solid #BFDBFE',
+          border: '1px solid rgba(0, 103, 192, 0.28)',
           '& .MuiChip-label': { px: 0.75 },
         }}
       />
@@ -895,8 +895,8 @@ function MessageLoadingRow({ isLoading, style }) {
 function MessageListItem({ isSelected, message, onClick, style }) {
   const hasListChips = !message.isRead || Boolean(message.classification?.label) || Boolean(message.mailboxPath);
   const selectedBg = INBOX_MESSAGE_ACCENT.soft;
-  const defaultBg = message.isRead ? '#ffffff' : '#F8FAFC';
-  const hoverBg = isSelected ? selectedBg : '#F8FAFC';
+  const defaultBg = message.isRead ? '#ffffff' : 'rgba(246, 248, 251, 0.86)';
+  const hoverBg = isSelected ? selectedBg : 'rgba(246, 248, 251, 0.86)';
   return (
     <Box
       component="button"
@@ -993,7 +993,7 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
                   <Chip label={applicationChipLabel(message.application)} size="small" sx={smallChipSx(CONFIRMATION_ACCENT.soft, CONFIRMATION_ACCENT.dark)} />
                 ) : null}
                 {message.classification?.type === 'assessment_link' ? <Chip label="Assessment" size="small" sx={smallChipSx('#FEF3C7', '#92400E')} /> : null}
-                {message.classification?.type === 'recruiter_reply' ? <Chip label="Recruiter reply" size="small" sx={smallChipSx('#E0ECFF', '#1D4ED8')} /> : null}
+                {message.classification?.type === 'recruiter_reply' ? <Chip label="Recruiter reply" size="small" sx={smallChipSx('#E0ECFF', '#005A9E')} /> : null}
                 {message.match?.source ? <Chip label={matchSourceLabel(message.match.source)} size="small" sx={smallChipSx(activeColor.soft, activeColor.dark)} /> : null}
                 {message.mailboxPath ? <Chip label={message.mailboxPath} size="small" variant="outlined" sx={smallOutlinedChipSx} /> : null}
               </Stack>
@@ -1366,7 +1366,7 @@ function normalizeMailboxStats(stats, fallbackStats = {}) {
 
 function SuggestedActionInfo({ classification }) {
   return (
-    <Box sx={{ px: { xs: 1.5, md: 2 }, py: 1.25, borderBottom: 1, borderColor: 'divider', bgcolor: '#F8FAFC' }}>
+    <Box sx={{ px: { xs: 1.5, md: 2 }, py: 1.25, borderBottom: 1, borderColor: 'divider', bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
       <Typography variant="caption" color="text.secondary" fontWeight={900}>
         Suggested next action
       </Typography>
@@ -1559,7 +1559,7 @@ const unreadIconBadgeSx = {
     height: 16,
     px: 0.45,
     border: '2px solid #ffffff',
-    bgcolor: '#DC2626',
+    bgcolor: '#C42B1C',
     color: '#ffffff',
     fontSize: 10,
     fontWeight: 900,

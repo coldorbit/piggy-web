@@ -35,11 +35,11 @@ export default function InterviewPassThroughRow({ interview }) {
         ) : null}
       </Box>
       <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-        <Chip label={stage?.label || interview.status} size="small" sx={{ bgcolor: '#EFF6FF', color: '#1D4ED8', fontWeight: 900 }} />
+        <Chip label={stage?.label || interview.status} size="small" sx={{ bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E', fontWeight: 900 }} />
         <Chip
           label={interview.interviewNextAt ? formatDateTime(interview.interviewNextAt) : formatDateTime(interview.updatedAt)}
           size="small"
-          sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 800 }}
+          sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 800 }}
         />
       </Stack>
     </Paper>

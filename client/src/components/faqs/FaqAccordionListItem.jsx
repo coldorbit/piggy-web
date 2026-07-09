@@ -13,7 +13,7 @@ export default function FaqAccordionListItem({ canManageFaqs, faq, onEdit }) {
       disableGutters
       expanded={isExpanded}
       onChange={(_event, nextExpanded) => setIsExpanded(nextExpanded)}
-      sx={{ border: 1, borderColor: '#E2E8F0', borderRadius: 1, '&:before': { display: 'none' } }}
+      sx={{ border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, '&:before': { display: 'none' } }}
     >
       <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ gap: 1, minHeight: 62 }}>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, width: '100%', pr: 1 }}>

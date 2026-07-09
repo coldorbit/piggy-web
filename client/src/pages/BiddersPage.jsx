@@ -135,7 +135,7 @@ function AttributionList({ title, rows, nameKey }) {
           <LinearProgress
             variant="determinate"
             value={Math.min((row.interviewRate || 0) * 100, 100)}
-            sx={{ height: 4, borderRadius: 1, bgcolor: '#E2E8F0' }}
+            sx={{ height: 4, borderRadius: 1, bgcolor: 'rgba(0, 0, 0, 0.09)' }}
           />
         </Box>
       ))}

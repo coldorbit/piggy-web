@@ -361,7 +361,7 @@ const periodIconButtonSx = {
   bgcolor: 'background.paper',
   borderRadius: 1,
   '&:hover': {
-    bgcolor: '#F8FAFC',
+    bgcolor: 'rgba(246, 248, 251, 0.86)',
     borderColor: 'primary.main',
   },
 };

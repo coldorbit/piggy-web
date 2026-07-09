@@ -4,16 +4,16 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { shortDayLabel } from './bidderUtils.js';
 
 const SOURCE_BAR_COLORS = {
-  builtin: '#2563EB',
-  'built in': '#2563EB',
+  builtin: '#0067C0',
+  'built in': '#0067C0',
   diversityjobs: '#E11D48',
-  hiringcafe: '#D97706',
+  hiringcafe: '#C77700',
   jobright: '#059669',
   linkedin: '#0284C7',
   remotehunter: '#4F46E5',
   remoteyeah: '#0D9488',
   simplify: '#7C3AED',
-  unknown: '#64748B',
+  unknown: '#5F5F5F',
 };
 
 const SOURCE_FALLBACK_COLORS = ['#475569', '#BE123C', '#9333EA', '#EA580C', '#15803D', '#0891B2'];
@@ -28,7 +28,7 @@ export default function DailyApplicationsChart({ data }) {
   }));
 
   return (
-    <Paper variant="outlined" sx={{ p: 1, bgcolor: '#F8FAFC' }}>
+    <Paper variant="outlined" sx={{ p: 1, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
       <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
         <Stack direction="row" spacing={0.75} alignItems="center" minWidth={0}>
           <CalendarMonthIcon fontSize="small" color="action" />
@@ -52,15 +52,15 @@ export default function DailyApplicationsChart({ data }) {
       <Box sx={{ height: 160, minWidth: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -22 }}>
-            <CartesianGrid stroke="#E2E8F0" vertical={false} />
+            <CartesianGrid stroke="rgba(0, 0, 0, 0.09)" vertical={false} />
             <XAxis
               dataKey="day"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#64748B', fontSize: 11 }}
+              tick={{ fill: '#5F5F5F', fontSize: 11 }}
               interval="preserveStartEnd"
             />
-            <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 11 }} />
+            <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fill: '#5F5F5F', fontSize: 11 }} />
             <Tooltip
               cursor={{ fill: 'rgba(37, 99, 235, 0.08)' }}
               formatter={(value, name) => {
@@ -82,7 +82,7 @@ export default function DailyApplicationsChart({ data }) {
                 />
               ))
             ) : (
-              <Bar dataKey="applications" name="Applications" fill="#2563EB" radius={[4, 4, 0, 0]} maxBarSize={24} />
+              <Bar dataKey="applications" name="Applications" fill="#0067C0" radius={[4, 4, 0, 0]} maxBarSize={24} />
             )}
           </BarChart>
         </ResponsiveContainer>

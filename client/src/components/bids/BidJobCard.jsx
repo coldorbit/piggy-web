@@ -33,7 +33,7 @@ import { APPLICATION_WORKFLOW_STATUSES, BID_TABS } from './bidConstants.js';
 import { isTodoTailoringLocked, moveToInterviewDraft } from './bidJobState.js';
 import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 
-const SELECTED_JOB_CARD_BG = '#EFF6FF';
+const SELECTED_JOB_CARD_BG = 'rgba(0, 103, 192, 0.10)';
 
 export default function BidJobCard({
   isSelected = false,
@@ -281,7 +281,7 @@ export default function BidJobCard({
                   <Chip
                     label="Manual"
                     size="small"
-                    sx={{ bgcolor: '#ECFDF5', color: '#0F766E', fontWeight: 900 }}
+                    sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 900 }}
                   />
                 ) : null}
                 <JobRegionBadge job={job} sx={{ height: 24 }} />
@@ -289,7 +289,7 @@ export default function BidJobCard({
                   <Chip
                     label={`${job.locationOptions.length} locations`}
                     size="small"
-                    sx={{ bgcolor: '#F0FDFA', color: '#115E59', fontWeight: 900 }}
+                    sx={{ bgcolor: '#F0FDFA', color: '#324B45', fontWeight: 900 }}
                   />
                 ) : null}
                 {hasUpdatedJobLink ? (

@@ -30,7 +30,7 @@ export default function ContextualFaqPanel({ keywords = [], limit = 3, title = '
       sx={{
         borderRadius: 1,
         overflow: 'hidden',
-        bgcolor: '#F8FAFC',
+        bgcolor: 'rgba(246, 248, 251, 0.86)',
         borderColor: '#CBD5E1',
       }}
     >
@@ -43,7 +43,7 @@ export default function ContextualFaqPanel({ keywords = [], limit = 3, title = '
           justifyContent: 'space-between',
           gap: 1,
           borderBottom: 1,
-          borderColor: '#E2E8F0',
+          borderColor: 'rgba(0, 0, 0, 0.09)',
         }}
       >
         <Stack direction="row" alignItems="center" spacing={0.75} sx={{ minWidth: 0 }}>
@@ -71,7 +71,7 @@ export default function ContextualFaqPanel({ keywords = [], limit = 3, title = '
               bgcolor: 'transparent',
               boxShadow: 'none',
               borderBottom: 1,
-              borderColor: '#E2E8F0',
+              borderColor: 'rgba(0, 0, 0, 0.09)',
               '&:before': { display: 'none' },
               '&:last-of-type': { borderBottom: 0 },
             }}

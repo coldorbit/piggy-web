@@ -15,7 +15,7 @@ export default function EmptyState({ action = null, children, detail, title, var
         gap: 1,
         justifyItems: 'center',
         textAlign: 'center',
-        bgcolor: '#F8FAFC',
+        bgcolor: 'rgba(246, 248, 251, 0.86)',
         ...sx,
       }}
     >

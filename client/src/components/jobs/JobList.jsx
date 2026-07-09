@@ -77,9 +77,9 @@ export default function JobList({
                   alignItems: 'stretch',
                   borderLeft: 4,
                   borderColor: selected ? 'primary.main' : 'transparent',
-                  bgcolor: selected ? '#EFF6FF' : 'transparent',
+                  bgcolor: selected ? 'rgba(0, 103, 192, 0.10)' : 'transparent',
                   transition: 'background-color 150ms ease, border-color 150ms ease',
-                  '&:hover': { bgcolor: selected ? '#DBEAFE' : '#F8FAFC' },
+                  '&:hover': { bgcolor: selected ? 'rgba(0, 103, 192, 0.16)' : 'rgba(246, 248, 251, 0.86)' },
                 }}
               >
                 <Box sx={{ display: 'grid', placeItems: 'center' }}>
@@ -194,7 +194,7 @@ function LocationCountBadge({ count }) {
       sx={{
         height: 20,
         bgcolor: '#F0FDFA',
-        color: '#115E59',
+        color: '#324B45',
         fontSize: 11,
         fontWeight: 900,
         '& .MuiChip-label': { px: 0.75 },
@@ -211,7 +211,7 @@ function ManualJobBadge() {
       sx={{
         height: 20,
         bgcolor: '#ECFDF5',
-        color: '#0F766E',
+        color: '#486860',
         fontSize: 11,
         fontWeight: 900,
         '& .MuiChip-label': { px: 0.75 },

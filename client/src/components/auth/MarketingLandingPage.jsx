@@ -141,7 +141,7 @@ export default function MarketingLandingPage() {
             src="/assets/applypilot-logo.png"
             alt="ApplyPilot logo"
             variant="rounded"
-            sx={{ width: 40, height: 40, bgcolor: 'background.paper', boxShadow: 2 }}
+            sx={{ width: 40, height: 40, bgcolor: 'background.paper', boxShadow: '0 1px 0 rgba(255,255,255,0.64) inset, 0 10px 24px rgba(0,0,0,0.18)' }}
           />
           <Box minWidth={0}>
             <Typography fontWeight={950} lineHeight={1} color="#FFFFFF">
@@ -194,7 +194,7 @@ export default function MarketingLandingPage() {
                 color: '#FFFFFF',
                 border: '1px solid rgba(255, 255, 255, 0.32)',
                 backdropFilter: 'blur(18px)',
-                '& .MuiChip-icon': { color: '#A7F3D0' },
+                '& .MuiChip-icon': { color: '#4CC2FF' },
               }}
             />
             <Stack spacing={2.25}>
@@ -263,12 +263,12 @@ export default function MarketingLandingPage() {
                 <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#F59E0B' }} />
                 <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#22C55E' }} />
               </Stack>
-              <Chip label="Live pipeline" size="small" sx={{ bgcolor: '#DCFCE7', color: '#166534' }} />
+              <Chip label="Live pipeline" size="small" sx={{ bgcolor: 'rgba(0, 103, 192, 0.12)', color: '#004E8C', border: 1, borderColor: 'rgba(0, 103, 192, 0.24)' }} />
             </Box>
             <Box sx={commandCenterSx}>
               <Box sx={dashboardCardSx}>
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  <WorkIcon sx={{ color: '#2563EB' }} />
+                  <WorkIcon sx={{ color: '#0067C0' }} />
                   <Typography fontWeight={950}>Enterprise programs</Typography>
                 </Stack>
                 <Stack spacing={1.1}>
@@ -294,14 +294,14 @@ export default function MarketingLandingPage() {
                   ))}
                 </Stack>
               </Box>
-              <Box sx={{ ...dashboardCardSx, bgcolor: '#F0FDFA', borderColor: '#99F6E4' }}>
+              <Box sx={{ ...dashboardCardSx, bgcolor: 'rgba(239, 246, 255, 0.82)', borderColor: 'rgba(0, 103, 192, 0.18)' }}>
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  <AutoAwesomeIcon sx={{ color: '#0F766E' }} />
+                  <AutoAwesomeIcon sx={{ color: '#0067C0' }} />
                   <Typography fontWeight={950}>Engineering standard</Typography>
                 </Stack>
                 {['Architecture that can survive growth', 'Security and reliability built in', 'Delivery rituals clients can trust'].map((item) => (
                   <Stack key={item} direction="row" alignItems="center" spacing={1}>
-                    <CheckCircleIcon sx={{ color: '#16A34A', fontSize: 20 }} />
+                    <CheckCircleIcon sx={{ color: '#0E7A3E', fontSize: 20 }} />
                     <Typography variant="body2" color="text.secondary">
                       {item}
                     </Typography>
@@ -318,7 +318,7 @@ export default function MarketingLandingPage() {
         <Box sx={audienceBandSx}>
           {audiences.map((audience) => (
             <Box key={audience} sx={audienceCardSx}>
-              <CheckCircleIcon sx={{ color: '#A7F3D0', fontSize: 20 }} />
+              <CheckCircleIcon sx={{ color: '#4CC2FF', fontSize: 20 }} />
               <Typography>{audience}</Typography>
             </Box>
           ))}
@@ -429,7 +429,7 @@ export default function MarketingLandingPage() {
             <Chip
               icon={<TuneIcon />}
               label="Client portal"
-              sx={{ mb: 2, bgcolor: '#EEF2FF', color: '#3730A3' }}
+              sx={{ mb: 2, bgcolor: 'rgba(0, 103, 192, 0.12)', color: '#004E8C', border: 1, borderColor: 'rgba(0, 103, 192, 0.24)' }}
             />
             <Typography variant="h3" fontWeight={950} gutterBottom>
               A private portal for high-trust delivery.

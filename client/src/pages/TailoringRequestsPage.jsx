@@ -430,7 +430,7 @@ function TailoringCountCard({ active = false, label, value }) {
         borderRadius: 1,
         borderColor: active ? 'primary.main' : 'divider',
         borderWidth: active ? 2 : 1,
-        bgcolor: active ? '#EFF6FF' : 'background.paper',
+        bgcolor: active ? 'rgba(0, 103, 192, 0.10)' : 'background.paper',
       }}
     >
       <Typography variant="caption" color={active ? 'primary.main' : 'text.secondary'} fontWeight={active ? 900 : 500}>
@@ -629,9 +629,9 @@ function approvalLabel(status) {
 }
 
 function reviewChipSx(status) {
-  if (status === 'pending_approval') return { bgcolor: '#DBEAFE', color: '#1D4ED8', fontWeight: 800 };
+  if (status === 'pending_approval') return { bgcolor: 'rgba(0, 103, 192, 0.16)', color: '#005A9E', fontWeight: 800 };
   if (status === 'needs_review') return { bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: 800 };
-  return { bgcolor: '#F8FAFC', color: '#475569', fontWeight: 800 };
+  return { bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569', fontWeight: 800 };
 }
 
 function statusLabel(status) {
@@ -643,10 +643,10 @@ function statusLabel(status) {
 
 function statusSx(status) {
   if (status === 'ready') return { bgcolor: '#DCFCE7', color: '#166534', fontWeight: 800 };
-  if (status === 'processing') return { bgcolor: '#DBEAFE', color: '#1D4ED8', fontWeight: 800 };
+  if (status === 'processing') return { bgcolor: 'rgba(0, 103, 192, 0.16)', color: '#005A9E', fontWeight: 800 };
   if (status === 'requested') return { bgcolor: '#FEF3C7', color: '#92400E', fontWeight: 800 };
   if (status === 'dead_letter') return { bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: 800 };
   if (status === 'cancelled') return { bgcolor: '#F3E8FF', color: '#6B21A8', fontWeight: 800 };
   if (status === 'invalid') return { bgcolor: '#E5E7EB', color: '#374151', fontWeight: 800 };
-  return { bgcolor: '#F8FAFC', color: '#475569', fontWeight: 800 };
+  return { bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569', fontWeight: 800 };
 }

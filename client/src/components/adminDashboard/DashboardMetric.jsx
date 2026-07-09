@@ -6,7 +6,7 @@ export default function DashboardMetric({ detail, icon, label, value }) {
     <Grid size={{ xs: 12, sm: 6, lg: 4, xl: 2 }}>
       <Paper variant="outlined" sx={{ p: 1.25, minHeight: 104, boxShadow: 1 }}>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Box sx={{ width: 36, height: 36, display: 'grid', placeItems: 'center', borderRadius: 1, bgcolor: '#EFF6FF', color: 'primary.main' }}>
+          <Box sx={{ width: 36, height: 36, display: 'grid', placeItems: 'center', borderRadius: 1, bgcolor: 'rgba(0, 103, 192, 0.10)', color: 'primary.main' }}>
             {icon}
           </Box>
           <Box minWidth={0}>
