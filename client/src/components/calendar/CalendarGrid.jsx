@@ -381,10 +381,8 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
   const top = eventTop(event.startsAt);
   const height = eventHeight(event.durationMinutes);
   const isCompact = height < 44;
-  const leftInset = layout?.column === 0 ? 6 : 2;
-  const widthInset = layout?.widthPercent === 100 ? 12 : 8;
-  const left = layout ? `calc(${layout.leftPercent}% + ${leftInset}px)` : 6;
-  const width = layout ? `calc(${layout.widthPercent}% - ${widthInset}px)` : 'calc(100% - 12px)';
+  const left = layout ? `${layout.leftPercent}%` : 0;
+  const width = layout ? `${layout.widthPercent}%` : '100%';
   return (
     <Tooltip
       title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
@@ -406,8 +404,9 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
           left,
           width,
           minHeight: 0,
-          borderLeft: isSelected ? 5 : 3,
-          borderColor: color.main,
+          boxSizing: 'border-box',
+          border: `1px solid ${color.main}`,
+          borderLeft: `${isSelected ? 5 : 3}px solid ${color.main}`,
           bgcolor: isSelected ? color.main : color.soft,
           color: isSelected ? '#FFFFFF' : color.dark,
           borderRadius: '4px',
@@ -520,7 +519,8 @@ function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEven
         minWidth: 0,
         minHeight: 0,
         bgcolor: isCurrentMonth ? '#FFFFFF' : '#F8F9FA',
-        p: 0.5,
+        px: 0,
+        py: 0.5,
         display: 'grid',
         gridTemplateRows: 'auto 1fr',
         gap: 0.5,
@@ -589,11 +589,9 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
         onClick={() => onEventClick(event)}
         sx={{
           minWidth: 0,
-          borderLeft: isSelected ? 5 : 3,
-          borderTop: 0,
-          borderRight: 0,
-          borderBottom: 0,
-          borderColor: color.main,
+          boxSizing: 'border-box',
+          border: `1px solid ${color.main}`,
+          borderLeft: `${isSelected ? 5 : 3}px solid ${color.main}`,
           bgcolor: isSelected ? color.main : color.soft,
           color: isSelected ? '#FFFFFF' : color.dark,
           borderRadius: '4px',
