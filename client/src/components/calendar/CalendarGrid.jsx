@@ -33,7 +33,8 @@ import {
 import { PROFILE_COLORS } from '../profiles/profileConstants.js';
 import { CALENDAR_VIEWS } from './CalendarToolbar.jsx';
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DISPLAY_WEEKDAYS = WEEKDAY_LABELS.slice(1, 6);
 const HOURS = Array.from({ length: 24 }, (_item, hour) => hour);
 const HOUR_HEIGHT = 64;
 
@@ -121,15 +122,15 @@ export default function CalendarGrid({
 function MonthCalendar({ cursorDate, days, draggedEventId, eventsByDay, selectedEventId, onDragEnd, onDragStart, onEventClick, onEventDrop }) {
   return (
     <>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', borderBottom: 1, borderColor: 'divider' }}>
-        {WEEKDAYS.map((day) => (
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', borderBottom: 1, borderColor: 'divider' }}>
+        {DISPLAY_WEEKDAYS.map((day) => (
           <Typography
             key={day}
             align="center"
             color="text.secondary"
             fontWeight={900}
             variant="caption"
-            sx={{ py: 1, bgcolor: '#F8FAFC', borderRight: day === 'Sat' ? 0 : 1, borderColor: 'divider' }}
+            sx={{ py: 1, bgcolor: '#F8FAFC', borderRight: day === 'Fri' ? 0 : 1, borderColor: 'divider' }}
           >
             {day}
           </Typography>
@@ -141,7 +142,7 @@ function MonthCalendar({ cursorDate, days, draggedEventId, eventsByDay, selected
           minHeight: 0,
           overflow: 'auto',
           display: 'grid',
-          gridTemplateColumns: 'repeat(7, minmax(128px, 1fr))',
+          gridTemplateColumns: 'repeat(5, minmax(128px, 1fr))',
           gridAutoRows: 148,
           bgcolor: 'divider',
           gap: '1px',
@@ -194,9 +195,9 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
     <Box ref={scrollRef} sx={{ height: '100%', minHeight: 0, overflow: 'auto', bgcolor: 'background.paper', overscrollBehavior: 'contain' }}>
       <Box
         sx={{
-          minWidth: { xs: 860, md: 0 },
+          minWidth: { xs: 660, md: 0 },
           display: 'grid',
-          gridTemplateColumns: '64px repeat(7, minmax(104px, 1fr))',
+          gridTemplateColumns: '64px repeat(5, minmax(104px, 1fr))',
           gridTemplateRows: `56px ${HOURS.length * HOUR_HEIGHT}px`,
         }}
       >
@@ -267,7 +268,7 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
 
 function WeekDayHeader({ day }) {
   const isToday = day === defaultTimezoneTodayKey();
-  const weekday = WEEKDAYS[dateKeyDayOfWeek(day)];
+  const weekday = WEEKDAY_LABELS[dateKeyDayOfWeek(day)];
   return (
     <Box
       sx={{

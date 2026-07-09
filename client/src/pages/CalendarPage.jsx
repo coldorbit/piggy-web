@@ -340,21 +340,36 @@ function scheduledInterviewCount(events, view, cursorDate, visibleDays) {
   }
 
   const monthKey = dateKeyMonth(cursorDate);
-  return events.filter((event) => dateKeyMonth(defaultTimezoneDateKey(event.startsAt)) === monthKey).length;
+  return events.filter((event) => {
+    const day = defaultTimezoneDateKey(event.startsAt);
+    return dateKeyMonth(day) === monthKey && isWeekday(day);
+  }).length;
 }
 
 function monthDays(dateKey) {
-  const start = startOfWeek(`${dateKeyMonth(dateKey)}-01`);
-  return Array.from({ length: 42 }, (_item, index) => addDays(start, index));
+  const start = startOfWorkWeek(`${dateKeyMonth(dateKey)}-01`);
+  return Array.from({ length: 6 }, (_item, weekIndex) =>
+    Array.from({ length: 5 }, (_dayItem, dayIndex) => addDays(start, weekIndex * 7 + dayIndex)),
+  ).flat();
 }
 
 function weekDays(dateKey) {
-  const start = startOfWeek(dateKey);
-  return Array.from({ length: 7 }, (_item, index) => addDays(start, index));
+  const start = startOfWorkWeek(dateKey);
+  return Array.from({ length: 5 }, (_item, index) => addDays(start, index));
 }
 
-function startOfWeek(dateKey) {
-  return addDays(dateKey, -dateKeyDayOfWeek(dateKey));
+function startOfWorkWeek(dateKey) {
+  return addDays(dateKey, -workWeekOffset(dateKey));
+}
+
+function workWeekOffset(dateKey) {
+  const dayOfWeek = dateKeyDayOfWeek(dateKey);
+  return dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+}
+
+function isWeekday(dateKey) {
+  const dayOfWeek = dateKeyDayOfWeek(dateKey);
+  return dayOfWeek >= 1 && dayOfWeek <= 5;
 }
 
 function addDays(dateKey, days) {
@@ -367,5 +382,5 @@ function monthLabel(dateKey) {
 
 function weekRangeLabel(date) {
   const days = weekDays(date);
-  return `${formatDateInDefaultTimezone(days[0])} - ${formatDateInDefaultTimezone(days[6])}`;
+  return `${formatDateInDefaultTimezone(days[0])} - ${formatDateInDefaultTimezone(days[days.length - 1])}`;
 }
