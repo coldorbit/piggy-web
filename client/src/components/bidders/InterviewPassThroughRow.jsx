@@ -12,7 +12,7 @@ export default function InterviewPassThroughRow({ interview }) {
     <Paper variant="outlined" sx={{ p: 1, display: 'grid', gap: 0.75 }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) max-content', gap: 1, alignItems: 'start' }}>
         <Box minWidth={0}>
-          <Typography fontWeight={900} variant="body2" noWrap>
+          <Typography fontWeight={600} variant="body2" noWrap>
             {job.title || 'Untitled role'}
           </Typography>
           <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
@@ -35,11 +35,11 @@ export default function InterviewPassThroughRow({ interview }) {
         ) : null}
       </Box>
       <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-        <Chip label={stage?.label || interview.status} size="small" sx={{ bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E', fontWeight: 900 }} />
+        <Chip label={stage?.label || interview.status} size="small" sx={{ bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E', fontWeight: 600 }} />
         <Chip
           label={interview.interviewNextAt ? formatDateTime(interview.interviewNextAt) : formatDateTime(interview.updatedAt)}
           size="small"
-          sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 800 }}
+          sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 600 }}
         />
       </Stack>
     </Paper>

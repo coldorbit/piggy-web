@@ -41,10 +41,10 @@ export default function Metric({ icon, label, value, action }) {
             {icon}
           </Box>
           <Stack spacing={0.25} minWidth={0}>
-            <Typography variant="caption" color="text.secondary" fontWeight={800} textTransform="uppercase">
+            <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">
               {label}
             </Typography>
-            <Typography variant="h5" fontWeight={900} noWrap>
+            <Typography variant="h5" fontWeight={600} noWrap>
               {value}
             </Typography>
           </Stack>

@@ -186,7 +186,7 @@ export default function TailoringRequestsPage() {
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 48, '& .MuiAccordionSummary-content': { my: 1 } }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <AutoAwesomeIcon fontSize="small" color="primary" />
-            <Typography fontWeight={900}>Manual tailoring</Typography>
+            <Typography fontWeight={600}>Manual tailoring</Typography>
           </Stack>
         </AccordionSummary>
         <AccordionDetails sx={{ pt: 0 }}>
@@ -436,7 +436,7 @@ function TailoringCountCard({ active = false, label, value }) {
       <Typography variant="caption" color={active ? 'primary.main' : 'text.secondary'} fontWeight={active ? 900 : 500}>
         {label}
       </Typography>
-      <Typography fontWeight={900}>{Number(value || 0).toLocaleString()}</Typography>
+      <Typography fontWeight={600}>{Number(value || 0).toLocaleString()}</Typography>
     </Paper>
   );
 }
@@ -524,9 +524,9 @@ function TailoringRequestRow({ request }) {
       <TableCell>
         <Stack spacing={0.5}>
           <Stack direction="row" spacing={0.75} alignItems="center">
-            <Typography fontWeight={900}>#{request.id}</Typography>
+            <Typography fontWeight={600}>#{request.id}</Typography>
             <Chip label={statusLabel(request.status)} size="small" sx={statusSx(request.status)} />
-            {request.requestType === 'manual' ? <Chip label="Manual" size="small" variant="outlined" sx={{ fontWeight: 800 }} /> : null}
+            {request.requestType === 'manual' ? <Chip label="Manual" size="small" variant="outlined" sx={{ fontWeight: 600 }} /> : null}
           </Stack>
           <Typography variant="caption" color="text.secondary">
             Created {formatDateTime(request.createdAt)}
@@ -540,14 +540,14 @@ function TailoringRequestRow({ request }) {
       </TableCell>
       <TableCell>
         <Stack spacing={0.25}>
-          <Typography fontWeight={800}>{request.job?.title || 'Untitled role'}</Typography>
+          <Typography fontWeight={600}>{request.job?.title || 'Untitled role'}</Typography>
           <Typography variant="body2" color="text.secondary">
             {[request.job?.company, request.job?.location, request.job?.source].filter(Boolean).join(' · ') || 'Job details unavailable'}
           </Typography>
         </Stack>
       </TableCell>
       <TableCell>
-        <Typography fontWeight={800}>{request.profile?.name || 'Unknown profile'}</Typography>
+        <Typography fontWeight={600}>{request.profile?.name || 'Unknown profile'}</Typography>
         <Typography variant="body2" color="text.secondary">
           {request.profile?.ownerUsername || 'Unknown owner'}
         </Typography>
@@ -600,7 +600,7 @@ function ResumeReviewSummary({ review }) {
       <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
         <Chip label={approvalLabel(review?.approval?.status)} size="small" sx={reviewChipSx(review?.approval?.status)} />
         {confidence !== undefined && confidence !== null ? (
-          <Chip label={`${Math.round(Number(confidence) * 100)}% confidence`} size="small" variant="outlined" sx={{ fontWeight: 800 }} />
+          <Chip label={`${Math.round(Number(confidence) * 100)}% confidence`} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
         ) : null}
       </Stack>
       {coverage ? (
@@ -629,9 +629,9 @@ function approvalLabel(status) {
 }
 
 function reviewChipSx(status) {
-  if (status === 'pending_approval') return { bgcolor: 'rgba(0, 103, 192, 0.16)', color: '#005A9E', fontWeight: 800 };
-  if (status === 'needs_review') return { bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: 800 };
-  return { bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569', fontWeight: 800 };
+  if (status === 'pending_approval') return { bgcolor: 'rgba(0, 103, 192, 0.16)', color: '#005A9E', fontWeight: 600 };
+  if (status === 'needs_review') return { bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: 600 };
+  return { bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569', fontWeight: 600 };
 }
 
 function statusLabel(status) {
@@ -642,11 +642,11 @@ function statusLabel(status) {
 }
 
 function statusSx(status) {
-  if (status === 'ready') return { bgcolor: '#DCFCE7', color: '#166534', fontWeight: 800 };
-  if (status === 'processing') return { bgcolor: 'rgba(0, 103, 192, 0.16)', color: '#005A9E', fontWeight: 800 };
-  if (status === 'requested') return { bgcolor: '#FEF3C7', color: '#92400E', fontWeight: 800 };
-  if (status === 'dead_letter') return { bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: 800 };
-  if (status === 'cancelled') return { bgcolor: '#F3E8FF', color: '#6B21A8', fontWeight: 800 };
-  if (status === 'invalid') return { bgcolor: '#E5E7EB', color: '#374151', fontWeight: 800 };
-  return { bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569', fontWeight: 800 };
+  if (status === 'ready') return { bgcolor: '#DCFCE7', color: '#166534', fontWeight: 600 };
+  if (status === 'processing') return { bgcolor: 'rgba(0, 103, 192, 0.16)', color: '#005A9E', fontWeight: 600 };
+  if (status === 'requested') return { bgcolor: '#FEF3C7', color: '#92400E', fontWeight: 600 };
+  if (status === 'dead_letter') return { bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: 600 };
+  if (status === 'cancelled') return { bgcolor: '#F3E8FF', color: '#6B21A8', fontWeight: 600 };
+  if (status === 'invalid') return { bgcolor: '#E5E7EB', color: '#374151', fontWeight: 600 };
+  return { bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569', fontWeight: 600 };
 }

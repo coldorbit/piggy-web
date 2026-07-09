@@ -176,7 +176,7 @@ export default function AdminUsersPage({ currentUser }) {
             }}
           >
             <Box minWidth={0}>
-              <Typography fontWeight={900}>{titleCase(activeSection.label)}</Typography>
+              <Typography fontWeight={600}>{titleCase(activeSection.label)}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {visibleUsers.length.toLocaleString()} of {workspaceUsers.length.toLocaleString()} back-office accounts
               </Typography>
@@ -230,7 +230,7 @@ function UserRoleTabs({ activeRole, isLoading, roles, onRoleChange }) {
       }}
     >
       <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
           Roles
         </Typography>
       </Box>
@@ -276,7 +276,7 @@ function UserRoleTabs({ activeRole, isLoading, roles, onRoleChange }) {
                 label={<RoleTabLabel role={role} />}
                 sx={{
                   color: color.dark,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   textAlign: 'left',
                   '&.Mui-selected': {
                     color: color.dark,
@@ -297,20 +297,20 @@ function RoleTabLabel({ role }) {
 
   return (
     <Box sx={{ display: 'grid', gap: 0.5, justifyItems: 'stretch', minWidth: 0, width: '100%' }}>
-      <Typography component="span" variant="body2" fontWeight={900} noWrap sx={{ minWidth: 0 }}>
+      <Typography component="span" variant="body2" fontWeight={600} noWrap sx={{ minWidth: 0 }}>
         {titleCase(role.label)}
       </Typography>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
         <Chip
           label={`${role.count.toLocaleString()} total`}
           size="small"
-          sx={{ height: 20, fontSize: 11, fontWeight: 900, bgcolor: color.soft, color: color.dark, '& .MuiChip-label': { px: 0.75 } }}
+          sx={{ height: 20, fontSize: 11, fontWeight: 600, bgcolor: color.soft, color: color.dark, '& .MuiChip-label': { px: 0.75 } }}
         />
         {role.activeCount ? (
           <Chip
             label={`${role.activeCount.toLocaleString()} active`}
             size="small"
-            sx={{ height: 20, fontSize: 11, fontWeight: 900, bgcolor: '#dcfce7', color: '#166534', '& .MuiChip-label': { px: 0.75 } }}
+            sx={{ height: 20, fontSize: 11, fontWeight: 600, bgcolor: '#dcfce7', color: '#166534', '& .MuiChip-label': { px: 0.75 } }}
           />
         ) : null}
       </Box>

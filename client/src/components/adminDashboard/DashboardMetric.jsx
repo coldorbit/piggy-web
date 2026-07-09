@@ -10,10 +10,10 @@ export default function DashboardMetric({ detail, icon, label, value }) {
             {icon}
           </Box>
           <Box minWidth={0}>
-            <Typography variant="caption" color="text.secondary" fontWeight={800} textTransform="uppercase">
+            <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">
               {label}
             </Typography>
-            <Typography variant="h5" fontWeight={900} lineHeight={1.15}>
+            <Typography variant="h5" fontWeight={600} lineHeight={1.15}>
               {typeof value === 'string' ? value : number(value)}
             </Typography>
           </Box>

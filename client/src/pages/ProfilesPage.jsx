@@ -352,7 +352,7 @@ export default function ProfilesPage({ currentUser }) {
       {incomingShares.length ? (
         <Card variant="outlined" sx={{ boxShadow: 1 }}>
           <CardContent sx={{ display: 'grid', gap: 1 }}>
-            <Typography fontWeight={900}>Profile sharing requests</Typography>
+            <Typography fontWeight={600}>Profile sharing requests</Typography>
             {incomingShares.map((share) => (
               <Box
                 key={share.id}
@@ -428,7 +428,7 @@ export default function ProfilesPage({ currentUser }) {
             }}
           >
             <Box minWidth={0}>
-              <Typography fontWeight={900}>{activeStatusSection.label} profiles</Typography>
+              <Typography fontWeight={600}>{activeStatusSection.label} profiles</Typography>
               <Typography variant="body2" color="text.secondary">
                 {visibleProfiles.length.toLocaleString()} of {workspaceProfiles.length.toLocaleString()} profiles
               </Typography>
@@ -596,7 +596,7 @@ export default function ProfilesPage({ currentUser }) {
             <Typography variant="body2" color="text.secondary">
               Users will not be able to bid or tailor with this profile, but interviews and calendar entries will remain available.
             </Typography>
-            <Typography variant="body2" fontWeight={900} sx={{ mt: 1 }}>
+            <Typography variant="body2" fontWeight={600} sx={{ mt: 1 }}>
               {legacyProfile ? legacyProfile.name : ''}
             </Typography>
           </DialogContent>
@@ -689,7 +689,7 @@ function ProfileStatusTabs({ activeStatus, isLoading, statuses, onStatusChange }
       }}
     >
       <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
           Status
         </Typography>
       </Box>
@@ -735,7 +735,7 @@ function ProfileStatusTabs({ activeStatus, isLoading, statuses, onStatusChange }
                 label={<ProfileStatusTabLabel status={status} />}
                 sx={{
                   color: color.dark,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   textAlign: 'left',
                   '&.Mui-selected': {
                     color: color.dark,
@@ -756,14 +756,14 @@ function ProfileStatusTabLabel({ status }) {
 
   return (
     <Box sx={{ display: 'grid', gap: 0.5, justifyItems: 'stretch', minWidth: 0, width: '100%' }}>
-      <Typography component="span" variant="body2" fontWeight={900} noWrap sx={{ minWidth: 0 }}>
+      <Typography component="span" variant="body2" fontWeight={600} noWrap sx={{ minWidth: 0 }}>
         {status.label}
       </Typography>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
         <Chip
           label={`${status.count.toLocaleString()} total`}
           size="small"
-          sx={{ height: 20, fontSize: 11, fontWeight: 900, bgcolor: color.soft, color: color.dark, '& .MuiChip-label': { px: 0.75 } }}
+          sx={{ height: 20, fontSize: 11, fontWeight: 600, bgcolor: color.soft, color: color.dark, '& .MuiChip-label': { px: 0.75 } }}
         />
       </Box>
     </Box>
@@ -845,7 +845,7 @@ function ProfileReadOnlyDialogContent({ assignableUsers, profile, onClose }) {
             <>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                 <Box minWidth={0}>
-                  <Typography variant="subtitle2" fontWeight={900}>
+                  <Typography variant="subtitle2" fontWeight={600}>
                     Static resume
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
@@ -883,7 +883,7 @@ function ProfileReadOnlyDialogContent({ assignableUsers, profile, onClose }) {
 function ReadOnlyField({ label, value }) {
   return (
     <Box sx={{ display: 'grid', gap: 0.25 }}>
-      <Typography variant="caption" color="text.secondary" fontWeight={800}>
+      <Typography variant="caption" color="text.secondary" fontWeight={600}>
         {label}
       </Typography>
       <Typography variant="body2">{formatProfileValue(value)}</Typography>
@@ -894,7 +894,7 @@ function ReadOnlyField({ label, value }) {
 function ReadOnlySection({ label, value, preserveText = false }) {
   return (
     <Box sx={{ display: 'grid', gap: 0.75 }}>
-      <Typography variant="subtitle2" fontWeight={900}>
+      <Typography variant="subtitle2" fontWeight={600}>
         {label}
       </Typography>
       <Box

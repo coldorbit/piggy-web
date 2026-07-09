@@ -6,7 +6,7 @@ export default function BidderPerformanceTable({ bidders }) {
   return (
     <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
       <Box sx={{ p: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography fontWeight={900}>Tailoring efficiency</Typography>
+        <Typography fontWeight={600}>Tailoring efficiency</Typography>
         <Typography variant="caption" color="text.secondary">
           Tailor requests compared with applications and interviews by user or bidder.
         </Typography>
@@ -34,7 +34,7 @@ export default function BidderPerformanceTable({ bidders }) {
             {bidders.map((bidder) => (
               <TableRow key={bidder.id} hover>
                 <TableCell>
-                  <Typography fontWeight={900}>{bidder.username}</Typography>
+                  <Typography fontWeight={600}>{bidder.username}</Typography>
                   <Typography variant="caption" color="text.secondary">{performanceRoleLabel(bidder.role)}</Typography>
                 </TableCell>
                 <TableCell align="right">{number(bidder.tailoredResumeRequests)}</TableCell>

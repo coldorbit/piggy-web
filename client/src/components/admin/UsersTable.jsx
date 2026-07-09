@@ -260,7 +260,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
   return (
     <TableRow hover>
       <TableCell>
-        <Typography fontWeight={800}>{user.username}</Typography>
+        <Typography fontWeight={600}>{user.username}</Typography>
         <Typography variant="caption" color="text.secondary" display="block">
           {workspaceLabel}
         </Typography>

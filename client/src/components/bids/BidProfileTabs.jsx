@@ -34,7 +34,7 @@ export default function BidProfileTabs({
       }}
     >
       <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
           Profiles
         </Typography>
       </Box>
@@ -87,7 +87,7 @@ export default function BidProfileTabs({
                 }
                 sx={{
                   color: color.dark,
-                  fontWeight: 800,
+                  fontWeight: 600,
                   textAlign: 'left',
                   '&.Mui-selected': {
                     color: color.dark,
@@ -143,7 +143,7 @@ function ProfileTabLabel({ dailyGoalLabel, isDailyGoalCurrent, profile, onOpenPr
   return (
     <Box sx={{ display: 'grid', gap: 0.5, justifyItems: 'stretch', minWidth: 0, width: '100%' }}>
       <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0, width: '100%' }}>
-        <Typography component="span" variant="body2" fontWeight={800} noWrap sx={{ flex: 1, minWidth: 0 }}>
+        <Typography component="span" variant="body2" fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
           {profile.name}
         </Typography>
         <Box
@@ -168,7 +168,7 @@ function ProfileTabLabel({ dailyGoalLabel, isDailyGoalCurrent, profile, onOpenPr
             label="Shared"
             size="small"
             color="secondary"
-            sx={{ height: 20, fontSize: 11, fontWeight: 800, '& .MuiChip-label': { px: 0.75 } }}
+            sx={{ height: 20, fontSize: 11, fontWeight: 600, '& .MuiChip-label': { px: 0.75 } }}
           />
         ) : null}
         {profile.profileStatus === 'legacy' ? (
@@ -176,14 +176,14 @@ function ProfileTabLabel({ dailyGoalLabel, isDailyGoalCurrent, profile, onOpenPr
             label="Legacy"
             size="small"
             variant="outlined"
-            sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: '#f3f4f6', color: '#4b5563', '& .MuiChip-label': { px: 0.75 } }}
+            sx={{ height: 20, fontSize: 11, fontWeight: 600, bgcolor: '#f3f4f6', color: '#4b5563', '& .MuiChip-label': { px: 0.75 } }}
           />
         ) : null}
         {profile.workspaceName ? (
           <Chip
             label={profile.workspaceName}
             size="small"
-            sx={{ height: 20, fontSize: 11, fontWeight: 900, bgcolor: '#ecfeff', color: '#155e75', '& .MuiChip-label': { px: 0.75 } }}
+            sx={{ height: 20, fontSize: 11, fontWeight: 600, bgcolor: '#ecfeff', color: '#155e75', '& .MuiChip-label': { px: 0.75 } }}
           />
         ) : null}
         <Chip
@@ -193,7 +193,7 @@ function ProfileTabLabel({ dailyGoalLabel, isDailyGoalCurrent, profile, onOpenPr
             ...(PROFILE_BADGE_COLORS[profile.profileBadge || 'SWE'] || {}),
             height: 20,
             fontSize: 11,
-            fontWeight: 800,
+            fontWeight: 600,
             '& .MuiChip-label': { px: 0.75 },
           }}
         />
@@ -202,12 +202,12 @@ function ProfileTabLabel({ dailyGoalLabel, isDailyGoalCurrent, profile, onOpenPr
             <Chip
               label={`${Number(profile.progress?.totalInterviews || 0).toLocaleString()} total`}
               size="small"
-              sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E', '& .MuiChip-label': { px: 0.75 } }}
+              sx={{ height: 20, fontSize: 11, fontWeight: 600, bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E', '& .MuiChip-label': { px: 0.75 } }}
             />
             <Chip
               label={`${Number(profile.progress?.activeInterviews || 0).toLocaleString()} active`}
               size="small"
-              sx={{ height: 20, fontSize: 11, fontWeight: 800, bgcolor: '#ECFDF5', color: '#486860', '& .MuiChip-label': { px: 0.75 } }}
+              sx={{ height: 20, fontSize: 11, fontWeight: 600, bgcolor: '#ECFDF5', color: '#486860', '& .MuiChip-label': { px: 0.75 } }}
             />
           </>
         ) : null}
@@ -222,7 +222,7 @@ function ProfileTabLabel({ dailyGoalLabel, isDailyGoalCurrent, profile, onOpenPr
             sx={{
               height: 20,
               fontSize: 11,
-              fontWeight: 900,
+              fontWeight: 600,
               bgcolor: dailyGoal.bgcolor,
               color: dailyGoal.color,
               '& .MuiChip-label': { px: 0.75 },

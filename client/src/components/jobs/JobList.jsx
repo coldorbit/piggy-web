@@ -117,12 +117,12 @@ export default function JobList({
                 >
                   {job.companyLogoUrl ? <CompanyLogo job={job} /> : null}
                   <Box minWidth={0}>
-                    <Typography fontWeight={900} variant="body2" noWrap>
+                    <Typography fontWeight={600} variant="body2" noWrap>
                       {job.title || 'Untitled role'}
                     </Typography>
                     <Typography color="text.secondary" variant="caption" noWrap>
                       {job.company ? (
-                        <Box component="span" sx={{ color: 'text.primary', fontWeight: 800 }}>
+                        <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
                           {job.company}
                         </Box>
                       ) : (
@@ -169,7 +169,7 @@ export default function JobList({
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5, minWidth: 0, overflow: 'hidden' }}>
                       {job.source ? <SourceBadge isManual={job.isManual} source={job.source} sourceUrl={job.sourceUrl} /> : null}
                       {job.applyMode && !isLinkedInJob ? <ApplyModeBadge applyMode={job.applyMode} /> : null}
-                      <Typography color="text.secondary" variant="caption" fontWeight={700} noWrap>
+                      <Typography color="text.secondary" variant="caption" fontWeight={600} noWrap>
                         {formatDate(job.postedAt || job.scrapedAt)}
                       </Typography>
                     </Box>
@@ -196,7 +196,7 @@ function LocationCountBadge({ count }) {
         bgcolor: '#F0FDFA',
         color: '#324B45',
         fontSize: 11,
-        fontWeight: 900,
+        fontWeight: 600,
         '& .MuiChip-label': { px: 0.75 },
       }}
     />
@@ -213,7 +213,7 @@ function ManualJobBadge() {
         bgcolor: '#ECFDF5',
         color: '#486860',
         fontSize: 11,
-        fontWeight: 900,
+        fontWeight: 600,
         '& .MuiChip-label': { px: 0.75 },
       }}
     />
@@ -231,7 +231,7 @@ function ApplyModeBadge({ applyMode }) {
         bgcolor: '#f8e0e7',
         color: '#7c263a',
         fontSize: 11,
-        fontWeight: 800,
+        fontWeight: 600,
         '& .MuiChip-label': {
           px: 0.75,
           overflow: 'hidden',
@@ -255,7 +255,7 @@ function SourceBadge({ isManual, source, sourceUrl }) {
         height: 20,
         maxWidth: 112,
         fontSize: 11,
-        fontWeight: 800,
+        fontWeight: 600,
         '& .MuiChip-label': {
           px: 0.75,
           overflow: 'hidden',
@@ -269,7 +269,7 @@ function SourceBadge({ isManual, source, sourceUrl }) {
           bgcolor: 'background.paper',
           color: 'inherit',
           fontSize: 9,
-          fontWeight: 900,
+          fontWeight: 600,
         },
       }}
     />
@@ -295,7 +295,7 @@ function CompanyLogo({ job }) {
         borderColor: 'divider',
         color: 'text.secondary',
         fontSize: 13,
-        fontWeight: 900,
+        fontWeight: 600,
       }}
     >
       {(job.company || job.title || '?').trim().charAt(0).toUpperCase()}

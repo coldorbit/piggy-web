@@ -58,7 +58,7 @@ export default function CollaborationPanel({ entityType = 'profile', entityId, p
     <Box sx={{ display: 'grid', gap: 1.25 }}>
       <Stack direction="row" spacing={1} alignItems="center">
         <HistoryIcon fontSize="small" color="action" />
-        <Typography fontWeight={900}>Collaboration</Typography>
+        <Typography fontWeight={600}>Collaboration</Typography>
         <Chip size="small" label={`${events.length} updates`} variant="outlined" />
       </Stack>
       {error ? <Alert severity="error">{error.message}</Alert> : null}

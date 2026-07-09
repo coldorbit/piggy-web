@@ -78,7 +78,7 @@ export default function InterviewCard({
             <Typography
               component="span"
               variant="body2"
-              fontWeight={900}
+              fontWeight={600}
               sx={{
                 color: 'text.primary',
               }}
@@ -86,7 +86,7 @@ export default function InterviewCard({
               {job.title || 'Untitled role'}
             </Typography>
             <Typography color="text.secondary" variant="caption" sx={{ display: 'block', mt: 0.25 }}>
-              <Box component="span" sx={{ color: 'text.primary', fontWeight: 800 }}>
+              <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
                 {job.company || 'Unknown company'}
               </Box>
               {job.location ? ` · ${job.location}` : null}
@@ -136,7 +136,7 @@ export default function InterviewCard({
               size="small"
               startIcon={<OpenInNewIcon fontSize="small" />}
               variant="contained"
-              sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 900, lineHeight: 1.4 }}
+              sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 600, lineHeight: 1.4 }}
             >
               Join
             </Button>
@@ -150,7 +150,7 @@ export default function InterviewCard({
               size="small"
               startIcon={<OpenInNewIcon fontSize="small" />}
               variant="outlined"
-              sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 900, lineHeight: 1.4 }}
+              sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 600, lineHeight: 1.4 }}
             >
               Job
             </Button>
@@ -161,7 +161,7 @@ export default function InterviewCard({
               size="small"
               startIcon={<OpenInNewIcon fontSize="small" />}
               variant="outlined"
-              sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 900, lineHeight: 1.4 }}
+              sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 600, lineHeight: 1.4 }}
             >
               Resume
             </Button>
@@ -183,7 +183,7 @@ const chipRowSx = {
 };
 
 const chipSx = {
-  fontWeight: 800,
+  fontWeight: 600,
   maxWidth: '100%',
   minWidth: 0,
   '& .MuiChip-label': {

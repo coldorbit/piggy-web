@@ -201,7 +201,7 @@ export default function MarketplacePage({ currentUser }) {
       <Paper variant="outlined" sx={{ p: 1.5, display: 'grid', gap: 1.25, boxShadow: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
           <Box>
-            <Typography variant="h6" fontWeight={900}>
+            <Typography variant="h6" fontWeight={600}>
               Managed Interview Marketplace
             </Typography>
             <Typography color="text.secondary" variant="body2">
@@ -632,7 +632,7 @@ function RecordCard({ children, chips, subtitle, title }) {
     <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 1, boxShadow: 1, alignContent: 'start' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'flex-start' }}>
         <Box minWidth={0}>
-          <Typography fontWeight={900} noWrap>{title}</Typography>
+          <Typography fontWeight={600} noWrap>{title}</Typography>
           <Typography color="text.secondary" variant="caption" noWrap>{subtitle}</Typography>
         </Box>
         <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap justifyContent="flex-end">{chips}</Stack>
@@ -655,7 +655,7 @@ function DetailRows({ rows }) {
     <Box sx={{ display: 'grid', gap: 0.45 }}>
       {rows.filter(([, value]) => Boolean(value)).map(([label, value]) => (
         <Typography key={label} variant="caption" color="text.secondary">
-          <Box component="span" sx={{ color: 'text.primary', fontWeight: 900 }}>{label}: </Box>{value}
+          <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>{label}: </Box>{value}
         </Typography>
       ))}
     </Box>
@@ -664,7 +664,7 @@ function DetailRows({ rows }) {
 
 function Metric({ icon, label, value }) {
   return (
-    <Chip icon={icon} label={`${label}: ${value}`} sx={{ bgcolor: '#f8fafc', border: 1, borderColor: 'divider', fontWeight: 800 }} />
+    <Chip icon={icon} label={`${label}: ${value}`} sx={{ bgcolor: '#f8fafc', border: 1, borderColor: 'divider', fontWeight: 600 }} />
   );
 }
 
@@ -703,7 +703,7 @@ function statusChip(status) {
       sx={{
         bgcolor: statusColor(status).bg,
         color: statusColor(status).fg,
-        fontWeight: 800,
+        fontWeight: 600,
       }}
     />
   );

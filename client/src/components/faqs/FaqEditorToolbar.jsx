@@ -27,7 +27,7 @@ export default function FaqEditorToolbar({ isSaving, status, title, onBack, onPu
         </Tooltip>
         <Box sx={{ minWidth: 0 }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
-            <Typography variant="h6" fontWeight={900} noWrap>
+            <Typography variant="h6" fontWeight={600} noWrap>
               {title}
             </Typography>
             <Chip label={status} size="small" color={status === 'published' ? 'success' : 'default'} />

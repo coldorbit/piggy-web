@@ -23,10 +23,10 @@ export default function BidDailyGoalBar({ activeColor, dateLabel, isCurrentDate,
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <Typography variant="body2" fontWeight={900}>
+        <Typography variant="body2" fontWeight={600}>
           {profile?.name ? `${profile.name} daily bid goal` : 'Profile daily bid goal'}
         </Typography>
-        <Typography variant="body2" fontWeight={900} color="text.secondary">
+        <Typography variant="body2" fontWeight={600} color="text.secondary">
           {totalGoal
             ? `${totalFinished.toLocaleString()} / ${totalGoal.toLocaleString()} applications ${dateContext}`
             : `${totalFinished.toLocaleString()} applications ${dateContext}`}
@@ -43,7 +43,7 @@ export default function BidDailyGoalBar({ activeColor, dateLabel, isCurrentDate,
       {users.length ? (
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
           {users.map((user) => (
-            <Typography key={user.userId || user.username} variant="caption" color="text.secondary" fontWeight={800}>
+            <Typography key={user.userId || user.username} variant="caption" color="text.secondary" fontWeight={600}>
               {[user.username || 'User', roleLabel(user.role)].filter(Boolean).join(' - ')}: {user.finished.toLocaleString()}
             </Typography>
           ))}
@@ -64,10 +64,10 @@ function DailyGoalRow({ activeColor, dayPercent = localDayProgressPercent(), goa
   return (
     <Box sx={{ display: 'grid', gap: 0.45 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <Typography variant="caption" fontWeight={900}>
+        <Typography variant="caption" fontWeight={600}>
           {[goal.username || 'User', roleLabel(goal.role)].filter(Boolean).join(' - ')}
         </Typography>
-        <Typography variant="caption" fontWeight={900} sx={{ color: statusColor }}>
+        <Typography variant="caption" fontWeight={600} sx={{ color: statusColor }}>
           {goal.finished.toLocaleString()} / {goal.goal.toLocaleString()}
         </Typography>
       </Box>
@@ -85,10 +85,10 @@ function DailyGoalRow({ activeColor, dayPercent = localDayProgressPercent(), goa
         }}
       />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={800}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600}>
           {statusLabel}
         </Typography>
-        <Typography variant="caption" color="text.secondary" fontWeight={800}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600}>
           {remaining ? `${remaining.toLocaleString()} remaining` : 'Goal reached'}
         </Typography>
       </Box>

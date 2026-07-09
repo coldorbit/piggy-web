@@ -53,13 +53,13 @@ export default function InterviewColumn({
           bgcolor: 'background.paper',
         }}
       >
-        <Typography variant="body2" fontWeight={900} noWrap sx={{ fontWeight: 900 }}>
+        <Typography variant="body2" fontWeight={600} noWrap sx={{ fontWeight: 600 }}>
           {stage.label}
         </Typography>
         <Chip
           label={jobs.length.toLocaleString()}
           size="small"
-          sx={{ bgcolor: accent.soft, color: accent.dark, fontWeight: 900, height: 22 }}
+          sx={{ bgcolor: accent.soft, color: accent.dark, fontWeight: 600, height: 22 }}
         />
       </Box>
       <Stack spacing={0.85} sx={{ flex: '1 1 auto', minHeight: 0, overflowX: 'hidden', overflowY: 'auto', p: 0.85 }}>

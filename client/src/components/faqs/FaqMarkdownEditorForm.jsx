@@ -26,7 +26,7 @@ export default function FaqMarkdownEditorForm({ form, onChange }) {
         size="small"
       />
       <Box sx={{ display: 'grid', gap: 0.75 }}>
-        <Typography variant="subtitle2" fontWeight={900} color="text.secondary">
+        <Typography variant="subtitle2" fontWeight={600} color="text.secondary">
           Answer
         </Typography>
         <Box

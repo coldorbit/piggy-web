@@ -17,7 +17,7 @@ export default function FaqAccordionListItem({ canManageFaqs, faq, onEdit }) {
     >
       <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ gap: 1, minHeight: 62 }}>
         <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, width: '100%', pr: 1 }}>
-          <Typography fontWeight={900} sx={{ flex: 1, minWidth: 0 }} noWrap>
+          <Typography fontWeight={600} sx={{ flex: 1, minWidth: 0 }} noWrap>
             {faq.title}
           </Typography>
           {canManageFaqs ? <Chip label={faq.status} size="small" color={faq.status === 'published' ? 'success' : 'default'} /> : null}

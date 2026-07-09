@@ -135,10 +135,10 @@ function ConsumptionPeriodToolbar({ isRefreshing, onAddTransaction, onMove, onOp
       }}
     >
       <Box minWidth={0}>
-        <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ textTransform: 'uppercase' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
           Consumption view
         </Typography>
-        <Typography fontWeight={900}>{periodLabel}</Typography>
+        <Typography fontWeight={600}>{periodLabel}</Typography>
       </Box>
       <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
         <ToggleButtonGroup
@@ -149,7 +149,7 @@ function ConsumptionPeriodToolbar({ isRefreshing, onAddTransaction, onMove, onOp
           sx={{
             '& .MuiToggleButton-root': {
               px: 1.25,
-              fontWeight: 900,
+              fontWeight: 600,
               textTransform: 'none',
             },
           }}
@@ -228,21 +228,21 @@ function PeriodMetricCard({ detail, emptyValue, label, value, values }) {
         gap: 0.35,
       }}
     >
-      <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ textTransform: 'uppercase' }}>
+      <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
         {label}
       </Typography>
       {values ? (
         values.length ? (
           values.slice(0, 3).map((item) => (
-            <Typography key={`${label}-${item.currency}`} fontWeight={900} sx={{ color: item.amount < 0 ? '#b91c1c' : colors.fg }}>
+            <Typography key={`${label}-${item.currency}`} fontWeight={600} sx={{ color: item.amount < 0 ? '#b91c1c' : colors.fg }}>
               {formatAmount(item.amount, item.currency)}
             </Typography>
           ))
         ) : (
-          <Typography fontWeight={900}>{emptyValue}</Typography>
+          <Typography fontWeight={600}>{emptyValue}</Typography>
         )
       ) : (
-        <Typography fontWeight={900}>{value}</Typography>
+        <Typography fontWeight={600}>{value}</Typography>
       )}
       {detail ? (
         <Typography variant="caption" color="text.secondary">
@@ -369,7 +369,7 @@ const periodIconButtonSx = {
 const toolbarButtonSx = {
   minHeight: 34,
   borderRadius: 1,
-  fontWeight: 900,
+  fontWeight: 600,
   textTransform: 'none',
   boxShadow: 0,
 };

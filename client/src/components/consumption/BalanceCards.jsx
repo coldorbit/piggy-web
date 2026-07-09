@@ -29,8 +29,8 @@ export default function BalanceCards({ accounts }) {
             >
               <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', columnGap: 1, alignItems: 'start' }}>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" sx={{ color: colors.fg, fontWeight: 900 }} noWrap>{account.name}</Typography>
-                  <Typography variant="h5" fontWeight={900} sx={{ color: colors.fg }}>
+                  <Typography variant="caption" sx={{ color: colors.fg, fontWeight: 600 }} noWrap>{account.name}</Typography>
+                  <Typography variant="h5" fontWeight={600} sx={{ color: colors.fg }}>
                     {isRevealed ? formatAmount(account.balance, account.currency) : '••••••'}
                   </Typography>
                 </Box>

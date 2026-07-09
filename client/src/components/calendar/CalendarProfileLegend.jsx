@@ -16,10 +16,10 @@ export default function CalendarProfileLegend({ checkedProfileIds, profiles, onC
       }}
     >
       <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
           Profiles
         </Typography>
-        <Typography variant="body2" fontWeight={900}>
+        <Typography variant="body2" fontWeight={600}>
           {checkedCount.toLocaleString()} of {profiles.length.toLocaleString()}
         </Typography>
       </Box>
@@ -73,7 +73,7 @@ export default function CalendarProfileLegend({ checkedProfileIds, profiles, onC
                 <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.75 }}>
                   <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color.main, flexShrink: 0 }} />
                   <Box minWidth={0}>
-                    <Typography variant="body2" fontWeight={900} noWrap>
+                    <Typography variant="body2" fontWeight={600} noWrap>
                       {profile.name}
                     </Typography>
                   </Box>

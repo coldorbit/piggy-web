@@ -6,7 +6,7 @@ export default function FunnelPerformanceTable({ rows, title }) {
   return (
     <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
       <Box sx={{ p: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography fontWeight={900}>{title}</Typography>
+        <Typography fontWeight={600}>{title}</Typography>
         <Typography variant="caption" color="text.secondary">
           Success ratio across application, interview, and offer stages.
         </Typography>
@@ -30,7 +30,7 @@ export default function FunnelPerformanceTable({ rows, title }) {
             {rows.map((row) => (
               <TableRow key={row.id || row.name} hover>
                 <TableCell>
-                  <Typography fontWeight={900}>{labelize(row.name)}</Typography>
+                  <Typography fontWeight={600}>{labelize(row.name)}</Typography>
                 </TableCell>
                 <TableCell align="right">{number(row.applications)}</TableCell>
                 <TableCell align="right">{number(row.interviews)}</TableCell>

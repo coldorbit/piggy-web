@@ -42,7 +42,7 @@ export default function TransactionLedger({
   return (
     <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
       <Box sx={{ p: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography fontWeight={900}>{title}</Typography>
+        <Typography fontWeight={600}>{title}</Typography>
         <Typography variant="caption" color="text.secondary">{subtitle || `${transactions.length.toLocaleString()} transactions, newest first.`}</Typography>
       </Box>
       <TableContainer sx={{ maxHeight: 560 }}>

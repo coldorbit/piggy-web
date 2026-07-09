@@ -20,7 +20,7 @@ import { CHART_COLORS, labelize, number, percent } from './dashboardFormatters.j
 export function ChartPanel({ children, title }) {
   return (
     <Paper variant="outlined" sx={{ p: 1.25, minWidth: 0, boxShadow: 1 }}>
-      <Typography fontWeight={900} sx={{ mb: 1 }}>
+      <Typography fontWeight={600} sx={{ mb: 1 }}>
         {title}
       </Typography>
       <Box sx={{ minWidth: 0 }}>{children}</Box>

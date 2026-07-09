@@ -116,10 +116,10 @@ export default function CalendarScheduleLens({
       }}
     >
       <Box sx={{ px: 1.25, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
           Schedule lens
         </Typography>
-        <Typography variant="body2" fontWeight={900} noWrap>
+        <Typography variant="body2" fontWeight={600} noWrap>
           {scheduledCount.toLocaleString()} meetings by {activeConfig.label.toLowerCase()}
         </Typography>
       </Box>
@@ -148,7 +148,7 @@ export default function CalendarScheduleLens({
               gap: 0.5,
               px: 0.75,
               py: 0.45,
-              fontWeight: 900,
+              fontWeight: 600,
             },
           }}
         >
@@ -158,7 +158,7 @@ export default function CalendarScheduleLens({
               <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {section.label}
               </Box>
-              <Box component="span" sx={{ ml: 'auto', color: 'text.secondary', fontWeight: 900 }}>
+              <Box component="span" sx={{ ml: 'auto', color: 'text.secondary', fontWeight: 600 }}>
                 {sectionData[key].rows.length}
               </Box>
             </ToggleButton>
@@ -240,7 +240,7 @@ function ScheduleLensRow({ checked, maxCount, row, sectionColor, onChange }) {
         <Box minWidth={0} sx={{ display: 'grid', gap: 0.35 }}>
           <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.6 }}>
             <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: color.main, flexShrink: 0 }} />
-            <Typography variant="body2" fontWeight={900} noWrap>
+            <Typography variant="body2" fontWeight={600} noWrap>
               {row.label}
             </Typography>
           </Box>
@@ -258,12 +258,12 @@ function ScheduleLensRow({ checked, maxCount, row, sectionColor, onChange }) {
                 },
               }}
             />
-            <Typography variant="caption" color="text.secondary" fontWeight={800} noWrap>
+            <Typography variant="caption" color="text.secondary" fontWeight={600} noWrap>
               {nextLabel}
             </Typography>
           </Box>
         </Box>
-        <Typography variant="body2" fontWeight={900} color={checked ? color.dark : 'text.secondary'}>
+        <Typography variant="body2" fontWeight={600} color={checked ? color.dark : 'text.secondary'}>
           {row.count.toLocaleString()}
         </Typography>
       </Box>

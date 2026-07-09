@@ -390,7 +390,7 @@ function MailboxSidebar({
             <InboxIcon fontSize="small" />
           </Avatar>
           <Box minWidth={0}>
-            <Typography fontWeight={950} lineHeight={1.1}>Mailbox</Typography>
+            <Typography fontWeight={600} lineHeight={1.1}>Mailbox</Typography>
             <Typography variant="caption" color="text.secondary" noWrap>{mailboxEmail}</Typography>
           </Box>
           {statusLoading ? <CircularProgress size={16} sx={{ ml: 'auto' }} /> : null}
@@ -447,7 +447,7 @@ function MailboxSidebar({
       <Divider sx={{ my: 1 }} />
 
       <Box sx={{ px: 1.25, pb: 0.75 }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ textTransform: 'uppercase' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
           Unified inbox
         </Typography>
       </Box>
@@ -465,7 +465,7 @@ function MailboxSidebar({
       <Divider sx={{ my: 0.5 }} />
 
       <Box sx={{ px: 1.25, py: 0.75 }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ textTransform: 'uppercase' }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
           Profile email inboxes
         </Typography>
       </Box>
@@ -546,7 +546,7 @@ function AllInboxesFolderRow({ count, isSelected, onClick, unreadCount }) {
         )}
       </Box>
       <Box minWidth={0}>
-        <Typography variant="body2" fontWeight={900} noWrap>All inboxes</Typography>
+        <Typography variant="body2" fontWeight={600} noWrap>All inboxes</Typography>
         <Typography variant="caption" color="text.secondary" noWrap>
           {count.toLocaleString()} profile emails
         </Typography>
@@ -557,7 +557,7 @@ function AllInboxesFolderRow({ count, isSelected, onClick, unreadCount }) {
         sx={{
           height: 22,
           fontSize: 10,
-          fontWeight: 900,
+          fontWeight: 600,
           bgcolor: '#ffffff',
           color: INBOX_MESSAGE_ACCENT.dark,
           border: '1px solid rgba(0, 103, 192, 0.28)',
@@ -607,7 +607,7 @@ function MailboxNavRow({ badgeContent = 0, count, icon, label, onClick, selected
         </MuiBadge>
       ) : icon}
       <Typography variant="body2" fontWeight="inherit" noWrap>{label}</Typography>
-      <Typography variant="caption" color="text.secondary" fontWeight={900}>{count}</Typography>
+      <Typography variant="caption" color="text.secondary" fontWeight={600}>{count}</Typography>
     </Box>
   );
 }
@@ -645,7 +645,7 @@ function ProfileFolderRow({ activeColor, isSelected, onClick, profile, unreadCou
         <FolderOutlinedIcon fontSize="small" />
       )}
       <Box minWidth={0}>
-        <Typography variant="body2" fontWeight={900} noWrap>{profileMailboxAddress(profile)}</Typography>
+        <Typography variant="body2" fontWeight={600} noWrap>{profileMailboxAddress(profile)}</Typography>
         <Typography variant="caption" color="text.secondary" noWrap>
           {profile.name || 'Profile email'}
         </Typography>
@@ -701,7 +701,7 @@ function MessageListPane({
         }}
       >
         <Box minWidth={0}>
-          <Typography fontWeight={950} noWrap>{title}</Typography>
+          <Typography fontWeight={600} noWrap>{title}</Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
             {groupLabel} · {messages.length.toLocaleString()} of {totalMessages.toLocaleString()} messages
           </Typography>
@@ -884,7 +884,7 @@ function MessageLoadingRow({ isLoading, style }) {
     >
       <Stack direction="row" spacing={1} alignItems="center">
         {isLoading ? <CircularProgress size={18} /> : null}
-        <Typography variant="caption" fontWeight={800}>
+        <Typography variant="caption" fontWeight={600}>
           {isLoading ? 'Loading more messages' : 'Scroll for more messages'}
         </Typography>
       </Stack>
@@ -977,7 +977,7 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
           <Box sx={{ px: { xs: 1.5, md: 2 }, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'flex-start' }} justifyContent="space-between" spacing={1.5}>
               <Box minWidth={0}>
-                <Typography variant="h6" fontWeight={950} sx={{ lineHeight: 1.25 }}>
+                <Typography variant="h6" fontWeight={600} sx={{ lineHeight: 1.25 }}>
                   {message.subject || '(No subject)'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -1006,7 +1006,7 @@ function ReadingPane({ activeColor, configured, isLoading, message, profile }) {
                 <PersonOutlinedIcon fontSize="small" />
               </Avatar>
               <Box minWidth={0} flex={1}>
-                <Typography fontWeight={900} noWrap>{messageSender(message)}</Typography>
+                <Typography fontWeight={600} noWrap>{messageSender(message)}</Typography>
                 <Typography variant="caption" color="text.secondary" noWrap>
                   To {profile?.forwardingEmail || profile?.email || 'profile inbox'}
                 </Typography>
@@ -1050,7 +1050,7 @@ function ApplicationConfirmationInfo({ application }) {
   const detail = applicationDetailText(application);
   return (
     <Box sx={{ px: { xs: 1.5, md: 2 }, py: 1, borderBottom: 1, borderColor: 'divider', bgcolor: CONFIRMATION_ACCENT.soft }}>
-      <Typography variant="body2" fontWeight={900} color={CONFIRMATION_ACCENT.dark}>
+      <Typography variant="body2" fontWeight={600} color={CONFIRMATION_ACCENT.dark}>
         Application confirmation
       </Typography>
       <Typography variant="caption" color="text.secondary">
@@ -1091,12 +1091,12 @@ function CalendarInviteInfo({ event }) {
           }}
         >
           <Box sx={{ bgcolor: INTERVIEW_ACCENT.main, color: '#ffffff', display: 'grid', placeItems: 'center' }}>
-            <Typography variant="caption" fontWeight={950} sx={{ fontSize: 10 }}>
+            <Typography variant="caption" fontWeight={600} sx={{ fontSize: 10 }}>
               {calendarEventMonth(event)}
             </Typography>
           </Box>
           <Box sx={{ display: 'grid', placeItems: 'center' }}>
-            <Typography fontWeight={950} sx={{ color: INTERVIEW_ACCENT.dark }}>
+            <Typography fontWeight={600} sx={{ color: INTERVIEW_ACCENT.dark }}>
               {calendarEventDay(event)}
             </Typography>
           </Box>
@@ -1105,11 +1105,11 @@ function CalendarInviteInfo({ event }) {
         <Box minWidth={0}>
           <Stack direction="row" spacing={0.75} alignItems="center" sx={{ color: INTERVIEW_ACCENT.dark }}>
             <CalendarMonthOutlinedIcon fontSize="small" />
-            <Typography variant="caption" fontWeight={950} sx={{ textTransform: 'uppercase' }}>
+            <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
               Calendar invite
             </Typography>
           </Stack>
-          <Typography fontWeight={950} sx={{ mt: 0.25 }} noWrap>
+          <Typography fontWeight={600} sx={{ mt: 0.25 }} noWrap>
             {event.summary || 'Interview'}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
@@ -1140,7 +1140,7 @@ function CalendarInviteInfo({ event }) {
                 alignItems: 'center',
                 gap: 0.75,
                 fontSize: 13,
-                fontWeight: 900,
+                fontWeight: 600,
                 '&:hover': { bgcolor: INTERVIEW_ACCENT.dark },
               }}
             >
@@ -1367,10 +1367,10 @@ function normalizeMailboxStats(stats, fallbackStats = {}) {
 function SuggestedActionInfo({ classification }) {
   return (
     <Box sx={{ px: { xs: 1.5, md: 2 }, py: 1.25, borderBottom: 1, borderColor: 'divider', bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
-      <Typography variant="caption" color="text.secondary" fontWeight={900}>
+      <Typography variant="caption" color="text.secondary" fontWeight={600}>
         Suggested next action
       </Typography>
-      <Typography variant="body2" fontWeight={800} sx={{ mt: 0.25 }}>
+      <Typography variant="body2" fontWeight={600} sx={{ mt: 0.25 }}>
         {classification.suggestedAction}
       </Typography>
       {classification.confidence ? (
@@ -1538,7 +1538,7 @@ function smallChipSx(bgcolor, color) {
   return {
     height: 22,
     fontSize: 11,
-    fontWeight: 900,
+    fontWeight: 600,
     bgcolor,
     color,
     '& .MuiChip-label': { px: 0.75 },
@@ -1548,7 +1548,7 @@ function smallChipSx(bgcolor, color) {
 const smallOutlinedChipSx = {
   height: 22,
   fontSize: 11,
-  fontWeight: 800,
+  fontWeight: 600,
   bgcolor: '#ffffff',
   '& .MuiChip-label': { px: 0.75 },
 };
@@ -1562,7 +1562,7 @@ const unreadIconBadgeSx = {
     bgcolor: '#C42B1C',
     color: '#ffffff',
     fontSize: 10,
-    fontWeight: 900,
+    fontWeight: 600,
     lineHeight: 1,
   },
 };

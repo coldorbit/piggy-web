@@ -61,7 +61,7 @@ function SourceRoiPanel({ roi, isLoading }) {
   return (
     <Paper variant="outlined" sx={{ borderRadius: 1, overflow: 'hidden' }}>
       <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography fontWeight={900}>Source ROI</Typography>
+        <Typography fontWeight={600}>Source ROI</Typography>
         <Typography variant="body2" color="text.secondary">
           Applications to interviews to offers, attributed by bidder and profile.
         </Typography>
@@ -97,7 +97,7 @@ function SourceRoiRow({ source }) {
       <TableCell sx={{ minWidth: 260 }}>
         <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', '&:before': { display: 'none' } }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 34, px: 0, '& .MuiAccordionSummary-content': { my: 0 } }}>
-            <Typography fontWeight={900}>{source.source}</Typography>
+            <Typography fontWeight={600}>{source.source}</Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ px: 0, pt: 0, display: 'grid', gap: 1 }}>
             <AttributionList title="Bidders" rows={source.bidderAttribution || []} nameKey="bidderUsername" />
@@ -119,7 +119,7 @@ function SourceRoiRow({ source }) {
 function AttributionList({ title, rows, nameKey }) {
   return (
     <Box sx={{ display: 'grid', gap: 0.5 }}>
-      <Typography variant="caption" color="text.secondary" fontWeight={900}>
+      <Typography variant="caption" color="text.secondary" fontWeight={600}>
         {title}
       </Typography>
       {!rows.length ? (

@@ -201,22 +201,22 @@ export default function BidJobsPanel() {
           <Tab
             value={BID_TABS.todo}
             label={`Todo (${tabCounts.todo.toLocaleString()})`}
-            sx={{ fontWeight: 800, '&.Mui-selected': { color: activeColor.dark } }}
+            sx={{ fontWeight: 600, '&.Mui-selected': { color: activeColor.dark } }}
           />
           <Tab
             value={BID_TABS.tailored}
             label={`Tailored (${(tabCounts.tailored || 0).toLocaleString()})`}
-            sx={{ fontWeight: 800, '&.Mui-selected': { color: activeColor.dark } }}
+            sx={{ fontWeight: 600, '&.Mui-selected': { color: activeColor.dark } }}
           />
           <Tab
             value={BID_TABS.done}
             label={`Done (${tabCounts.done.toLocaleString()})`}
-            sx={{ fontWeight: 800, '&.Mui-selected': { color: activeColor.dark } }}
+            sx={{ fontWeight: 600, '&.Mui-selected': { color: activeColor.dark } }}
           />
           <Tab
             value={BID_TABS.badWork}
             label={`Bad work (${(tabCounts.badWork || 0).toLocaleString()})`}
-            sx={{ fontWeight: 800, '&.Mui-selected': { color: activeColor.dark } }}
+            sx={{ fontWeight: 600, '&.Mui-selected': { color: activeColor.dark } }}
           />
         </Tabs>
         <Stack direction="row" spacing={0.75} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>

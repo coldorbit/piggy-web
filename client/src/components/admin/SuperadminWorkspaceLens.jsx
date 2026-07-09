@@ -70,7 +70,7 @@ export default function SuperadminWorkspaceLens({
             <ApartmentIcon fontSize="small" />
           </Box>
           <Box minWidth={0}>
-            <Typography fontWeight={950} noWrap>
+            <Typography fontWeight={600} noWrap>
               {title}
             </Typography>
             <Typography variant="body2" color="text.secondary" noWrap>
@@ -135,10 +135,10 @@ function MetricChip({ metric }) {
         bgcolor: 'rgba(255,255,255,0.76)',
       }}
     >
-      <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ display: 'block', textTransform: 'uppercase' }}>
+      <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ display: 'block', textTransform: 'uppercase' }}>
         {metric.label}
       </Typography>
-      <Typography fontWeight={950} lineHeight={1.1}>
+      <Typography fontWeight={600} lineHeight={1.1}>
         {formatMetricValue(metric.value)}
       </Typography>
     </Box>

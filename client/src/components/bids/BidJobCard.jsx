@@ -241,7 +241,7 @@ export default function BidJobCard({
                     target="_blank"
                     rel="noreferrer"
                     variant="body2"
-                    fontWeight={900}
+                    fontWeight={600}
                     sx={{
                       color: 'text.primary',
                       display: 'inline-block',
@@ -256,7 +256,7 @@ export default function BidJobCard({
                   </Typography>
                   <Typography color="text.secondary" variant="caption" sx={{ display: 'block', mt: 0.45 }}>
                     {job.company ? (
-                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 800 }}>
+                      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>
                         {job.company}
                       </Box>
                     ) : (
@@ -281,7 +281,7 @@ export default function BidJobCard({
                   <Chip
                     label="Manual"
                     size="small"
-                    sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 900 }}
+                    sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 600 }}
                   />
                 ) : null}
                 <JobRegionBadge job={job} sx={{ height: 24 }} />
@@ -289,7 +289,7 @@ export default function BidJobCard({
                   <Chip
                     label={`${job.locationOptions.length} locations`}
                     size="small"
-                    sx={{ bgcolor: '#F0FDFA', color: '#324B45', fontWeight: 900 }}
+                    sx={{ bgcolor: '#F0FDFA', color: '#324B45', fontWeight: 600 }}
                   />
                 ) : null}
                 {hasUpdatedJobLink ? (
@@ -300,7 +300,7 @@ export default function BidJobCard({
                     sx={{
                       bgcolor: '#f0f9ff',
                       color: '#075985',
-                      fontWeight: 800,
+                      fontWeight: 600,
                       '& .MuiChip-icon': { color: '#0284c7' },
                     }}
                   />
@@ -313,20 +313,20 @@ export default function BidJobCard({
                     sx={{
                       bgcolor: hasSameCompanyWarning ? '#fee2e2' : '#fff7ed',
                       color: hasSameCompanyWarning ? '#991b1b' : '#9a3412',
-                      fontWeight: 900,
+                      fontWeight: 600,
                     }}
                   />
                 ) : null}
                 <Chip
                   label={formatDate(job.postedAt || job.scrapedAt)}
                   size="small"
-                  sx={{ bgcolor: '#f7ead1', color: '#70400d', fontWeight: 700 }}
+                  sx={{ bgcolor: '#f7ead1', color: '#70400d', fontWeight: 600 }}
                 />
                 {showBidStatusChip && (job.bid || draft.status !== 'planned') ? (
                   <Chip
                     label={bidChipLabel}
                     size="small"
-                    sx={isInvalidReviewJob ? reviewStatusSx(reviewStatus) : { bgcolor: accent.soft, color: accent.dark, fontWeight: 800 }}
+                    sx={isInvalidReviewJob ? reviewStatusSx(reviewStatus) : { bgcolor: accent.soft, color: accent.dark, fontWeight: 600 }}
                   />
                 ) : null}
                 {activeTab !== BID_TABS.done && activeTab !== BID_TABS.interviews && tailoredStatus ? (
@@ -344,7 +344,7 @@ export default function BidJobCard({
                     sx={{
                       bgcolor: '#dcfce7',
                       color: '#166534',
-                      fontWeight: 900,
+                      fontWeight: 600,
                       '& .MuiChip-icon': { color: '#15803d' },
                     }}
                   />
@@ -353,7 +353,7 @@ export default function BidJobCard({
                   <Chip
                     label={appliedByLabel}
                     size="small"
-                    sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 }}
+                    sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 600 }}
                   />
                 ) : null}
               </Box>
@@ -480,7 +480,7 @@ export default function BidJobCard({
                       borderColor: '#fecaca',
                       color: '#991b1b',
                       bgcolor: '#fef2f2',
-                      fontWeight: 800,
+                      fontWeight: 600,
                       '&:hover': {
                         borderColor: '#ef4444',
                         bgcolor: '#fee2e2',
@@ -588,8 +588,8 @@ function reviewStatusValue(status) {
 }
 
 function reviewStatusSx(status) {
-  if (status === 'spam_job') return { bgcolor: '#fee2e2', color: '#991b1b', fontWeight: 900 };
-  return { bgcolor: '#ffedd5', color: '#9a3412', fontWeight: 900 };
+  if (status === 'spam_job') return { bgcolor: '#fee2e2', color: '#991b1b', fontWeight: 600 };
+  return { bgcolor: '#ffedd5', color: '#9a3412', fontWeight: 600 };
 }
 
 function hasActiveTailoredResumeStatus(status) {
@@ -604,10 +604,10 @@ function tailoredStatusLabel(status) {
 }
 
 function tailoredStatusSx(status) {
-  if (status === 'ready') return { bgcolor: '#e6f4ee', color: '#14583f', fontWeight: 800 };
-  if (status === 'dead_letter') return { bgcolor: '#fde9e5', color: '#8a2f1d', fontWeight: 800 };
-  if (status === 'processing') return { bgcolor: '#fff1d6', color: '#70400d', fontWeight: 800 };
-  return { bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800 };
+  if (status === 'ready') return { bgcolor: '#e6f4ee', color: '#14583f', fontWeight: 600 };
+  if (status === 'dead_letter') return { bgcolor: '#fde9e5', color: '#8a2f1d', fontWeight: 600 };
+  if (status === 'processing') return { bgcolor: '#fff1d6', color: '#70400d', fontWeight: 600 };
+  return { bgcolor: '#edf0ff', color: '#343f91', fontWeight: 600 };
 }
 
 function sameCompanyNoticeText(value) {
@@ -681,7 +681,7 @@ function ApplyModeChip({ applyMode }) {
         maxWidth: 156,
         bgcolor: '#f8e0e7',
         color: '#7c263a',
-        fontWeight: 800,
+        fontWeight: 600,
         '& .MuiChip-label': {
           overflow: 'hidden',
           textOverflow: 'ellipsis',

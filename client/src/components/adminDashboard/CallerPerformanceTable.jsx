@@ -6,7 +6,7 @@ export default function CallerPerformanceTable({ callers }) {
   return (
     <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
       <Box sx={{ p: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography fontWeight={900}>Caller performance</Typography>
+        <Typography fontWeight={600}>Caller performance</Typography>
         <Typography variant="caption" color="text.secondary">
           Workload, scheduling coverage, and outcomes for caller-assigned interviews.
         </Typography>
@@ -35,7 +35,7 @@ export default function CallerPerformanceTable({ callers }) {
             {callers.map((caller) => (
               <TableRow key={caller.id} hover>
                 <TableCell>
-                  <Typography fontWeight={900}>{caller.username}</Typography>
+                  <Typography fontWeight={600}>{caller.username}</Typography>
                   <Typography variant="caption" color="text.secondary">{labelize(caller.role)}</Typography>
                 </TableCell>
                 <TableCell align="right">{number(caller.assignedInterviews)}</TableCell>

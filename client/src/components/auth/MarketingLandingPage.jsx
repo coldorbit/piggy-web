@@ -144,7 +144,7 @@ export default function MarketingLandingPage() {
             sx={{ width: 40, height: 40, bgcolor: 'background.paper', boxShadow: '0 1px 0 rgba(255,255,255,0.64) inset, 0 10px 24px rgba(0,0,0,0.18)' }}
           />
           <Box minWidth={0}>
-            <Typography fontWeight={950} lineHeight={1} color="#FFFFFF">
+            <Typography fontWeight={600} lineHeight={1} color="#FFFFFF">
               ApplyPilot
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.72)' }}>
@@ -155,13 +155,13 @@ export default function MarketingLandingPage() {
         <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
           <Button
             href="#capabilities"
-            sx={{ color: 'rgba(255, 255, 255, 0.84)', fontWeight: 900, display: { xs: 'none', sm: 'inline-flex' } }}
+            sx={{ color: 'rgba(255, 255, 255, 0.84)', fontWeight: 600, display: { xs: 'none', sm: 'inline-flex' } }}
           >
             Capabilities
           </Button>
           <Button
             href="#portfolio"
-            sx={{ color: 'rgba(255, 255, 255, 0.84)', fontWeight: 900, display: { xs: 'none', sm: 'inline-flex' } }}
+            sx={{ color: 'rgba(255, 255, 255, 0.84)', fontWeight: 600, display: { xs: 'none', sm: 'inline-flex' } }}
           >
             Portfolio
           </Button>
@@ -201,10 +201,10 @@ export default function MarketingLandingPage() {
               <Typography
                 component="h1"
                 sx={{
-                  fontSize: { xs: 48, sm: 70, lg: 96 },
-                  lineHeight: { xs: 0.98, md: 0.92 },
-                  fontWeight: 950,
-                  maxWidth: 860,
+                  fontSize: { xs: 40, sm: 56, lg: 68 },
+                  lineHeight: { xs: 1.1, md: 1.05 },
+                  fontWeight: 600,
+                  maxWidth: 760,
                   color: '#FFFFFF',
                   textShadow: '0 20px 60px rgba(0, 0, 0, 0.38)',
                 }}
@@ -213,8 +213,8 @@ export default function MarketingLandingPage() {
               </Typography>
               <Typography
                 sx={{
-                  fontSize: { xs: 20, md: 25 },
-                  lineHeight: 1.55,
+                  fontSize: { xs: 17, md: 20 },
+                  lineHeight: 1.5,
                   color: 'rgba(255, 255, 255, 0.84)',
                   maxWidth: 720,
                 }}
@@ -245,7 +245,7 @@ export default function MarketingLandingPage() {
             <Box sx={metricStripSx}>
               {heroMetrics.map((metric) => (
                 <Box key={metric.label} sx={metricItemSx}>
-                  <Typography fontWeight={950} fontSize={24}>
+                  <Typography fontWeight={600} fontSize={20}>
                     {metric.value}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -269,13 +269,13 @@ export default function MarketingLandingPage() {
               <Box sx={dashboardCardSx}>
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <WorkIcon sx={{ color: '#0067C0' }} />
-                  <Typography fontWeight={950}>Enterprise programs</Typography>
+                  <Typography fontWeight={600}>Enterprise programs</Typography>
                 </Stack>
                 <Stack spacing={1.1}>
                   {pipelineRows.map((row) => (
                     <Box key={row.role} sx={dashboardListItemSx}>
                       <Box minWidth={0}>
-                        <Typography fontWeight={900} noWrap>
+                        <Typography fontWeight={600} noWrap>
                           {row.role}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" noWrap>
@@ -283,7 +283,7 @@ export default function MarketingLandingPage() {
                         </Typography>
                       </Box>
                       <Stack alignItems="flex-end" spacing={0.5}>
-                        <Typography fontWeight={950} color="primary.main">
+                        <Typography fontWeight={600} color="primary.main">
                           {row.score}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -297,7 +297,7 @@ export default function MarketingLandingPage() {
               <Box sx={{ ...dashboardCardSx, bgcolor: 'rgba(239, 246, 255, 0.82)', borderColor: 'rgba(0, 103, 192, 0.18)' }}>
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <AutoAwesomeIcon sx={{ color: '#0067C0' }} />
-                  <Typography fontWeight={950}>Engineering standard</Typography>
+                  <Typography fontWeight={600}>Engineering standard</Typography>
                 </Stack>
                 {['Architecture that can survive growth', 'Security and reliability built in', 'Delivery rituals clients can trust'].map((item) => (
                   <Stack key={item} direction="row" alignItems="center" spacing={1}>
@@ -326,10 +326,10 @@ export default function MarketingLandingPage() {
 
         <Box id="workflow" sx={sectionSx}>
           <Box sx={sectionHeaderSx}>
-            <Typography variant="overline" fontWeight={950} color="secondary.main">
+            <Typography variant="overline" fontWeight={600} color="secondary.main">
               Delivery model
             </Typography>
-            <Typography variant="h3" fontWeight={950}>
+            <Typography variant="h3" fontWeight={600}>
               We build with urgency, but never at the expense of the foundation.
             </Typography>
             <Typography color="text.secondary">
@@ -340,10 +340,10 @@ export default function MarketingLandingPage() {
           <Box sx={phaseGridSx}>
             {phases.map((phase, index) => (
               <Paper key={phase.label} variant="outlined" sx={phaseCardSx}>
-                <Typography variant="overline" fontWeight={950} color="primary.main">
+                <Typography variant="overline" fontWeight={600} color="primary.main">
                   {String(index + 1).padStart(2, '0')} / {phase.label}
                 </Typography>
-                <Typography variant="h5" fontWeight={950}>
+                <Typography variant="h5" fontWeight={600}>
                   {phase.title}
                 </Typography>
                 <Typography color="text.secondary">{phase.copy}</Typography>
@@ -354,10 +354,10 @@ export default function MarketingLandingPage() {
 
         <Box id="portfolio" sx={sectionSx}>
           <Box sx={sectionHeaderSx}>
-            <Typography variant="overline" fontWeight={950} color="secondary.main">
+            <Typography variant="overline" fontWeight={600} color="secondary.main">
               Selected portfolio
             </Typography>
-            <Typography variant="h3" fontWeight={950}>
+            <Typography variant="h3" fontWeight={600}>
               Enterprise work for large clients, shown with the discretion serious work deserves.
             </Typography>
             <Typography color="text.secondary">
@@ -373,10 +373,10 @@ export default function MarketingLandingPage() {
                   <Stack direction="row" spacing={1.25} alignItems="center">
                     <Box sx={featureIconSx}>{item.icon}</Box>
                     <Box minWidth={0}>
-                      <Typography variant="overline" fontWeight={950} color="primary.main">
+                      <Typography variant="overline" fontWeight={600} color="primary.main">
                         {item.client}
                       </Typography>
-                      <Typography variant="h5" fontWeight={950}>
+                      <Typography variant="h5" fontWeight={600}>
                         {item.title}
                       </Typography>
                     </Box>
@@ -388,10 +388,10 @@ export default function MarketingLandingPage() {
                 <Box sx={portfolioMetaSx}>
                   {item.stats.map((stat) => (
                     <Box key={`${item.client}-${stat.label}`} sx={portfolioMetaItemSx}>
-                      <Typography variant="caption" color="text.secondary" fontWeight={900}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
                         {stat.label}
                       </Typography>
-                      <Typography fontWeight={950}>{stat.value}</Typography>
+                      <Typography fontWeight={600}>{stat.value}</Typography>
                     </Box>
                   ))}
                 </Box>
@@ -402,10 +402,10 @@ export default function MarketingLandingPage() {
 
         <Box id="capabilities" sx={sectionSx}>
           <Box sx={sectionHeaderSx}>
-            <Typography variant="overline" fontWeight={950} color="secondary.main">
+            <Typography variant="overline" fontWeight={600} color="secondary.main">
               Capabilities
             </Typography>
-            <Typography variant="h3" fontWeight={950}>
+            <Typography variant="h3" fontWeight={600}>
               Senior engineering for systems that cannot be casual.
             </Typography>
             <Typography color="text.secondary">
@@ -417,7 +417,7 @@ export default function MarketingLandingPage() {
             {features.map((feature) => (
               <Paper key={feature.title} variant="outlined" sx={featureCardSx}>
                 <Box sx={featureIconSx}>{feature.icon}</Box>
-                <Typography fontWeight={950}>{feature.title}</Typography>
+                <Typography fontWeight={600}>{feature.title}</Typography>
                 <Typography color="text.secondary">{feature.copy}</Typography>
               </Paper>
             ))}
@@ -431,10 +431,10 @@ export default function MarketingLandingPage() {
               label="Client portal"
               sx={{ mb: 2, bgcolor: 'rgba(0, 103, 192, 0.12)', color: '#004E8C', border: 1, borderColor: 'rgba(0, 103, 192, 0.24)' }}
             />
-            <Typography variant="h3" fontWeight={950} gutterBottom>
+            <Typography variant="h3" fontWeight={600} gutterBottom>
               A private portal for high-trust delivery.
             </Typography>
-            <Typography color="text.secondary" sx={{ fontSize: 17, lineHeight: 1.65 }}>
+            <Typography color="text.secondary" sx={{ fontSize: 16, lineHeight: 1.55 }}>
               Clients and team members can sign in to continue planning, delivery, reporting, and
               operations work in one secure workspace.
             </Typography>

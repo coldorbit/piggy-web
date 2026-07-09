@@ -370,10 +370,10 @@ function DashboardHeader({
             bgcolor: '#ffffff',
           }}
         >
-          <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ textTransform: 'uppercase' }}>
+          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
             {isLoading ? 'Loading period' : 'Showing'}
           </Typography>
-          <Typography variant="body2" fontWeight={950} noWrap>{periodLabel}</Typography>
+          <Typography variant="body2" fontWeight={600} noWrap>{periodLabel}</Typography>
         </Box>
         <Button onClick={onToday} startIcon={<TodayIcon fontSize="small" />} size="small" variant="outlined" sx={toolbarButtonSx}>
           Today
@@ -522,7 +522,7 @@ const periodIconButtonSx = {
 
 const toolbarButtonSx = {
   minHeight: 36,
-  fontWeight: 900,
+  fontWeight: 600,
   textTransform: 'none',
   whiteSpace: 'nowrap',
 };

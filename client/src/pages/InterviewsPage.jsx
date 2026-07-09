@@ -528,7 +528,7 @@ export default function InterviewsPage({ currentUser }) {
               }}
             >
               <Box minWidth={0}>
-                <Typography fontWeight={900} noWrap>
+                <Typography fontWeight={600} noWrap>
                   {activeProfile?.name || 'Interviews'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -613,7 +613,7 @@ export default function InterviewsPage({ currentUser }) {
               }}
               renderOption={(props, option) => (
                 <Box component="li" {...props} sx={{ display: 'grid', gap: 0.25 }}>
-                  <Typography variant="body2" fontWeight={800}>
+                  <Typography variant="body2" fontWeight={600}>
                     {option.title || 'Untitled role'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
@@ -635,14 +635,14 @@ export default function InterviewsPage({ currentUser }) {
               <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.75, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                   <Box minWidth={0}>
-                    <Typography fontWeight={900} noWrap>
+                    <Typography fontWeight={600} noWrap>
                       {selectedApplicationJob.title || 'Untitled role'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" noWrap>
                       {[selectedApplicationJob.company, selectedApplicationJob.location, statusLabel(selectedApplicationJob.bid?.status)].filter(Boolean).join(' · ') || 'Done application'}
                     </Typography>
                   </Box>
-                  <Chip label="From application" sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 900 }} />
+                  <Chip label="From application" sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 600 }} />
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
                   <Typography variant="caption" color="text.secondary">
@@ -784,10 +784,10 @@ export default function InterviewsPage({ currentUser }) {
             <DialogTitle sx={{ pb: 1 }}>
               <Box sx={{ display: 'grid', gap: 0.5, minWidth: 0 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                  <Typography fontWeight={900} noWrap>
+                  <Typography fontWeight={600} noWrap>
                     {selectedJob.title || 'Untitled role'}
                   </Typography>
-                  <Chip label={interviewColumnLabel(selectedColumn)} size="small" sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 900 }} />
+                  <Chip label={interviewColumnLabel(selectedColumn)} size="small" sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 600 }} />
                 </Box>
                 <Typography variant="body2" color="text.secondary" noWrap>
                   {[selectedJob.company, selectedJob.location].filter(Boolean).join(' · ') || 'Interview'}
@@ -820,13 +820,13 @@ export default function InterviewsPage({ currentUser }) {
                 />
                 <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 1, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                    <Typography variant="body2" fontWeight={900}>
+                    <Typography variant="body2" fontWeight={600}>
                       Calls
                     </Typography>
                     <Chip
                       label={`${selectedCalls.length} ${selectedCalls.length === 1 ? 'call' : 'calls'}`}
                       size="small"
-                      sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 900 }}
+                      sx={{ bgcolor: activeColor.soft, color: activeColor.dark, fontWeight: 600 }}
                     />
                   </Box>
                   {selectedCalls.length ? (
@@ -850,7 +850,7 @@ export default function InterviewsPage({ currentUser }) {
                           >
                             <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) max-content', gap: 1, alignItems: 'start' }}>
                               <Box minWidth={0}>
-                                <Typography variant="body2" fontWeight={900} noWrap>
+                                <Typography variant="body2" fontWeight={600} noWrap>
                                   {stageLabel(call.interviewStage)}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
@@ -868,13 +868,13 @@ export default function InterviewsPage({ currentUser }) {
                               <Chip
                                 label={callAssigneeLabel(call, callerUsers, selectedDraft, effectiveCurrentUser)}
                                 size="small"
-                                sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 800, maxWidth: '100%' }}
+                                sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 600, maxWidth: '100%' }}
                               />
                               {call.sourceType ? (
                                 <Chip
                                   label={callSourceLabel(call.sourceType)}
                                   size="small"
-                                  sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 800, maxWidth: '100%' }}
+                                  sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 600, maxWidth: '100%' }}
                                 />
                               ) : null}
                               {meetingUrl ? (
@@ -886,7 +886,7 @@ export default function InterviewsPage({ currentUser }) {
                                   size="small"
                                   startIcon={<OpenInNewIcon fontSize="small" />}
                                   variant="outlined"
-                                  sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 900, lineHeight: 1.4 }}
+                                  sx={{ minHeight: 24, px: 1, py: 0, fontSize: 12, fontWeight: 600, lineHeight: 1.4 }}
                                 >
                                   Link
                                 </Button>
@@ -921,7 +921,7 @@ export default function InterviewsPage({ currentUser }) {
                       sx={{
                         alignItems: 'center',
                         color: 'text.primary',
-                        fontWeight: 900,
+                        fontWeight: 600,
                         justifyContent: 'space-between',
                         minHeight: 32,
                         p: 0,
@@ -1040,7 +1040,7 @@ export default function InterviewsPage({ currentUser }) {
                     Resume
                   </Button>
                 ) : selectedResumeStatus ? (
-                  <Chip label={`Resume: ${selectedResumeStatus}`} size="small" sx={{ justifySelf: 'start', bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569', fontWeight: 900 }} />
+                  <Chip label={`Resume: ${selectedResumeStatus}`} size="small" sx={{ justifySelf: 'start', bgcolor: 'rgba(246, 248, 251, 0.86)', color: '#475569', fontWeight: 600 }} />
                 ) : null}
                 {selectedMeetingUrl ? (
                   <Button component="a" href={selectedMeetingUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="contained">
@@ -1086,7 +1086,7 @@ export default function InterviewsPage({ currentUser }) {
           <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 2 }}>
             {selectedJob ? (
               <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.35, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
-                <Typography fontWeight={900} noWrap>
+                <Typography fontWeight={600} noWrap>
                   {selectedJob.title || 'Untitled role'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" noWrap>

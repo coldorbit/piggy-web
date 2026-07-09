@@ -7,7 +7,7 @@ export default function ProfileActivityTable({ rows = [] }) {
   return (
     <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
       <Box sx={{ p: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography fontWeight={900}>Profile application activity</Typography>
+        <Typography fontWeight={600}>Profile application activity</Typography>
         <Typography variant="caption" color="text.secondary">
           Who applied on which profile and job for the selected period.
         </Typography>
@@ -28,21 +28,21 @@ export default function ProfileActivityTable({ rows = [] }) {
             {rows.map((row) => (
               <TableRow key={row.id} hover>
                 <TableCell>
-                  <Typography fontWeight={900}>{row.username}</Typography>
+                  <Typography fontWeight={600}>{row.username}</Typography>
                   <Typography variant="caption" color="text.secondary">{labelize(row.role)}</Typography>
                 </TableCell>
                 <TableCell>
-                  <Typography fontWeight={800}>{formatFirstNameLastInitial(row.profileName, 'Unknown profile')}</Typography>
+                  <Typography fontWeight={600}>{formatFirstNameLastInitial(row.profileName, 'Unknown profile')}</Typography>
                 </TableCell>
                 <TableCell sx={{ minWidth: 240 }}>
-                  <Typography fontWeight={900}>{row.jobTitle}</Typography>
+                  <Typography fontWeight={600}>{row.jobTitle}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     {[row.company, row.publicJobId].filter(Boolean).join(' - ')}
                   </Typography>
                 </TableCell>
                 <TableCell>{row.source}</TableCell>
                 <TableCell>
-                  <Chip label={labelize(row.status)} size="small" variant="outlined" sx={{ fontWeight: 800 }} />
+                  <Chip label={labelize(row.status)} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
                 </TableCell>
                 <TableCell align="right">{formatDateTime(row.bidAt)}</TableCell>
               </TableRow>

@@ -20,7 +20,7 @@ export default function CallerCard({ caller }) {
       <CardContent sx={{ display: 'grid', gap: 1.25 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'start' }}>
           <Box minWidth={0}>
-            <Typography fontWeight={900} noWrap>
+            <Typography fontWeight={600} noWrap>
               {caller.username}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -32,13 +32,13 @@ export default function CallerCard({ caller }) {
               icon={<AssignmentTurnedInIcon />}
               label={`${activeCount.toLocaleString()} active`}
               size="small"
-              sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 900, '& .MuiChip-icon': { color: '#343f91' } }}
+              sx={{ bgcolor: '#edf0ff', color: '#343f91', fontWeight: 600, '& .MuiChip-icon': { color: '#343f91' } }}
             />
             <Chip
               icon={<CalendarMonthIcon />}
               label={`${upcomingCount.toLocaleString()} scheduled`}
               size="small"
-              sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 900, '& .MuiChip-icon': { color: '#486860' } }}
+              sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 600, '& .MuiChip-icon': { color: '#486860' } }}
             />
           </Stack>
         </Box>
@@ -59,7 +59,7 @@ export default function CallerCard({ caller }) {
         <Accordion variant="outlined" disableGutters sx={{ borderRadius: 1, overflow: 'hidden', '&:before': { display: 'none' } }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 42, '& .MuiAccordionSummary-content': { my: 0.75 } }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-              <Typography variant="body2" fontWeight={900}>
+              <Typography variant="body2" fontWeight={600}>
                 Assigned interviews
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -102,7 +102,7 @@ function CallerAssignment({ assignment }) {
     <Paper variant="outlined" sx={{ p: 1, display: 'grid', gap: 0.75, bgcolor: 'background.paper' }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) max-content', gap: 1, alignItems: 'start' }}>
         <Box minWidth={0}>
-          <Typography fontWeight={900} variant="body2" noWrap>
+          <Typography fontWeight={600} variant="body2" noWrap>
             {job.title || 'Untitled role'}
           </Typography>
           <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
@@ -141,11 +141,11 @@ function CallerAssignment({ assignment }) {
         </Box>
       </Box>
       <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-        <Chip label={stage?.label || 'Screening'} size="small" sx={{ bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E', fontWeight: 900 }} />
+        <Chip label={stage?.label || 'Screening'} size="small" sx={{ bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E', fontWeight: 600 }} />
         <Chip
           label={assignment.interviewNextAt ? formatDateTime(assignment.interviewNextAt) : 'No date'}
           size="small"
-          sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 800 }}
+          sx={{ bgcolor: '#ECFDF5', color: '#486860', fontWeight: 600 }}
         />
       </Stack>
     </Paper>

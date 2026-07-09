@@ -20,7 +20,7 @@ export default function EmptyState({ action = null, children, detail, title, var
       }}
     >
       <Box>
-        {heading ? <Typography fontWeight={900}>{heading}</Typography> : null}
+        {heading ? <Typography fontWeight={600}>{heading}</Typography> : null}
         {detail ? (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
             {detail}

@@ -414,7 +414,7 @@ function JobBulkActionsBar({
   return (
     <Paper variant="outlined" sx={{ px: 1.25, py: 0.85, borderRadius: 1 }}>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between">
-        <Typography color="text.secondary" variant="body2" fontWeight={800}>
+        <Typography color="text.secondary" variant="body2" fontWeight={600}>
           {hasSelection ? `${selectedCount.toLocaleString()} job${selectedCount === 1 ? '' : 's'} selected` : 'No jobs selected'}
         </Typography>
         <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
@@ -484,7 +484,7 @@ function ImportCsvResultAlert({ result }) {
   return (
     <Alert severity="success">
       <Box sx={{ display: 'grid', gap: 0.75 }}>
-        <Typography fontWeight={900}>CSV import completed</Typography>
+        <Typography fontWeight={600}>CSV import completed</Typography>
         <Typography variant="body2">
           {Number(result?.successfulImports ?? result?.imported ?? 0).toLocaleString()} imported from{' '}
           {Number(result?.totalRows || 0).toLocaleString()} rows. {Number(result?.skipped || 0).toLocaleString()} skipped.

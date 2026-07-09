@@ -106,7 +106,7 @@ export default function ProfileCard({
             }}
           >
             <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
-              <Typography variant="h6" fontWeight={900} noWrap>
+              <Typography variant="h6" fontWeight={600} noWrap>
                 {profile.name}
               </Typography>
               <Typography color="text.secondary" variant="body2" sx={{ overflowWrap: 'anywhere' }}>
@@ -160,7 +160,7 @@ export default function ProfileCard({
               <Chip
                 label={profile.hasStaticResume ? 'Static resume' : 'Static profile'}
                 size="small"
-                sx={{ ...profileChipSx, bgcolor: '#ecfeff', color: '#155e75', fontWeight: 700 }}
+                sx={{ ...profileChipSx, bgcolor: '#ecfeff', color: '#155e75', fontWeight: 600 }}
               />
             ) : null}
           </Stack>
@@ -295,7 +295,7 @@ function ProfileProgress({ progress = {} }) {
           label={dailyGoal ? `${dailyFinished.toLocaleString()} / ${dailyGoal.toLocaleString()} today` : `${dailyFinished.toLocaleString()} today`}
           size="small"
           variant={dailyGoal ? 'filled' : 'outlined'}
-          sx={{ ...profileChipSx, bgcolor: dailyGoal ? '#dbeafe' : undefined, color: dailyGoal ? '#1d4ed8' : undefined, fontWeight: 700 }}
+          sx={{ ...profileChipSx, bgcolor: dailyGoal ? '#dbeafe' : undefined, color: dailyGoal ? '#1d4ed8' : undefined, fontWeight: 600 }}
         />
       </Stack>
       {dailyGoal ? (

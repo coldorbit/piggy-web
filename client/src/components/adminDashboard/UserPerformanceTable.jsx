@@ -7,7 +7,7 @@ export default function UserPerformanceTable({ users }) {
   return (
     <Paper variant="outlined" sx={{ boxShadow: 1, overflow: 'hidden' }}>
       <Box sx={{ p: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography fontWeight={900}>User performance</Typography>
+        <Typography fontWeight={600}>User performance</Typography>
         <Typography variant="caption" color="text.secondary">
           Ranked by offers, interviews, applications, then username.
         </Typography>
@@ -41,7 +41,7 @@ export default function UserPerformanceTable({ users }) {
             {users.map((user) => (
               <TableRow key={user.id} hover>
                 <TableCell>
-                  <Typography fontWeight={900}>{user.username}</Typography>
+                  <Typography fontWeight={600}>{user.username}</Typography>
                   <Typography variant="caption" color="text.secondary">{labelize(user.role)}</Typography>
                 </TableCell>
                 <TableCell align="right">{number(user.applications)}</TableCell>
@@ -91,7 +91,7 @@ function MixSummary({ items = [], label }) {
   if (!items.length) return null;
   return (
     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
-      <Box component="span" sx={{ color: 'text.primary', fontWeight: 900 }}>{label}:</Box>{' '}
+      <Box component="span" sx={{ color: 'text.primary', fontWeight: 600 }}>{label}:</Box>{' '}
       {items.map((item) => `${formatMixName(label, item.name)} ${number(item.count)}`).join(', ')}
     </Typography>
   );

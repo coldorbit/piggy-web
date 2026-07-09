@@ -53,33 +53,74 @@ export const theme = createTheme({
   },
   typography: {
     fontFamily:
-      '"Segoe UI Variable Text", "Segoe UI", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-    fontSize: 13,
+      '"Segoe UI Variable Text", "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+    fontSize: 14,
+    fontWeightLight: 300,
+    fontWeightRegular: 400,
+    fontWeightMedium: 500,
+    fontWeightBold: 600,
     body1: {
       fontSize: '0.875rem',
+      fontWeight: 400,
+      lineHeight: 1.43,
     },
     body2: {
       fontSize: '0.8125rem',
+      fontWeight: 400,
+      lineHeight: 1.38,
     },
     caption: {
-      fontSize: '0.71875rem',
+      fontSize: '0.75rem',
+      fontWeight: 400,
+      lineHeight: 1.33,
+    },
+    overline: {
+      fontSize: '0.75rem',
+      fontWeight: 600,
+      letterSpacing: 0,
+      lineHeight: 1.33,
+      textTransform: 'none',
+    },
+    h3: {
+      fontSize: '2.5rem',
+      fontWeight: 600,
+      lineHeight: 1.15,
+      letterSpacing: 0,
     },
     h4: {
-      fontSize: '1.625rem',
+      fontSize: '1.75rem',
+      fontWeight: 600,
+      lineHeight: 1.2,
       letterSpacing: 0,
     },
     h5: {
       fontSize: '1.25rem',
+      fontWeight: 600,
+      lineHeight: 1.28,
       letterSpacing: 0,
     },
     h6: {
       fontSize: '1rem',
+      fontWeight: 600,
+      lineHeight: 1.35,
+      letterSpacing: 0,
+    },
+    subtitle1: {
+      fontSize: '0.9375rem',
+      fontWeight: 600,
+      lineHeight: 1.4,
+      letterSpacing: 0,
+    },
+    subtitle2: {
+      fontSize: '0.875rem',
+      fontWeight: 600,
+      lineHeight: 1.35,
       letterSpacing: 0,
     },
     button: {
-      fontWeight: 800,
+      fontWeight: 600,
       letterSpacing: 0,
-      fontSize: '0.78125rem',
+      fontSize: '0.875rem',
       textTransform: 'none',
     },
   },
@@ -94,10 +135,14 @@ export const theme = createTheme({
           background: '#F3F3F3',
         },
         body: {
-          fontSize: 13,
+          fontSize: 14,
           background: micaBackground,
           backgroundAttachment: 'fixed',
           color: '#1B1B1B',
+          fontFamily:
+            '"Segoe UI Variable Text", "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+          fontWeight: 400,
+          lineHeight: 1.43,
         },
         '*': {
           boxSizing: 'border-box',
@@ -218,8 +263,8 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           height: 22,
-          fontSize: 11,
-          fontWeight: 700,
+          fontSize: 12,
+          fontWeight: 600,
           borderRadius: 999,
         },
         label: {
@@ -270,7 +315,7 @@ export const theme = createTheme({
       },
       styleOverrides: {
         root: {
-          fontSize: 13,
+          fontSize: 14,
           minHeight: 32,
           borderRadius: 6,
           marginLeft: 4,
@@ -292,7 +337,7 @@ export const theme = createTheme({
     MuiInputBase: {
       styleOverrides: {
         root: {
-          fontSize: 13,
+          fontSize: 14,
         },
         input: {
           paddingTop: 7,
@@ -325,14 +370,14 @@ export const theme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: {
-          fontSize: 13,
+          fontSize: 14,
           padding: '7px 10px',
         },
         head: {
           color: '#616161',
-          fontSize: 11,
-          fontWeight: 800,
-          textTransform: 'uppercase',
+          fontSize: 12,
+          fontWeight: 600,
+          textTransform: 'none',
         },
       },
     },
@@ -347,16 +392,16 @@ export const theme = createTheme({
     MuiTablePagination: {
       styleOverrides: {
         root: {
-          fontSize: 13,
+          fontSize: 14,
         },
         toolbar: {
           minHeight: 44,
         },
         selectLabel: {
-          fontSize: 13,
+          fontSize: 14,
         },
         displayedRows: {
-          fontSize: 13,
+          fontSize: 14,
         },
       },
     },
@@ -374,7 +419,7 @@ export const theme = createTheme({
         root: {
           minHeight: 38,
           textTransform: 'none',
-          fontWeight: 700,
+          fontWeight: 600,
           borderRadius: 8,
           '&.Mui-selected': {
             color: windowsBlueDark,

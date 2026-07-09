@@ -97,14 +97,14 @@ function ActionQueuePanel({ queue }) {
     <Paper variant="outlined" sx={{ p: 1.25, minWidth: 0, boxShadow: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
         <Box minWidth={0}>
-          <Typography fontWeight={950}>Action queue</Typography>
+          <Typography fontWeight={600}>Action queue</Typography>
           <Typography variant="body2" color="text.secondary">
             {number(counts.total || items.length)} deadline, follow-up, calendar, mailbox, and assignment item{Number(counts.total || items.length) === 1 ? '' : 's'}.
           </Typography>
         </Box>
         <Stack direction="row" spacing={0.5}>
-          <Chip label={`${number(counts.byPriority?.critical || 0)} critical`} size="small" sx={{ borderRadius: 1, fontWeight: 900, bgcolor: '#FEF2F2', color: '#B91C1C' }} />
-          <Chip label={`${number(counts.byPriority?.high || 0)} high`} size="small" sx={{ borderRadius: 1, fontWeight: 900, bgcolor: '#FFF7ED', color: '#C2410C' }} />
+          <Chip label={`${number(counts.byPriority?.critical || 0)} critical`} size="small" sx={{ borderRadius: 1, fontWeight: 600, bgcolor: '#FEF2F2', color: '#B91C1C' }} />
+          <Chip label={`${number(counts.byPriority?.high || 0)} high`} size="small" sx={{ borderRadius: 1, fontWeight: 600, bgcolor: '#FFF7ED', color: '#C2410C' }} />
         </Stack>
       </Box>
       {items.length ? (
@@ -125,7 +125,7 @@ function ActionQueueItem({ item }) {
     <Box sx={{ p: 1, border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, bgcolor: '#FFFFFF', display: 'grid', gap: 0.35, minWidth: 0 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
         <PriorityChip value={item.priority} />
-        <Typography variant="body2" fontWeight={950} noWrap>{item.title || labelize(item.type)}</Typography>
+        <Typography variant="body2" fontWeight={600} noWrap>{item.title || labelize(item.type)}</Typography>
       </Box>
       <Typography variant="caption" color="text.secondary" noWrap>
         {[formatFirstNameLastInitial(item.profileName, 'Unknown profile'), item.company, formatDateTime(item.dueAt)].filter(Boolean).join(' · ')}
@@ -134,7 +134,7 @@ function ActionQueueItem({ item }) {
         {item.suggestedAction || item.reason}
       </Typography>
       {item.href ? (
-        <Button href={item.href} size="small" sx={{ justifySelf: 'start', px: 0, fontWeight: 900 }}>
+        <Button href={item.href} size="small" sx={{ justifySelf: 'start', px: 0, fontWeight: 600 }}>
           Open
         </Button>
       ) : null}
@@ -150,7 +150,7 @@ function PriorityChip({ value }) {
     : value === 'medium'
     ? { bg: 'rgba(0, 103, 192, 0.10)', color: '#005A9E' }
     : { bg: 'rgba(246, 248, 251, 0.86)', color: '#475569' };
-  return <Chip size="small" label={labelize(value)} sx={{ borderRadius: 1, fontWeight: 900, bgcolor: palette.bg, color: palette.color }} />;
+  return <Chip size="small" label={labelize(value)} sx={{ borderRadius: 1, fontWeight: 600, bgcolor: palette.bg, color: palette.color }} />;
 }
 
 const COMMAND_CENTER_SECTIONS = [
@@ -201,12 +201,12 @@ function CommandCenterPanel({ commandCenter }) {
     <Paper variant="outlined" sx={{ p: 1.25, minWidth: 0, boxShadow: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
         <Box minWidth={0}>
-          <Typography fontWeight={950}>Command center</Typography>
+          <Typography fontWeight={600}>Command center</Typography>
           <Typography variant="body2" color="text.secondary">
             {number(totalActions)} role-specific action{totalActions === 1 ? '' : 's'} queued across profiles.
           </Typography>
         </Box>
-        <Chip label="Today" size="small" sx={{ borderRadius: 1, fontWeight: 900, bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E' }} />
+        <Chip label="Today" size="small" sx={{ borderRadius: 1, fontWeight: 600, bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E' }} />
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
         {COMMAND_CENTER_SECTIONS.map((section) => (
@@ -225,7 +225,7 @@ function CommandCenterColumn({ rows, section }) {
           {section.icon}
         </Box>
         <Box minWidth={0}>
-          <Typography variant="body2" fontWeight={950} noWrap>{section.title}</Typography>
+          <Typography variant="body2" fontWeight={600} noWrap>{section.title}</Typography>
           <Typography variant="caption" color="text.secondary">{number(rows.length)} open</Typography>
         </Box>
       </Box>
@@ -236,7 +236,7 @@ function CommandCenterColumn({ rows, section }) {
           </Typography>
         )}
         {rows.length > 3 ? (
-          <Typography variant="caption" color="text.secondary" fontWeight={800}>
+          <Typography variant="caption" color="text.secondary" fontWeight={600}>
             +{number(rows.length - 3)} more
           </Typography>
         ) : null}
@@ -249,14 +249,14 @@ function CommandCenterItem({ row }) {
   const href = commandCenterHref(row);
   return (
     <Box sx={{ display: 'grid', gap: 0.35, p: 0.75, border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, bgcolor: '#FFFFFF' }}>
-      <Typography variant="body2" fontWeight={900} noWrap>{row.title || 'Action item'}</Typography>
+      <Typography variant="body2" fontWeight={600} noWrap>{row.title || 'Action item'}</Typography>
       <Typography variant="caption" color="text.secondary" noWrap>
         {[formatFirstNameLastInitial(row.profileName, 'Unknown profile'), row.company].filter(Boolean).join(' · ')}
       </Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.75 }}>
         <Typography variant="caption" color="text.secondary" noWrap>{formatDateTime(row.dueAt)}</Typography>
         {href ? (
-          <Button href={href} size="small" variant="text" sx={{ minWidth: 0, px: 0.5, fontWeight: 900 }}>
+          <Button href={href} size="small" variant="text" sx={{ minWidth: 0, px: 0.5, fontWeight: 600 }}>
             Open
           </Button>
         ) : null}
@@ -277,7 +277,7 @@ function JourneyTimeline({ rows }) {
     <Paper variant="outlined" sx={{ p: 1.25, minWidth: 0, boxShadow: 1 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1 }}>
         <Box minWidth={0}>
-          <Typography fontWeight={950}>Profile/job timeline</Typography>
+          <Typography fontWeight={600}>Profile/job timeline</Typography>
           <Typography variant="body2" color="text.secondary">
             One story from job found through application, resume, assessment, interview, and outcome.
           </Typography>
@@ -301,7 +301,7 @@ function JourneyRow({ row }) {
     <Box sx={{ display: 'grid', gap: 0.75, p: 1, border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, bgcolor: '#FFFFFF' }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) auto' }, gap: 0.75, alignItems: 'center' }}>
         <Box minWidth={0}>
-          <Typography component={row.url ? 'a' : 'span'} href={row.url || undefined} target={row.url ? '_blank' : undefined} rel={row.url ? 'noreferrer' : undefined} fontWeight={950} color="text.primary" sx={{ textDecoration: 'none', '&:hover': { color: 'primary.main', textDecoration: 'underline' } }} noWrap>
+          <Typography component={row.url ? 'a' : 'span'} href={row.url || undefined} target={row.url ? '_blank' : undefined} rel={row.url ? 'noreferrer' : undefined} fontWeight={600} color="text.primary" sx={{ textDecoration: 'none', '&:hover': { color: 'primary.main', textDecoration: 'underline' } }} noWrap>
             {row.title || 'Untitled role'}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
@@ -325,7 +325,7 @@ function JourneyStep({ event }) {
     <Box sx={{ p: 0.75, border: 1, borderColor: palette.border, borderRadius: 1, bgcolor: palette.bg, minWidth: 0 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
         <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: palette.dot, flexShrink: 0 }} />
-        <Typography variant="caption" fontWeight={950} noWrap>{event.label}</Typography>
+        <Typography variant="caption" fontWeight={600} noWrap>{event.label}</Typography>
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
         {event.at ? formatDateTime(event.at) : labelize(event.detail || event.status)}
@@ -365,7 +365,7 @@ function GoalProgressPanel({ totals }) {
       <Stack spacing={1.25}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
           <Box minWidth={0}>
-            <Typography fontWeight={900}>Daily application pace</Typography>
+            <Typography fontWeight={600}>Daily application pace</Typography>
             <Typography variant="body2" color="text.secondary">
               {hasGoal ? `${number(totals.todayApplications)} of ${number(totals.dailyBidGoal)} today` : `${number(totals.todayApplications)} applications today`}
             </Typography>
@@ -392,10 +392,10 @@ function GoalProgressPanel({ totals }) {
 function MiniStat({ label, value }) {
   return (
     <Box sx={{ p: 1, border: 1, borderColor: 'rgba(0, 0, 0, 0.09)', borderRadius: 1, bgcolor: 'rgba(246, 248, 251, 0.86)', minWidth: 0 }}>
-      <Typography variant="caption" color="text.secondary" fontWeight={800} textTransform="uppercase">
+      <Typography variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">
         {label}
       </Typography>
-      <Typography fontWeight={900}>{number(value)}</Typography>
+      <Typography fontWeight={600}>{number(value)}</Typography>
     </Box>
   );
 }
@@ -443,7 +443,7 @@ function UpcomingInterviewsTable({ rows }) {
             {rows.map((row) => (
               <TableRow key={row.id} hover>
                 <TableCell>
-                  <Typography fontWeight={800}>{row.title}</Typography>
+                  <Typography fontWeight={600}>{row.title}</Typography>
                   <Typography variant="caption" color="text.secondary">
                     {[row.company, row.location].filter(Boolean).join(' · ')}
                   </Typography>
@@ -477,7 +477,7 @@ function RecentApplicationsTable({ rows }) {
             {rows.map((row) => (
               <TableRow key={row.id} hover>
                 <TableCell>
-                  <Link href={row.url} target="_blank" rel="noreferrer" underline="hover" fontWeight={800} color="inherit">
+                  <Link href={row.url} target="_blank" rel="noreferrer" underline="hover" fontWeight={600} color="inherit">
                     {row.title || 'Untitled role'}
                   </Link>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
@@ -516,7 +516,7 @@ function ProfilesTable({ rows }) {
             {rows.map((row) => (
               <TableRow key={row.id} hover>
                 <TableCell>
-                  <Typography fontWeight={900}>{formatFirstNameLastInitial(row.name, 'Unknown profile')}</Typography>
+                  <Typography fontWeight={600}>{formatFirstNameLastInitial(row.name, 'Unknown profile')}</Typography>
                   <Typography variant="caption" color="text.secondary">{row.profileBadge}</Typography>
                 </TableCell>
                 <TableCell><StatusChip value={row.profileStatus} /></TableCell>
@@ -538,7 +538,7 @@ function DashboardTable({ children, emptyDetail, emptyTitle, title }) {
   const hasRows = Boolean(children);
   return (
     <Paper variant="outlined" sx={{ p: 1.25, minWidth: 0, boxShadow: 1 }}>
-      <Typography fontWeight={900} sx={{ mb: 1 }}>
+      <Typography fontWeight={600} sx={{ mb: 1 }}>
         {title}
       </Typography>
       {hasRows ? (
@@ -553,7 +553,7 @@ function DashboardTable({ children, emptyDetail, emptyTitle, title }) {
 }
 
 function StatusChip({ value }) {
-  return <Chip size="small" label={labelize(value)} sx={{ borderRadius: 1, fontWeight: 800 }} />;
+  return <Chip size="small" label={labelize(value)} sx={{ borderRadius: 1, fontWeight: 600 }} />;
 }
 
 function LoadingPanel() {

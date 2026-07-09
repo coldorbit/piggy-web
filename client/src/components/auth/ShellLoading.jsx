@@ -62,7 +62,7 @@ export default function ShellLoading() {
             />
           </Box>
           <Box sx={{ minWidth: 0 }}>
-            <Typography fontWeight={800} sx={{ color: '#004E8C', letterSpacing: 0, lineHeight: 1.1 }}>
+            <Typography fontWeight={600} sx={{ color: '#004E8C', letterSpacing: 0, lineHeight: 1.1 }}>
               ApplyPilot
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -137,7 +137,7 @@ export default function ShellLoading() {
               variant="rounded"
               sx={{ width: 32, height: 32, bgcolor: 'background.paper', border: 1, borderColor: 'divider' }}
             />
-            <Typography fontWeight={800} sx={{ color: '#004E8C', letterSpacing: 0 }}>
+            <Typography fontWeight={600} sx={{ color: '#004E8C', letterSpacing: 0 }}>
               ApplyPilot
             </Typography>
           </Stack>

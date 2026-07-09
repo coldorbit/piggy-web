@@ -279,7 +279,7 @@ export default function AppLayout({ user }) {
                 />
               </Box>
               <Box minWidth={0}>
-                <Typography fontWeight={800} lineHeight={1.1} sx={{ color: accentText, letterSpacing: 0 }}>
+                <Typography fontWeight={600} lineHeight={1.1} sx={{ color: accentText, letterSpacing: 0 }}>
                   ApplyPilot
                 </Typography>
               </Box>
@@ -408,7 +408,7 @@ export default function AppLayout({ user }) {
               Signed in as
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-              <Typography fontWeight={900} noWrap sx={{ minWidth: 0, flex: 1 }}>
+              <Typography fontWeight={600} noWrap sx={{ minWidth: 0, flex: 1 }}>
                 {user.username}
               </Typography>
               <IconButton size="small" onClick={openAccountDialog} aria-label="Edit username">
@@ -524,7 +524,7 @@ export default function AppLayout({ user }) {
                   pl: { xs: 0, sm: 1.25 },
                 }}
               >
-                <Typography variant="h5" fontWeight={750} noWrap sx={{ color: 'text.primary', letterSpacing: 0 }}>
+                <Typography variant="h5" fontWeight={600} noWrap sx={{ color: 'text.primary', letterSpacing: 0 }}>
                   {title}
                 </Typography>
                 <Typography color="text.secondary" noWrap sx={{ display: { xs: 'none', sm: 'block' } }}>
@@ -811,7 +811,7 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
     borderColor: accentLine,
     boxShadow: 'inset 3px 0 0 #0067C0, 0 1px 0 rgba(255,255,255,0.72) inset',
     color: accentText,
-    fontWeight: 750,
+    fontWeight: 600,
     '& .MuiListItemIcon-root': { color: accentText },
     '& .MuiListItemText-primary': { color: accentText },
   };
@@ -820,7 +820,7 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
     borderColor: 'rgba(72, 104, 96, 0.22)',
     color: '#324B45',
     boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
-    fontWeight: 750,
+    fontWeight: 600,
     '& .MuiListItemIcon-root': { color: '#324B45' },
     '& .MuiListItemText-primary': { color: '#324B45' },
   };
@@ -871,7 +871,7 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
           </MuiBadge>
         ) : icon}
       </ListItemIcon>
-      {!collapsed ? <ListItemText primary={label} primaryTypographyProps={{ fontWeight: nested ? 650 : 700, fontSize: nested ? 12 : 13 }} /> : null}
+      {!collapsed ? <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 600, fontSize: nested ? 12 : 14 }} /> : null}
     </ListItemButton>
   );
 
@@ -892,7 +892,7 @@ const unreadIconBadgeSx = {
     bgcolor: '#C42B1C',
     color: '#ffffff',
     fontSize: 10,
-    fontWeight: 900,
+    fontWeight: 600,
     lineHeight: 1,
   },
 };

@@ -40,7 +40,7 @@ export default function MaintenancePage() {
             }}
           />
           <Box minWidth={0}>
-            <Typography fontWeight={950} lineHeight={1}>
+            <Typography fontWeight={600} lineHeight={1}>
               ApplyPilot
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.72)' }}>
@@ -84,7 +84,7 @@ export default function MaintenancePage() {
                   color: 'text.primary',
                   fontSize: { xs: 36, sm: 48, md: 58 },
                   lineHeight: 1,
-                  fontWeight: 950,
+                  fontWeight: 600,
                 }}
               >
                 We are making the platform stronger.
@@ -126,7 +126,7 @@ export default function MaintenancePage() {
                     >
                       {item.icon}
                     </Box>
-                    <Typography fontWeight={850}>{item.label}</Typography>
+                    <Typography fontWeight={600}>{item.label}</Typography>
                   </Stack>
                 ))}
               </Stack>
@@ -143,10 +143,10 @@ export default function MaintenancePage() {
               }}
             >
               <Box>
-                <Typography variant="overline" fontWeight={950} sx={{ color: '#93C5FD' }}>
+                <Typography variant="overline" fontWeight={600} sx={{ color: '#93C5FD' }}>
                   System status
                 </Typography>
-                <Typography variant="h5" fontWeight={950} sx={{ mt: 0.5 }}>
+                <Typography variant="h5" fontWeight={600} sx={{ mt: 0.5 }}>
                   Temporarily unavailable
                 </Typography>
               </Box>

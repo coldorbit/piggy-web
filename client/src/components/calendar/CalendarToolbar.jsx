@@ -67,7 +67,7 @@ export default function CalendarToolbar({ conflictCount = 0, isLoading, onExport
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
         {isLoading ? <CircularProgress size={22} /> : null}
         {conflictCount ? (
-          <Typography variant="caption" color="error" fontWeight={900}>
+          <Typography variant="caption" color="error" fontWeight={600}>
             {conflictCount.toLocaleString()} conflict{conflictCount === 1 ? '' : 's'}
           </Typography>
         ) : null}

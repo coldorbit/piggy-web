@@ -32,7 +32,7 @@ export default function DailyApplicationsChart({ data }) {
       <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
         <Stack direction="row" spacing={0.75} alignItems="center" minWidth={0}>
           <CalendarMonthIcon fontSize="small" color="action" />
-          <Typography variant="body2" fontWeight={900}>
+          <Typography variant="body2" fontWeight={600}>
             Daily applications
           </Typography>
         </Stack>
@@ -41,7 +41,7 @@ export default function DailyApplicationsChart({ data }) {
             {sources.map((source) => (
               <Stack key={source.key} direction="row" spacing={0.35} alignItems="center">
                 <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: source.color, flex: '0 0 auto' }} />
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, maxWidth: 88 }} noWrap>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, maxWidth: 88 }} noWrap>
                   {source.label}
                 </Typography>
               </Stack>

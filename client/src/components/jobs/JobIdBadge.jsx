@@ -32,7 +32,7 @@ export default function JobIdBadge({ job, sx }) {
           color: copied ? '#166534' : '#3730a3',
           fontFamily: 'monospace',
           fontSize: 11,
-          fontWeight: 900,
+          fontWeight: 600,
           '& .MuiChip-label': { px: 0.65 },
           '& .MuiChip-icon': {
             color: 'inherit',

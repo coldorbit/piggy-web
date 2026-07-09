@@ -12,7 +12,7 @@ export default function BidderCard({ bidder }) {
       <CardContent sx={{ display: 'grid', gap: 1.25 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'start' }}>
           <Box minWidth={0}>
-            <Typography fontWeight={900} noWrap>
+            <Typography fontWeight={600} noWrap>
               {bidder.username}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -44,7 +44,7 @@ export default function BidderCard({ bidder }) {
         <Accordion variant="outlined" disableGutters sx={{ borderRadius: 1, overflow: 'hidden', '&:before': { display: 'none' } }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 42, '& .MuiAccordionSummary-content': { my: 0.75 } }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-              <Typography variant="body2" fontWeight={900}>
+              <Typography variant="body2" fontWeight={600}>
                 Interview pass-through
               </Typography>
               <Typography variant="caption" color="text.secondary">

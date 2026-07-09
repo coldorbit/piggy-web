@@ -438,19 +438,19 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
         }}
       >
         {isCompact ? (
-          <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.15 }}>
+          <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.15 }}>
             {compactEventLabel(event)}
           </Typography>
         ) : (
           <>
-            <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.25 }}>
+            <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
               {event.title}
             </Typography>
             <Typography variant="caption" noWrap sx={{ opacity: isSelected ? 1 : 0.9, lineHeight: 1.25 }}>
               {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {compactEventLabel(event)}
             </Typography>
             {event.hasConflict ? (
-              <Typography variant="caption" fontWeight={700} noWrap sx={{ opacity: isSelected ? 1 : 0.95, lineHeight: 1.25 }}>
+              <Typography variant="caption" fontWeight={600} noWrap sx={{ opacity: isSelected ? 1 : 0.95, lineHeight: 1.25 }}>
                 Conflict
               </Typography>
             ) : null}
@@ -615,14 +615,14 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
           },
         }}
       >
-        <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.25 }}>
+        <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
           {compactEventLabel(event)}
         </Typography>
           <Typography variant="caption" noWrap sx={{ opacity: 0.9, lineHeight: 1.25 }}>
             {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)}
           </Typography>
           {event.hasConflict ? (
-            <Typography variant="caption" fontWeight={700} noWrap sx={{ lineHeight: 1.25 }}>
+            <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
               Conflict
             </Typography>
           ) : null}
@@ -665,14 +665,14 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
         <>
           <DialogTitle sx={{ pb: 1 }}>
             <Box sx={{ display: 'grid', gap: 0.4, minWidth: 0 }}>
-              <Typography fontWeight={900} noWrap>
+              <Typography fontWeight={600} noWrap>
                 {event.title}
               </Typography>
-              <Typography variant="body2" color="text.secondary" fontWeight={800} noWrap>
+              <Typography variant="body2" color="text.secondary" fontWeight={600} noWrap>
                 {compactEventLabel(event)}
               </Typography>
               {event.hasConflict ? (
-                <Chip label="Schedule conflict" color="error" size="small" sx={{ justifySelf: 'start', borderRadius: 1, fontWeight: 900 }} />
+                <Chip label="Schedule conflict" color="error" size="small" sx={{ justifySelf: 'start', borderRadius: 1, fontWeight: 600 }} />
               ) : null}
             </Box>
           </DialogTitle>
@@ -752,12 +752,12 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
 function DetailRow({ href = '', label, value, multiline = false }) {
   return (
     <Box sx={{ display: 'grid', gap: 0.25, minWidth: 0 }}>
-      <Typography variant="caption" color="text.secondary" fontWeight={900}>
+      <Typography variant="caption" color="text.secondary" fontWeight={600}>
         {label}
       </Typography>
       <Typography variant="body2" sx={{ whiteSpace: multiline ? 'pre-wrap' : 'normal', overflowWrap: 'anywhere' }}>
         {href ? (
-          <Link href={href} target="_blank" rel="noreferrer" fontWeight={800} underline="always">
+          <Link href={href} target="_blank" rel="noreferrer" fontWeight={600} underline="always">
             {value}
           </Link>
         ) : (
@@ -777,7 +777,7 @@ function LinkifiedText({ value }) {
     const href = trailingPunctuation ? part.slice(0, -trailingPunctuation.length) : part;
     return (
       <span key={`${href}-${index}`}>
-        <Link href={href} target="_blank" rel="noreferrer" fontWeight={800} underline="always">
+        <Link href={href} target="_blank" rel="noreferrer" fontWeight={600} underline="always">
           {href}
         </Link>
         {trailingPunctuation}

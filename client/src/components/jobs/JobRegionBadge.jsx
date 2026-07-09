@@ -14,7 +14,7 @@ export default function JobRegionBadge({ job, sx }) {
         bgcolor: region.bgcolor,
         color: region.color,
         fontSize: 11,
-        fontWeight: 900,
+        fontWeight: 600,
         '& .MuiChip-label': { px: 0.75 },
         ...sx,
       }}

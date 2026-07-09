@@ -48,7 +48,7 @@ export default function ContextualFaqPanel({ keywords = [], limit = 3, title = '
       >
         <Stack direction="row" alignItems="center" spacing={0.75} sx={{ minWidth: 0 }}>
           <HelpOutlinedIcon color="primary" fontSize="small" />
-          <Typography fontWeight={900} variant="body2" noWrap>
+          <Typography fontWeight={600} variant="body2" noWrap>
             {title}
           </Typography>
         </Stack>
@@ -77,7 +77,7 @@ export default function ContextualFaqPanel({ keywords = [], limit = 3, title = '
             }}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 44, px: 1.25 }}>
-              <Typography fontWeight={850} variant="body2" sx={{ minWidth: 0 }} noWrap>
+              <Typography fontWeight={600} variant="body2" sx={{ minWidth: 0 }} noWrap>
                 {faq.title}
               </Typography>
             </AccordionSummary>

@@ -57,7 +57,7 @@ export default function JobDetail({
           boxShadow: 1,
         }}
       >
-        <Typography color="text.secondary" fontWeight={700}>
+        <Typography color="text.secondary" fontWeight={600}>
           Select a job to inspect it.
         </Typography>
       </Paper>
@@ -137,11 +137,11 @@ export default function JobDetail({
               <Chip
                 label="Manual import"
                 size="small"
-                sx={{ height: 22, bgcolor: '#ECFDF5', color: '#486860', fontWeight: 900 }}
+                sx={{ height: 22, bgcolor: '#ECFDF5', color: '#486860', fontWeight: 600 }}
               />
             ) : null}
           </Stack>
-          <Typography variant="h6" fontWeight={900} lineHeight={1.2}>
+          <Typography variant="h6" fontWeight={600} lineHeight={1.2}>
             {job.title || 'Untitled role'}
           </Typography>
           <Typography color="text.secondary" variant="body2">
@@ -263,7 +263,7 @@ export default function JobDetail({
       {deleteError ? <Alert severity="error" sx={{ mb: 2 }}>{deleteError}</Alert> : null}
 
       <Box>
-        <Typography variant="subtitle2" fontWeight={900} gutterBottom>
+        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
           Listing Text
         </Typography>
         <Typography
@@ -294,10 +294,10 @@ const detailActionButtonSx = {
 function DetailField({ label, value }) {
   return (
     <Paper variant="outlined" sx={{ px: 1, py: 0.75, bgcolor: 'rgba(246, 249, 248, 0.72)' }} component="div">
-      <Typography component="dt" variant="caption" color="text.secondary" fontWeight={800} textTransform="uppercase">
+      <Typography component="dt" variant="caption" color="text.secondary" fontWeight={600} textTransform="uppercase">
         {label}
       </Typography>
-      <Typography component="dd" variant="body2" fontWeight={900} sx={{ m: 0, lineHeight: 1.25 }}>
+      <Typography component="dd" variant="body2" fontWeight={600} sx={{ m: 0, lineHeight: 1.25 }}>
         {value}
       </Typography>
     </Paper>

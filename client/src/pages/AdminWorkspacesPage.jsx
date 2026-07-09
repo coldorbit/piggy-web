@@ -121,7 +121,7 @@ export default function AdminWorkspacesPage() {
             <ApartmentIcon />
           </Box>
           <Box minWidth={0}>
-            <Typography fontWeight={950} noWrap>
+            <Typography fontWeight={600} noWrap>
               Workspace management
             </Typography>
             <Typography variant="body2" color="text.secondary" noWrap>
@@ -262,13 +262,13 @@ function WorkspaceRow({ editing, editingId, isSaving, onCancel, onDelete, onEdit
   return (
     <TableRow hover>
       <TableCell>
-        <Typography fontWeight={900}>{workspace.name}</Typography>
+        <Typography fontWeight={600}>{workspace.name}</Typography>
         <Typography variant="caption" color="text.secondary">
           ID {workspace.id}
         </Typography>
       </TableCell>
       <TableCell>
-        <Chip label={workspace.slug} variant="outlined" sx={{ fontWeight: 900 }} />
+        <Chip label={workspace.slug} variant="outlined" sx={{ fontWeight: 600 }} />
       </TableCell>
       <TableCell align="right">{userCount.toLocaleString()}</TableCell>
       <TableCell align="right">{membershipCount.toLocaleString()}</TableCell>
@@ -302,10 +302,10 @@ function WorkspaceRow({ editing, editingId, isSaving, onCancel, onDelete, onEdit
 function Metric({ label, value }) {
   return (
     <Box sx={{ minWidth: 92, px: 1, py: 0.55, border: 1, borderColor: 'rgba(15, 23, 42, 0.08)', borderRadius: 1, bgcolor: 'rgba(255,255,255,0.76)' }}>
-      <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ display: 'block', textTransform: 'uppercase' }}>
+      <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ display: 'block', textTransform: 'uppercase' }}>
         {label}
       </Typography>
-      <Typography fontWeight={950} lineHeight={1.1}>
+      <Typography fontWeight={600} lineHeight={1.1}>
         {Number(value || 0).toLocaleString()}
       </Typography>
     </Box>

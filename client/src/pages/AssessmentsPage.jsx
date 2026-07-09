@@ -253,10 +253,10 @@ function AssessmentProfileFilter({ activeProfile, isLoading, onProfileChange, pr
           <Chip
             label={`${profiles.reduce((total, profile) => total + Number(profile.assessmentCount || 0), 0).toLocaleString()} total`}
             size="small"
-            sx={{ bgcolor: '#EEF2FF', color: '#3730A3', fontWeight: 800 }}
+            sx={{ bgcolor: '#EEF2FF', color: '#3730A3', fontWeight: 600 }}
           />
           {activeProfile ? (
-            <Chip label={`${Number(activeProfile.assessmentCount || 0).toLocaleString()} selected`} size="small" variant="outlined" sx={{ fontWeight: 800 }} />
+            <Chip label={`${Number(activeProfile.assessmentCount || 0).toLocaleString()} selected`} size="small" variant="outlined" sx={{ fontWeight: 600 }} />
           ) : null}
         </Stack>
       </Stack>
@@ -358,7 +358,7 @@ function AssessmentForm({
             const { key, ...optionProps } = props;
             return (
               <Box component="li" key={key || jobOptionId(option)} {...optionProps} sx={{ display: 'grid !important', gap: 0.25 }}>
-                <Typography variant="body2" fontWeight={800}>
+                <Typography variant="body2" fontWeight={600}>
                   {jobOptionTitle(option)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -383,7 +383,7 @@ function AssessmentForm({
           <Typography variant="caption" color="text.secondary">
             Profile
           </Typography>
-          <Chip label={activeProfile.name} size="small" sx={{ fontWeight: 800 }} />
+          <Chip label={activeProfile.name} size="small" sx={{ fontWeight: 600 }} />
         </Stack>
       ) : (
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
@@ -426,10 +426,10 @@ function AssessmentStat({ label, tone, value }) {
 
   return (
     <Paper variant="outlined" sx={{ p: 1, borderRadius: 1, ...styles }}>
-      <Typography variant="caption" fontWeight={800} sx={{ textTransform: 'uppercase' }}>
+      <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
         {label}
       </Typography>
-      <Typography variant="h6" fontWeight={900} lineHeight={1.1}>
+      <Typography variant="h6" fontWeight={600} lineHeight={1.1}>
         {Number(value || 0).toLocaleString()}
       </Typography>
     </Paper>
@@ -502,12 +502,12 @@ function AssessmentCard({ activeProfile, assessment, currentUser, isDeleting, is
       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'space-between', alignItems: 'flex-start', minWidth: 0 }}>
         <Box sx={{ display: 'grid', gap: 0.5, minWidth: 0 }}>
           <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
-            <Chip label={assessment.categoryLabel || assessment.category} size="small" sx={{ bgcolor: '#EEF2FF', color: '#3730A3', fontWeight: 800 }} />
-            <Chip label={deadline.label} size="small" sx={{ bgcolor: deadline.bgcolor, color: deadline.color, fontWeight: 800 }} />
-            {!activeProfile && profile?.name ? <Chip label={profile.name} size="small" variant="outlined" sx={{ fontWeight: 800 }} /> : null}
-            {job?.source ? <Chip label={job.source} size="small" variant="outlined" sx={{ fontWeight: 800 }} /> : null}
+            <Chip label={assessment.categoryLabel || assessment.category} size="small" sx={{ bgcolor: '#EEF2FF', color: '#3730A3', fontWeight: 600 }} />
+            <Chip label={deadline.label} size="small" sx={{ bgcolor: deadline.bgcolor, color: deadline.color, fontWeight: 600 }} />
+            {!activeProfile && profile?.name ? <Chip label={profile.name} size="small" variant="outlined" sx={{ fontWeight: 600 }} /> : null}
+            {job?.source ? <Chip label={job.source} size="small" variant="outlined" sx={{ fontWeight: 600 }} /> : null}
           </Stack>
-          <Typography fontWeight={900} noWrap>
+          <Typography fontWeight={600} noWrap>
             {title}
           </Typography>
           <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
@@ -581,7 +581,7 @@ function DetailChip({ label }) {
       label={label}
       size="small"
       variant="outlined"
-      sx={{ bgcolor: '#ffffff', color: 'text.secondary', fontWeight: 700, maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+      sx={{ bgcolor: '#ffffff', color: 'text.secondary', fontWeight: 600, maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
     />
   );
 }

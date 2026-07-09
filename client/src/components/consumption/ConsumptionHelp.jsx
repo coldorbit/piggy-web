@@ -60,8 +60,8 @@ export default function ConsumptionHelp({ isOpen, onClose }) {
             <HelpOutlinedIcon fontSize="small" />
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography fontWeight={900} lineHeight={1.2}>Help & FAQ</Typography>
-            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+            <Typography fontWeight={600} lineHeight={1.2}>Help & FAQ</Typography>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
               Transaction type guide
             </Typography>
           </Box>
@@ -73,7 +73,7 @@ export default function ConsumptionHelp({ isOpen, onClose }) {
           {HELP_ITEMS.map(([title, text], index) => (
             <Accordion key={title} defaultExpanded={index === 0} disableGutters variant="outlined" sx={accordionSx}>
               <AccordionSummary expandIcon={<ExpandMoreIcon fontSize="small" />} sx={accordionSummarySx}>
-                <Typography fontWeight={900} variant="body2">{title}</Typography>
+                <Typography fontWeight={600} variant="body2">{title}</Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ px: 1.25, pt: 0, pb: 1.25 }}>
                 <Typography color="text.secondary" variant="body2">{text}</Typography>

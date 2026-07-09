@@ -299,7 +299,7 @@ function SourceOption({ source, count, compact = false }) {
           bgcolor: 'background.paper',
           color: 'text.secondary',
           fontSize: 10,
-          fontWeight: 900,
+          fontWeight: 600,
           border: 1,
           borderColor: 'divider',
           flex: '0 0 auto',
