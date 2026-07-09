@@ -10,7 +10,7 @@ import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearch
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { api, downloadAuthenticatedFile, useUpdateInterviewCall, useUpdateJobBid } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
-import { ROLES, isSuperadmin } from '../lib/roles.js';
+import { BIDDER_ROLES, isSuperadmin } from '../lib/roles.js';
 import {
   addDaysToDateKey,
   addMonthsToDateKey,
@@ -26,7 +26,6 @@ const EMPTY_OBJECT = {};
 const UNASSIGNED_CALLER_ID = '__unassigned_caller__';
 const UNKNOWN_OWNER_ID = '__unknown_owner__';
 const USER_COLOR = { main: '#2563EB', dark: '#1E40AF', soft: '#DBEAFE' };
-const FINANCE_COLOR = { main: '#059669', dark: '#047857', soft: '#D1FAE5' };
 const CALLER_COLOR = { main: '#D97706', dark: '#92400E', soft: '#FEF3C7' };
 const UNASSIGNED_COLOR = { main: '#94A3B8', dark: '#475569', soft: '#F1F5F9' };
 
@@ -36,7 +35,6 @@ export default function CalendarPage({ currentUser }) {
   const [search, setSearch] = useState('');
   const [checkedProfileIds, setCheckedProfileIds] = useState([]);
   const [checkedUserIds, setCheckedUserIds] = useState([]);
-  const [checkedFinanceManagerIds, setCheckedFinanceManagerIds] = useState([]);
   const [checkedCallerIds, setCheckedCallerIds] = useState([]);
   const [calendarActionError, setCalendarActionError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
@@ -118,11 +116,7 @@ export default function CalendarPage({ currentUser }) {
     [calendarProfiles, searchableEvents],
   );
   const userGroups = useMemo(
-    () => ownerScheduleGroups(profileFilteredEvents, 'users'),
-    [profileFilteredEvents],
-  );
-  const financeManagerGroups = useMemo(
-    () => ownerScheduleGroups(profileFilteredEvents, 'finance'),
+    () => ownerScheduleGroups(profileFilteredEvents),
     [profileFilteredEvents],
   );
   const callerGroups = useMemo(
@@ -135,10 +129,6 @@ export default function CalendarPage({ currentUser }) {
   }, [userGroups]);
 
   useEffect(() => {
-    setCheckedFinanceManagerIds((currentIds) => syncCheckedIds(currentIds, financeManagerGroups.map((group) => group.id)));
-  }, [financeManagerGroups]);
-
-  useEffect(() => {
     setCheckedCallerIds((currentIds) => syncCheckedIds(currentIds, callerGroups.map((group) => group.id)));
   }, [callerGroups]);
 
@@ -146,12 +136,10 @@ export default function CalendarPage({ currentUser }) {
     () => filterEventsByScheduleLens(profileFilteredEvents, {
       callerGroups,
       checkedCallerIds,
-      checkedFinanceManagerIds,
       checkedUserIds,
-      financeManagerGroups,
       userGroups,
     }),
-    [callerGroups, checkedCallerIds, checkedFinanceManagerIds, checkedUserIds, financeManagerGroups, profileFilteredEvents, userGroups],
+    [callerGroups, checkedCallerIds, checkedUserIds, profileFilteredEvents, userGroups],
   );
   const loading = calendarLoading;
   const pageError = calendarActionError || calendarError?.message || workspaceError?.message || '';
@@ -187,12 +175,6 @@ export default function CalendarPage({ currentUser }) {
 
   function toggleUser(userId, checked) {
     setCheckedUserIds((currentIds) => toggleCheckedId(currentIds, userId, checked, userGroups.map((group) => group.id)));
-  }
-
-  function toggleFinanceManager(userId, checked) {
-    setCheckedFinanceManagerIds((currentIds) =>
-      toggleCheckedId(currentIds, userId, checked, financeManagerGroups.map((group) => group.id)),
-    );
   }
 
   function toggleCaller(callerId, checked) {
@@ -294,18 +276,13 @@ export default function CalendarPage({ currentUser }) {
         <CalendarScheduleLens
           callerGroups={callerGroups}
           checkedCallerIds={checkedCallerIds}
-          checkedFinanceManagerIds={checkedFinanceManagerIds}
           checkedProfileIds={checkedProfileIds}
           checkedUserIds={checkedUserIds}
-          financeManagerGroups={financeManagerGroups}
           profileGroups={profileGroups}
           userGroups={userGroups}
           onCallerChange={toggleCaller}
           onCallerSelectAll={() => setCheckedCallerIds(callerGroups.map((group) => group.id))}
           onCallerSelectNone={() => setCheckedCallerIds([])}
-          onFinanceManagerChange={toggleFinanceManager}
-          onFinanceManagerSelectAll={() => setCheckedFinanceManagerIds(financeManagerGroups.map((group) => group.id))}
-          onFinanceManagerSelectNone={() => setCheckedFinanceManagerIds([])}
           onProfileChange={toggleProfile}
           onProfileSelectAll={() => setCheckedProfileIds(calendarProfileIds)}
           onProfileSelectNone={() => setCheckedProfileIds([])}
@@ -389,13 +366,10 @@ function profileScheduleGroups(profiles, events) {
     .sort(scheduleGroupSort);
 }
 
-function ownerScheduleGroups(events, kind) {
+function ownerScheduleGroups(events) {
   const groups = new Map();
   events.forEach((event) => {
-    const ownerGroup = ownerGroupBase(event);
-    if (kind === 'finance' && !ownerGroup.isFinanceManager) return;
-    if (kind === 'users' && ownerGroup.isFinanceManager) return;
-    addEventToGroup(groups, ownerGroup, event);
+    addEventToGroup(groups, ownerGroupBase(event), event);
   });
   return [...groups.values()].sort(scheduleGroupSort);
 }
@@ -406,19 +380,16 @@ function callerScheduleGroups(events) {
   return [...groups.values()].sort(scheduleGroupSort);
 }
 
-function filterEventsByScheduleLens(events, { callerGroups, checkedCallerIds, checkedFinanceManagerIds, checkedUserIds, financeManagerGroups, userGroups }) {
+function filterEventsByScheduleLens(events, { callerGroups, checkedCallerIds, checkedUserIds, userGroups }) {
   const userGroupIds = new Set(userGroups.map((group) => String(group.id)));
-  const financeManagerGroupIds = new Set(financeManagerGroups.map((group) => String(group.id)));
   const callerGroupIds = new Set(callerGroups.map((group) => String(group.id)));
   const checkedUserIdSet = new Set(checkedUserIds.map(String));
-  const checkedFinanceManagerIdSet = new Set(checkedFinanceManagerIds.map(String));
   const checkedCallerIdSet = new Set(checkedCallerIds.map(String));
 
   return events.filter((event) => {
     const ownerGroup = ownerGroupBase(event);
     const ownerId = String(ownerGroup.id);
-    if (ownerGroup.isFinanceManager && financeManagerGroupIds.has(ownerId) && !checkedFinanceManagerIdSet.has(ownerId)) return false;
-    if (!ownerGroup.isFinanceManager && userGroupIds.has(ownerId) && !checkedUserIdSet.has(ownerId)) return false;
+    if (userGroupIds.has(ownerId) && !checkedUserIdSet.has(ownerId)) return false;
 
     const callerId = String(callerGroupBase(event).id);
     if (callerGroupIds.has(callerId) && !checkedCallerIdSet.has(callerId)) return false;
@@ -438,17 +409,27 @@ function profileGroupBase(profile = {}) {
 }
 
 function ownerGroupBase(event) {
-  const owner = event.job?.bid?.user || null;
-  const ownerId = owner?.id || event.job?.bid?.userId || UNKNOWN_OWNER_ID;
-  const isFinanceManager = owner?.role === ROLES.financeManager;
+  const owner = profileOwnerForEvent(event);
+  const ownerId = owner.id || UNKNOWN_OWNER_ID;
   return {
     id: String(ownerId),
-    label: owner?.username || (ownerId === UNKNOWN_OWNER_ID ? 'Unknown owner' : `User #${ownerId}`),
-    color: isFinanceManager ? FINANCE_COLOR : USER_COLOR,
+    label: owner.username || (ownerId === UNKNOWN_OWNER_ID ? 'Unknown owner' : `User #${ownerId}`),
+    color: USER_COLOR,
     count: 0,
-    isFinanceManager,
     nextAt: null,
   };
+}
+
+function profileOwnerForEvent(event) {
+  const profile = event.profile || {};
+  const profileOwnerId = profile.userId || event.job?.bid?.profileOwnerUserId || null;
+  const profileOwnerUsername = profile.ownerUsername || event.job?.bid?.profileOwnerUsername || '';
+  if (profileOwnerId || profileOwnerUsername) {
+    return { id: profileOwnerId, username: profileOwnerUsername };
+  }
+  const bidUser = event.job?.bid?.user || null;
+  if (BIDDER_ROLES.includes(bidUser?.role)) return { id: null, username: '' };
+  return { id: bidUser?.id || event.job?.bid?.userId || null, username: bidUser?.username || '' };
 }
 
 function callerGroupBase(event) {

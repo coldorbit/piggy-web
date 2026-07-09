@@ -1241,7 +1241,7 @@ export async function listCalendarInterviews(req, res, next) {
 
     const interviews = calendarEventsForInterviews(await calendarInterviewsForUser(user));
     const tailoredResumesByEvent = await tailoredResumesForCalendarEvents(interviews);
-    const ownerUserIds = [...new Set(interviews.map((interview) => interview.userId).filter(Boolean).map(String))];
+    const ownerUserIds = [...new Set(interviews.map(calendarOwnerUserId).filter(Boolean).map(String))];
     const ownerUsers = ownerUserIds.length
       ? await getWebUserModel().findAll({
           where: { id: { [Op.in]: ownerUserIds }, ...workspaceFilterForUser(user) },
@@ -1446,7 +1446,7 @@ function interviewCallEvent(interview, call) {
     interviewCallId: call.id,
     profile: interview.profile,
     profileId: interview.profileId,
-    userId: call.userId || interview.userId,
+    userId: calendarOwnerUserId(interview),
     callerUserId: call.callerUserId || interview.callerUserId,
     jobId: interview.jobId,
     jobBidId: interview.jobBidId,
@@ -1473,7 +1473,7 @@ function currentInterviewCalendarEvent(interview) {
     parentInterviewId: interview.id,
     profile: interview.profile,
     profileId: interview.profileId,
-    userId: interview.userId,
+    userId: calendarOwnerUserId(interview),
     callerUserId: interview.callerUserId,
     jobId: interview.jobId,
     jobBidId: interview.jobBidId,
@@ -1515,7 +1515,7 @@ function interviewOccurrenceEvent(interview, log) {
     occurrenceLogId: log.id,
     profile: interview.profile,
     profileId: interview.profileId,
-    userId: interview.userId,
+    userId: calendarOwnerUserId(interview),
     callerUserId: interview.callerUserId,
     jobId: interview.jobId,
     jobBidId: interview.jobBidId,
@@ -3903,9 +3903,10 @@ function pruneAttrsForProvidedBidFields(attrs, body = {}) {
 
 async function upsertInterviewForBid({ bid, job, attrs, userId }) {
   if (!job) return null;
+  const ownerUserId = await interviewOwnerUserIdForBid(bid, userId);
   const values = {
     ...interviewValuesFromAttrs(attrs),
-    userId,
+    userId: ownerUserId,
     profileId: bid.profileId,
     jobId: bid.jobId,
     jobBidId: bid.id,
@@ -3917,7 +3918,10 @@ async function upsertInterviewForBid({ bid, job, attrs, userId }) {
   const existing = await getInterviewModel().findOne({ where: { jobBidId: bid.id } });
   if (existing) {
     const previous = interviewSnapshot(existing);
-    await existing.update(interviewValuesFromAttrs(attrs, existing));
+    await existing.update({
+      ...interviewValuesFromAttrs(attrs, existing),
+      userId: ownerUserId,
+    });
     await logInterviewChanges({ interview: existing, previous, attrs, userId });
     await syncInterviewCallForCurrentSchedule(existing, { sourceType: 'schedule_update' });
     if (String(previous.callerUserId || '') !== String(existing.callerUserId || '')) {
@@ -3930,6 +3934,11 @@ async function upsertInterviewForBid({ bid, job, attrs, userId }) {
   await logInterviewCreated(interview, userId);
   await syncInitialInterviewCall(interview, { sourceType: 'created' });
   return interview;
+}
+
+async function interviewOwnerUserIdForBid(bid, fallbackUserId) {
+  const profile = bid?.profile || (bid?.profileId ? await getBidProfileModel().findByPk(bid.profileId) : null);
+  return profile?.userId || fallbackUserId;
 }
 
 function formatInterviewAsJob(interview, bidUsersById = new Map(), callerUsersById = new Map(), tailoredResume = null) {
@@ -3955,7 +3964,9 @@ function formatInterviewAsJob(interview, bidUsersById = new Map(), callerUsersBy
 }
 
 function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById = new Map()) {
-  const bidUser = bidUsersById.get?.(String(interview.userId));
+  const ownerUserId = calendarOwnerUserId(interview);
+  const profileOwner = interview.profile?.user || null;
+  const bidUser = bidUsersById.get?.(String(ownerUserId)) || profileOwner;
   const callerUser = callerUsersById.get?.(String(interview.callerUserId));
   return {
     id: interview.calendarEventId || interview.id,
@@ -3964,7 +3975,9 @@ function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById
     interviewCallId: interview.interviewCallId || null,
     occurrenceLogId: interview.occurrenceLogId || null,
     isHistoricalOccurrence: Boolean(interview.isHistoricalOccurrence),
-    userId: interview.userId,
+    userId: ownerUserId,
+    profileOwnerUserId: ownerUserId,
+    profileOwnerUsername: profileOwner?.username || bidUser?.username || null,
     callerUserId: interview.callerUserId,
     profileId: interview.profileId,
     jobId: interview.jobId,
@@ -3989,6 +4002,10 @@ function formatInterviewBid(interview, bidUsersById = new Map(), callerUsersById
     ...(bidUser ? { user: { id: bidUser.id, username: bidUser.username, role: bidUser.role } } : {}),
     ...(callerUser ? { callerUser } : {}),
   };
+}
+
+function calendarOwnerUserId(interview) {
+  return interview?.profile?.userId || interview?.profile?.user?.id || interview?.userId;
 }
 
 function formatInterviewCall(call) {

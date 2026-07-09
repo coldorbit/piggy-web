@@ -1,4 +1,3 @@
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import HeadsetMicIcon from '@mui/icons-material/HeadsetMic';
 import PersonIcon from '@mui/icons-material/Person';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
@@ -24,13 +23,6 @@ const SECTIONS = {
     icon: <PersonIcon fontSize="small" />,
     color: { main: '#2563EB', dark: '#1E40AF', soft: '#DBEAFE' },
   },
-  finance: {
-    label: 'Finance',
-    eyebrow: 'Finance manager schedules',
-    empty: 'No finance manager meetings in this view.',
-    icon: <AccountBalanceIcon fontSize="small" />,
-    color: { main: '#059669', dark: '#047857', soft: '#D1FAE5' },
-  },
   callers: {
     label: 'Callers',
     eyebrow: 'Caller schedules',
@@ -50,18 +42,13 @@ const SECTIONS = {
 export default function CalendarScheduleLens({
   callerGroups = [],
   checkedCallerIds = [],
-  checkedFinanceManagerIds = [],
   checkedProfileIds = [],
   checkedUserIds = [],
-  financeManagerGroups = [],
   profileGroups = [],
   userGroups = [],
   onCallerChange,
   onCallerSelectAll,
   onCallerSelectNone,
-  onFinanceManagerChange,
-  onFinanceManagerSelectAll,
-  onFinanceManagerSelectNone,
   onProfileChange,
   onProfileSelectAll,
   onProfileSelectNone,
@@ -78,13 +65,6 @@ export default function CalendarScheduleLens({
         onChange: onUserChange,
         onSelectAll: onUserSelectAll,
         onSelectNone: onUserSelectNone,
-      },
-      finance: {
-        rows: financeManagerGroups,
-        checkedIds: checkedFinanceManagerIds,
-        onChange: onFinanceManagerChange,
-        onSelectAll: onFinanceManagerSelectAll,
-        onSelectNone: onFinanceManagerSelectNone,
       },
       callers: {
         rows: callerGroups,
@@ -104,16 +84,11 @@ export default function CalendarScheduleLens({
     [
       callerGroups,
       checkedCallerIds,
-      checkedFinanceManagerIds,
       checkedProfileIds,
       checkedUserIds,
-      financeManagerGroups,
       onCallerChange,
       onCallerSelectAll,
       onCallerSelectNone,
-      onFinanceManagerChange,
-      onFinanceManagerSelectAll,
-      onFinanceManagerSelectNone,
       onProfileChange,
       onProfileSelectAll,
       onProfileSelectNone,

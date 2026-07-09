@@ -20,7 +20,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { authUrl, useDeleteInterviewCall } from '../../lib/api.js';
-import { isSuperadmin } from '../../lib/roles.js';
+import { BIDDER_ROLES, isSuperadmin } from '../../lib/roles.js';
 import {
   dateKeyDay,
   dateKeyDayOfWeek,
@@ -636,6 +636,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
   const resumeUrl = resumeDownloadUrl(event?.job?.tailoredResume);
   const resumeHref = resumeUrl ? authUrl(resumeUrl) : '';
   const resumeStatus = event?.job?.tailoredResume?.status || '';
+  const owner = profileOwnerForEvent(event);
   const canDeleteCall = isSuperadmin(currentUser) && event?.interviewCallId;
   const canAssignCaller = Boolean(onCallerChange && callerUsers.length && event?.interviewId && currentUser?.role !== 'caller');
 
@@ -675,7 +676,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
           <DialogContent sx={{ display: 'grid', gap: 1.25, pt: 2 }}>
             <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)}`} />
             <DetailRow label="Profile" value={event.profile?.name || 'Profile'} />
-            {event.job?.bid?.user ? <DetailRow label={event.job.bid.user.role === 'finance_manager' ? 'Finance manager' : 'User'} value={event.job.bid.user.username} /> : null}
+            {owner.username ? <DetailRow label="User" value={owner.username} /> : null}
             <DetailRow label="Company" value={event.company || 'Unknown company'} />
             <DetailRow label="Role" value={event.title || 'Untitled role'} />
             {event.location ? <DetailRow label="Location" value={event.location} /> : null}
@@ -930,12 +931,24 @@ function compactEventLabel(event) {
 }
 
 function calendarPeopleLabel(event) {
-  const owner = event.job?.bid?.user?.username;
+  const owner = profileOwnerForEvent(event);
   const caller = event.job?.bid?.callerUser?.username;
   return [
-    owner ? `User: ${owner}` : '',
+    owner.username ? `User: ${owner.username}` : '',
     caller ? `Caller: ${caller}` : event.job?.bid?.callerUserId ? `Caller #${event.job.bid.callerUserId}` : 'Unassigned caller',
   ].filter(Boolean).join(' · ');
+}
+
+function profileOwnerForEvent(event) {
+  const profile = event?.profile || {};
+  const profileOwnerId = profile.userId || event?.job?.bid?.profileOwnerUserId || null;
+  const profileOwnerUsername = profile.ownerUsername || event?.job?.bid?.profileOwnerUsername || '';
+  if (profileOwnerId || profileOwnerUsername) {
+    return { id: profileOwnerId, username: profileOwnerUsername };
+  }
+  const bidUser = event?.job?.bid?.user || null;
+  if (BIDDER_ROLES.includes(bidUser?.role)) return { id: null, username: '' };
+  return { id: bidUser?.id || event?.job?.bid?.userId || null, username: bidUser?.username || '' };
 }
 
 function externalJobUrl(event) {

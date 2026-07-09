@@ -178,6 +178,17 @@ describe('interview scheduled occurrences', () => {
     );
   });
 
+  it('uses the profile owner as the calendar user', () => {
+    const interview = interviewRow({
+      userId: 20,
+      profile: { id: 10, userId: 30 },
+    });
+
+    const events = calendarEventsForInterviews([interview]);
+
+    assert.equal(events[0].userId, 30);
+  });
+
   it('keeps historical occurrences when the current progressed step is unscheduled', () => {
     const interview = interviewRow({
       id: 88,
