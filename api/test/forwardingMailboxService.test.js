@@ -385,6 +385,27 @@ describe('forwarding mailbox helpers', () => {
     });
   });
 
+  it('classifies received job application emails as confirmations', () => {
+    const classification = classifyMailboxMessageIntent({
+      subject: 'Your job application for AI Developer - 19042',
+      bodyText: [
+        'Hello, William,',
+        'We received your job application for AI Developer - 19042. If your profile corresponds to our requirements, a member of our Recruiting team will contact you.',
+        'If you were requested to provide additional info about your job application, or if you want to manage your profile, go to your candidate self service page.',
+        'Sincerely,',
+        'Omega US Career site',
+        'Recruiting Team',
+      ].join('\n'),
+    });
+
+    assert.deepEqual(classification, {
+      type: 'application_confirmation',
+      label: 'Application confirmation',
+      suggestedAction: 'Confirm the matching application is submitted.',
+      confidence: 0.88,
+    });
+  });
+
   it('does not classify conditional final-step instructions as declined emails', () => {
     const classification = classifyMailboxMessageIntent({
       subject: 'Thank You for Submitting Your Resume/CV',

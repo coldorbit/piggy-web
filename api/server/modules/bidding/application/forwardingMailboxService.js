@@ -1084,7 +1084,7 @@ function isApplicationConfirmationText(text) {
   return [
     /(thank you|thanks)[\s\S]{0,80}(applying|application)/i,
     /(application|resume)[\s\S]{0,80}(received|submitted|successfully submitted)/i,
-    /we (have )?received your application/i,
+    /we (have )?received your (job )?application/i,
     /your application (has been|was) (received|submitted)/i,
     /you applied (to|for)/i,
   ].some((pattern) => pattern.test(text));
