@@ -1,6 +1,7 @@
 import { Alert, Box, CircularProgress } from '@mui/material';
 import { useEffect, useId, useRef, useState } from 'react';
 import mermaid from 'mermaid';
+import { DIAGRAM_FONT_FAMILY } from './diagramFont.js';
 import DiagramNavigationControls from './DiagramNavigationControls.jsx';
 
 let mermaidInitialized = false;
@@ -12,7 +13,7 @@ function initializeMermaid() {
     startOnLoad: false,
     securityLevel: 'strict',
     theme: 'neutral',
-    fontFamily: 'Segoe UI, system-ui, sans-serif',
+    fontFamily: DIAGRAM_FONT_FAMILY,
     maxTextSize: 50_000,
     maxEdges: 500,
     suppressErrorRendering: true,
@@ -90,6 +91,7 @@ export default function MermaidDiagram({ source, title }) {
         borderColor: 'divider',
         borderRadius: 1.5,
         bgcolor: '#fff',
+        fontFamily: DIAGRAM_FONT_FAMILY,
       }}
       onPointerDown={startPan}
       onPointerMove={continuePan}
@@ -115,6 +117,7 @@ export default function MermaidDiagram({ source, title }) {
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
           transformOrigin: 'center center',
           '& svg': { display: 'block', maxWidth: '100%', maxHeight: '100%', height: 'auto' },
+          '& svg text, & svg .label, & svg .nodeLabel, & svg .edgeLabel': { fontFamily: `${DIAGRAM_FONT_FAMILY} !important` },
         }}
         dangerouslySetInnerHTML={{ __html: svg }}
       />

@@ -2,6 +2,7 @@ import { Box } from '@mui/material';
 import { Excalidraw } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { useEffect, useState } from 'react';
+import { DIAGRAM_FONT_FAMILY } from './diagramFont.js';
 import DiagramNavigationControls from './DiagramNavigationControls.jsx';
 
 const READ_ONLY_UI = {
@@ -67,7 +68,8 @@ export default function ReadOnlyExcalidraw({ scene, title }) {
         borderColor: 'divider',
         borderRadius: 1.5,
         bgcolor: '#fff',
-        '& .excalidraw': { '--color-primary': '#0067c0' },
+        fontFamily: DIAGRAM_FONT_FAMILY,
+        '& .excalidraw': { '--color-primary': '#0067c0', fontFamily: DIAGRAM_FONT_FAMILY },
       }}
     >
       <Excalidraw

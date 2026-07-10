@@ -5,6 +5,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  GlobalStyles,
   Paper,
   Stack,
   Tab,
@@ -14,6 +15,7 @@ import {
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import DiagramErrorBoundary from '../components/learning/DiagramErrorBoundary.jsx';
+import { DIAGRAM_FONT_FACE, DIAGRAM_FONT_FAMILY } from '../components/learning/diagramFont.js';
 import { EMPTY_PAGE_HEADER, usePageHeader } from '../components/PageHeaderContext.jsx';
 import { useLearningArticle } from '../lib/api.js';
 
@@ -143,6 +145,7 @@ export default function LearningArticlePage() {
   if (error || !article) return <Alert severity="error">{error?.message || 'Learning article not found.'}</Alert>;
   return (
     <Box sx={{ height: '100%', minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>
+      {hasDiagram ? <GlobalStyles styles={{ '@font-face': DIAGRAM_FONT_FACE }} /> : null}
       {hasDiagram ? (
         <Paper variant="outlined" sx={{ px: 1, boxShadow: 1, flexShrink: 0 }}>
           <Tabs value={activeTab} onChange={(_event, value) => setActiveTab(value)} aria-label="Learning article views">
@@ -152,46 +155,47 @@ export default function LearningArticlePage() {
         </Paper>
       ) : null}
       <Box
-        ref={articleScrollRef}
         id="learning-panel-article"
         role={hasDiagram ? 'tabpanel' : undefined}
         aria-labelledby={hasDiagram ? 'learning-tab-article' : undefined}
         hidden={activeTab !== 'article'}
-        sx={{ flex: 1, minHeight: 0, gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 320px' }, gap: 1.5, alignItems: 'start', alignContent: 'start', overflowX: 'hidden', overflowY: 'auto', overscrollBehavior: 'contain', display: activeTab === 'article' ? 'grid' : 'none', pr: 0.5 }}
+        sx={{ flex: 1, minHeight: 0, gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 320px' }, gap: 1.5, alignItems: 'stretch', overflow: 'hidden', display: activeTab === 'article' ? 'grid' : 'none' }}
       >
-        {sections.length > 1 ? (
-          <Paper ref={mobileNavigatorRef} component="nav" aria-label="Article sections" variant="outlined" sx={{ display: { xs: 'flex', lg: 'none' }, position: 'sticky', top: 0, zIndex: 3, gridColumn: '1 / -1', alignItems: 'center', gap: 0.5, p: 0.75, overflowX: 'auto', boxShadow: 1, bgcolor: 'rgba(255, 255, 255, 0.96)', backdropFilter: 'blur(10px)' }}>
-            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ px: 0.5, flexShrink: 0 }}>Sections</Typography>
-            {sections.map((section) => <SectionLink key={section.id} section={section} active={activeSectionId === section.id} compact onNavigate={navigateToSection} />)}
-          </Paper>
-        ) : null}
-        <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2.5 }, boxShadow: 1 }}>
-          <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
-            {article.featured ? <Chip label="Featured" color="warning" variant="outlined" /> : null}
-            <Chip label={humanize(article.category)} variant="outlined" />
-            {context ? <Chip label={context} variant="outlined" /> : null}
-          </Stack>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>{article.summary}</Typography>
-          <Box ref={markdownContentRef} data-color-mode="light" sx={{ '& .wmde-markdown': { bgcolor: 'transparent', color: 'text.primary', fontSize: 14 } }}>
-            <Suspense fallback={<CircularProgress size={24} />}><FaqMarkdownPreview source={article.content} /></Suspense>
-          </Box>
-        </Paper>
-        <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', alignSelf: { lg: 'stretch' }, minHeight: 0 }}>
+        <Box
+          ref={articleScrollRef}
+          sx={{ height: '100%', minHeight: 0, minWidth: 0, display: 'grid', gap: 1.5, alignContent: 'start', overflowX: 'hidden', overflowY: 'auto', overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}
+        >
           {sections.length > 1 ? (
-            <Paper component="nav" aria-label="Article sections" variant="outlined" sx={{ display: { xs: 'none', lg: 'grid' }, position: 'sticky', top: 0, zIndex: 2, p: 1.25, gap: 0.5, maxHeight: 'calc(100vh - 190px)', overflowY: 'auto', boxShadow: 1 }}>
+            <Paper ref={mobileNavigatorRef} component="nav" aria-label="Article sections" variant="outlined" sx={{ display: { xs: 'flex', lg: 'none' }, position: 'sticky', top: 0, zIndex: 3, alignItems: 'center', gap: 0.5, p: 0.75, overflowX: 'auto', boxShadow: 1, bgcolor: 'rgba(255, 255, 255, 0.96)', backdropFilter: 'blur(10px)' }}>
+              <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ px: 0.5, flexShrink: 0 }}>Sections</Typography>
+              {sections.map((section) => <SectionLink key={section.id} section={section} active={activeSectionId === section.id} compact onNavigate={navigateToSection} />)}
+            </Paper>
+          ) : null}
+          <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2.5 }, boxShadow: 1 }}>
+            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
+              {article.featured ? <Chip label="Featured" color="warning" variant="outlined" /> : null}
+              <Chip label={humanize(article.category)} variant="outlined" />
+              {context ? <Chip label={context} variant="outlined" /> : null}
+            </Stack>
+            <Typography color="text.secondary" sx={{ mb: 2 }}>{article.summary}</Typography>
+            <Box ref={markdownContentRef} data-color-mode="light" sx={{ '& .wmde-markdown': { bgcolor: 'transparent', color: 'text.primary', fontSize: 14 } }}>
+              <Suspense fallback={<CircularProgress size={24} />}><FaqMarkdownPreview source={article.content} /></Suspense>
+            </Box>
+          </Paper>
+          <Box sx={{ display: { xs: 'grid', lg: 'none' }, gap: 1.5 }}>
+            <ArticleDetails article={article} />
+            <ArticleSources sources={article.sourceLinks} />
+          </Box>
+        </Box>
+        <Box sx={{ display: { xs: 'none', lg: 'grid' }, height: '100%', minHeight: 0, gap: 1.5, alignContent: 'start', overflowX: 'hidden', overflowY: 'auto', overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}>
+          {sections.length > 1 ? (
+            <Paper component="nav" aria-label="Article sections" variant="outlined" sx={{ display: 'grid', p: 1.25, gap: 0.5, overflow: 'hidden', boxShadow: 1 }}>
               <Typography fontWeight={600} sx={{ px: 0.75, pb: 0.5 }}>On this page</Typography>
               {sections.map((section) => <SectionLink key={section.id} section={section} active={activeSectionId === section.id} onNavigate={navigateToSection} />)}
             </Paper>
           ) : null}
-          <Paper variant="outlined" sx={{ p: 1.5, display: 'grid', gap: 1, boxShadow: 1 }}>
-            <Typography fontWeight={600}>Article details</Typography>
-            <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">{(article.tags || []).map((tag) => <Chip key={tag} label={tag} variant="outlined" />)}</Stack>
-            <Typography variant="caption" color="text.secondary">Updated {new Date(article.updatedAt).toLocaleString()}</Typography>
-          </Paper>
-          <Paper variant="outlined" sx={{ p: 1.5, display: 'grid', gap: 0.75, boxShadow: 1 }}>
-            <Typography fontWeight={600}>Sources</Typography>
-            {(article.sourceLinks || []).length ? article.sourceLinks.map((source, index) => <Button key={`${source.url}-${index}`} component="a" href={source.url} target="_blank" rel="noreferrer" endIcon={<OpenInNewIcon />} sx={{ justifyContent: 'space-between', textAlign: 'left' }}>{source.label || source.url}</Button>) : <Typography variant="body2" color="text.secondary">No sources recorded.</Typography>}
-          </Paper>
+          <ArticleDetails article={article} />
+          <ArticleSources sources={article.sourceLinks} />
         </Box>
       </Box>
       {hasDiagram ? (
@@ -201,7 +205,7 @@ export default function LearningArticlePage() {
           aria-labelledby="learning-tab-diagram"
           hidden={activeTab !== 'diagram'}
           variant="outlined"
-          sx={{ p: { xs: 0.75, md: 1 }, flex: 1, minHeight: 0, overflow: 'hidden', display: activeTab === 'diagram' ? 'flex' : 'none', flexDirection: 'column', gap: 0.75, boxShadow: 1, minWidth: 0 }}
+          sx={{ p: { xs: 0.75, md: 1 }, flex: 1, minHeight: 0, overflow: 'hidden', display: activeTab === 'diagram' ? 'flex' : 'none', flexDirection: 'column', gap: 0.75, boxShadow: 1, minWidth: 0, fontFamily: DIAGRAM_FONT_FAMILY }}
         >
           {hasExcalidraw && hasMermaid ? (
             <Tabs value={activeDiagram} onChange={(_event, value) => setActiveDiagram(value)} aria-label="Diagram formats" sx={{ minHeight: 36, flexShrink: 0, borderBottom: 1, borderColor: 'divider', '& .MuiTab-root': { minHeight: 36, py: 0.5 } }}>
@@ -223,17 +227,39 @@ function DiagramLoading() {
   return <Box sx={{ height: '100%', minHeight: 0, display: 'grid', placeItems: 'center' }}><CircularProgress size={28} /></Box>;
 }
 
+function ArticleDetails({ article }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, display: 'grid', gap: 1, boxShadow: 1 }}>
+      <Typography fontWeight={600}>Article details</Typography>
+      <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">{(article.tags || []).map((tag) => <Chip key={tag} label={tag} variant="outlined" />)}</Stack>
+      <Typography variant="caption" color="text.secondary">Updated {new Date(article.updatedAt).toLocaleString()}</Typography>
+    </Paper>
+  );
+}
+
+function ArticleSources({ sources = [] }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.5, display: 'grid', gap: 0.75, boxShadow: 1 }}>
+      <Typography fontWeight={600}>Sources</Typography>
+      {sources.length ? sources.map((source, index) => <Button key={`${source.url}-${index}`} component="a" href={source.url} target="_blank" rel="noreferrer" endIcon={<OpenInNewIcon />} sx={{ justifyContent: 'space-between', textAlign: 'left' }}>{source.label || source.url}</Button>) : <Typography variant="body2" color="text.secondary">No sources recorded.</Typography>}
+    </Paper>
+  );
+}
+
 function SectionLink({ active, compact = false, onNavigate, section }) {
   return (
     <Button
       component="a"
       href={`#${section.id}`}
+      title={section.label}
       aria-current={active ? 'location' : undefined}
       onClick={(event) => onNavigate(section.id, event)}
       size="small"
       variant={compact && active ? 'contained' : 'text'}
       sx={{
-        minWidth: compact ? 'max-content' : 0,
+        width: compact ? 'auto' : '100%',
+        minWidth: 0,
+        maxWidth: compact ? 220 : '100%',
         justifyContent: 'flex-start',
         textAlign: 'left',
         textTransform: 'none',
@@ -243,8 +269,11 @@ function SectionLink({ active, compact = false, onNavigate, section }) {
         borderLeft: compact ? 0 : 3,
         borderColor: active ? 'primary.main' : 'transparent',
         borderRadius: 1,
-        pl: compact ? 1 : 1 + Math.max(0, section.level - 2) * 1.25,
-        whiteSpace: compact ? 'nowrap' : 'normal',
+        pl: compact ? 1 : 1 + section.depth * 1.5,
+        pr: 1,
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+        textOverflow: 'ellipsis',
         lineHeight: 1.35,
         '&:hover': { bgcolor: compact ? undefined : 'rgba(0, 103, 192, 0.08)' },
       }}
@@ -277,7 +306,8 @@ function markdownSections(source) {
     sections.push({ id: count ? `${base}-${count + 1}` : base, label, level: heading[1].length });
   });
 
-  return sections;
+  const baseLevel = sections.length ? Math.min(...sections.map((section) => section.level)) : 1;
+  return sections.map((section) => ({ ...section, depth: Math.max(0, section.level - baseLevel) }));
 }
 
 function plainHeadingText(value) {

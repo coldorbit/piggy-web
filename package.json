@@ -9,7 +9,8 @@
     "dev": "pnpm --parallel --filter applypilot-api --filter applypilot-client dev",
     "build": "pnpm --filter applypilot-client build",
     "start": "pnpm --filter applypilot-api start",
-    "check": "pnpm --recursive check"
+    "check": "pnpm check:source-size && pnpm --recursive check",
+    "check:source-size": "node scripts/check-source-file-size.mjs"
   },
   "workspaces": [
     "api",

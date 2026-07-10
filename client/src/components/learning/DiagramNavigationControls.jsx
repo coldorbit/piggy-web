@@ -6,6 +6,7 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { ButtonBase, IconButton, Paper, Stack } from '@mui/material';
+import { DIAGRAM_FONT_FAMILY } from './diagramFont.js';
 
 const controlButtonSx = {
   width: 32,
@@ -47,6 +48,7 @@ export default function DiagramNavigationControls({
         bgcolor: 'rgba(255, 255, 255, 0.98)',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.14)',
         backdropFilter: 'blur(10px)',
+        fontFamily: DIAGRAM_FONT_FAMILY,
       }}
     >
       <Stack direction="row" alignItems="center" spacing={0.5}>
