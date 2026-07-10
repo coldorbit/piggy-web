@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -81,7 +81,7 @@ export default function BidJobsPanel() {
     jobsScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [activeProfileId, activeTab, page, pageSize]);
 
-  function toggleJobSelected(jobId) {
+  const toggleJobSelected = useCallback((jobId) => {
     setSelectedJobIds((current) => {
       const next = new Set(current);
       if (next.has(jobId)) {
@@ -91,7 +91,7 @@ export default function BidJobsPanel() {
       }
       return next;
     });
-  }
+  }, []);
 
   function toggleAllVisibleJobs() {
     setSelectedJobIds((current) => {

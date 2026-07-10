@@ -112,7 +112,6 @@ export async function listBidJobs(req, res, next) {
       workspaceId: profile.workspaceId,
       limit: query.limit || 10,
     }, { timeZone: user.timezone });
-    const bidUsers = await bidUsersForProfile(profile);
     const appliedProfileId = bidTab === 'todo' ? await appliedProfileFilter(req, req.query.appliedProfileId) : '';
     const activeTabQuery = buildBidTabQuery({
       where,
@@ -125,40 +124,17 @@ export async function listBidJobs(req, res, next) {
       sequelize,
     });
 
-    const countBidTab = (tab) => {
-      const { where: countWhere } = buildJobQuery({
-        ...jobQueryForBidTab(query, tab),
-        workspaceId: profile.workspaceId,
-        limit: query.limit || 10,
-      }, { timeZone: user.timezone });
-      const countQuery = buildBidTabQuery({
-        where: countWhere,
-        tab,
-        profileId: profile.id,
-        appliedProfileId: tab === 'todo' && tab === bidTab ? appliedProfileId : '',
-        bidDateRange: bidDateRangeForTab(query, tab, user),
-        isStaticProfile: Boolean(profile.isStatic),
-        JobBid,
-        sequelize,
-      });
-      return ScrapedJob.count({
-        where: countQuery.where,
-        distinct: true,
-        col: 'id',
-        subQuery: false,
-        include: countQuery.include,
-      });
-    };
+    const includeTabCounts = clean(req.query.includeTabCounts) !== 'false';
+    const tabCountsPromise = includeTabCounts
+      ? bidTabCountsForProfile({ profile, query, user, appliedProfileId, activeBidTab: bidTab })
+      : Promise.resolve({ todo: 0, tailored: 0, done: 0, badWork: 0 });
 
     const [
       rows,
-      todoCount,
-      tailoredCount,
-      doneCount,
-      badWorkCount,
+      tabCounts,
       interviewsCount,
-      dailyBidProgress,
-      profilesWithDateProgress,
+      bidUsers,
+      callerUsers,
     ] = await Promise.all([
       ScrapedJob.findAll({
         where: activeTabQuery.where,
@@ -168,37 +144,27 @@ export async function listBidJobs(req, res, next) {
         subQuery: false,
         include: activeTabQuery.include,
       }),
-      countBidTab('todo'),
-      countBidTab('tailored'),
-      countBidTab('done'),
-      countBidTab('bad_work'),
-      canViewInternalData ? countInterviewsForProfile(profile.id) : Promise.resolve(0),
-      dailyBidProgressForUser(user, query),
-      profilesWithProgress([profile], { user, dailyGoalFilters: query }),
+      tabCountsPromise,
+      canViewInternalData && includeTabCounts ? countInterviewsForProfile(profile.id) : Promise.resolve(0),
+      bidUsersForProfile(profile),
+      canViewInternalData
+        ? WebUser.findAll({
+            where: { role: 'caller', ...workspaceFilterForUser(user) },
+            order: [['username', 'ASC']],
+          })
+        : Promise.resolve([]),
     ]);
-    const profileWithDateProgress = profilesWithDateProgress[0] || profile;
+    const { todo: todoCount, tailored: tailoredCount, done: doneCount, badWork: badWorkCount } = tabCounts;
 
-    const tailoredResumesByUrl = await tailoredResumesForJobs({
-      TailoredResume,
-      jobs: rows,
-      profileId: profile.id,
-    });
-    const sameCompanyTailoringByUrl = await sameCompanyTailoringByJobUrl({
-      sequelize,
-      profileId: profile.id,
-      jobs: rows,
-    });
+    const [tailoredResumesByUrl, sameCompanyTailoringByUrl] = await Promise.all([
+      tailoredResumesForJobs({ TailoredResume, jobs: rows, profileId: profile.id }),
+      sameCompanyTailoringByJobUrl({ sequelize, profileId: profile.id, jobs: rows }),
+    ]);
     const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
-    const callerUsers = canViewInternalData
-      ? await WebUser.findAll({
-          where: { role: 'caller', ...workspaceFilterForUser(user) },
-          order: [['username', 'ASC']],
-        })
-      : [];
     const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
 
     const formattedJobs = rows.map((job) => ({
-      ...formatJob(job),
+      ...formatBidJob(job),
       bid: job.bids?.[0] ? formatBidWithUser(job.bids[0], bidUsersById, callerUsersById) : null,
       tailoredResume: tailoredResumesByUrl.get(job.url) || null,
       sameCompanyTailoring: sameCompanyTailoringByUrl.get(job.url) || null,
@@ -220,10 +186,9 @@ export async function listBidJobs(req, res, next) {
         id: user.id,
         username: user.username,
         role: user.role,
-        dailyBidGoal: dailyBidProgress.goal,
-        dailyFinishedBids: dailyBidProgress.finished,
+        dailyBidGoal: Number(user.dailyBidGoal || 0) || null,
       },
-      profile: formatProfile(profileWithDateProgress),
+      profile: formatProfile(profile),
       total: activeTabCount,
       tabCounts: {
         todo: todoCount,
@@ -238,4 +203,66 @@ export async function listBidJobs(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+export async function listBidJobCounts(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const activeBidTab = clean(req.query.bidTab || 'todo');
+    const query = jobDateFiltersForUser(req.query, user);
+    const profile = await accessibleProfile(req, query.profileId);
+    if (!ensureProfileBidEligible(profile, res)) return;
+    const appliedProfileId = activeBidTab === 'todo' ? await appliedProfileFilter(req, req.query.appliedProfileId) : '';
+    const [tabCounts, interviews] = await Promise.all([
+      bidTabCountsForProfile({ profile, query, user, appliedProfileId, activeBidTab }),
+      isInternalUser(user) ? countInterviewsForProfile(profile.id) : Promise.resolve(0),
+    ]);
+    res.json({ ...tabCounts, interviews });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+async function bidTabCountsForProfile({ profile, query, user, appliedProfileId = '', activeBidTab = 'todo' }) {
+  const ScrapedJob = getScrapedJobModel();
+  const JobBid = getJobBidModel();
+  const sequelize = getSequelize();
+  const countBidTab = (tab) => {
+    const { where } = buildJobQuery({
+      ...jobQueryForBidTab(query, tab),
+      workspaceId: profile.workspaceId,
+      limit: query.limit || 10,
+    }, { timeZone: user.timezone });
+    const countQuery = buildBidTabQuery({
+      where,
+      tab,
+      profileId: profile.id,
+      appliedProfileId: tab === 'todo' && activeBidTab === 'todo' ? appliedProfileId : '',
+      bidDateRange: bidDateRangeForTab(query, tab, user),
+      isStaticProfile: Boolean(profile.isStatic),
+      JobBid,
+      sequelize,
+    });
+    return ScrapedJob.count({
+      where: countQuery.where,
+      distinct: true,
+      col: 'id',
+      subQuery: false,
+      include: countQuery.include,
+    });
+  };
+  const [todo, tailored, done, badWork] = await Promise.all([
+    countBidTab('todo'),
+    countBidTab('tailored'),
+    countBidTab('done'),
+    countBidTab('bad_work'),
+  ]);
+  return { todo, tailored, done, badWork };
+}
+
+export function formatBidJob(job) {
+  const formatted = formatJob(job);
+  delete formatted.listingText;
+  return formatted;
 }

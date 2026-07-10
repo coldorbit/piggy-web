@@ -2,7 +2,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import { useFeatureIsOn, useGrowthBook } from '@growthbook/growthbook-react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthenticatedRoutes, PublicRoutes, defaultAuthenticatedPath } from './app/AppRoutes.jsx';
-import { prefetchRoute } from './app/routeModules.js';
+import { loadRouteModule, prefetchRoute } from './app/routeModules.js';
 import ShellLoading from './components/auth/ShellLoading.jsx';
 import { useMe, useUpdateMe } from './lib/authApi.js';
 import { FEATURE_FLAGS, hasGrowthBookConfig, isLocalMaintenanceModeEnabled } from './lib/featureFlags.js';
@@ -35,6 +35,7 @@ function MaintenanceRedirect() {
 }
 
 function WorkspaceApp() {
+  const location = useLocation();
   const { data: user, isLoading: authChecked } = useMe();
   const { mutate: updateMe } = useUpdateMe();
   const timezoneSyncAttempted = useRef(false);
@@ -48,8 +49,10 @@ function WorkspaceApp() {
   }, [updateMe, user?.id, user?.timezone]);
 
   useEffect(() => {
-    if (user) prefetchRoute(defaultAuthenticatedPath(user));
-  }, [user]);
+    if (!user) return;
+    void loadRouteModule.appLayout().catch(() => undefined);
+    prefetchRoute(location.pathname === '/' ? defaultAuthenticatedPath(user) : location.pathname);
+  }, [location.pathname, user]);
 
   if (authChecked) return <ShellLoading />;
 

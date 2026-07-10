@@ -449,6 +449,11 @@ export async function ensureBidPageIndexes() {
     where: 'normalized_company IS NOT NULL',
   });
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS scraped_jobs_normalized_company_btree_idx
+    ON scraped_jobs (normalized_company)
+    WHERE normalized_company IS NOT NULL
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS scraped_jobs_category_idx
     ON scraped_jobs (category)
   `);
@@ -504,6 +509,14 @@ export async function ensureBidPageIndexes() {
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS job_bids_user_bid_at_idx
     ON job_bids (user_id, bid_at DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS job_bids_user_status_bid_at_idx
+    ON job_bids (user_id, status, bid_at DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS profile_share_requests_profile_status_idx
+    ON profile_share_requests (profile_id, status)
   `);
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS job_bids_profile_user_bid_at_idx

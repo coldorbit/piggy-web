@@ -6,6 +6,7 @@ import {
   canWriteInterviewForProfile,
   bidStatusFromInterviewStatus,
   groupedBidJobs,
+  normalizeCompany,
   interviewStatusFromAttrs,
   interviewOccurrenceLogFromSnapshot,
   shouldRegisterInitialInterviewCall,
@@ -57,6 +58,13 @@ describe('groupedBidJobs', () => {
       rows.map((row) => row.groupId),
       ['bid-job-group:builtin::software engineer::built in', 'bid-job-group:built in::software engineer::built in'],
     );
+  });
+});
+
+describe('normalizeCompany', () => {
+  it('matches the normalized company value stored for indexed lookups', () => {
+    assert.equal(normalizeCompany('  Acme   Incorporated.  '), 'acme');
+    assert.equal(normalizeCompany('Northwind LLC'), 'northwind');
   });
 });
 

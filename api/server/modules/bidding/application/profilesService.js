@@ -185,7 +185,7 @@ export function sortProfilesForDisplay(profiles) {
   return [...profiles].sort(compareProfilesForDisplay);
 }
 
-export async function profilesWithProgress(profiles, { user, dailyGoalFilters, dailyGoalRange } = {}) {
+export async function profilesWithProgress(profiles, { user, dailyGoalFilters, dailyGoalRange, includeLifetime = true } = {}) {
   const profileIds = [...new Set(profiles.map((profile) => String(profile.id)).filter(Boolean))];
   if (!profileIds.length) return profiles;
   const isCaller = user?.role === 'caller';
@@ -203,7 +203,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
   }
 
   const [bidRows, tailoredRows, interviewRows, dailyContributorRows] = await Promise.all([
-    getJobBidModel().findAll({
+    includeLifetime ? getJobBidModel().findAll({
       attributes: [
         'profileId',
         [getSequelize().fn('COUNT', getSequelize().col('id')), 'bids'],
@@ -225,8 +225,8 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
       where: { profileId: profileIds, ...(isCaller ? { callerUserId: user.id } : {}) },
       group: ['profileId'],
       raw: true,
-    }),
-    getTailoredResumeModel().findAll({
+    }) : Promise.resolve([]),
+    includeLifetime ? getTailoredResumeModel().findAll({
       attributes: [
         'profileId',
         [getSequelize().fn('COUNT', getSequelize().fn('DISTINCT', getSequelize().col('job_url'))), 'tailored'],
@@ -237,8 +237,8 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
       },
       group: ['profileId'],
       raw: true,
-    }),
-    getInterviewModel().findAll({
+    }) : Promise.resolve([]),
+    includeLifetime ? getInterviewModel().findAll({
       attributes: [
         'profileId',
         [getSequelize().fn('COUNT', getSequelize().col('id')), 'totalInterviews'],
@@ -253,7 +253,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
       where: { profileId: profileIds, ...(isCaller ? { callerUserId: user.id } : {}) },
       group: ['profileId'],
       raw: true,
-    }),
+    }) : Promise.resolve([]),
     getJobBidModel().findAll({
       attributes: ['profileId', 'userId'],
       where: {

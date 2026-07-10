@@ -5,7 +5,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV WEB_PORT=4000
 
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+RUN corepack enable && corepack prepare pnpm@11.11.0 --activate
 
 COPY package.json pnpm-lock.yaml* ./
 RUN if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile --prod; else pnpm install --prod; fi

@@ -25,7 +25,7 @@ export function useMailboxNotifications({ enabled = true, onOpenMessage, user } 
   const notificationQuery = useMailboxNotificationMessages({
     enabled: canFetchMailboxMessages,
     refetchInterval: canFetchMailboxMessages ? MAILBOX_NOTIFICATION_POLL_MS : false,
-    refetchIntervalInBackground: true,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
   const messages = useMemo(() => notificationQuery.data?.messages || [], [notificationQuery.data]);

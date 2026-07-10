@@ -16,6 +16,7 @@ import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import { EMPTY_PROFILE, PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import {
   useBidJobs,
+  useBidJobCounts,
   useBidProfiles,
   useBulkRequestTailoredResumes,
   useBulkUpdateJobBids,
@@ -60,6 +61,7 @@ export default function BidPage({ currentUser }) {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [activeBidTab, setActiveBidTab] = useState(() => bidTabFromParam(searchParams.get('tab')));
   const [filters, setFilters] = useState(() => bidFiltersFromParams(searchParams));
+  const [searchInput, setSearchInput] = useState(() => bidFiltersFromParams(searchParams).search || '');
   const [drafts, setDrafts] = useState({});
   const [error, setError] = useState('');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -76,7 +78,7 @@ export default function BidPage({ currentUser }) {
   const profileGoalFilters = useMemo(() => bidGoalFilterParams(dateFiltersForRole), [dateFiltersForRole]);
 
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
-    { ...(canUseTomorrowDateFilter ? { scope: 'manage' } : {}), ...profileGoalFilters },
+    { ...(canUseTomorrowDateFilter ? { scope: 'manage' } : {}), progress: 'daily', ...profileGoalFilters },
   );
   const activeProfiles = useMemo(
     () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
@@ -119,7 +121,7 @@ export default function BidPage({ currentUser }) {
     }),
     [activeProfile, workspaceActiveProfiles, workspaceAppliedFilterProfiles, canUseCrossUserAppliedFilter],
   );
-  const { data: metaData, isLoading: metaLoading, error: metaError, refetch: refetchMeta } = useJobsMeta();
+  const { data: metaData, error: metaError, refetch: refetchMeta } = useJobsMeta({ enabled: isFilterPanelOpen });
   const {
     data: bidJobsData,
     isLoading: jobsLoading,
@@ -128,6 +130,12 @@ export default function BidPage({ currentUser }) {
   } = useBidJobs(
     activeProfile?.id,
     { ...filters, bidTab: activeBidTab },
+    { includeTabCounts: false },
+  );
+  const { data: bidJobCounts, error: bidJobCountsError } = useBidJobCounts(
+    activeProfile?.id,
+    { ...filters, bidTab: activeBidTab },
+    { enabled: Boolean(bidJobsData) },
   );
   const { mutate: createProfile, isPending: creatingProfile } = useCreateBidProfile();
   const { mutate: createBid, isPending: creatingBid } = useCreateJobBid();
@@ -169,7 +177,10 @@ export default function BidPage({ currentUser }) {
 
     if (String(nextProfileId) !== String(activeProfileId)) setActiveProfileId(nextProfileId);
     if (nextTab !== activeBidTab) setActiveBidTab(nextTab);
-    if (!areBidFiltersEqual(nextFilters, filters)) setFilters(nextFilters);
+    if (!areBidFiltersEqual(nextFilters, filters)) {
+      setFilters(nextFilters);
+      setSearchInput(nextFilters.search || '');
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -231,13 +242,19 @@ export default function BidPage({ currentUser }) {
   }
 
   useEffect(() => {
+    if (searchInput === (filters.search || '')) return undefined;
+    const timeoutId = window.setTimeout(() => updateFilter('search', searchInput), 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [filters.search, searchInput]);
+
+  useEffect(() => {
     setHeaderSearch({
       isVisible: true,
       placeholder: 'Search applications',
-      value: filters.search || '',
-      onChange: (value) => updateFilter('search', value),
+      value: searchInput,
+      onChange: setSearchInput,
     });
-  }, [filters.search, setHeaderSearch]);
+  }, [searchInput, setHeaderSearch]);
 
   useEffect(() => {
     return () => setHeaderSearch(EMPTY_HEADER_SEARCH);
@@ -410,13 +427,22 @@ export default function BidPage({ currentUser }) {
   const activeColor = PROFILE_COLORS[activeProfile?.colorScheme || 'green'];
   const jobs = bidJobsData?.jobs || [];
   const visibleJobs = jobs.filter((job) => isJobVisibleForTab(job, activeBidTab, draftFor(job), { isStaticProfile: Boolean(activeProfile?.isStatic) }));
-  const total = bidJobsData?.total || 0;
+  const tabCounts = bidJobCounts || bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0, badWork: 0, interviews: 0 };
+  const total = activeBidTab === BID_TABS.tailored
+    ? tabCounts.tailored
+    : activeBidTab === BID_TABS.done
+      ? tabCounts.done
+      : activeBidTab === BID_TABS.badWork
+        ? tabCounts.badWork
+        : activeBidTab === BID_TABS.interviews
+          ? tabCounts.interviews
+          : tabCounts.todo;
   const currentBidUser = useMemo(
     () => ({ ...(currentUser || {}), ...(bidJobsData?.currentUser || {}) }),
     [bidJobsData?.currentUser, currentUser],
   );
-  const pageError = error || profilesError?.message || jobsError?.message || metaError?.message || workspaceError?.message || '';
-  const loading = profilesLoading || metaLoading || (jobsLoading && !bidJobsData);
+  const pageError = error || profilesError?.message || jobsError?.message || bidJobCountsError?.message || metaError?.message || workspaceError?.message || '';
+  const loading = profilesLoading || (jobsLoading && !bidJobsData);
   const bidWorkspace = useMemo(
     () => ({
       activeColor,
@@ -435,7 +461,7 @@ export default function BidPage({ currentUser }) {
       page: filters.page,
       pageSize: filters.limit,
       pages: Math.max(Math.ceil(total / filters.limit), 1),
-      tabCounts: bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0, badWork: 0, interviews: 0 },
+      tabCounts,
       tailoringByJobId: tailoringByProfileJobs(tailoringByProfileJobId, activeProfile?.id, visibleJobs),
       total,
       onDraftChange: updateDraft,
@@ -458,7 +484,7 @@ export default function BidPage({ currentUser }) {
       activeProfile?.id,
       bidJobsData?.currentUser,
       bidJobsData?.callerUsers,
-      bidJobsData?.tabCounts,
+      tabCounts,
       bulkRequestingTailoredResumes,
       bulkUpdatingBids,
       creatingBid,

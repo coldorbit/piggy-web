@@ -19,6 +19,11 @@ import { InputError } from '../../../utils/errors.js';
 import { clean } from '../../../utils/index.js';
 import { isAdminRole } from '../../../utils/roles.js';
 
+const META_CACHE_TTL_MS = 60_000;
+let metaCache = null;
+let metaCachePromise = null;
+let metaCacheExpiresAt = 0;
+
 export async function listJobs(req, res, next) {
   try {
     await ensureWebModels();
@@ -387,29 +392,43 @@ export async function deleteJob(req, res, next) {
 export async function getMeta(_req, res, next) {
   try {
     await ensureWebModels();
-    const ScrapedJob = getScrapedJobModel();
-    const sequelize = getSequelize();
-    const [sourceRows, allRows, latest] = await Promise.all([
-      ScrapedJob.findAll({
-        attributes: ['source', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
-        group: ['source'],
-        order: [['source', 'ASC']],
-      }),
-      groupedJobCount(sequelize),
-      ScrapedJob.max('scrapedAt'),
-    ]);
-
-    res.json({
-      total: allRows,
-      latestScrapedAt: latest || null,
-      sources: mergedJobSourceOptions(sourceRows.map((row) => ({
-        source: row.get('source'),
-        count: Number(row.get('count')),
-      }))),
-    });
+    if (metaCache && Date.now() < metaCacheExpiresAt) {
+      res.json(metaCache);
+      return;
+    }
+    if (!metaCachePromise) metaCachePromise = buildMetaPayload();
+    const payload = await metaCachePromise;
+    metaCache = payload;
+    metaCacheExpiresAt = Date.now() + META_CACHE_TTL_MS;
+    metaCachePromise = null;
+    res.json(payload);
   } catch (error) {
+    metaCachePromise = null;
     next(error);
   }
+}
+
+async function buildMetaPayload() {
+  const ScrapedJob = getScrapedJobModel();
+  const sequelize = getSequelize();
+  const [sourceRows, allRows, latest] = await Promise.all([
+    ScrapedJob.findAll({
+      attributes: ['source', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+      group: ['source'],
+      order: [['source', 'ASC']],
+    }),
+    groupedJobCount(sequelize),
+    ScrapedJob.max('scrapedAt'),
+  ]);
+
+  return {
+    total: allRows,
+    latestScrapedAt: latest || null,
+    sources: mergedJobSourceOptions(sourceRows.map((row) => ({
+      source: row.get('source'),
+      count: Number(row.get('count')),
+    }))),
+  };
 }
 
 async function groupedJobCount(sequelize) {

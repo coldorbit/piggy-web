@@ -1,5 +1,5 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 export { api, authToken, authUrl, clearAuthToken, downloadAuthenticatedFile, setAuthToken, useLogin, useLogout, useMe, useUpdateMe } from './authApi.js';
 export {
   useAdminConsumption,
@@ -34,10 +34,11 @@ export function useJobs(filters) {
   });
 }
 
-export function useJobsMeta() {
+export function useJobsMeta(queryOptions = {}) {
   return useQuery({
     queryKey: ['meta'],
     queryFn: () => api('/api/meta'),
+    ...queryOptions,
   });
 }
 
@@ -66,15 +67,31 @@ export function useProfileShareRecipients() {
   });
 }
 
-export function useBidJobs(profileId, filters = {}) {
-  const params = new URLSearchParams({ ...filters, profileId: String(profileId || ''), limit: String(filters.limit || 10) });
+export function useBidJobs(profileId, filters = {}, options = {}) {
+  const includeTabCounts = options.includeTabCounts !== false;
+  const params = new URLSearchParams({ ...filters, profileId: String(profileId || ''), limit: String(filters.limit || 10), includeTabCounts: String(includeTabCounts) });
   return useQuery({
-    queryKey: ['bid', 'jobs', profileId, filters],
+    queryKey: ['bid', 'jobs', profileId, filters, { includeTabCounts }],
     queryFn: () => api(`/api/bid/jobs?${params}`),
     enabled: Boolean(profileId),
     placeholderData: keepPreviousData,
     staleTime: 15_000,
     refetchInterval: localDayRolloverRefetchInterval,
+  });
+}
+
+export function useBidJobCounts(profileId, filters = {}, queryOptions = {}) {
+  const countFilters = { ...filters };
+  delete countFilters.page;
+  delete countFilters.limit;
+  const params = new URLSearchParams({ ...countFilters, profileId: String(profileId || '') });
+  return useQuery({
+    queryKey: ['bid', 'jobs', profileId, 'counts', countFilters],
+    queryFn: () => api(`/api/bid/job-counts?${params}`),
+    ...queryOptions,
+    enabled: Boolean(profileId) && queryOptions.enabled !== false,
+    staleTime: 15_000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -699,9 +716,9 @@ function optimisticTailoredResume({ jobId, profileId }) {
 export function useMarkTailoredResumesDownloaded() {
   const queryClient = useQueryClient();
 
-  return (resumeIds) => {
+  return useCallback((resumeIds) => {
     updateCachedTailoredResumeDownloadQueries(queryClient, Array.isArray(resumeIds) ? resumeIds : [resumeIds]);
-  };
+  }, [queryClient]);
 }
 
 export function useCreateJobBid() {
@@ -949,8 +966,7 @@ export function useTailoredResumeEvents(profileId) {
     const params = new URLSearchParams({ profileId: String(profileId) });
     const source = new EventSource(authUrl(`/api/bid/tailored-resume-events?${params}`), { withCredentials: true });
     const refetchBidJobs = () => {
-      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs', profileId] });
     };
 
     source.addEventListener('tailored-resume', refetchBidJobs);

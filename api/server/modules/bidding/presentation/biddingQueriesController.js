@@ -478,7 +478,7 @@ export async function sameCompanyTailoringByJobUrl({ sequelize, profileId, jobs 
         AND scraped_jobs.url = tailored_resumes.job_url
       WHERE tailored_resumes.profile_id = :profileId
         AND tailored_resumes.status IN (:statuses)
-        AND lower(regexp_replace(btrim(coalesce(scraped_jobs.company, '')), '\\s+', ' ', 'g')) IN (:companies)
+        AND scraped_jobs.normalized_company IN (:companies)
       ORDER BY tailored_resumes.created_at DESC NULLS LAST, tailored_resumes.updated_at DESC NULLS LAST
     `,
     {
@@ -591,7 +591,13 @@ export function sameCompanyTailoringSummary(row, now = new Date()) {
 }
 
 export function normalizeCompany(value) {
-  return clean(value).replace(/\s+/g, ' ').toLowerCase();
+  return clean(value)
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .replace(/\b(incorporated|inc|llc|ltd|limited|corp|corporation|company|co)\.?$/, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function daysSince(value, now = new Date()) {

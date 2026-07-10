@@ -105,7 +105,14 @@ export async function listProfiles(req, res, next) {
     } else {
       profiles = await profilesVisibleToUser(user);
     }
-    const visibleProfiles = sortProfilesForDisplay(await profilesWithSharing(await profilesWithProgress(profiles, { user, dailyGoalFilters: query })));
+    const profilesWithRequestedProgress = scope === 'applied-filter'
+      ? profiles
+      : await profilesWithProgress(profiles, {
+          user,
+          dailyGoalFilters: query,
+          includeLifetime: clean(req.query?.progress) !== 'daily',
+        });
+    const visibleProfiles = sortProfilesForDisplay(await profilesWithSharing(profilesWithRequestedProgress));
     res.json({ profiles: visibleProfiles.map(formatProfile) });
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {

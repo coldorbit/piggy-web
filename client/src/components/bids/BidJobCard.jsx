@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -35,7 +36,7 @@ import { useBidWorkspace } from './BidWorkspaceContext.jsx';
 
 const SELECTED_JOB_CARD_BG = 'rgba(0, 103, 192, 0.10)';
 
-export default function BidJobCard({
+function BidJobCard({
   isSelected = false,
   isSelectionDisabled = false,
   job,
@@ -541,6 +542,8 @@ export default function BidJobCard({
     </Box>
   );
 }
+
+export default memo(BidJobCard);
 
 const iconButtonSx = {
   width: 30,
