@@ -50,6 +50,8 @@ The table and missing diagram columns are created by the existing `ensureWebMode
 - Excalidraw runs in view mode with editing, links, and embeds disabled.
 - Mermaid renders as SVG with strict security enabled; invalid scripts show an inline error instead of breaking the article.
 - Both renderers provide zoom, fit/reset, directional pan, and pointer/touch navigation controls without enabling editing.
+- Zoom-in has no application-level percentage limit; zoom-out retains a usability floor.
+- Diagram viewports keep a minimum height of 500 pixels.
 - Diagram renderers are lazy-loaded, so they do not increase the initial bundle for articles without diagrams.
 
 ## API

@@ -53,7 +53,7 @@ export default function MermaidDiagram({ source, title }) {
   }
 
   function changeZoom(factor) {
-    setZoom((current) => Math.min(3, Math.max(0.5, current * factor)));
+    setZoom((current) => Math.max(0.5, current * factor));
   }
 
   function startPan(event) {
@@ -83,8 +83,8 @@ export default function MermaidDiagram({ source, title }) {
     <Box
       sx={{
         position: 'relative',
-        height: { xs: 420, md: 'min(70vh, 680px)' },
-        minHeight: 360,
+        height: { xs: 500, md: 'min(70vh, 680px)' },
+        minHeight: 500,
         overflow: 'hidden',
         border: 1,
         borderColor: 'divider',

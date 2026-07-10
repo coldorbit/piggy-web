@@ -31,7 +31,7 @@ export default function ReadOnlyExcalidraw({ scene, title }) {
     if (!api) return;
     const appState = api.getAppState();
     const currentZoom = appState.zoom.value;
-    const nextZoom = Math.min(3, Math.max(0.1, currentZoom * factor));
+    const nextZoom = Math.max(0.1, currentZoom * factor);
     const scrollX = appState.scrollX + (appState.width / (2 * nextZoom)) - (appState.width / (2 * currentZoom));
     const scrollY = appState.scrollY + (appState.height / (2 * nextZoom)) - (appState.height / (2 * currentZoom));
     api.updateScene({ appState: { zoom: { value: nextZoom }, scrollX, scrollY } });
@@ -57,8 +57,8 @@ export default function ReadOnlyExcalidraw({ scene, title }) {
       aria-label={title || 'Excalidraw diagram'}
       sx={{
         position: 'relative',
-        height: { xs: 420, md: 'min(70vh, 720px)' },
-        minHeight: 360,
+        height: { xs: 500, md: 'min(70vh, 720px)' },
+        minHeight: 500,
         overflow: 'hidden',
         border: 1,
         borderColor: 'divider',
