@@ -83,8 +83,8 @@ export default function MermaidDiagram({ source, title }) {
     <Box
       sx={{
         position: 'relative',
-        height: { xs: 500, md: 'min(70vh, 680px)' },
-        minHeight: 500,
+        height: '100%',
+        minHeight: 0,
         overflow: 'hidden',
         border: 1,
         borderColor: 'divider',

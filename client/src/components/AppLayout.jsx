@@ -1,6 +1,7 @@
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import ApartmentIcon from '@mui/icons-material/Apartment';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import BadgeIcon from '@mui/icons-material/Badge';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
@@ -80,6 +81,7 @@ import {
 import { ALL_WORKSPACES, UNASSIGNED_WORKSPACE, workspaceLabel } from './admin/SuperadminWorkspaceLens.jsx';
 import { WorkspaceFilterProvider } from './admin/WorkspaceFilterContext.jsx';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
+import { EMPTY_PAGE_HEADER, PageHeaderProvider } from './PageHeaderContext.jsx';
 
 const DRAWER_WIDTH = 248;
 const COLLAPSED_DRAWER_WIDTH = 72;
@@ -121,13 +123,19 @@ export default function AppLayout({ user }) {
   const isInboxRoute = location.pathname.startsWith('/inbox');
   const isInterviewRoute = location.pathname.startsWith('/interviews');
   const isLearningRoute = location.pathname.startsWith('/learning');
+  const isLearningArticleRoute = /^\/learning\/[^/]+$/.test(location.pathname) && location.pathname !== '/learning/create';
   const isMarketplaceRoute = location.pathname.startsWith('/marketplace');
   const isProfileRoute = location.pathname.startsWith('/profiles');
   const isTailoringRoute = location.pathname.startsWith('/tailoring-requests');
   const [headerSearch, setHeaderSearch] = useState(EMPTY_HEADER_SEARCH);
+  const [pageHeader, setPageHeader] = useState(EMPTY_PAGE_HEADER);
   const headerSearchContext = useMemo(
     () => ({ search: headerSearch, setSearch: setHeaderSearch }),
     [headerSearch],
+  );
+  const pageHeaderContext = useMemo(
+    () => ({ pageHeader, setPageHeader }),
+    [pageHeader],
   );
   const workspaceFilterContext = useMemo(
     () => ({
@@ -210,8 +218,8 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminDashboardRoute || isPersonalDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAssessmentRoute ? 'Assessments' : isWorkspaceRoute ? 'Workspaces' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isLearningRoute ? 'Learning Hub' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
-  const subtitle = isAdminDashboardRoute
+  const routeTitle = isAdminDashboardRoute || isPersonalDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAssessmentRoute ? 'Assessments' : isWorkspaceRoute ? 'Workspaces' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isLearningRoute ? 'Learning Hub' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const routeSubtitle = isAdminDashboardRoute
     ? 'Monitor user and bidder performance'
     : isPersonalDashboardRoute
     ? 'Track your applications, interviews, and profile momentum'
@@ -246,6 +254,10 @@ export default function AppLayout({ user }) {
       : isProfileRoute
         ? 'Shape candidate stories and resume signals'
         : 'Discover, review, and prioritize matched roles';
+  const title = pageHeader.title || routeTitle;
+  const subtitle = pageHeader.subtitle || routeSubtitle;
+  const learningArticleId = isLearningArticleRoute ? location.pathname.split('/')[2] : '';
+  const isViewportBoundRoute = isCalendarRoute || isLearningArticleRoute;
   const drawerContent = (
     <>
       <Toolbar
@@ -436,6 +448,7 @@ export default function AppLayout({ user }) {
 
   return (
     <HeaderSearchProvider value={headerSearchContext}>
+      <PageHeaderProvider value={pageHeaderContext}>
       <Box
         sx={{
           minHeight: '100vh',
@@ -523,6 +536,18 @@ export default function AppLayout({ user }) {
                   <MenuIcon />
                 </IconButton>
               ) : null}
+              {isLearningArticleRoute ? (
+                <Tooltip title="Back to Learning Hub">
+                  <IconButton
+                    type="button"
+                    onClick={() => navigate('/learning')}
+                    aria-label="Back to Learning Hub"
+                    sx={{ border: 1, borderColor: shellLine, bgcolor: 'rgba(255, 255, 255, 0.58)' }}
+                  >
+                    <ArrowBackIcon />
+                  </IconButton>
+                </Tooltip>
+              ) : null}
               <Box
                 minWidth={0}
                 sx={{
@@ -563,6 +588,18 @@ export default function AppLayout({ user }) {
               />
             ) : null}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, order: { xs: 2, sm: 3 } }}>
+              {isLearningArticleRoute && isAdminRole(user) ? (
+                <Tooltip title="Edit article">
+                  <IconButton
+                    type="button"
+                    onClick={() => navigate(`/learning/${learningArticleId}/edit`)}
+                    aria-label="Edit article"
+                    sx={{ border: 1, borderColor: shellLine, bgcolor: 'rgba(255, 255, 255, 0.58)' }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                </Tooltip>
+              ) : null}
               {canUseWorkspaceFilter && !isWorkspaceRoute ? (
                 <HeaderWorkspaceSelect
                   activeWorkspaceId={activeWorkspaceId}
@@ -632,7 +669,7 @@ export default function AppLayout({ user }) {
             minWidth: 0,
             minHeight: 0,
             flex: 1,
-            overflow: isCalendarRoute ? 'hidden' : 'auto',
+            overflow: isViewportBoundRoute ? 'hidden' : 'auto',
             boxSizing: 'border-box',
           }}
         >
@@ -666,6 +703,7 @@ export default function AppLayout({ user }) {
           </Box>
         </Dialog>
       </Box>
+      </PageHeaderProvider>
     </HeaderSearchProvider>
   );
 }

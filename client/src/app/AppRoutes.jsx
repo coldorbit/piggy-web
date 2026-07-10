@@ -188,7 +188,7 @@ export function AuthenticatedRoutes({ user }) {
           path="/learning/:articleId"
           element={
             <RequireLearningHubAccess user={user}>
-              <LearningArticlePage currentUser={user} />
+              <LearningArticlePage />
             </RequireLearningHubAccess>
           }
         />

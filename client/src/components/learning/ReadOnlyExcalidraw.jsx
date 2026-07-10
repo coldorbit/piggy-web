@@ -57,8 +57,8 @@ export default function ReadOnlyExcalidraw({ scene, title }) {
       aria-label={title || 'Excalidraw diagram'}
       sx={{
         position: 'relative',
-        height: { xs: 500, md: 'min(70vh, 720px)' },
-        minHeight: 500,
+        height: '100%',
+        minHeight: 0,
         overflow: 'hidden',
         border: 1,
         borderColor: 'divider',

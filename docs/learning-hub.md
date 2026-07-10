@@ -51,7 +51,8 @@ The table and missing diagram columns are created by the existing `ensureWebMode
 - Mermaid renders as SVG with strict security enabled; invalid scripts show an inline error instead of breaking the article.
 - Both renderers provide zoom, fit/reset, directional pan, and pointer/touch navigation controls without enabling editing.
 - Zoom-in has no application-level percentage limit; zoom-out retains a usability floor.
-- Diagram viewports keep a minimum height of 500 pixels.
+- The article page is bound to the application viewport: the global header owns Back and Edit actions, article content scrolls inside its pane, and the diagram fills all remaining height without scrolling the page.
+- Articles with both diagram formats show a compact format switcher so only one full-height canvas is visible at a time.
 - Diagram renderers are lazy-loaded, so they do not increase the initial bundle for articles without diagrams.
 
 ## API
