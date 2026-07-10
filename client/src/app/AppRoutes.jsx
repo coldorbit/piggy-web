@@ -12,6 +12,7 @@ import {
   RequireInboxAccess,
   RequireInterviewAccess,
   RequireJobsAccess,
+  RequireLearningHubAccess,
   RequireMarketplaceAccess,
   RequirePersonalDashboardAccess,
   RequireProfileHubAccess,
@@ -33,6 +34,9 @@ const FaqsPage = lazy(() => import('../pages/FaqsPage.jsx'));
 const InboxPage = lazy(() => import('../pages/InboxPage.jsx'));
 const InterviewsPage = lazy(() => import('../pages/InterviewsPage.jsx'));
 const JobsPage = lazy(() => import('../pages/JobsPage.jsx'));
+const LearningArticlePage = lazy(() => import('../pages/LearningArticlePage.jsx'));
+const LearningEditorPage = lazy(() => import('../pages/LearningEditorPage.jsx'));
+const LearningHubPage = lazy(() => import('../pages/LearningHubPage.jsx'));
 const MarketplacePage = lazy(() => import('../pages/MarketplacePage.jsx'));
 const ProfilesPage = lazy(() => import('../pages/ProfilesPage.jsx'));
 const ProfileHubPage = lazy(() => import('../pages/ProfileHubPage.jsx'));
@@ -153,6 +157,38 @@ export function AuthenticatedRoutes({ user }) {
             <RequireProfileHubAccess user={user}>
               <ProfileHubPage currentUser={user} />
             </RequireProfileHubAccess>
+          }
+        />
+        <Route
+          path="/learning"
+          element={
+            <RequireLearningHubAccess user={user}>
+              <LearningHubPage currentUser={user} />
+            </RequireLearningHubAccess>
+          }
+        />
+        <Route
+          path="/learning/create"
+          element={
+            <RequireAdmin user={user}>
+              <LearningEditorPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/learning/:articleId/edit"
+          element={
+            <RequireAdmin user={user}>
+              <LearningEditorPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/learning/:articleId"
+          element={
+            <RequireLearningHubAccess user={user}>
+              <LearningArticlePage currentUser={user} />
+            </RequireLearningHubAccess>
           }
         />
         <Route path="/faqs" element={<FaqsPage currentUser={user} />} />

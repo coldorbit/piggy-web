@@ -22,6 +22,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import QuizIcon from '@mui/icons-material/Quiz';
 import SearchIcon from '@mui/icons-material/Search';
+import SchoolIcon from '@mui/icons-material/School';
 import StyleIcon from '@mui/icons-material/Style';
 import WorkIcon from '@mui/icons-material/Work';
 import {
@@ -69,6 +70,7 @@ import {
   canAccessInbox,
   canAccessInterviews,
   canAccessJobs,
+  canAccessLearningHub,
   canAccessPersonalDashboard,
   canManageCallers,
   isAdminRole,
@@ -118,6 +120,7 @@ export default function AppLayout({ user }) {
   const isFaqRoute = location.pathname.startsWith('/faqs');
   const isInboxRoute = location.pathname.startsWith('/inbox');
   const isInterviewRoute = location.pathname.startsWith('/interviews');
+  const isLearningRoute = location.pathname.startsWith('/learning');
   const isMarketplaceRoute = location.pathname.startsWith('/marketplace');
   const isProfileRoute = location.pathname.startsWith('/profiles');
   const isTailoringRoute = location.pathname.startsWith('/tailoring-requests');
@@ -144,6 +147,7 @@ export default function AppLayout({ user }) {
   const canViewAssessments = canAccessAssessments(user);
   const canViewBidWorkspace = canAccessBidWorkspace(user);
   const canViewJobs = canAccessJobs(user);
+  const canViewLearningHub = canAccessLearningHub(user);
   const canViewPersonalDashboard = canAccessPersonalDashboard(user);
   const isCaller = user.role === ROLES.caller;
   const isDrawerCollapsed = isDesktop && isSidebarCollapsed;
@@ -206,7 +210,7 @@ export default function AppLayout({ user }) {
     });
   }
 
-  const title = isAdminDashboardRoute || isPersonalDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAssessmentRoute ? 'Assessments' : isWorkspaceRoute ? 'Workspaces' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
+  const title = isAdminDashboardRoute || isPersonalDashboardRoute ? 'Dashboard' : isConsumptionRoute ? 'Consumption' : isAssessmentRoute ? 'Assessments' : isWorkspaceRoute ? 'Workspaces' : isAdminRoute ? 'Users' : isTailoringRoute ? 'Tailoring requests' : isLearningRoute ? 'Learning Hub' : isFaqRoute ? 'FAQs' : isBidderRoute ? 'Bidders' : isInboxRoute ? 'Inbox' : isMarketplaceRoute ? 'Marketplace' : isCallerRoute ? 'Callers' : isCalendarRoute ? 'Calendar' : isInterviewRoute ? 'Interviews' : isBidRoute ? 'Applications' : isProfileRoute ? 'Profiles' : 'Jobs';
   const subtitle = isAdminDashboardRoute
     ? 'Monitor user and bidder performance'
     : isPersonalDashboardRoute
@@ -221,6 +225,8 @@ export default function AppLayout({ user }) {
     ? 'Manage back-office accounts'
     : isTailoringRoute
       ? 'Review all resume tailoring activity'
+    : isLearningRoute
+      ? 'Learn company, geography, and machine learning context'
     : isFaqRoute
       ? 'Browse answers and publish help content'
     : isBidderRoute
@@ -361,6 +367,7 @@ export default function AppLayout({ user }) {
           {canViewBidWorkspace && !isCaller ? (
             <NavItem to="/tailoring-requests" icon={<StyleIcon />} label="Tailoring" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
+          {canViewLearningHub ? <NavItem to="/learning" icon={<SchoolIcon />} label="Learning Hub" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} /> : null}
           <NavItem to="/faqs" icon={<HelpOutlinedIcon />} label="FAQs" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           {isAdminRole(user) ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />

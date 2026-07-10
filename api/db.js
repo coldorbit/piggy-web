@@ -12,6 +12,7 @@ export {
   getInterviewCallModel,
   getInterviewModel,
   getJobBidModel,
+  getLearningArticleModel,
   getMarketplaceCallerProfileModel,
   getMarketplaceInterviewOpportunityModel,
   getMarketplaceMatchModel,

@@ -79,6 +79,56 @@ export function useUpdateFaq() {
   });
 }
 
+export function useLearningArticles(filters = {}) {
+  const queryParams = new URLSearchParams(filters).toString();
+  return useQuery({
+    queryKey: ['learning', 'articles', filters],
+    queryFn: () => api(`/api/learning/articles${queryParams ? `?${queryParams}` : ''}`).then((data) => data.articles),
+    staleTime: 30_000,
+  });
+}
+
+export function useLearningArticle(articleId) {
+  return useQuery({
+    queryKey: ['learning', 'articles', articleId],
+    queryFn: () => api(`/api/learning/articles/${articleId}`).then((data) => data.article),
+    enabled: Boolean(articleId),
+  });
+}
+
+export function useCreateLearningArticle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (articleData) => api('/api/learning/articles', {
+      method: 'POST',
+      body: JSON.stringify(articleData),
+    }).then((data) => data.article),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['learning'] }),
+  });
+}
+
+export function useUpdateLearningArticle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ articleId, articleData }) => api(`/api/learning/articles/${articleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(articleData),
+    }).then((data) => data.article),
+    onSuccess: (article) => {
+      queryClient.invalidateQueries({ queryKey: ['learning'] });
+      queryClient.setQueryData(['learning', 'articles', article.id], article);
+    },
+  });
+}
+
+export function useDeleteLearningArticle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (articleId) => api(`/api/learning/articles/${articleId}`, { method: 'DELETE' }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['learning'] }),
+  });
+}
+
 export function useBidProfiles(options = {}, queryOptions = {}) {
   const queryParams = new URLSearchParams(options).toString();
   return useQuery({

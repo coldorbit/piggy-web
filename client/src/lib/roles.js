@@ -95,6 +95,10 @@ export function canAccessProfileHub(userOrRole) {
   return role === ROLES.admin && Boolean(typeof userOrRole === 'object' && userOrRole?.profileHubAccess);
 }
 
+export function canAccessLearningHub(userOrRole) {
+  return [ROLES.superadmin, ROLES.admin, ROLES.internal].includes(roleOf(userOrRole));
+}
+
 export function canRegisterManualInterviewCalls(userOrRole) {
   return MANUAL_INTERVIEW_CALL_ROLES.includes(roleOf(userOrRole));
 }

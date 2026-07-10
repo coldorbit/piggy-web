@@ -8,6 +8,7 @@ import {
   canAccessInbox,
   canAccessInterviews,
   canAccessJobs,
+  canAccessLearningHub,
   canAccessPersonalDashboard,
   canAccessProfileHub,
   canManageCallers,
@@ -113,6 +114,16 @@ export function requireProfileHubAccess(req, res, next) {
   requireAuth(req, res, () => {
     if (!canAccessProfileHub(req.user)) {
       res.status(403).json({ error: 'Profile Hub access requires an internal role or a superadmin grant' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireLearningHubAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canAccessLearningHub(req.user)) {
+      res.status(403).json({ error: 'Learning Hub access requires an internal or admin role' });
       return;
     }
     next();

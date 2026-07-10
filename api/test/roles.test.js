@@ -12,6 +12,7 @@ import {
   canAccessInterviews,
   canAccessInbox,
   canAccessJobs,
+  canAccessLearningHub,
   canAccessPersonalDashboard,
   canAccessProfileHub,
   canRegisterManualInterviewCalls,
@@ -96,5 +97,14 @@ describe('role permissions', () => {
     assert.equal(canAccessProfileHub({ role: ROLES.user, profileHubAccess: true }), false);
     assert.equal(canAccessProfileHub({ role: ROLES.financeManager, profileHubAccess: true }), false);
     assert.equal(canAccessProfileHub({ role: ROLES.caller, profileHubAccess: true }), false);
+  });
+
+  it('limits the Learning Hub to internal and admin roles', () => {
+    assert.equal(canAccessLearningHub({ role: ROLES.superadmin }), true);
+    assert.equal(canAccessLearningHub({ role: ROLES.admin }), true);
+    assert.equal(canAccessLearningHub({ role: ROLES.internal }), true);
+    assert.equal(canAccessLearningHub({ role: ROLES.user }), false);
+    assert.equal(canAccessLearningHub({ role: ROLES.financeManager }), false);
+    assert.equal(canAccessLearningHub({ role: ROLES.caller }), false);
   });
 });

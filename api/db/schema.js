@@ -13,6 +13,7 @@ import {
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
+  getLearningArticleModel,
   getMarketplaceCallerProfileModel,
   getMarketplaceInterviewOpportunityModel,
   getMarketplaceMatchModel,
@@ -42,6 +43,7 @@ export async function ensureWebModels() {
       setupWebAssociations();
       await getUserWorkspaceMembershipModel().sync();
       await getFaqModel().sync();
+      await getLearningArticleModel().sync();
       await getBidProfileModel().sync();
       await getProfileIntelligenceModel().sync();
       await getProfilePrepPlanModel().sync();

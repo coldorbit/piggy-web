@@ -9,6 +9,7 @@ import {
   canAccessInbox,
   canAccessInterviews,
   canAccessJobs,
+  canAccessLearningHub,
   canAccessPersonalDashboard,
   canAccessProfileHub,
   canManageCallers,
@@ -69,6 +70,14 @@ export function RequireInterviewAccess({ user, children }) {
 export function RequireProfileHubAccess({ user, children }) {
   const location = useLocation();
   if (!canAccessProfileHub(user)) {
+    return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
+  }
+  return children;
+}
+
+export function RequireLearningHubAccess({ user, children }) {
+  const location = useLocation();
+  if (!canAccessLearningHub(user)) {
     return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
   }
   return children;
