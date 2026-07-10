@@ -9,7 +9,7 @@ import {
   jobDateFiltersForUser,
   jobsFromCsv,
   mergedJobSourceOptions,
-  paginateGroupedJobs,
+  groupedJobsFromRows,
   planCsvJobImport,
   parseHiddenState,
   parseSpamReview,
@@ -25,15 +25,17 @@ export async function listJobs(req, res, next) {
     const ScrapedJob = getScrapedJobModel();
     const query = jobDateFiltersForUser(req.query, req.user);
     const { where, order, limit, offset } = buildJobQuery(query, { timeZone: req.user?.timezone });
-    const rows = await ScrapedJob.findAll({
+    const { count, rows } = await ScrapedJob.findAndCountAll({
       where,
       order,
+      limit,
+      offset,
     });
-    const grouped = paginateGroupedJobs(rows, { limit, offset }, { includeRawJob: false });
+    const pageRows = groupedJobsFromRows(rows, { includeRawJob: false });
 
     res.json({
-      jobs: grouped.rows,
-      total: grouped.count,
+      jobs: pageRows,
+      total: count,
       limit,
       offset,
     });

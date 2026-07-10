@@ -461,6 +461,23 @@ export async function ensureBidPageIndexes() {
     ON scraped_jobs (is_hidden)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS scraped_jobs_visible_scraped_at_idx
+    ON scraped_jobs (scraped_at DESC, id DESC)
+    WHERE is_hidden = false OR is_hidden IS NULL
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS scraped_jobs_category_scraped_at_idx
+    ON scraped_jobs (category, scraped_at DESC, id DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS scraped_jobs_spam_scraped_at_idx
+    ON scraped_jobs (is_spam, scraped_at DESC, id DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS scraped_jobs_source_normalized_idx
+    ON scraped_jobs ((lower(regexp_replace(btrim(coalesce(source, '')), '[-_[:space:]]+', ' ', 'g'))))
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS job_bids_profile_job_status_idx
     ON job_bids (profile_id, job_id, status)
   `);

@@ -43,6 +43,7 @@ import {
   IconButton,
   InputAdornment,
   InputLabel,
+  LinearProgress,
   List,
   ListItemButton,
   ListItemIcon,
@@ -56,7 +57,7 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useUpdateMe } from '../lib/authApi.js';
 import { useAdminWorkspaces } from '../lib/api.js';
@@ -82,6 +83,8 @@ import { ALL_WORKSPACES, UNASSIGNED_WORKSPACE, workspaceLabel } from './admin/Su
 import { WorkspaceFilterProvider } from './admin/WorkspaceFilterContext.jsx';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 import { EMPTY_PAGE_HEADER, PageHeaderProvider } from './PageHeaderContext.jsx';
+import { prefetchRoute } from '../app/routeModules.js';
+import { markRouteNavigationStart } from '../app/PerformanceMonitor.jsx';
 
 const DRAWER_WIDTH = 248;
 const COLLAPSED_DRAWER_WIDTH = 72;
@@ -108,7 +111,7 @@ export default function AppLayout({ user }) {
   const { mutate: logout } = useLogout();
   const { mutate: updateMe, isPending: isUpdatingMe } = useUpdateMe();
   const canUseWorkspaceFilter = isSuperadmin(user);
-  const { data: workspaces = [], isLoading: workspacesLoading, error: workspaceError } = useAdminWorkspaces({ enabled: isAdminRole(user) });
+  const { data: workspaces = [], isLoading: workspacesLoading, error: workspaceError } = useAdminWorkspaces({ enabled: canUseWorkspaceFilter });
   const isAdminDashboardRoute = location.pathname.startsWith('/admin/dashboard');
   const isPersonalDashboardRoute = location.pathname.startsWith('/dashboard');
   const isConsumptionRoute = location.pathname.startsWith('/admin/consumption');
@@ -674,7 +677,9 @@ export default function AppLayout({ user }) {
           }}
         >
           <WorkspaceFilterProvider value={workspaceFilterContext}>
-            <Outlet />
+            <Suspense fallback={<RouteLoadingPanel />}>
+              <Outlet />
+            </Suspense>
           </WorkspaceFilterProvider>
         </Box>
       </Box>
@@ -705,6 +710,14 @@ export default function AppLayout({ user }) {
       </Box>
       </PageHeaderProvider>
     </HeaderSearchProvider>
+  );
+}
+
+function RouteLoadingPanel() {
+  return (
+    <Box aria-busy="true" aria-label="Loading page" sx={{ minHeight: 180, pt: 0.5 }}>
+      <LinearProgress sx={{ height: 2, borderRadius: 999 }} />
+    </Box>
   );
 }
 
@@ -874,7 +887,13 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
     <ListItemButton
       component={NavLink}
       to={to}
-      onClick={onNavigate}
+      onClick={(event) => {
+        markRouteNavigationStart();
+        onNavigate?.(event);
+      }}
+      onFocus={() => prefetchRoute(to)}
+      onMouseEnter={() => prefetchRoute(to)}
+      onTouchStart={() => prefetchRoute(to)}
       aria-label={accessibleLabel}
       sx={{
         minHeight: collapsed ? 42 : nested ? 32 : 38,

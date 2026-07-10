@@ -5,6 +5,7 @@ const AUTH_TOKEN_KEY = 'scraper_auth_token';
 const API_BASE_URL = String(import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 export async function api(path, options = {}) {
+  const startedAt = typeof performance === 'undefined' ? 0 : performance.now();
   try {
     const token = authToken();
     const response = await axios({
@@ -18,14 +19,28 @@ export async function api(path, options = {}) {
       },
       data: options.body,
     });
+    reportApiPerformance(path, response.status, startedAt, response.headers?.['server-timing']);
     return response.data || {};
   } catch (error) {
+    reportApiPerformance(path, error.response?.status || 0, startedAt, error.response?.headers?.['server-timing']);
     if (error.response?.status === 401) clearAuthToken();
     const apiError = new Error(error.response?.data?.error || error.message);
     apiError.status = error.response?.status;
     apiError.data = error.response?.data || null;
     throw apiError;
   }
+}
+
+function reportApiPerformance(path, status, startedAt, serverTiming) {
+  if (!startedAt || typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('applypilot:api-performance', {
+    detail: {
+      duration: performance.now() - startedAt,
+      path: String(path).split('?')[0],
+      serverTiming: serverTiming || '',
+      status,
+    },
+  }));
 }
 
 export function authToken() {

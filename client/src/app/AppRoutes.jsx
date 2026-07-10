@@ -1,6 +1,5 @@
 import { lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { LoginScreen } from '../components/AuthScreens.jsx';
 import {
   BlockCallers,
   RequireAssessmentAccess,
@@ -19,30 +18,32 @@ import {
   RequireSuperadmin,
 } from './routeGuards.jsx';
 import { ROLES, canAccessPersonalDashboard, isAdminRole } from '../lib/roles.js';
+import { loadRouteModule } from './routeModules.js';
 
-const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage.jsx'));
-const AdminConsumptionPage = lazy(() => import('../pages/AdminConsumptionPage.jsx'));
-const AdminDashboardPage = lazy(() => import('../pages/AdminDashboardPage.jsx'));
-const AdminWorkspacesPage = lazy(() => import('../pages/AdminWorkspacesPage.jsx'));
-const AppLayout = lazy(() => import('../components/AppLayout.jsx'));
-const AssessmentsPage = lazy(() => import('../pages/AssessmentsPage.jsx'));
-const BidPage = lazy(() => import('../pages/BidPage.jsx'));
-const BiddersPage = lazy(() => import('../pages/BiddersPage.jsx'));
-const CallersPage = lazy(() => import('../pages/CallersPage.jsx'));
-const CalendarPage = lazy(() => import('../pages/CalendarPage.jsx'));
-const FaqEditorPage = lazy(() => import('../pages/FaqEditorPage.jsx'));
-const FaqsPage = lazy(() => import('../pages/FaqsPage.jsx'));
-const InboxPage = lazy(() => import('../pages/InboxPage.jsx'));
-const InterviewsPage = lazy(() => import('../pages/InterviewsPage.jsx'));
-const JobsPage = lazy(() => import('../pages/JobsPage.jsx'));
-const LearningArticlePage = lazy(() => import('../pages/LearningArticlePage.jsx'));
-const LearningEditorPage = lazy(() => import('../pages/LearningEditorPage.jsx'));
-const LearningHubPage = lazy(() => import('../pages/LearningHubPage.jsx'));
-const MarketplacePage = lazy(() => import('../pages/MarketplacePage.jsx'));
-const ProfilesPage = lazy(() => import('../pages/ProfilesPage.jsx'));
-const ProfileHubPage = lazy(() => import('../pages/ProfileHubPage.jsx'));
-const TailoringRequestsPage = lazy(() => import('../pages/TailoringRequestsPage.jsx'));
-const UserDashboardPage = lazy(() => import('../pages/UserDashboardPage.jsx'));
+const AdminUsersPage = lazy(loadRouteModule.adminUsers);
+const AdminConsumptionPage = lazy(loadRouteModule.adminConsumption);
+const AdminDashboardPage = lazy(loadRouteModule.adminDashboard);
+const AdminWorkspacesPage = lazy(loadRouteModule.adminWorkspaces);
+const AppLayout = lazy(loadRouteModule.appLayout);
+const AssessmentsPage = lazy(loadRouteModule.assessments);
+const BidPage = lazy(loadRouteModule.bids);
+const BiddersPage = lazy(loadRouteModule.bidders);
+const CallersPage = lazy(loadRouteModule.callers);
+const CalendarPage = lazy(loadRouteModule.calendar);
+const FaqEditorPage = lazy(loadRouteModule.faqEditor);
+const FaqsPage = lazy(loadRouteModule.faqs);
+const InboxPage = lazy(loadRouteModule.inbox);
+const InterviewsPage = lazy(loadRouteModule.interviews);
+const JobsPage = lazy(loadRouteModule.jobs);
+const LearningArticlePage = lazy(loadRouteModule.learningArticle);
+const LearningEditorPage = lazy(loadRouteModule.learningEditor);
+const LearningHubPage = lazy(loadRouteModule.learningHub);
+const MarketplacePage = lazy(loadRouteModule.marketplace);
+const ProfilesPage = lazy(loadRouteModule.profiles);
+const ProfileHubPage = lazy(loadRouteModule.profileHub);
+const TailoringRequestsPage = lazy(loadRouteModule.tailoringRequests);
+const UserDashboardPage = lazy(loadRouteModule.userDashboard);
+const LoginScreen = lazy(() => import('../components/auth/LoginScreen.jsx'));
 
 export function PublicRoutes() {
   return (
@@ -265,7 +266,7 @@ export function AuthenticatedRoutes({ user }) {
   );
 }
 
-function defaultAuthenticatedPath(user) {
+export function defaultAuthenticatedPath(user) {
   if (user.role === ROLES.guest) return '/faqs';
   if (user.role === ROLES.caller) return '/interviews';
   if (isAdminRole(user)) return '/admin/dashboard';

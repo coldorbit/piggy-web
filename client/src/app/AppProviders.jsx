@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { getGrowthBookConfig, getGrowthBookInitOptions } from '../lib/featureFlags.js';
 import { queryClient } from './queryClient.js';
 import { theme } from './theme.js';
+import PerformanceMonitor from './PerformanceMonitor.jsx';
 
 export default function AppProviders({ children }) {
   const growthBookConfig = useMemo(() => getGrowthBookConfig(), []);
@@ -26,7 +27,10 @@ export default function AppProviders({ children }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <BrowserRouter>{app}</BrowserRouter>
+        <BrowserRouter>
+          <PerformanceMonitor />
+          {app}
+        </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>
   );

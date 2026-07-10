@@ -163,6 +163,8 @@ export async function listBidJobs(req, res, next) {
       ScrapedJob.findAll({
         where: activeTabQuery.where,
         order: activeTabQuery.order || jobOrder,
+        limit,
+        offset,
         subQuery: false,
         include: activeTabQuery.include,
       }),
@@ -202,10 +204,16 @@ export async function listBidJobs(req, res, next) {
       sameCompanyTailoring: sameCompanyTailoringByUrl.get(job.url) || null,
     }));
     const tabJobs = shouldGroupBidTab(bidTab) ? groupedBidJobs(formattedJobs) : formattedJobs;
-    const pagedJobs = tabJobs.slice(offset, offset + limit);
+    const activeTabCount = bidTab === 'tailored'
+      ? tailoredCount
+      : bidTab === 'done'
+        ? doneCount
+        : bidTab === 'bad_work'
+          ? badWorkCount
+          : todoCount;
 
     res.json({
-      jobs: pagedJobs,
+      jobs: tabJobs,
       bidUsers,
       callerUsers: callerUsers.map((caller) => ({ id: caller.id, username: caller.username })),
       currentUser: {
@@ -216,7 +224,7 @@ export async function listBidJobs(req, res, next) {
         dailyFinishedBids: dailyBidProgress.finished,
       },
       profile: formatProfile(profileWithDateProgress),
-      total: tabJobs.length,
+      total: activeTabCount,
       tabCounts: {
         todo: todoCount,
         tailored: tailoredCount,

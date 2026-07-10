@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize';
 
 let sequelize;
+const DEFAULT_SLOW_QUERY_MS = 250;
 
 export function getSequelize() {
   if (!sequelize) {
@@ -8,7 +9,8 @@ export function getSequelize() {
 
     sequelize = new Sequelize(databaseUrl, {
       dialect: 'postgres',
-      logging: false,
+      benchmark: true,
+      logging: logSlowQuery,
       timezone: '+00:00',
       dialectOptions: databaseDialectOptions(),
       hooks: {
@@ -24,6 +26,13 @@ export function getSequelize() {
   }
 
   return sequelize;
+}
+
+function logSlowQuery(sql, durationMs) {
+  const threshold = numberEnv('DATABASE_SLOW_QUERY_MS', DEFAULT_SLOW_QUERY_MS);
+  if (!Number.isFinite(durationMs) || durationMs < threshold) return;
+  const summary = String(sql).replace(/\s+/g, ' ').slice(0, 500);
+  console.warn(`Slow SQL ${durationMs.toFixed(1)}ms ${summary}`);
 }
 
 async function setUtcSessionTimezone(connection) {

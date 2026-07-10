@@ -1,8 +1,9 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { useFeatureIsOn, useGrowthBook } from '@growthbook/growthbook-react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { AuthenticatedRoutes, PublicRoutes } from './app/AppRoutes.jsx';
-import { ShellLoading } from './components/AuthScreens.jsx';
+import { AuthenticatedRoutes, PublicRoutes, defaultAuthenticatedPath } from './app/AppRoutes.jsx';
+import { prefetchRoute } from './app/routeModules.js';
+import ShellLoading from './components/auth/ShellLoading.jsx';
 import { useMe, useUpdateMe } from './lib/authApi.js';
 import { FEATURE_FLAGS, hasGrowthBookConfig, isLocalMaintenanceModeEnabled } from './lib/featureFlags.js';
 import { DEFAULT_TIME_ZONE, FALLBACK_TIME_ZONE } from './lib/timezone.js';
@@ -45,6 +46,10 @@ function WorkspaceApp() {
     timezoneSyncAttempted.current = true;
     updateMe({ timezone: DEFAULT_TIME_ZONE });
   }, [updateMe, user?.id, user?.timezone]);
+
+  useEffect(() => {
+    if (user) prefetchRoute(defaultAuthenticatedPath(user));
+  }, [user]);
 
   if (authChecked) return <ShellLoading />;
 
