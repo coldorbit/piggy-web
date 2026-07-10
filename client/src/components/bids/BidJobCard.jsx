@@ -62,7 +62,7 @@ export default function BidJobCard({
   const cardKey = String(job.groupId || job.id);
   const selectionKey = selectionId || cardKey;
   const isTailoring = Boolean(tailoringByJobId[cardKey] || tailoringByJobId[job.id]);
-  const statusDefault = activeTab === BID_TABS.interviews ? 'interviewing' : activeTab === BID_TABS.done ? 'submitted' : undefined;
+  const statusDefault = activeTab === BID_TABS.interviews ? 'interviewing' : undefined;
   const isAdmin = isAdminRole(currentUser);
   const isSuperadminUser = isSuperadmin(currentUser);
   const isBidder = BIDDER_ROLES.includes(currentUser?.role);
@@ -76,7 +76,7 @@ export default function BidJobCard({
   const canReviewTailoredJob = activeTab === BID_TABS.tailored && isAdmin && hasActiveTailoredResumeStatus(job.tailoredResume?.status);
   const showReviewControl = canReviewDoneJob || canReviewBadWorkJob || canReviewTailoredJob;
   const showBidStatusChip = activeTab !== BID_TABS.tailored || isInvalidReviewJob;
-  const showStatusControl = activeTab === BID_TABS.interviews || activeTab === BID_TABS.done || canRecoverBadWorkJob;
+  const showStatusControl = activeTab === BID_TABS.interviews || canRecoverBadWorkJob;
   const statusControlLabel = canRecoverBadWorkJob ? 'Recover' : 'Status';
   const statusControlValue = canRecoverBadWorkJob && isInvalidReviewJob ? '' : draft.status || statusDefault || 'planned';
   const showReadyToApplyAction = activeProfileIsStatic && activeTab === BID_TABS.todo;
