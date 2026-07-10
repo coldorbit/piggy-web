@@ -59,7 +59,7 @@ export default function UserForm({ currentUser, form, isSaving, workspaces = [],
       />
       <FormControl size="small">
         <InputLabel>Workspace</InputLabel>
-        <Select label="Workspace" value={String(form.workspaceId || '')} onChange={(event) => onChange((current) => ({ ...current, workspaceId: event.target.value }))}>
+        <Select label="Workspace" value={String(form.workspaceId || '')} disabled={!isSuperadmin(currentUser)} onChange={(event) => onChange((current) => ({ ...current, workspaceId: event.target.value }))}>
           <MenuItem value="" disabled>
             Select workspace
           </MenuItem>

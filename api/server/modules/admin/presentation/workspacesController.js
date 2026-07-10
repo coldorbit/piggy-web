@@ -1,6 +1,7 @@
 import { fn, col } from 'sequelize';
-import { getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel } from '../../../../db.js';
+import { getBidProfileModel, getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel } from '../../../../db.js';
 import { InputError, handleInputError } from '../../../utils/errors.js';
+import { isSuperadmin } from '../../../utils/roles.js';
 import { formatWorkspace, workspaceAttributesFromBody } from '../application/workspacesService.js';
 
 export async function listWorkspaces(_req, res, next) {
@@ -15,6 +16,7 @@ export async function listWorkspaces(_req, res, next) {
       include: [{ model: WebUser, as: 'users', attributes: [], required: false }],
       group: ['Workspace.id'],
       order: [['name', 'ASC']],
+      where: isSuperadmin(_req.user) ? undefined : { id: _req.user.workspaceId },
     });
     const membershipRows = await Membership.findAll({
       attributes: ['workspaceId', [fn('COUNT', col('id')), 'membershipCount']],
@@ -25,10 +27,19 @@ export async function listWorkspaces(_req, res, next) {
     const membershipCountByWorkspaceId = new Map(
       membershipRows.map((row) => [String(row.workspaceId), Number(row.membershipCount || 0)]),
     );
+    const profileRows = await getBidProfileModel().findAll({
+      attributes: ['workspaceId', [fn('COUNT', col('id')), 'profileCount']],
+      group: ['workspaceId'],
+      raw: true,
+    });
+    const profileCountByWorkspaceId = new Map(
+      profileRows.map((row) => [String(row.workspaceId), Number(row.profileCount || 0)]),
+    );
 
     res.json({
       workspaces: rows.map((row) => formatWorkspace(row, {
         membershipCount: membershipCountByWorkspaceId.get(String(row.id)) || 0,
+        profileCount: profileCountByWorkspaceId.get(String(row.id)) || 0,
         userCount: Number(row.get('userCount') || 0),
       })),
     });
@@ -42,7 +53,7 @@ export async function createWorkspace(req, res, next) {
     const Workspace = getWorkspaceModel();
     const attrs = workspaceAttributesFromBody(req.body);
     const workspace = await Workspace.create(attrs);
-    res.status(201).json({ workspace: formatWorkspace(workspace, { membershipCount: 0, userCount: 0 }) });
+    res.status(201).json({ workspace: formatWorkspace(workspace, { membershipCount: 0, profileCount: 0, userCount: 0 }) });
   } catch (error) {
     handleWorkspaceError(error, res, next);
   }
@@ -59,8 +70,8 @@ export async function updateWorkspace(req, res, next) {
 
     const attrs = workspaceAttributesFromBody(req.body);
     await workspace.update(attrs);
-    const [userCount, membershipCount] = await workspaceUsageCounts(workspace.id);
-    res.json({ workspace: formatWorkspace(workspace, { membershipCount, userCount }) });
+    const [userCount, membershipCount, profileCount] = await workspaceUsageCounts(workspace.id);
+    res.json({ workspace: formatWorkspace(workspace, { membershipCount, profileCount, userCount }) });
   } catch (error) {
     handleWorkspaceError(error, res, next);
   }
@@ -75,12 +86,15 @@ export async function deleteWorkspace(req, res, next) {
       return;
     }
 
-    const [userCount, membershipCount] = await workspaceUsageCounts(workspace.id);
+    const [userCount, membershipCount, profileCount] = await workspaceUsageCounts(workspace.id);
     if (userCount > 0) {
       throw new InputError('Move or delete workspace users before deleting this workspace');
     }
     if (membershipCount > 0) {
       throw new InputError('Remove bidder workspace memberships before deleting this workspace');
+    }
+    if (profileCount > 0) {
+      throw new InputError('Transfer workspace profiles before deleting this workspace');
     }
 
     await workspace.destroy();
@@ -94,6 +108,7 @@ function workspaceUsageCounts(workspaceId) {
   return Promise.all([
     getWebUserModel().count({ where: { workspaceId } }),
     getUserWorkspaceMembershipModel().count({ where: { workspaceId, status: 'active' } }),
+    getBidProfileModel().count({ where: { workspaceId } }),
   ]);
 }
 

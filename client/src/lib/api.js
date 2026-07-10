@@ -1224,6 +1224,7 @@ export function useCreateUser() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
     },
   });
 }
@@ -1240,6 +1241,7 @@ export function useUpdateUser() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'callers'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
     },
   });
 }
@@ -1334,6 +1336,8 @@ export function useChangeBidProfileOwner() {
       }).then((data) => data.profile),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bid'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
     },
   });
 }
@@ -1363,6 +1367,8 @@ export function useDeleteBidProfile() {
     mutationFn: (profileId) => api(`/api/bid/profiles/${profileId}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bid'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
     },
   });
 }

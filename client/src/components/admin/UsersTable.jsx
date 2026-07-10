@@ -157,6 +157,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
             <Select
               label="Workspace"
               value={String(editing.workspaceId || '')}
+              disabled={!isSuperadmin(currentUser)}
               onChange={(event) => onEditingChange((current) => ({ ...current, workspaceId: event.target.value }))}
             >
               <MenuItem value="" disabled>

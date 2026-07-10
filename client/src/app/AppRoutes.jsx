@@ -16,6 +16,7 @@ import {
   RequireMarketplaceAccess,
   RequirePersonalDashboardAccess,
   RequireProfileHubAccess,
+  RequireSuperadmin,
 } from './routeGuards.jsx';
 import { ROLES, canAccessPersonalDashboard, isAdminRole } from '../lib/roles.js';
 
@@ -243,9 +244,9 @@ export function AuthenticatedRoutes({ user }) {
         <Route
           path="/admin/workspaces"
           element={
-            <RequireAdmin user={user}>
+            <RequireSuperadmin user={user}>
               <AdminWorkspacesPage currentUser={user} />
-            </RequireAdmin>
+            </RequireSuperadmin>
           }
         />
         <Route

@@ -7,6 +7,7 @@ import { ALL_WORKSPACES, filterRowsByWorkspace } from '../components/admin/Super
 import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import UserForm from '../components/admin/UserForm.jsx';
 import UsersTable from '../components/admin/UsersTable.jsx';
+import ConfirmationDialog from '../components/common/ConfirmationDialog.jsx';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '../lib/api.js';
 import { BIDDER_ROLES, ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleLabel, roleOptionsFor } from '../lib/roles.js';
 
@@ -46,6 +47,7 @@ export default function AdminUsersPage({ currentUser }) {
   const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const [error, setError] = useState('');
   const [activeRole, setActiveRole] = useState(ROLES.user);
+  const [confirmation, setConfirmation] = useState(null);
 
   const { data: users = [], isLoading, error: usersError, refetch } = useAdminUsers();
   const { mutate: createUser, isPending: isCreating } = useCreateUser();
@@ -100,11 +102,21 @@ export default function AdminUsersPage({ currentUser }) {
   }
 
   function handleSaveUser(userId) {
+    const user = users.find((candidate) => String(candidate.id) === String(userId));
+    if (user && String(user.workspaceId || '') !== String(editing.workspaceId || '')) {
+      setConfirmation({ type: 'transfer', user });
+      return;
+    }
+    saveUser(userId);
+  }
+
+  function saveUser(userId) {
     setError('');
     updateUser(
       { userId, userData: editing },
       {
         onSuccess: () => {
+          setConfirmation(null);
           setEditingId(null);
           setEditing(EMPTY_FORM);
         },
@@ -114,10 +126,22 @@ export default function AdminUsersPage({ currentUser }) {
   }
 
   function handleDeleteUser(userId) {
+    const user = users.find((candidate) => String(candidate.id) === String(userId));
+    if (user) setConfirmation({ type: 'delete', user });
+  }
+
+  function deleteConfirmedUser() {
+    if (!confirmation?.user) return;
     setError('');
-    deleteUser(userId, {
+    deleteUser(confirmation.user.id, {
+      onSuccess: () => setConfirmation(null),
       onError: (err) => setError(err.message),
     });
+  }
+
+  function confirmAction() {
+    if (confirmation?.type === 'transfer') saveUser(confirmation.user.id);
+    if (confirmation?.type === 'delete') deleteConfirmedUser();
   }
 
   function startEditing(user) {
@@ -209,8 +233,31 @@ export default function AdminUsersPage({ currentUser }) {
           />
         </Box>
       </Box>
+      <ConfirmationDialog
+        open={Boolean(confirmation)}
+        title={confirmation?.type === 'transfer' ? 'Transfer user to another workspace?' : 'Delete user?'}
+        description={confirmationDescription(confirmation, editing, workspaces)}
+        confirmLabel={confirmation?.type === 'transfer' ? 'Transfer user' : 'Delete user'}
+        confirmColor={confirmation?.type === 'delete' ? 'error' : 'primary'}
+        isPending={isSaving}
+        onClose={() => setConfirmation(null)}
+        onConfirm={confirmAction}
+      />
     </Box>
   );
+}
+
+function confirmationDescription(confirmation, editing, workspaces) {
+  const user = confirmation?.user;
+  if (!user) return '';
+  if (confirmation.type === 'delete') {
+    return `Permanently delete ${user.username}? This action cannot be undone.`;
+  }
+  const source = user.workspace?.name || 'the current workspace';
+  const target = workspaces.find((workspace) => String(workspace.id) === String(editing.workspaceId))?.name || 'the selected workspace';
+  const profileCount = Number(user.profileCount || 0);
+  const profileText = `${profileCount.toLocaleString()} associated ${profileCount === 1 ? 'profile' : 'profiles'}`;
+  return `Transfer ${user.username} from ${source} to ${target}? ${profileText} will move automatically with the user.`;
 }
 
 function UserRoleTabs({ activeRole, isLoading, roles, onRoleChange }) {

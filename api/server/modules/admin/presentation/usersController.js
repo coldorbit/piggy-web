@@ -1,13 +1,17 @@
 import { ensureDefaultUsers, hashPassword, publicUser } from '../../../../auth.js';
-import { ensureDefaultWorkspace, getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel, repositories } from '../../../../db.js';
-import { userAttributesFromBody } from '../application/usersService.js';
+import { ensureDefaultWorkspace, getBidProfileModel, getSequelize, getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel, repositories } from '../../../../db.js';
+import { transferOwnedProfiles, userAttributesFromBody } from '../application/usersService.js';
 import { InputError, handleUserWriteError } from '../../../utils/errors.js';
 import { ADMIN_ROLES, BIDDER_ROLES, ROLES, canAssignAdminRole, isSuperadmin } from '../../../utils/roles.js';
 
 export async function listUsers(req, res, next) {
   try {
     await ensureDefaultUsers();
-    const users = await repositories.listUsers({ workspaceId: workspaceIdFromQuery(req.query?.workspaceId) });
+    const requestedWorkspaceId = workspaceIdFromQuery(req.query?.workspaceId);
+    const workspaceId = isSuperadmin(req.user) ? requestedWorkspaceId : req.user.workspaceId;
+    const users = await repositories.listUsers({ workspaceId });
+    const profileCounts = await profileCountsByUserId(users.map((user) => user.id));
+    for (const user of users) user.setDataValue('profileCount', profileCounts.get(String(user.id)) || 0);
     res.json({ users: users.map(publicUser) });
   } catch (error) {
     handleUserWriteError(error, res, next);
@@ -26,7 +30,11 @@ export async function createUser(req, res, next) {
       res.status(403).json({ error: 'Only superadmins can share bidders between workspaces' });
       return;
     }
-    const workspace = await workspaceForUserAttrs(attrs);
+    const workspace = await workspaceForUserAttrs(attrs, req.user);
+    if (!isSuperadmin(req.user) && String(workspace.id) !== String(req.user.workspaceId)) {
+      res.status(403).json({ error: 'Only superadmins can create users in another workspace' });
+      return;
+    }
     await ensureMembershipWorkspacesExist(attrs);
     const user = await repositories.createUser({
       username: attrs.username,
@@ -52,6 +60,10 @@ export async function updateUser(req, res, next) {
     const WebUser = getWebUserModel();
     const user = await repositories.findUserById(req.params.id);
     if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    if (!isSuperadmin(req.user) && String(user.workspaceId ?? '') !== String(req.user.workspaceId ?? '')) {
       res.status(404).json({ error: 'User not found' });
       return;
     }
@@ -84,7 +96,12 @@ export async function updateUser(req, res, next) {
       return;
     }
 
-    const workspace = await workspaceForUserAttrs(attrs);
+    const workspace = await workspaceForUserAttrs(attrs, req.user);
+    const workspaceChanged = String(user.workspaceId ?? '') !== String(workspace.id ?? '');
+    if (workspaceChanged && !isSuperadmin(req.user)) {
+      res.status(403).json({ error: 'Only superadmins can transfer users between workspaces' });
+      return;
+    }
     await ensureMembershipWorkspacesExist(attrs);
     const updates = {
       username: attrs.username,
@@ -98,10 +115,25 @@ export async function updateUser(req, res, next) {
         : false,
     };
     if (attrs.password) updates.passwordHash = hashPassword(attrs.password);
-    await user.update(updates);
-    await setUserWorkspaceMemberships(user, attrs, req.user);
+    let transferredProfileCount = 0;
+    await getSequelize().transaction(async (transaction) => {
+      await user.update(updates, { transaction });
+      if (workspaceChanged) {
+        transferredProfileCount = await transferOwnedProfiles({
+          Profile: getBidProfileModel(),
+          transaction,
+          userId: user.id,
+          workspaceId: workspace.id,
+        });
+      }
+      await setUserWorkspaceMemberships(user, attrs, req.user, transaction);
+    });
     await user.reload(userReloadOptions());
-    res.json({ user: publicUser(user) });
+    user.setDataValue('profileCount', await getBidProfileModel().count({ where: { userId: user.id } }));
+    res.json({
+      user: publicUser(user),
+      transfer: workspaceChanged ? { profileCount: transferredProfileCount, workspaceId: workspace.id } : null,
+    });
   } catch (error) {
     handleUserWriteError(error, res, next);
   }
@@ -117,10 +149,10 @@ async function ensureMembershipWorkspacesExist(attrs) {
   }
 }
 
-async function setUserWorkspaceMemberships(user, attrs, actor) {
+async function setUserWorkspaceMemberships(user, attrs, actor, transaction = undefined) {
   const Membership = getUserWorkspaceMembershipModel();
   if (!BIDDER_ROLES.includes(attrs.role)) {
-    await Membership.destroy({ where: { userId: user.id } });
+    await Membership.destroy({ where: { userId: user.id }, transaction });
     return;
   }
 
@@ -130,11 +162,11 @@ async function setUserWorkspaceMemberships(user, attrs, actor) {
     throw new InputError('Only superadmins can share bidders between workspaces');
   }
 
-  const existing = await Membership.findAll({ where: { userId: user.id } });
+  const existing = await Membership.findAll({ where: { userId: user.id }, transaction });
   const requestedIdSet = new Set(requestedIds.map(String));
   await Promise.all(existing.map(async (membership) => {
     if (!requestedIdSet.has(String(membership.workspaceId))) {
-      await membership.destroy();
+      await membership.destroy({ transaction });
     }
   }));
 
@@ -149,10 +181,10 @@ async function setUserWorkspaceMemberships(user, attrs, actor) {
       createdByUserId: actor?.id || null,
     };
     if (existingMembership) {
-      await existingMembership.update(attrsForMembership);
+      await existingMembership.update(attrsForMembership, { transaction });
       return;
     }
-    await Membership.create(attrsForMembership);
+    await Membership.create(attrsForMembership, { transaction });
   }));
 }
 
@@ -171,7 +203,11 @@ function userReloadOptions() {
   };
 }
 
-async function workspaceForUserAttrs(attrs) {
+async function workspaceForUserAttrs(attrs, actor = null) {
+  if (!attrs.workspaceId && actor?.workspaceId) {
+    const actorWorkspace = await getWorkspaceModel().findByPk(actor.workspaceId);
+    if (actorWorkspace) return actorWorkspace;
+  }
   if (!attrs.workspaceId) return ensureDefaultWorkspace();
 
   const workspace = await getWorkspaceModel().findByPk(attrs.workspaceId);
@@ -179,6 +215,17 @@ async function workspaceForUserAttrs(attrs) {
     throw new InputError('Workspace not found');
   }
   return workspace;
+}
+
+async function profileCountsByUserId(userIds) {
+  if (!userIds.length) return new Map();
+  const rows = await getBidProfileModel().findAll({
+    attributes: ['userId', [getSequelize().fn('COUNT', getSequelize().col('id')), 'profileCount']],
+    where: { userId: userIds },
+    group: ['userId'],
+    raw: true,
+  });
+  return new Map(rows.map((row) => [String(row.userId), Number(row.profileCount || 0)]));
 }
 
 function workspaceIdFromQuery(value) {
@@ -194,6 +241,10 @@ export async function deleteUser(req, res, next) {
     const WebUser = getWebUserModel();
     const user = await repositories.findUserById(req.params.id);
     if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    if (!isSuperadmin(req.user) && String(user.workspaceId ?? '') !== String(req.user.workspaceId ?? '')) {
       res.status(404).json({ error: 'User not found' });
       return;
     }

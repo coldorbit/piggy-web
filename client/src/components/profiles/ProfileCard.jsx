@@ -217,8 +217,8 @@ export default function ProfileCard({
                 <ShareIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Change owner">
-              <IconButton aria-label="Change profile owner" onClick={() => onChangeOwner(profile)} sx={actionIconSx}>
+            <Tooltip title="Transfer profile">
+              <IconButton aria-label="Transfer profile" onClick={() => onChangeOwner(profile)} sx={actionIconSx}>
                 <ManageAccountsIcon />
               </IconButton>
             </Tooltip>

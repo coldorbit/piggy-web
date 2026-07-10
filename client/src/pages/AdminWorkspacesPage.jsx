@@ -25,6 +25,7 @@ import {
   Typography,
 } from '@mui/material';
 import EmptyState from '../components/common/EmptyState.jsx';
+import ConfirmationDialog from '../components/common/ConfirmationDialog.jsx';
 import {
   useAdminWorkspaces,
   useCreateWorkspace,
@@ -40,6 +41,7 @@ export default function AdminWorkspacesPage() {
   const [editingWorkspaceId, setEditingWorkspaceId] = useState(null);
   const [editingWorkspace, setEditingWorkspace] = useState(EMPTY_WORKSPACE_FORM);
   const [error, setError] = useState('');
+  const [deletingWorkspace, setDeletingWorkspace] = useState(null);
   const { data: workspaces = [], isLoading, error: workspacesError, refetch } = useAdminWorkspaces();
   const { mutate: createWorkspace, isPending: isCreating } = useCreateWorkspace();
   const { mutate: updateWorkspace, isPending: isUpdating } = useUpdateWorkspace();
@@ -80,8 +82,15 @@ export default function AdminWorkspacesPage() {
   }
 
   function handleDeleteWorkspace(workspaceId) {
+    const workspace = workspaces.find((candidate) => String(candidate.id) === String(workspaceId));
+    if (workspace) setDeletingWorkspace(workspace);
+  }
+
+  function deleteConfirmedWorkspace() {
+    if (!deletingWorkspace) return;
     setError('');
-    deleteWorkspace(workspaceId, {
+    deleteWorkspace(deletingWorkspace.id, {
+      onSuccess: () => setDeletingWorkspace(null),
       onError: (err) => setError(err.message),
     });
   }
@@ -132,6 +141,7 @@ export default function AdminWorkspacesPage() {
         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
           <Metric label="Workspaces" value={metrics.workspaces} />
           <Metric label="Home users" value={metrics.users} />
+          <Metric label="Profiles" value={metrics.profiles} />
           <Metric label="Shared bidders" value={metrics.memberships} />
           <Tooltip title="Refresh workspaces">
             <IconButton onClick={() => refetch()} aria-label="Refresh workspaces" sx={{ border: 1, borderColor: 'divider', bgcolor: '#fff' }}>
@@ -176,6 +186,7 @@ export default function AdminWorkspacesPage() {
               <TableCell>Workspace</TableCell>
               <TableCell>Slug</TableCell>
               <TableCell align="right">Home users</TableCell>
+              <TableCell align="right">Profiles</TableCell>
               <TableCell align="right">Shared bidders</TableCell>
               <TableCell>Updated</TableCell>
               <TableCell align="right">Actions</TableCell>
@@ -185,7 +196,7 @@ export default function AdminWorkspacesPage() {
             {isLoading ? <WorkspaceSkeletonRows /> : null}
             {!isLoading && !workspaces.length ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <EmptyState title="No workspaces yet" detail="Create a workspace to group users, profiles, bids, calendar entries, and bidder memberships." variant="plain" sx={{ py: 3 }} />
                 </TableCell>
               </TableRow>
@@ -207,6 +218,16 @@ export default function AdminWorkspacesPage() {
           </TableBody>
         </Table>
       </TableContainer>
+      <ConfirmationDialog
+        open={Boolean(deletingWorkspace)}
+        title="Delete workspace?"
+        description={deletingWorkspace ? `Permanently delete ${deletingWorkspace.name}? This action cannot be undone.` : ''}
+        confirmLabel="Delete workspace"
+        confirmColor="error"
+        isPending={isDeleting}
+        onClose={() => setDeletingWorkspace(null)}
+        onConfirm={deleteConfirmedWorkspace}
+      />
     </Box>
   );
 }
@@ -215,7 +236,8 @@ function WorkspaceRow({ editing, editingId, isSaving, onCancel, onDelete, onEdit
   const isEditing = String(editingId || '') === String(workspace.id);
   const userCount = Number(workspace.userCount || 0);
   const membershipCount = Number(workspace.membershipCount || 0);
-  const canDelete = userCount === 0 && membershipCount === 0;
+  const profileCount = Number(workspace.profileCount || 0);
+  const canDelete = userCount === 0 && membershipCount === 0 && profileCount === 0;
 
   if (isEditing) {
     return (
@@ -237,6 +259,7 @@ function WorkspaceRow({ editing, editingId, isSaving, onCancel, onDelete, onEdit
           />
         </TableCell>
         <TableCell align="right">{userCount.toLocaleString()}</TableCell>
+        <TableCell align="right">{profileCount.toLocaleString()}</TableCell>
         <TableCell align="right">{membershipCount.toLocaleString()}</TableCell>
         <TableCell>{formatDateTime(workspace.updatedAt || workspace.createdAt)}</TableCell>
         <TableCell align="right">
@@ -271,6 +294,7 @@ function WorkspaceRow({ editing, editingId, isSaving, onCancel, onDelete, onEdit
         <Chip label={workspace.slug} variant="outlined" sx={{ fontWeight: 600 }} />
       </TableCell>
       <TableCell align="right">{userCount.toLocaleString()}</TableCell>
+      <TableCell align="right">{profileCount.toLocaleString()}</TableCell>
       <TableCell align="right">{membershipCount.toLocaleString()}</TableCell>
       <TableCell>{formatDateTime(workspace.updatedAt || workspace.createdAt)}</TableCell>
       <TableCell align="right">
@@ -281,7 +305,7 @@ function WorkspaceRow({ editing, editingId, isSaving, onCancel, onDelete, onEdit
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title={canDelete ? 'Delete workspace' : 'Move users and remove bidder memberships before deleting'}>
+        <Tooltip title={canDelete ? 'Delete workspace' : 'Transfer users and profiles, then remove bidder memberships before deleting'}>
           <span>
             <IconButton
               color="error"
@@ -322,6 +346,7 @@ function WorkspaceSkeletonRows() {
       <TableCell><Skeleton variant="rounded" width={120} height={24} /></TableCell>
       <TableCell align="right"><Skeleton width={48} sx={{ ml: 'auto' }} /></TableCell>
       <TableCell align="right"><Skeleton width={48} sx={{ ml: 'auto' }} /></TableCell>
+      <TableCell align="right"><Skeleton width={48} sx={{ ml: 'auto' }} /></TableCell>
       <TableCell><Skeleton width={120} /></TableCell>
       <TableCell align="right"><Skeleton variant="rounded" width={80} height={30} sx={{ ml: 'auto' }} /></TableCell>
     </TableRow>
@@ -333,8 +358,9 @@ function workspaceMetrics(workspaces) {
     (totals, workspace) => ({
       workspaces: totals.workspaces + 1,
       users: totals.users + Number(workspace.userCount || 0),
+      profiles: totals.profiles + Number(workspace.profileCount || 0),
       memberships: totals.memberships + Number(workspace.membershipCount || 0),
     }),
-    { memberships: 0, users: 0, workspaces: 0 },
+    { memberships: 0, profiles: 0, users: 0, workspaces: 0 },
   );
 }

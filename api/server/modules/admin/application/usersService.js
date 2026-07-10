@@ -58,6 +58,14 @@ export function canHaveDailyBidGoal(role) {
   return role === ROLES.user || BIDDER_ROLES.includes(role);
 }
 
+export async function transferOwnedProfiles({ Profile, transaction, userId, workspaceId }) {
+  const [updatedCount] = await Profile.update(
+    { workspaceId },
+    { where: { userId }, transaction },
+  );
+  return Number(updatedCount || 0);
+}
+
 function dailyBidGoalFromBody(body, role) {
   if (!canHaveDailyBidGoal(role)) return null;
   const value = body?.dailyBidGoal ?? body?.daily_bid_goal;

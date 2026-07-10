@@ -161,6 +161,12 @@ export async function listProfileShareRecipients(req, res, next) {
         id: row.id,
         username: row.username,
         role: row.role,
+        workspaceId: row.workspaceId || null,
+        workspace: row.workspace ? {
+          id: row.workspace.id,
+          name: row.workspace.name,
+          slug: row.workspace.slug,
+        } : null,
       })),
     });
   } catch (error) {

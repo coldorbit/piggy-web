@@ -183,6 +183,7 @@ export function publicUser(row) {
     dailyBidGoal: row.dailyBidGoal ?? null,
     timezone: row.timezone || 'America/New_York',
     profileHubAccess: Boolean(row.profileHubAccess),
+    profileCount: Number(row.get?.('profileCount') ?? row.profileCount ?? 0),
     lastLoginAt: row.lastLoginAt || null,
     lastSeenAt,
     isActive: Boolean(row.activeSessionId && lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= ACTIVE_WINDOW_MS),

@@ -1,4 +1,4 @@
-import { requireAdmin, requireConsumptionAccess } from '../../../middleware/authMiddleware.js';
+import { requireAdmin, requireConsumptionAccess, requireSuperadmin } from '../../../middleware/authMiddleware.js';
 import {
   createConsumption,
   createUser,
@@ -26,7 +26,7 @@ export function registerAdminRoutes(app) {
   app.patch('/api/admin/users/:id', requireAdmin, updateUser);
   app.delete('/api/admin/users/:id', requireAdmin, deleteUser);
   app.get('/api/admin/workspaces', requireAdmin, listWorkspaces);
-  app.post('/api/admin/workspaces', requireAdmin, createWorkspace);
-  app.patch('/api/admin/workspaces/:id', requireAdmin, updateWorkspace);
-  app.delete('/api/admin/workspaces/:id', requireAdmin, deleteWorkspace);
+  app.post('/api/admin/workspaces', requireSuperadmin, createWorkspace);
+  app.patch('/api/admin/workspaces/:id', requireSuperadmin, updateWorkspace);
+  app.delete('/api/admin/workspaces/:id', requireSuperadmin, deleteWorkspace);
 }

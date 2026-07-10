@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { userAttributesFromBody } from '../server/modules/admin/application/usersService.js';
+import { transferOwnedProfiles, userAttributesFromBody } from '../server/modules/admin/application/usersService.js';
 
 describe('userAttributesFromBody daily bid goals', () => {
   it('defaults regular users to 100 daily bids', () => {
@@ -105,6 +105,27 @@ describe('userAttributesFromBody daily bid goals', () => {
       () => userAttributesFromBody(validUserBody({ role: 'user', timezone: 'PST' }), { requirePassword: true }),
       /valid timezone/,
     );
+  });
+});
+
+describe('workspace user transfers', () => {
+  it('moves every profile owned by the user to the destination workspace', async () => {
+    const calls = [];
+    const transaction = { id: 'transaction-1' };
+    const Profile = {
+      async update(values, options) {
+        calls.push({ values, options });
+        return [3];
+      },
+    };
+
+    const count = await transferOwnedProfiles({ Profile, transaction, userId: 42, workspaceId: 9 });
+
+    assert.equal(count, 3);
+    assert.deepEqual(calls, [{
+      values: { workspaceId: 9 },
+      options: { where: { userId: 42 }, transaction },
+    }]);
   });
 });
 

@@ -35,6 +35,7 @@ import ProfileCard from '../components/profiles/ProfileCard.jsx';
 import CollaborationPanel from '../components/collaboration/CollaborationPanel.jsx';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
+import ConfirmationDialog from '../components/common/ConfirmationDialog.jsx';
 import { filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
 import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import { EMPTY_PROFILE } from '../components/profiles/profileConstants.js';
@@ -90,6 +91,7 @@ export default function ProfilesPage({ currentUser }) {
   const [ownerProfile, setOwnerProfile] = useState(null);
   const [closingProfile, setClosingProfile] = useState(null);
   const [legacyProfile, setLegacyProfile] = useState(null);
+  const [deletingProfile, setDeletingProfile] = useState(null);
   const [viewingProfile, setViewingProfile] = useState(null);
   const [shareUsernames, setShareUsernames] = useState([]);
   const [ownerUserId, setOwnerUserId] = useState('');
@@ -215,8 +217,15 @@ export default function ProfilesPage({ currentUser }) {
   }
 
   function removeProfile(profileId) {
+    const profile = profiles.find((candidate) => String(candidate.id) === String(profileId));
+    if (profile) setDeletingProfile(profile);
+  }
+
+  function deleteConfirmedProfile() {
+    if (!deletingProfile) return;
     setError('');
-    deleteProfile(profileId, {
+    deleteProfile(deletingProfile.id, {
+      onSuccess: () => setDeletingProfile(null),
       onError: (deleteError) => setError(deleteError.message),
     });
   }
@@ -308,7 +317,9 @@ export default function ProfilesPage({ currentUser }) {
     (user) => String(user.id) !== String(currentUser?.id) && String(user.id) !== String(sharingProfile?.userId),
   );
   const ownerRecipientOptions = shareRecipients.filter(
-    (user) => ADMIN_MANAGED_PROFILE_OWNER_ROLES.includes(user.role) && String(user.id) !== String(ownerProfile?.userId),
+    (user) => ADMIN_MANAGED_PROFILE_OWNER_ROLES.includes(user.role)
+      && String(user.id) !== String(ownerProfile?.userId)
+      && (superadminView || String(user.workspaceId ?? '') === String(ownerProfile?.workspaceId ?? '')),
   );
   const pageError = error || loadError?.message || sharesError?.message || recipientsError?.message || workspaceError?.message || '';
   const canManageProfiles = !BIDDER_ROLES.includes(currentUser?.role);
@@ -553,7 +564,7 @@ export default function ProfilesPage({ currentUser }) {
 
       <Dialog open={Boolean(ownerProfile)} onClose={closeOwnerDialog} fullWidth maxWidth="xs">
         <form onSubmit={submitOwnerChange}>
-          <DialogTitle>Change owner</DialogTitle>
+          <DialogTitle>Transfer profile to another owner?</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
             <FormControl fullWidth>
               <InputLabel>Owner</InputLabel>
@@ -566,7 +577,7 @@ export default function ProfilesPage({ currentUser }) {
               >
                 {ownerRecipientOptions.map((user) => (
                   <MenuItem key={user.id} value={String(user.id)}>
-                    {user.username}
+                    {user.username}{user.workspace?.name ? ` · ${user.workspace.name}` : ''}
                   </MenuItem>
                 ))}
               </Select>
@@ -574,7 +585,7 @@ export default function ProfilesPage({ currentUser }) {
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {ownerRecipientOptions.length
                 ? ownerProfile
-                  ? `Transferring ${ownerProfile.name}${ownerProfile.ownerUsername ? ` from ${ownerProfile.ownerUsername}` : ''}.`
+                  ? ownerTransferDescription(ownerProfile, ownerUserId, ownerRecipientOptions)
                   : ''
                 : recipientsLoading
                   ? 'Loading users...'
@@ -584,11 +595,22 @@ export default function ProfilesPage({ currentUser }) {
           <DialogActions>
             <Button onClick={closeOwnerDialog}>Cancel</Button>
             <Button type="submit" variant="contained" disabled={changingOwner || recipientsLoading || !ownerProfile || !ownerUserId}>
-              Change owner
+              Transfer profile
             </Button>
           </DialogActions>
         </form>
       </Dialog>
+
+      <ConfirmationDialog
+        open={Boolean(deletingProfile)}
+        title="Delete profile?"
+        description={deletingProfile ? `Permanently delete ${deletingProfile.name} and its profile data? This action cannot be undone.` : ''}
+        confirmLabel="Delete profile"
+        confirmColor="error"
+        isPending={deleting}
+        onClose={() => setDeletingProfile(null)}
+        onConfirm={deleteConfirmedProfile}
+      />
 
       <Dialog open={Boolean(legacyProfile)} onClose={closeLegacyDialog} fullWidth maxWidth="xs">
         <form onSubmit={submitLegacyStatus}>
@@ -644,6 +666,13 @@ export default function ProfilesPage({ currentUser }) {
       />
     </Box>
   );
+}
+
+function ownerTransferDescription(profile, ownerUserId, users) {
+  const owner = users.find((user) => String(user.id) === String(ownerUserId));
+  if (!owner) return `Choose the new owner for ${profile.name}.`;
+  const workspaceText = owner.workspace?.name ? ` in ${owner.workspace.name}` : '';
+  return `Transfer ${profile.name}${profile.ownerUsername ? ` from ${profile.ownerUsername}` : ''} to ${owner.username}${workspaceText}? The profile will move to the new owner's workspace automatically.`;
 }
 
 function ProfileSkeletonCards() {

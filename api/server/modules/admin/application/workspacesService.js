@@ -21,13 +21,14 @@ export function workspaceSlug(value) {
     .slice(0, 80);
 }
 
-export function formatWorkspace(row, { membershipCount = null, userCount = null } = {}) {
+export function formatWorkspace(row, { membershipCount = null, profileCount = null, userCount = null } = {}) {
   return {
     id: row.id,
     name: row.name,
     slug: row.slug,
     userCount,
     membershipCount,
+    profileCount,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

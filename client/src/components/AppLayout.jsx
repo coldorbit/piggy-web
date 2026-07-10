@@ -372,7 +372,7 @@ export default function AppLayout({ user }) {
           {isAdminRole(user) ? (
             <NavItem to="/admin/users" icon={<PeopleIcon />} label="Users" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
-          {isAdminRole(user) ? (
+          {isSuperadmin(user) ? (
             <NavItem to="/admin/workspaces" icon={<ApartmentIcon />} label="Workspaces" collapsed={isDrawerCollapsed} onNavigate={() => setMobileOpen(false)} />
           ) : null}
         </List>
