@@ -1,6 +1,7 @@
 import { Alert, Box, CircularProgress } from '@mui/material';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import mermaid from 'mermaid';
+import DiagramNavigationControls from './DiagramNavigationControls.jsx';
 
 let mermaidInitialized = false;
 let renderSequence = 0;
@@ -23,6 +24,9 @@ export default function MermaidDiagram({ source, title }) {
   const reactId = useId();
   const [svg, setSvg] = useState('');
   const [error, setError] = useState('');
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const drag = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -43,23 +47,87 @@ export default function MermaidDiagram({ source, title }) {
     return () => { active = false; };
   }, [reactId, source]);
 
+  function resetView() {
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+  }
+
+  function changeZoom(factor) {
+    setZoom((current) => Math.min(3, Math.max(0.5, current * factor)));
+  }
+
+  function startPan(event) {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, offset };
+  }
+
+  function continuePan(event) {
+    if (drag.current?.pointerId !== event.pointerId) return;
+    setOffset({
+      x: drag.current.offset.x + event.clientX - drag.current.x,
+      y: drag.current.offset.y + event.clientY - drag.current.y,
+    });
+  }
+
+  function stopPan(event) {
+    if (drag.current?.pointerId !== event.pointerId) return;
+    drag.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
   if (error) return <Alert severity="error">Invalid Mermaid diagram: {error}</Alert>;
   if (!svg) return <Box sx={{ minHeight: 220, display: 'grid', placeItems: 'center' }}><CircularProgress size={28} /></Box>;
 
   return (
     <Box
-      role="img"
-      aria-label={title || 'Mermaid diagram'}
       sx={{
-        overflow: 'auto',
-        p: { xs: 1, md: 2 },
+        position: 'relative',
+        height: { xs: 420, md: 'min(70vh, 680px)' },
+        minHeight: 360,
+        overflow: 'hidden',
         border: 1,
         borderColor: 'divider',
         borderRadius: 1.5,
         bgcolor: '#fff',
-        '& svg': { display: 'block', maxWidth: '100%', height: 'auto', mx: 'auto' },
       }}
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+      onPointerDown={startPan}
+      onPointerMove={continuePan}
+      onPointerUp={stopPan}
+      onPointerCancel={stopPan}
+      onWheel={(event) => {
+        event.preventDefault();
+        changeZoom(event.deltaY < 0 ? 1.1 : 1 / 1.1);
+      }}
+    >
+      <Box
+        role="img"
+        aria-label={title || 'Mermaid diagram'}
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          display: 'grid',
+          placeItems: 'center',
+          p: { xs: 1, md: 2 },
+          cursor: drag.current ? 'grabbing' : 'grab',
+          touchAction: 'none',
+          userSelect: 'none',
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+          transformOrigin: 'center center',
+          '& svg': { display: 'block', maxWidth: '100%', maxHeight: '100%', height: 'auto' },
+        }}
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+      <DiagramNavigationControls
+        zoom={zoom}
+        onZoomIn={() => changeZoom(1.2)}
+        onZoomOut={() => changeZoom(1 / 1.2)}
+        onReset={resetView}
+        onPanLeft={() => setOffset((current) => ({ ...current, x: current.x - 80 }))}
+        onPanRight={() => setOffset((current) => ({ ...current, x: current.x + 80 }))}
+        onPanUp={() => setOffset((current) => ({ ...current, y: current.y - 80 }))}
+        onPanDown={() => setOffset((current) => ({ ...current, y: current.y + 80 }))}
+      />
+    </Box>
   );
 }
