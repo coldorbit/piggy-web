@@ -30,8 +30,11 @@ export default function ReadOnlyExcalidraw({ scene, title }) {
   function changeZoom(factor) {
     if (!api) return;
     const appState = api.getAppState();
+    updateZoom(appState, Math.max(0.1, appState.zoom.value * factor));
+  }
+
+  function updateZoom(appState, nextZoom) {
     const currentZoom = appState.zoom.value;
-    const nextZoom = Math.max(0.1, currentZoom * factor);
     const scrollX = appState.scrollX + (appState.width / (2 * nextZoom)) - (appState.width / (2 * currentZoom));
     const scrollY = appState.scrollY + (appState.height / (2 * nextZoom)) - (appState.height / (2 * currentZoom));
     api.updateScene({ appState: { zoom: { value: nextZoom }, scrollX, scrollY } });
@@ -85,6 +88,7 @@ export default function ReadOnlyExcalidraw({ scene, title }) {
         zoom={zoom}
         onZoomIn={() => changeZoom(1.2)}
         onZoomOut={() => changeZoom(1 / 1.2)}
+        onResetZoom={() => { if (api) updateZoom(api.getAppState(), 1); }}
         onReset={fitToView}
         onPanLeft={() => panBy(-80, 0)}
         onPanRight={() => panBy(80, 0)}

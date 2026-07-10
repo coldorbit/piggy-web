@@ -122,6 +122,7 @@ export default function MermaidDiagram({ source, title }) {
         zoom={zoom}
         onZoomIn={() => changeZoom(1.2)}
         onZoomOut={() => changeZoom(1 / 1.2)}
+        onResetZoom={() => setZoom(1)}
         onReset={resetView}
         onPanLeft={() => setOffset((current) => ({ ...current, x: current.x - 80 }))}
         onPanRight={() => setOffset((current) => ({ ...current, x: current.x + 80 }))}
