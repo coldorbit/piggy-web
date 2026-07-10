@@ -19,6 +19,7 @@ export function userAttributesFromBody(body, { requirePassword }) {
   const workspaceMembershipIds = workspaceMembershipIdsFromBody(body);
   const dailyBidGoal = dailyBidGoalFromBody(body, role);
   const timezone = timezoneFromBody(body);
+  const profileHubAccess = role === ROLES.admin && booleanFromBody(body?.profileHubAccess ?? body?.profile_hub_access);
 
   if (!username) throw new InputError('Username is required');
   if (!email) throw new InputError('Email is required');
@@ -41,7 +42,12 @@ export function userAttributesFromBody(body, { requirePassword }) {
     workspaceMembershipIds: BIDDER_ROLES.includes(role) ? workspaceMembershipIds : [],
     dailyBidGoal,
     timezone,
+    profileHubAccess,
   };
+}
+
+function booleanFromBody(value) {
+  return value === true || value === 1 || value === '1' || value === 'true';
 }
 
 export function defaultDailyBidGoalForRole(role) {

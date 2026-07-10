@@ -15,6 +15,9 @@ export { getMarketplaceInterviewOpportunityModel } from './marketplaceInterviewO
 export { getMarketplaceMatchModel } from './marketplaceMatch.js';
 export { getMarketplaceParticipantModel } from './marketplaceParticipant.js';
 export { getProfileShareRequestModel } from './profileShareRequest.js';
+export { getProfileIntelligenceModel } from './profileIntelligence.js';
+export { getProfilePrepPlanModel } from './profilePrepPlan.js';
+export { getProfileStoryModel } from './profileStory.js';
 export { getScrapedJobModel } from './scrapedJob.js';
 export { getTailoredResumeModel } from './tailoredResume.js';
 export { getTeamConsumptionModel } from './teamConsumption.js';
@@ -39,6 +42,9 @@ import { getMarketplaceInterviewOpportunityModel } from './marketplaceInterviewO
 import { getMarketplaceMatchModel } from './marketplaceMatch.js';
 import { getMarketplaceParticipantModel } from './marketplaceParticipant.js';
 import { getProfileShareRequestModel } from './profileShareRequest.js';
+import { getProfileIntelligenceModel } from './profileIntelligence.js';
+import { getProfilePrepPlanModel } from './profilePrepPlan.js';
+import { getProfileStoryModel } from './profileStory.js';
 import { getScrapedJobModel } from './scrapedJob.js';
 import { getTailoredResumeModel } from './tailoredResume.js';
 import { getTeamConsumptionModel } from './teamConsumption.js';
@@ -67,6 +73,9 @@ export function setupWebAssociations() {
   const MarketplaceMatchModel = getMarketplaceMatchModel();
   const MarketplaceParticipantModel = getMarketplaceParticipantModel();
   const ProfileShareRequestModel = getProfileShareRequestModel();
+  const ProfileIntelligenceModel = getProfileIntelligenceModel();
+  const ProfilePrepPlanModel = getProfilePrepPlanModel();
+  const ProfileStoryModel = getProfileStoryModel();
   const TailoredResumeModel = getTailoredResumeModel();
   const TeamConsumptionModel = getTeamConsumptionModel();
   const UserWorkspaceMembershipModel = getUserWorkspaceMembershipModel();
@@ -131,6 +140,12 @@ export function setupWebAssociations() {
   TailoredResumeModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
   BidProfileModel.hasMany(ProfileShareRequestModel, { foreignKey: 'profileId', as: 'shareRequests' });
   ProfileShareRequestModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  BidProfileModel.hasOne(ProfileIntelligenceModel, { foreignKey: 'profileId', as: 'intelligence', onDelete: 'CASCADE' });
+  ProfileIntelligenceModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  BidProfileModel.hasOne(ProfilePrepPlanModel, { foreignKey: 'profileId', as: 'prepPlan', onDelete: 'CASCADE' });
+  ProfilePrepPlanModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
+  BidProfileModel.hasMany(ProfileStoryModel, { foreignKey: 'profileId', as: 'stories', onDelete: 'CASCADE' });
+  ProfileStoryModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
   BidProfileModel.hasMany(ForwardedMailboxMessageModel, { foreignKey: 'profileId', as: 'forwardedMailboxMessages' });
   ForwardedMailboxMessageModel.belongsTo(BidProfileModel, { foreignKey: 'profileId', as: 'profile' });
   WebUserModel.hasMany(ProfileShareRequestModel, { foreignKey: 'ownerUserId', as: 'sentProfileShares' });

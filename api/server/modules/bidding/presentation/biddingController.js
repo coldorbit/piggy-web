@@ -53,6 +53,7 @@ import {
 } from '../application/profilesService.js';
 import { enqueueTailoredResumeRequest } from '../application/tailoringQueueService.js';
 import { userAttributesFromBody } from '../../admin/application/usersService.js';
+import { deleteProfileHubRecords } from './profileIntelligenceController.js';
 import { clean } from '../../../utils/index.js';
 import { handleInputError, handleUserWriteError, InputError, NotFoundError } from '../../../utils/errors.js';
 import {
@@ -990,6 +991,7 @@ export async function deleteProfile(req, res, next) {
     const profile = await manageableProfile(req, req.params.id);
     await getJobBidModel().destroy({ where: { profileId: profile.id } });
     await getProfileShareRequestModel().destroy({ where: { profileId: profile.id } });
+    await deleteProfileHubRecords(profile.id);
     await profile.destroy();
     res.json({ ok: true });
   } catch (error) {

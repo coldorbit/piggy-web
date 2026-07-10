@@ -71,6 +71,21 @@ describe('userAttributesFromBody daily bid goals', () => {
     assert.equal(attrs.dailyBidGoal, null);
   });
 
+  it('accepts the Profile Hub entitlement only for admin records', () => {
+    assert.equal(
+      userAttributesFromBody(validUserBody({ role: 'admin', profileHubAccess: true }), { requirePassword: true }).profileHubAccess,
+      true,
+    );
+    assert.equal(
+      userAttributesFromBody(validUserBody({ role: 'user', profileHubAccess: true }), { requirePassword: true }).profileHubAccess,
+      false,
+    );
+    assert.equal(
+      userAttributesFromBody(validUserBody({ role: 'internal' }), { requirePassword: true }).profileHubAccess,
+      false,
+    );
+  });
+
   it('accepts guest users without bid goals', () => {
     const attrs = userAttributesFromBody(validUserBody({ role: 'guest', dailyBidGoal: 75 }), { requirePassword: true });
 

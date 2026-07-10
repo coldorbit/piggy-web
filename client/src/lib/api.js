@@ -90,6 +90,89 @@ export function useBidProfiles(options = {}, queryOptions = {}) {
   });
 }
 
+export function useProfileHub(profileId, queryOptions = {}) {
+  return useQuery({
+    queryKey: ['bid', 'profiles', profileId, 'hub'],
+    queryFn: () => api(`/api/bid/profiles/${profileId}/hub`).then((data) => data.hub),
+    enabled: Boolean(profileId),
+    staleTime: 30_000,
+    ...queryOptions,
+  });
+}
+
+export function useUpdateProfileIntelligence() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, intelligence }) =>
+      api(`/api/bid/profiles/${profileId}/intelligence`, {
+        method: 'PATCH',
+        body: JSON.stringify(intelligence),
+      }).then((data) => data.intelligence),
+    onSuccess: (_intelligence, variables) => invalidateProfileHub(queryClient, variables.profileId),
+  });
+}
+
+export function useGeocodeProfileLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, address, countryCode = 'US' }) =>
+      api(`/api/bid/profiles/${profileId}/location/geocode`, {
+        method: 'POST',
+        body: JSON.stringify({ address, countryCode }),
+      }),
+    onSuccess: (_result, variables) => invalidateProfileHub(queryClient, variables.profileId),
+  });
+}
+
+export function useCreateProfileStory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, story }) =>
+      api(`/api/bid/profiles/${profileId}/stories`, {
+        method: 'POST',
+        body: JSON.stringify(story),
+      }).then((data) => data.story),
+    onSuccess: (_story, variables) => invalidateProfileHub(queryClient, variables.profileId),
+  });
+}
+
+export function useUpdateProfileStory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, storyId, story }) =>
+      api(`/api/bid/profiles/${profileId}/stories/${storyId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(story),
+      }).then((data) => data.story),
+    onSuccess: (_story, variables) => invalidateProfileHub(queryClient, variables.profileId),
+  });
+}
+
+export function useDeleteProfileStory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, storyId }) => api(`/api/bid/profiles/${profileId}/stories/${storyId}`, { method: 'DELETE' }),
+    onSuccess: (_result, variables) => invalidateProfileHub(queryClient, variables.profileId),
+  });
+}
+
+export function useUpdateProfilePrepPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, prepPlan }) =>
+      api(`/api/bid/profiles/${profileId}/prep-plan`, {
+        method: 'PATCH',
+        body: JSON.stringify(prepPlan),
+      }).then((data) => data.prepPlan),
+    onSuccess: (_prepPlan, variables) => invalidateProfileHub(queryClient, variables.profileId),
+  });
+}
+
+function invalidateProfileHub(queryClient, profileId) {
+  queryClient.invalidateQueries({ queryKey: ['bid', 'profiles', profileId, 'hub'] });
+  queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+}
+
 export function useAssessmentProfiles(queryOptions = {}) {
   return useQuery({
     queryKey: ['assessments', 'profiles'],

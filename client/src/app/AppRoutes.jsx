@@ -14,6 +14,7 @@ import {
   RequireJobsAccess,
   RequireMarketplaceAccess,
   RequirePersonalDashboardAccess,
+  RequireProfileHubAccess,
 } from './routeGuards.jsx';
 import { ROLES, canAccessPersonalDashboard, isAdminRole } from '../lib/roles.js';
 
@@ -34,6 +35,7 @@ const InterviewsPage = lazy(() => import('../pages/InterviewsPage.jsx'));
 const JobsPage = lazy(() => import('../pages/JobsPage.jsx'));
 const MarketplacePage = lazy(() => import('../pages/MarketplacePage.jsx'));
 const ProfilesPage = lazy(() => import('../pages/ProfilesPage.jsx'));
+const ProfileHubPage = lazy(() => import('../pages/ProfileHubPage.jsx'));
 const TailoringRequestsPage = lazy(() => import('../pages/TailoringRequestsPage.jsx'));
 const UserDashboardPage = lazy(() => import('../pages/UserDashboardPage.jsx'));
 
@@ -143,6 +145,14 @@ export function AuthenticatedRoutes({ user }) {
                 <ProfilesPage currentUser={user} />
               </BlockCallers>
             </RequireBidWorkspaceAccess>
+          }
+        />
+        <Route
+          path="/profiles/:profileId"
+          element={
+            <RequireProfileHubAccess user={user}>
+              <ProfileHubPage currentUser={user} />
+            </RequireProfileHubAccess>
           }
         />
         <Route path="/faqs" element={<FaqsPage currentUser={user} />} />

@@ -6,6 +6,7 @@ import {
   Chip,
   Checkbox,
   FormControl,
+  FormControlLabel,
   IconButton,
   InputLabel,
   ListItemText,
@@ -19,13 +20,14 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Switch,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
 import EmptyState from '../common/EmptyState.jsx';
 import { formatDateTime } from '../../lib/formatters.js';
-import { BIDDER_ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
+import { BIDDER_ROLES, ROLES, canAccessProfileHub, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UsersTable({
   currentUser,
@@ -125,6 +127,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
   const canEditRole = isSuperadmin(currentUser) || !isAdminRole(user);
   const canSetDailyGoal = canHaveDailyBidGoal(editing.role);
   const canSetExtraWorkspaces = isSuperadmin(currentUser) && BIDDER_ROLES.includes(editing.role);
+  const canGrantProfileHub = isSuperadmin(currentUser) && editing.role === ROLES.admin;
   const workspaceLabel = user.workspace?.name || (user.workspaceId ? `Workspace ${user.workspaceId}` : 'Unassigned workspace');
   const extraMemberships = (user.workspaceMemberships || []).filter((membership) => String(membership.workspaceId) !== String(user.workspaceId || ''));
 
@@ -134,6 +137,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
       role,
       workspaceMembershipIds: BIDDER_ROLES.includes(role) ? current.workspaceMembershipIds || [] : [],
       dailyBidGoal: canHaveDailyBidGoal(role) ? current.dailyBidGoal || defaultDailyBidGoalForRole(role) : '',
+      profileHubAccess: role === ROLES.admin ? Boolean(current.profileHubAccess) : false,
     }));
   }
 
@@ -199,6 +203,13 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
               ))}
             </Select>
           </FormControl>
+          {canGrantProfileHub ? (
+            <FormControlLabel
+              control={<Switch size="small" checked={Boolean(editing.profileHubAccess)} onChange={(event) => onEditingChange((current) => ({ ...current, profileHubAccess: event.target.checked }))} />}
+              label="Profile Hub access"
+              sx={{ mt: 0.5, ml: 0, '& .MuiFormControlLabel-label': { fontSize: 12 } }}
+            />
+          ) : null}
         </TableCell>
         <TableCell>
           <TextField
@@ -280,6 +291,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
       <TableCell>{user.email || '-'}</TableCell>
       <TableCell>
         <Chip color={isAdminRole(user) ? 'warning' : 'default'} label={roleLabel(user.role)} size="small" variant="outlined" />
+        {canAccessProfileHub(user) ? <Chip label="Profile Hub" color="primary" size="small" variant="outlined" sx={{ ml: 0.5 }} /> : null}
       </TableCell>
       <TableCell>{user.timezone || 'America/New_York'}</TableCell>
       <TableCell>{user.dailyBidGoal ? Number(user.dailyBidGoal).toLocaleString() : '-'}</TableCell>

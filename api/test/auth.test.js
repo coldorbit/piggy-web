@@ -55,6 +55,7 @@ describe('session auth', () => {
       username: 'admin',
       email: 'admin@example.com',
       role: 'admin',
+      profileHubAccess: true,
       workspaceId: 3,
       workspace: { id: 3, name: 'ApplyPilot', slug: 'default' },
       workspaceMemberships: [
@@ -72,6 +73,7 @@ describe('session auth', () => {
     });
 
     assert.equal(user.workspaceId, 3);
+    assert.equal(user.profileHubAccess, true);
     assert.deepEqual(user.workspace, { id: 3, name: 'ApplyPilot', slug: 'default' });
     assert.deepEqual(user.workspaceMemberships, [
       {

@@ -89,6 +89,12 @@ export function canAccessInterviews(userOrRole) {
   return INTERVIEW_ROLES.includes(roleOf(userOrRole));
 }
 
+export function canAccessProfileHub(userOrRole) {
+  const role = roleOf(userOrRole);
+  if ([ROLES.superadmin, ROLES.internal].includes(role)) return true;
+  return role === ROLES.admin && Boolean(typeof userOrRole === 'object' && userOrRole?.profileHubAccess);
+}
+
 export function canRegisterManualInterviewCalls(userOrRole) {
   return MANUAL_INTERVIEW_CALL_ROLES.includes(roleOf(userOrRole));
 }

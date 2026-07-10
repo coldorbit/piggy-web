@@ -49,6 +49,12 @@ export function getWebUserModel() {
         allowNull: false,
         defaultValue: 'America/New_York',
       },
+      profileHubAccess: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'profile_hub_access',
+      },
       activeSessionId: {
         type: DataTypes.TEXT,
         field: 'active_session_id',

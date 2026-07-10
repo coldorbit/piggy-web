@@ -18,6 +18,9 @@ import {
   getMarketplaceMatchModel,
   getMarketplaceParticipantModel,
   getProfileShareRequestModel,
+  getProfileIntelligenceModel,
+  getProfilePrepPlanModel,
+  getProfileStoryModel,
   getScrapedJobModel,
   getTailoredResumeModel,
   getTeamConsumptionModel,
@@ -40,6 +43,9 @@ export async function ensureWebModels() {
       await getUserWorkspaceMembershipModel().sync();
       await getFaqModel().sync();
       await getBidProfileModel().sync();
+      await getProfileIntelligenceModel().sync();
+      await getProfilePrepPlanModel().sync();
+      await getProfileStoryModel().sync();
       await getCollaborationEventModel().sync();
       await getProfileShareRequestModel().sync();
       await getForwardedMailboxMessageModel().sync();
@@ -59,6 +65,7 @@ export async function ensureWebModels() {
       await getConsumptionTransactionModel().sync();
       await getConsumptionLedgerEntryModel().sync();
       await ensureWebUserSessionColumns();
+      await ensureWebUserProfileHubAccessColumn();
       await ensureBidProfileColumns();
       await ensureBidProfileStaticResumeColumns();
       await ensureJobBidInterviewColumns();
@@ -365,6 +372,22 @@ async function ensureWebUserDailyBidGoalColumn() {
     SET daily_bid_goal = NULL
     WHERE role IN ('superadmin', 'admin')
       AND daily_bid_goal IS NOT NULL
+  `);
+}
+
+async function ensureWebUserProfileHubAccessColumn() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'web_users';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    profile_hub_access: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  });
+
+  await queryInterface.sequelize.query(`
+    UPDATE web_users
+    SET profile_hub_access = false
+    WHERE profile_hub_access IS NULL
   `);
 }
 

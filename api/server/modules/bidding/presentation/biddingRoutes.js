@@ -7,6 +7,7 @@ import {
   requireInboxAccess,
   requireInterviewAccess,
   requirePersonalDashboardAccess,
+  requireProfileHubAccess,
 } from '../../../middleware/authMiddleware.js';
 import {
   createJobBid,
@@ -48,6 +49,15 @@ import {
   exportCalendarIcs,
 } from './biddingController.js';
 import {
+  createProfileStory,
+  deleteProfileStory,
+  geocodeProfileLocation,
+  getProfileHub,
+  updateProfileIntelligence,
+  updateProfilePrepPlan,
+  updateProfileStory,
+} from './profileIntelligenceController.js';
+import {
   getForwardingMailboxStatus,
   getForwardingMailboxSummary,
   listForwardingMailboxMessages,
@@ -73,6 +83,13 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/callers', requireCallerManagement, listCallers);
   app.post('/api/bid/callers', requireCallerManagement, createCaller);
   app.post('/api/bid/profiles', requireBidWorkspaceAccess, createProfile);
+  app.get('/api/bid/profiles/:id/hub', requireProfileHubAccess, getProfileHub);
+  app.patch('/api/bid/profiles/:id/intelligence', requireProfileHubAccess, updateProfileIntelligence);
+  app.post('/api/bid/profiles/:id/location/geocode', requireProfileHubAccess, geocodeProfileLocation);
+  app.post('/api/bid/profiles/:id/stories', requireProfileHubAccess, createProfileStory);
+  app.patch('/api/bid/profiles/:id/stories/:storyId', requireProfileHubAccess, updateProfileStory);
+  app.delete('/api/bid/profiles/:id/stories/:storyId', requireProfileHubAccess, deleteProfileStory);
+  app.patch('/api/bid/profiles/:id/prep-plan', requireProfileHubAccess, updateProfilePrepPlan);
   app.get('/api/bid/mailbox/status', requireInboxAccess, getForwardingMailboxStatus);
   app.get('/api/bid/mailbox/summary', requireInboxAccess, getForwardingMailboxSummary);
   app.get('/api/bid/mailbox/notifications', requireInboxAccess, listForwardingMailboxNotifications);

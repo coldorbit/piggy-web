@@ -9,6 +9,7 @@ import {
   canAccessInterviews,
   canAccessJobs,
   canAccessPersonalDashboard,
+  canAccessProfileHub,
   canManageCallers,
   isAdminRole,
   isSuperadmin,
@@ -102,6 +103,16 @@ export function requireInterviewAccess(req, res, next) {
   requireAuth(req, res, () => {
     if (!canAccessInterviews(req.user)) {
       res.status(403).json({ error: 'Interview access required' });
+      return;
+    }
+    next();
+  });
+}
+
+export function requireProfileHubAccess(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!canAccessProfileHub(req.user)) {
+      res.status(403).json({ error: 'Profile Hub access requires an internal role or a superadmin grant' });
       return;
     }
     next();

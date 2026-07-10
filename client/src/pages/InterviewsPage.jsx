@@ -2,6 +2,7 @@ import AddIcon from '@mui/icons-material/Add';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
 import {
   Alert,
   Autocomplete,
@@ -23,7 +24,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
 import { APPLICATION_WORKFLOW_STATUSES, BID_TABS, DONE_STATUSES, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
 import { filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
@@ -55,7 +56,7 @@ import {
   useUpdateJobBid,
 } from '../lib/api.js';
 import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
-import { canRegisterManualInterviewCalls, isAdminRole, isSuperadmin } from '../lib/roles.js';
+import { canAccessProfileHub, canRegisterManualInterviewCalls, isAdminRole, isSuperadmin } from '../lib/roles.js';
 import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
 const EMPTY_MANUAL_INTERVIEW = {
@@ -1029,6 +1030,16 @@ export default function InterviewsPage({ currentUser }) {
                 {selectedJobUrl ? (
                   <Button component="a" href={selectedJobUrl} target="_blank" rel="noreferrer" startIcon={<OpenInNewIcon />} variant="outlined">
                     Job link
+                  </Button>
+                ) : null}
+                {activeProfile?.id && canAccessProfileHub(currentUser) ? (
+                  <Button
+                    component={RouterLink}
+                    to={`/profiles/${encodeURIComponent(activeProfile.id)}?tab=interview-prep&interviewId=${encodeURIComponent(selectedJob.bid?.parentInterviewId || selectedJob.bid?.id || '')}`}
+                    startIcon={<SchoolOutlinedIcon />}
+                    variant="outlined"
+                  >
+                    Profile prep
                   </Button>
                 ) : null}
                 {selectedResumeUrl ? (

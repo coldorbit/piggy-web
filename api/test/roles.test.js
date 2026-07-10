@@ -13,6 +13,7 @@ import {
   canAccessInbox,
   canAccessJobs,
   canAccessPersonalDashboard,
+  canAccessProfileHub,
   canRegisterManualInterviewCalls,
   canManageCallers,
 } from '../server/utils/roles.js';
@@ -85,5 +86,15 @@ describe('role permissions', () => {
     assert.equal(canRegisterManualInterviewCalls({ role: ROLES.financeManager }), true);
     assert.equal(canRegisterManualInterviewCalls({ role: ROLES.internal }), true);
     assert.equal(canRegisterManualInterviewCalls({ role: ROLES.caller }), false);
+  });
+
+  it('limits Profile Hub to internal, superadmin, and explicitly granted admins', () => {
+    assert.equal(canAccessProfileHub({ role: ROLES.superadmin }), true);
+    assert.equal(canAccessProfileHub({ role: ROLES.internal }), true);
+    assert.equal(canAccessProfileHub({ role: ROLES.admin, profileHubAccess: true }), true);
+    assert.equal(canAccessProfileHub({ role: ROLES.admin, profileHubAccess: false }), false);
+    assert.equal(canAccessProfileHub({ role: ROLES.user, profileHubAccess: true }), false);
+    assert.equal(canAccessProfileHub({ role: ROLES.financeManager, profileHubAccess: true }), false);
+    assert.equal(canAccessProfileHub({ role: ROLES.caller, profileHubAccess: true }), false);
   });
 });

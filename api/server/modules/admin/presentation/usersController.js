@@ -36,6 +36,7 @@ export async function createUser(req, res, next) {
       workspaceId: workspace.id,
       dailyBidGoal: attrs.dailyBidGoal,
       timezone: attrs.timezone,
+      profileHubAccess: attrs.role === ROLES.admin && isSuperadmin(req.user) ? attrs.profileHubAccess : false,
     });
     await setUserWorkspaceMemberships(user, attrs, req.user);
     await user.reload(userReloadOptions());
@@ -92,6 +93,9 @@ export async function updateUser(req, res, next) {
       workspaceId: workspace.id,
       dailyBidGoal: attrs.dailyBidGoal,
       timezone: attrs.timezone,
+      profileHubAccess: attrs.role === ROLES.admin
+        ? (isSuperadmin(req.user) ? attrs.profileHubAccess : Boolean(user.profileHubAccess))
+        : false,
     };
     if (attrs.password) updates.passwordHash = hashPassword(attrs.password);
     await user.update(updates);

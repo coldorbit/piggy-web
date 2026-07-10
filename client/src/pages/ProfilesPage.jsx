@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -51,7 +51,7 @@ import {
   useUpdateBidProfileStatus,
   downloadAuthenticatedFile,
 } from '../lib/api.js';
-import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, BIDDER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../lib/roles.js';
+import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, BIDDER_ROLES, PRIVILEGED_USER_ROLES, canAccessProfileHub, isAdminRole, isSuperadmin } from '../lib/roles.js';
 
 const PROFILE_STATUS_ORDER = ['active', 'draft', 'legacy'];
 const PROFILE_STATUS_META = {
@@ -82,6 +82,7 @@ const PROFILE_STATUS_META = {
 };
 
 export default function ProfilesPage({ currentUser }) {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [dialogMode, setDialogMode] = useState(null);
   const [editingProfileId, setEditingProfileId] = useState(null);
@@ -486,7 +487,7 @@ export default function ProfilesPage({ currentUser }) {
                   onMarkLegacy={openLegacyDialog}
                   onReopenProfile={reopenProfile}
                   onShare={openShareDialog}
-                  onView={setViewingProfile}
+                  onView={(profile) => canAccessProfileHub(currentUser) ? navigate(`/profiles/${profile.id}`) : setViewingProfile(profile)}
                 />
               ))}
             </Box>

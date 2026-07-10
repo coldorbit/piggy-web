@@ -10,6 +10,7 @@ import {
   canAccessInterviews,
   canAccessJobs,
   canAccessPersonalDashboard,
+  canAccessProfileHub,
   canManageCallers,
   isAdminRole,
   isSuperadmin,
@@ -62,6 +63,14 @@ export function RequireBidWorkspaceAccess({ user, children }) {
 export function RequireInterviewAccess({ user, children }) {
   const location = useLocation();
   if (!canAccessInterviews(user)) return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
+  return children;
+}
+
+export function RequireProfileHubAccess({ user, children }) {
+  const location = useLocation();
+  if (!canAccessProfileHub(user)) {
+    return <Navigate to={restrictedFallbackPath(user)} replace state={{ from: location }} />;
+  }
   return children;
 }
 

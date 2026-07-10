@@ -182,6 +182,7 @@ export function publicUser(row) {
     })),
     dailyBidGoal: row.dailyBidGoal ?? null,
     timezone: row.timezone || 'America/New_York',
+    profileHubAccess: Boolean(row.profileHubAccess),
     lastLoginAt: row.lastLoginAt || null,
     lastSeenAt,
     isActive: Boolean(row.activeSessionId && lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= ACTIVE_WINDOW_MS),

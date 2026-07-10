@@ -11,7 +11,7 @@ import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '../l
 import { BIDDER_ROLES, ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleLabel, roleOptionsFor } from '../lib/roles.js';
 
 const DEFAULT_USER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
-const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', workspaceId: '', workspaceMembershipIds: [], dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE };
+const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', workspaceId: '', workspaceMembershipIds: [], dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE, profileHubAccess: false };
 const ROLE_ORDER = [
   ROLES.superadmin,
   ROLES.admin,
@@ -79,6 +79,7 @@ export default function AdminUsersPage({ currentUser }) {
         dailyBidGoal: canHaveDailyBidGoal(activeSection.role)
           ? current.dailyBidGoal || defaultDailyBidGoalForRole(activeSection.role)
           : '',
+        profileHubAccess: activeSection.role === ROLES.admin ? Boolean(current.profileHubAccess) : false,
       };
     });
   }, [activeSection.role, canCreateActiveRole, defaultWorkspaceId]);
@@ -130,6 +131,7 @@ export default function AdminUsersPage({ currentUser }) {
       workspaceMembershipIds: (user.workspaceMemberships || []).map((membership) => String(membership.workspaceId)),
       dailyBidGoal: user.dailyBidGoal ?? '',
       timezone: user.timezone || DEFAULT_USER_TIMEZONE,
+      profileHubAccess: Boolean(user.profileHubAccess),
     });
   }
 

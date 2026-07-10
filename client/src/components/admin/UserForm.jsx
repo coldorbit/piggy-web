@@ -1,11 +1,12 @@
 import AddIcon from '@mui/icons-material/Add';
-import { Button, Checkbox, FormControl, InputLabel, ListItemText, MenuItem, Paper, Select, TextField } from '@mui/material';
-import { BIDDER_ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isSuperadmin, roleOptionsFor } from '../../lib/roles.js';
+import { Box, Button, Checkbox, FormControl, FormControlLabel, InputLabel, ListItemText, MenuItem, Paper, Select, Switch, TextField } from '@mui/material';
+import { BIDDER_ROLES, ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isSuperadmin, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UserForm({ currentUser, form, isSaving, workspaces = [], onChange, onSubmit }) {
   const roleOptions = roleOptionsFor(currentUser);
   const canSetDailyGoal = canHaveDailyBidGoal(form.role);
   const canSetExtraWorkspaces = isSuperadmin(currentUser) && BIDDER_ROLES.includes(form.role);
+  const canGrantProfileHub = isSuperadmin(currentUser) && form.role === ROLES.admin;
 
   function handleRoleChange(role) {
     onChange((current) => ({
@@ -13,6 +14,7 @@ export default function UserForm({ currentUser, form, isSaving, workspaces = [],
       role,
       workspaceMembershipIds: BIDDER_ROLES.includes(role) ? current.workspaceMembershipIds || [] : [],
       dailyBidGoal: canHaveDailyBidGoal(role) ? current.dailyBidGoal || defaultDailyBidGoalForRole(role) : '',
+      profileHubAccess: role === ROLES.admin ? Boolean(current.profileHubAccess) : false,
     }));
   }
 
@@ -68,16 +70,25 @@ export default function UserForm({ currentUser, form, isSaving, workspaces = [],
           ))}
         </Select>
       </FormControl>
-      <FormControl size="small">
-        <InputLabel>Role</InputLabel>
-        <Select label="Role" value={form.role} onChange={(event) => handleRoleChange(event.target.value)}>
-          {roleOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <Box sx={{ display: 'grid', gap: 0.5 }}>
+        <FormControl size="small">
+          <InputLabel>Role</InputLabel>
+          <Select label="Role" value={form.role} onChange={(event) => handleRoleChange(event.target.value)}>
+            {roleOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {canGrantProfileHub ? (
+          <FormControlLabel
+            control={<Switch size="small" checked={Boolean(form.profileHubAccess)} onChange={(event) => onChange((current) => ({ ...current, profileHubAccess: event.target.checked }))} />}
+            label="Profile Hub"
+            sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: 12 } }}
+          />
+        ) : null}
+      </Box>
       <TextField
         label="Timezone"
         placeholder="America/New_York"
