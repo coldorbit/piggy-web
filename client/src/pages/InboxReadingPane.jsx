@@ -643,7 +643,7 @@ export function smallChipSx(bgcolor, color) {
   };
 }
 
-const smallOutlinedChipSx = {
+export const smallOutlinedChipSx = {
   height: 22,
   fontSize: 11,
   fontWeight: 600,
@@ -651,7 +651,7 @@ const smallOutlinedChipSx = {
   '& .MuiChip-label': { px: 0.75 },
 };
 
-const unreadIconBadgeSx = {
+export const unreadIconBadgeSx = {
   '& .MuiBadge-badge': {
     minWidth: 16,
     height: 16,

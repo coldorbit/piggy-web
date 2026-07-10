@@ -47,7 +47,7 @@ const MAILBOX_GROUPS = Object.freeze({
 });
 const MAILBOX_GROUP_VALUES = new Set(Object.values(MAILBOX_GROUPS));
 
-import { ProfileFolderSkeletons, profileMailboxAddress } from './InboxReadingPane.jsx';
+import { ProfileFolderSkeletons, profileMailboxAddress, unreadIconBadgeSx } from './InboxReadingPane.jsx';
 
 export function MailboxSidebar({
   activeColor,

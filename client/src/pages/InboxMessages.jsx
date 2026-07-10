@@ -47,7 +47,7 @@ const MAILBOX_GROUPS = Object.freeze({
 });
 const MAILBOX_GROUP_VALUES = new Set(Object.values(MAILBOX_GROUPS));
 
-import { InboxMessageSkeletonList, classificationAccent, formatMessageDateShort, messageSenderName, smallChipSx } from './InboxReadingPane.jsx';
+import { InboxMessageSkeletonList, classificationAccent, formatMessageDateShort, messageSenderName, smallChipSx, smallOutlinedChipSx } from './InboxReadingPane.jsx';
 
 export function MessageListPane({
   canLoadMore,
