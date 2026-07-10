@@ -189,9 +189,11 @@ export default function LearningArticlePage() {
         </Box>
         <Box sx={{ display: { xs: 'none', lg: 'grid' }, height: '100%', minHeight: 0, gap: 1.5, alignContent: 'start', overflowX: 'hidden', overflowY: 'auto', overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}>
           {sections.length > 1 ? (
-            <Paper component="nav" aria-label="Article sections" variant="outlined" sx={{ display: 'grid', p: 1.25, gap: 0.5, overflow: 'hidden', boxShadow: 1 }}>
-              <Typography fontWeight={600} sx={{ px: 0.75, pb: 0.5 }}>On this page</Typography>
-              {sections.map((section) => <SectionLink key={section.id} section={section} active={activeSectionId === section.id} onNavigate={navigateToSection} />)}
+            <Paper component="nav" aria-label="Article sections" variant="outlined" sx={{ display: 'flex', flexDirection: 'column', p: 1.25, maxHeight: 'clamp(220px, 52vh, 560px)', minHeight: 0, overflow: 'hidden', boxShadow: 1 }}>
+              <Typography fontWeight={600} sx={{ px: 0.75, pb: 1, flexShrink: 0 }}>On this page</Typography>
+              <Box sx={{ minHeight: 0, display: 'grid', gap: 0.5, alignContent: 'start', overflowX: 'hidden', overflowY: 'auto', overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}>
+                {sections.map((section) => <SectionLink key={section.id} section={section} active={activeSectionId === section.id} onNavigate={navigateToSection} />)}
+              </Box>
             </Paper>
           ) : null}
           <ArticleDetails article={article} />
