@@ -48,7 +48,7 @@ export const topbarSx = {
   px: { xs: 1.25, sm: 1.5 },
   py: 1,
   border: '1px solid rgba(255, 255, 255, 0.34)',
-  borderRadius: 1.5,
+  borderRadius: 2,
   bgcolor: 'rgba(26, 34, 44, 0.48)',
   boxShadow: '0 18px 50px rgba(0, 0, 0, 0.18)',
   backdropFilter: 'blur(26px) saturate(1.25)',
@@ -105,7 +105,7 @@ export const metricItemSx = {
 export const heroDashboardSx = {
   alignSelf: 'center',
   p: { xs: 1.25, sm: 1.5 },
-  borderRadius: 1.5,
+  borderRadius: 2,
   borderColor: 'rgba(255, 255, 255, 0.48)',
   bgcolor: 'rgba(255, 255, 255, 0.72)',
   boxShadow: '0 34px 90px rgba(0, 0, 0, 0.24)',
@@ -129,7 +129,7 @@ export const commandCenterSx = {
 export const dashboardCardSx = {
   border: 1,
   borderColor: 'rgba(0, 0, 0, 0.08)',
-  borderRadius: 1,
+  borderRadius: 2,
   bgcolor: 'rgba(255,255,255,0.82)',
   p: 1.5,
   display: 'grid',
@@ -167,7 +167,7 @@ export const audienceCardSx = {
   gap: 1,
   px: 2,
   py: 1.5,
-  borderRadius: 1,
+  borderRadius: 2,
   bgcolor: 'rgba(27, 27, 27, 0.92)',
   color: '#FFFFFF',
   boxShadow: '0 18px 48px rgba(0, 0, 0, 0.16)',
@@ -195,7 +195,7 @@ export const phaseGridSx = {
 export const phaseCardSx = {
   minHeight: 220,
   p: 2.5,
-  borderRadius: 1,
+  borderRadius: 2,
   borderColor: 'rgba(0, 103, 192, 0.18)',
   bgcolor: 'rgba(255, 255, 255, 0.84)',
   display: 'grid',
@@ -213,7 +213,7 @@ export const featureGridSx = {
 
 export const featureCardSx = {
   p: 2.25,
-  borderRadius: 1,
+  borderRadius: 2,
   borderColor: 'rgba(0, 0, 0, 0.08)',
   bgcolor: 'rgba(255, 255, 255, 0.82)',
   display: 'grid',
@@ -241,7 +241,7 @@ export const portfolioGridSx = {
 export const portfolioCardSx = {
   minHeight: 300,
   p: { xs: 2.25, md: 2.75 },
-  borderRadius: 1,
+  borderRadius: 2,
   borderColor: 'rgba(0, 0, 0, 0.09)',
   bgcolor: 'rgba(255, 255, 255, 0.84)',
   display: 'grid',
@@ -274,7 +274,7 @@ export const signinBandSx = {
   gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(360px, 440px)' },
   gap: { xs: 3, md: 5 },
   alignItems: 'center',
-  borderRadius: 1.5,
+  borderRadius: 2,
   bgcolor: 'rgba(255, 255, 255, 0.82)',
   border: '1px solid rgba(0, 103, 192, 0.16)',
   boxShadow: '0 24px 70px rgba(0, 0, 0, 0.09)',

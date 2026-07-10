@@ -58,7 +58,7 @@ export default function ShellLoading() {
               src="/assets/applypilot-logo.png"
               alt=""
               variant="rounded"
-              sx={{ width: 26, height: 26, bgcolor: 'background.paper', borderRadius: 1.25 }}
+              sx={{ width: 26, height: 26, bgcolor: 'background.paper', borderRadius: 1 }}
             />
           </Box>
           <Box sx={{ minWidth: 0 }}>
@@ -102,7 +102,7 @@ export default function ShellLoading() {
               p: 1,
               border: 1,
               borderColor: shellLine,
-              borderRadius: 1,
+              borderRadius: 2,
               bgcolor: 'rgba(255,255,255,0.56)',
               boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
             }}
@@ -195,7 +195,7 @@ export default function ShellLoading() {
                 p: 1.5,
                 border: 1,
                 borderColor: shellLine,
-                borderRadius: 1,
+                borderRadius: 2,
                 bgcolor: surface,
                 backdropFilter: 'blur(22px) saturate(1.2)',
               }}
@@ -237,7 +237,7 @@ export default function ShellLoading() {
                 p: 1.5,
                 border: 1,
                 borderColor: shellLine,
-                borderRadius: 1,
+                borderRadius: 2,
                 bgcolor: surface,
                 backdropFilter: 'blur(22px) saturate(1.2)',
               }}
@@ -257,7 +257,7 @@ export default function ShellLoading() {
               minHeight: 0,
             }}
           >
-            <Box sx={{ border: 1, borderColor: shellLine, borderRadius: 1, bgcolor: surface, overflow: 'hidden' }}>
+            <Box sx={{ border: 1, borderColor: shellLine, borderRadius: 2, bgcolor: surface, overflow: 'hidden' }}>
               <Box
                 sx={{
                   minHeight: 48,
@@ -308,7 +308,7 @@ export default function ShellLoading() {
                 p: 1.5,
                 border: 1,
                 borderColor: shellLine,
-                borderRadius: 1,
+                borderRadius: 2,
                 bgcolor: surface,
                 backdropFilter: 'blur(22px) saturate(1.2)',
               }}

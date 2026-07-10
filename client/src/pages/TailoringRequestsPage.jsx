@@ -182,7 +182,7 @@ export default function TailoringRequestsPage() {
       {manualError ? <Alert severity="error">{manualError.message}</Alert> : null}
       {manualValidationError ? <Alert severity="error">{manualValidationError}</Alert> : null}
 
-      <Accordion variant="outlined" disableGutters sx={{ borderRadius: 1, overflow: 'hidden', '&:before': { display: 'none' } }}>
+      <Accordion variant="outlined" disableGutters sx={{ borderRadius: 2, overflow: 'hidden', '&:before': { display: 'none' } }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 48, '& .MuiAccordionSummary-content': { my: 1 } }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <AutoAwesomeIcon fontSize="small" color="primary" />
@@ -280,7 +280,7 @@ export default function TailoringRequestsPage() {
         title="Tailoring FAQs"
       />
 
-      <Paper variant="outlined" sx={{ borderRadius: 1, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateRows: 'minmax(0, 1fr) auto' }}>
+      <Paper variant="outlined" sx={{ borderRadius: 2, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateRows: 'minmax(0, 1fr) auto' }}>
         <TableContainer sx={{ minHeight: 0, overflow: 'auto' }}>
           <Table stickyHeader size="small" sx={{ minWidth: 1280 }}>
             <TableHead>

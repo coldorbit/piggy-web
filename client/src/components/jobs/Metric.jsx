@@ -32,7 +32,7 @@ export default function Metric({ icon, label, value, action }) {
               height: 42,
               display: 'grid',
               placeItems: 'center',
-              borderRadius: 2,
+              borderRadius: 1,
               color: 'primary.dark',
               bgcolor: 'rgba(0, 103, 192, 0.10)',
               flexShrink: 0,

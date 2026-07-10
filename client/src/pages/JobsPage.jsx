@@ -412,7 +412,7 @@ function JobBulkActionsBar({
 }) {
   const hasSelection = selectedCount > 0;
   return (
-    <Paper variant="outlined" sx={{ px: 1.25, py: 0.85, borderRadius: 1 }}>
+    <Paper variant="outlined" sx={{ px: 1.25, py: 0.85, borderRadius: 2 }}>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between">
         <Typography color="text.secondary" variant="body2" fontWeight={600}>
           {hasSelection ? `${selectedCount.toLocaleString()} job${selectedCount === 1 ? '' : 's'} selected` : 'No jobs selected'}

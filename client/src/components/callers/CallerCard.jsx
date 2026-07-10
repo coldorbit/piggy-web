@@ -56,7 +56,7 @@ export default function CallerCard({ caller }) {
           <BidderSummaryStat label="Final" value={finalCount} />
         </Box>
 
-        <Accordion variant="outlined" disableGutters sx={{ borderRadius: 1, overflow: 'hidden', '&:before': { display: 'none' } }}>
+        <Accordion variant="outlined" disableGutters sx={{ borderRadius: 2, overflow: 'hidden', '&:before': { display: 'none' } }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 42, '& .MuiAccordionSummary-content': { my: 0.75 } }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
               <Typography variant="body2" fontWeight={600}>

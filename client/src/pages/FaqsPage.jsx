@@ -62,7 +62,7 @@ function FaqSkeletonList() {
   return (
     <Box sx={{ display: 'grid', gap: 1 }}>
       {Array.from({ length: 5 }).map((_, index) => (
-        <Paper key={`faq-loading-${index}`} variant="outlined" sx={{ p: 1.5, borderRadius: 1 }}>
+        <Paper key={`faq-loading-${index}`} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
           <Stack spacing={1}>
             <Stack direction="row" justifyContent="space-between" spacing={1}>
               <Skeleton width="42%" />

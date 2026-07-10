@@ -4,7 +4,7 @@ export default function InterviewLoadingState() {
   return (
     <Box sx={{ m: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
       {Array.from({ length: 3 }).map((_, columnIndex) => (
-        <Paper key={`interview-column-loading-${columnIndex}`} variant="outlined" sx={{ p: 1, borderRadius: 1 }}>
+        <Paper key={`interview-column-loading-${columnIndex}`} variant="outlined" sx={{ p: 1, borderRadius: 2 }}>
           <Stack spacing={1}>
             <Skeleton width="48%" />
             {Array.from({ length: 3 }).map((__, cardIndex) => (

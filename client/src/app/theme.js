@@ -5,6 +5,9 @@ const windowsBlueDark = '#004E8C';
 const appSurfaceStrong = 'rgba(255, 255, 255, 0.92)';
 const appLine = 'rgba(0, 0, 0, 0.11)';
 const appLineSoft = 'rgba(0, 0, 0, 0.07)';
+const controlRadius = 4;
+const layerRadius = 8;
+const pillRadius = 999;
 const micaBackground =
   'linear-gradient(145deg, rgba(255,255,255,0.84) 0%, rgba(247,249,253,0.72) 42%, rgba(239,244,250,0.86) 100%), #F3F3F3';
 
@@ -49,7 +52,7 @@ export const theme = createTheme({
     ...Array(20).fill('0 22px 52px rgba(0, 0, 0, 0.12)'),
   ],
   shape: {
-    borderRadius: 8,
+    borderRadius: controlRadius,
   },
   typography: {
     fontFamily:
@@ -146,6 +149,24 @@ export const theme = createTheme({
         },
         '*': {
           boxSizing: 'border-box',
+          scrollbarColor: 'rgba(96, 96, 96, 0.54) transparent',
+          scrollbarWidth: 'thin',
+        },
+        '*::-webkit-scrollbar': {
+          width: 12,
+          height: 12,
+        },
+        '*::-webkit-scrollbar-track': {
+          background: 'transparent',
+        },
+        '*::-webkit-scrollbar-thumb': {
+          backgroundColor: 'rgba(96, 96, 96, 0.48)',
+          border: '3px solid transparent',
+          borderRadius: controlRadius,
+          backgroundClip: 'content-box',
+        },
+        '*::-webkit-scrollbar-thumb:hover': {
+          backgroundColor: 'rgba(96, 96, 96, 0.68)',
         },
         '*::selection': {
           backgroundColor: 'rgba(0, 103, 192, 0.24)',
@@ -157,6 +178,7 @@ export const theme = createTheme({
         root: {
           backgroundImage: 'none',
           borderColor: appLineSoft,
+          borderRadius: layerRadius,
           backgroundColor: appSurfaceStrong,
           backdropFilter: 'blur(22px) saturate(1.25)',
         },
@@ -170,6 +192,7 @@ export const theme = createTheme({
         root: {
           backgroundImage: 'none',
           borderColor: appLineSoft,
+          borderRadius: layerRadius,
           backgroundColor: appSurfaceStrong,
           backdropFilter: 'blur(22px) saturate(1.25)',
         },
@@ -180,6 +203,7 @@ export const theme = createTheme({
         root: {
           backgroundColor: appSurfaceStrong,
           borderColor: appLineSoft,
+          borderRadius: layerRadius,
           '&:before': {
             display: 'none',
           },
@@ -204,8 +228,8 @@ export const theme = createTheme({
       },
       styleOverrides: {
         root: {
-          minHeight: 30,
-          borderRadius: 8,
+          minHeight: 32,
+          borderRadius: controlRadius,
           paddingTop: 4,
           paddingBottom: 4,
           paddingLeft: 10,
@@ -213,6 +237,10 @@ export const theme = createTheme({
           transition: 'background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease',
           '&:active': {
             transform: 'scale(0.985)',
+          },
+          '&.Mui-focusVisible': {
+            outline: `2px solid ${windowsBlue}`,
+            outlineOffset: 2,
           },
         },
         contained: {
@@ -244,7 +272,9 @@ export const theme = createTheme({
       },
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          width: 32,
+          height: 32,
+          borderRadius: controlRadius,
           padding: 5,
           transition: 'background-color 120ms ease, border-color 120ms ease, transform 120ms ease',
           '&:hover': {
@@ -252,6 +282,10 @@ export const theme = createTheme({
           },
           '&:active': {
             transform: 'scale(0.96)',
+          },
+          '&.Mui-focusVisible': {
+            outline: `2px solid ${windowsBlue}`,
+            outlineOffset: 2,
           },
         },
       },
@@ -265,7 +299,7 @@ export const theme = createTheme({
           height: 22,
           fontSize: 12,
           fontWeight: 600,
-          borderRadius: 999,
+          borderRadius: pillRadius,
         },
         label: {
           paddingLeft: 8,
@@ -317,7 +351,7 @@ export const theme = createTheme({
         root: {
           fontSize: 14,
           minHeight: 32,
-          borderRadius: 6,
+          borderRadius: controlRadius,
           marginLeft: 4,
           marginRight: 4,
           '&.Mui-selected': {
@@ -349,7 +383,8 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: 'rgba(255,255,255,0.72)',
-          borderRadius: 8,
+          borderRadius: controlRadius,
+          minHeight: 32,
           transition: 'background-color 120ms ease, box-shadow 120ms ease',
           '&:hover': {
             backgroundColor: 'rgba(255,255,255,0.9)',
@@ -357,6 +392,9 @@ export const theme = createTheme({
           '&.Mui-focused': {
             backgroundColor: '#ffffff',
             boxShadow: '0 0 0 3px rgba(0, 103, 192, 0.14)',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: windowsBlue,
           },
           '& .MuiOutlinedInput-notchedOutline': {
             borderColor: appLine,
@@ -405,11 +443,28 @@ export const theme = createTheme({
         },
       },
     },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: {
+          borderRadius: controlRadius,
+        },
+        bar: {
+          borderRadius: controlRadius,
+        },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          borderRadius: layerRadius,
+        },
+      },
+    },
     MuiTabs: {
       styleOverrides: {
         indicator: {
           height: 3,
-          borderRadius: 999,
+          borderRadius: pillRadius,
           backgroundColor: windowsBlue,
         },
       },
@@ -420,7 +475,7 @@ export const theme = createTheme({
           minHeight: 38,
           textTransform: 'none',
           fontWeight: 600,
-          borderRadius: 8,
+          borderRadius: controlRadius,
           '&.Mui-selected': {
             color: windowsBlueDark,
           },
@@ -431,7 +486,7 @@ export const theme = createTheme({
       styleOverrides: {
         paper: {
           border: `1px solid ${appLineSoft}`,
-          borderRadius: 8,
+          borderRadius: layerRadius,
           backgroundColor: 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(30px) saturate(1.3)',
           boxShadow: '0 32px 84px rgba(0, 0, 0, 0.22)',
@@ -444,6 +499,7 @@ export const theme = createTheme({
           backgroundColor: 'rgba(255, 255, 255, 0.92)',
           backdropFilter: 'blur(26px) saturate(1.25)',
           border: `1px solid ${appLineSoft}`,
+          borderRadius: layerRadius,
           boxShadow: '0 18px 46px rgba(0, 0, 0, 0.16)',
         },
       },
@@ -461,7 +517,7 @@ export const theme = createTheme({
         tooltip: {
           backgroundColor: 'rgba(32, 32, 32, 0.94)',
           fontSize: 12,
-          borderRadius: 6,
+          borderRadius: controlRadius,
         },
       },
     },

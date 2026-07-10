@@ -275,7 +275,7 @@ export default function AppLayout({ user }) {
                   src="/assets/applypilot-logo.png"
                   alt="ApplyPilot logo"
                   variant="rounded"
-                  sx={{ width: 26, height: 26, bgcolor: 'background.paper', borderRadius: 1.25 }}
+                  sx={{ width: 26, height: 26, bgcolor: 'background.paper', borderRadius: 1 }}
                 />
               </Box>
               <Box minWidth={0}>
@@ -398,7 +398,7 @@ export default function AppLayout({ user }) {
             sx={{
               border: 1,
               borderColor: shellLine,
-              borderRadius: 1,
+              borderRadius: 2,
               p: 1,
               bgcolor: 'rgba(255,255,255,0.56)',
               boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',

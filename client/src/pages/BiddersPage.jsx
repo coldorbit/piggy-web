@@ -48,7 +48,7 @@ function SourceRoiPanel({ roi, isLoading }) {
   const sources = roi?.sources || [];
   if (isLoading && !sources.length) {
     return (
-      <Paper variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
         <Stack spacing={1}>
           <Skeleton width="24%" />
           <Skeleton variant="rounded" height={132} />
@@ -59,7 +59,7 @@ function SourceRoiPanel({ roi, isLoading }) {
   if (!sources.length) return null;
 
   return (
-    <Paper variant="outlined" sx={{ borderRadius: 1, overflow: 'hidden' }}>
+    <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
       <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
         <Typography fontWeight={600}>Source ROI</Typography>
         <Typography variant="body2" color="text.secondary">
@@ -158,7 +158,7 @@ function BidderLoadingGrid() {
       }}
     >
       {Array.from({ length: 4 }).map((_, index) => (
-        <Paper key={`bidder-loading-${index}`} variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
+        <Paper key={`bidder-loading-${index}`} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
           <Stack spacing={1.5}>
             <Stack direction="row" justifyContent="space-between" spacing={1}>
               <Box sx={{ flex: 1 }}>

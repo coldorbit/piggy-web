@@ -84,7 +84,7 @@ function CallerSkeletonGrid() {
       }}
     >
       {Array.from({ length: 4 }).map((_, index) => (
-        <Paper key={`caller-loading-${index}`} variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
+        <Paper key={`caller-loading-${index}`} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
           <Stack spacing={1.25}>
             <Stack direction="row" justifyContent="space-between" spacing={1}>
               <Box sx={{ flex: 1 }}>

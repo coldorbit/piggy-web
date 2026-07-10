@@ -64,7 +64,7 @@ export default function CollaborationPanel({ entityType = 'profile', entityId, p
       {error ? <Alert severity="error">{error.message}</Alert> : null}
       {formError ? <Alert severity="error">{formError}</Alert> : null}
 
-      <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1 }}>
+      <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 2 }}>
         <Box component="form" onSubmit={submitEvent} sx={{ display: 'grid', gap: 1 }}>
           <ToggleButtonGroup
             exclusive
@@ -118,17 +118,17 @@ export default function CollaborationPanel({ entityType = 'profile', entityId, p
 
       <Stack spacing={0.75}>
         {isLoading && !sortedEvents.length ? (
-          <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1 }}>
+          <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 2 }}>
             <Typography variant="body2" color="text.secondary">Loading collaboration history...</Typography>
           </Paper>
         ) : null}
         {!isLoading && !sortedEvents.length ? (
-          <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
+          <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 2, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
             <Typography variant="body2" color="text.secondary">No collaboration notes yet.</Typography>
           </Paper>
         ) : null}
         {sortedEvents.map((event) => (
-          <Paper key={event.id} variant="outlined" sx={{ p: 1.25, borderRadius: 1, bgcolor: event.resolvedAt ? 'rgba(246, 248, 251, 0.86)' : 'background.paper' }}>
+          <Paper key={event.id} variant="outlined" sx={{ p: 1.25, borderRadius: 2, bgcolor: event.resolvedAt ? 'rgba(246, 248, 251, 0.86)' : 'background.paper' }}>
             <Stack spacing={0.75}>
               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center">
                 <Chip size="small" label={eventLabel(event.eventType)} color={event.eventType === 'change' ? 'default' : 'primary'} variant={event.eventType === 'change' ? 'outlined' : 'filled'} />

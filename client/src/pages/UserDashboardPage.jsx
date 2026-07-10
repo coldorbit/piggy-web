@@ -562,7 +562,7 @@ function LoadingPanel() {
       <Grid container spacing={1.25}>
         {Array.from({ length: 6 }).map((_, index) => (
           <Grid key={`personal-dashboard-metric-loading-${index}`} size={{ xs: 12, sm: 6, lg: 4, xl: 2 }}>
-            <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1, boxShadow: 1 }}>
+            <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 2, boxShadow: 1 }}>
               <Stack spacing={1}>
                 <Skeleton variant="circular" width={32} height={32} />
                 <Skeleton width="54%" />
@@ -587,7 +587,7 @@ function LoadingPanel() {
 
 function DashboardPanelSkeleton({ height }) {
   return (
-    <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 1, boxShadow: 1 }}>
+    <Paper variant="outlined" sx={{ p: 1.25, borderRadius: 2, boxShadow: 1 }}>
       <Skeleton width="38%" sx={{ mb: 1 }} />
       <Skeleton variant="rounded" height={height} />
     </Paper>

@@ -104,7 +104,7 @@ const accordionSx = {
   borderColor: 'divider',
   boxShadow: 0,
   bgcolor: 'background.paper',
-  borderRadius: '6px !important',
+  borderRadius: '8px !important',
   '&:before': { display: 'none' },
 };
 

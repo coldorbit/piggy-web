@@ -425,7 +425,7 @@ function AssessmentStat({ label, tone, value }) {
   }[tone];
 
   return (
-    <Paper variant="outlined" sx={{ p: 1, borderRadius: 1, ...styles }}>
+    <Paper variant="outlined" sx={{ p: 1, borderRadius: 2, ...styles }}>
       <Typography variant="caption" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
         {label}
       </Typography>
@@ -441,7 +441,7 @@ function AssessmentList({ activeProfile, assessments, currentUser, isDeleting, i
     return (
       <Box sx={{ display: 'grid', gap: 1, alignContent: 'start', overflow: 'auto', minHeight: 0 }}>
         {Array.from({ length: 5 }).map((_, index) => (
-          <Paper key={`assessment-loading-${index}`} variant="outlined" sx={{ p: 1.25, borderRadius: 1 }}>
+          <Paper key={`assessment-loading-${index}`} variant="outlined" sx={{ p: 1.25, borderRadius: 2 }}>
             <Skeleton width="28%" />
             <Skeleton width="66%" />
             <Skeleton width="45%" />

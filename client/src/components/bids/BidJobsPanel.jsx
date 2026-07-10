@@ -524,7 +524,7 @@ function BidJobSkeletonList() {
   return (
     <>
       {Array.from({ length: 5 }).map((_, index) => (
-        <Paper key={`bid-job-loading-${index}`} variant="outlined" sx={{ p: 1.25, borderRadius: 1, flexShrink: 0 }}>
+        <Paper key={`bid-job-loading-${index}`} variant="outlined" sx={{ p: 1.25, borderRadius: 2, flexShrink: 0 }}>
           <Stack spacing={1}>
             <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
               <Box sx={{ minWidth: 0, flex: 1 }}>

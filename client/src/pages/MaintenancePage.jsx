@@ -53,7 +53,7 @@ export default function MaintenancePage() {
           variant="outlined"
           sx={{
             overflow: 'hidden',
-            borderRadius: 1.5,
+            borderRadius: 2,
             borderColor: 'rgba(255, 255, 255, 0.2)',
             bgcolor: 'rgba(255, 255, 255, 0.92)',
             boxShadow: '0 34px 100px rgba(0, 0, 0, 0.34)',
