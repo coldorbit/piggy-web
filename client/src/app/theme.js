@@ -1,6 +1,8 @@
 import { createTheme } from '@mui/material';
 
 const windowsBlue = '#0067C0';
+const windowsBlueHover = '#005FB8';
+const windowsBluePressed = '#005A9E';
 const windowsBlueDark = '#004E8C';
 const appSurfaceStrong = 'rgba(255, 255, 255, 0.92)';
 const appLine = 'rgba(0, 0, 0, 0.11)';
@@ -242,13 +244,27 @@ export const theme = createTheme({
             outline: `2px solid ${windowsBlue}`,
             outlineOffset: 2,
           },
+          '&.MuiButton-containedPrimary': {
+            backgroundColor: windowsBlue,
+            backgroundImage: 'none',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+            color: '#FFFFFF',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.24) inset, 0 2px 4px rgba(0, 0, 0, 0.12)',
+            '&:hover': {
+              backgroundColor: windowsBlueHover,
+              backgroundImage: 'none',
+              boxShadow: '0 1px 0 rgba(255,255,255,0.2) inset, 0 2px 5px rgba(0, 0, 0, 0.14)',
+            },
+            '&:active': {
+              backgroundColor: windowsBluePressed,
+              backgroundImage: 'none',
+            },
+          },
         },
         contained: {
-          background: 'linear-gradient(180deg, #0078D4 0%, #0067C0 100%)',
-          boxShadow: '0 1px 0 rgba(255,255,255,0.32) inset, 0 8px 18px rgba(0, 103, 192, 0.22)',
+          boxShadow: '0 1px 0 rgba(255,255,255,0.24) inset, 0 2px 4px rgba(0, 0, 0, 0.12)',
           '&:hover': {
-            background: 'linear-gradient(180deg, #1083D8 0%, #005EA8 100%)',
-            boxShadow: '0 1px 0 rgba(255,255,255,0.32) inset, 0 10px 22px rgba(0, 103, 192, 0.25)',
+            boxShadow: '0 1px 0 rgba(255,255,255,0.2) inset, 0 2px 5px rgba(0, 0, 0, 0.14)',
           },
         },
         outlined: {

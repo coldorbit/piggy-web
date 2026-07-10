@@ -238,11 +238,12 @@ export default function BidJobsPanel() {
                   my: 0.75,
                   minHeight: 34,
                   whiteSpace: 'nowrap',
-                  bgcolor: '#2563eb',
-                  '&:hover': { bgcolor: '#1d4ed8' },
+                  bgcolor: '#0067C0',
+                  '&:hover': { bgcolor: '#005FB8' },
+                  '&:active': { bgcolor: '#005A9E' },
                   '&.Mui-disabled': {
-                    bgcolor: '#bfdbfe',
-                    color: '#eff6ff',
+                    bgcolor: 'rgba(0, 103, 192, 0.38)',
+                    color: 'rgba(255, 255, 255, 0.72)',
                   },
                 }}
               >
