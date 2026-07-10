@@ -13,7 +13,6 @@ import {
   MenuItem,
   Paper,
   Select,
-  Stack,
   Switch,
   TextField,
   Typography,
@@ -27,7 +26,7 @@ import { useCreateLearningArticle, useDeleteLearningArticle, useLearningArticle,
 
 const EMPTY_ARTICLE = {
   category: 'companies', title: '', summary: '', content: '## Overview\n\nWrite the internal learning guide here.\n\n## Interview relevance\n\nExplain how the team should use this information.',
-  tags: [], companyName: '', city: '', region: '', countryCode: '', difficulty: '', sourceLinks: [], featured: false, status: 'draft',
+  tags: [], companyName: '', city: '', region: '', countryCode: '', difficulty: '', sourceLinks: [], featured: false, status: 'draft', mermaidScript: '',
 };
 
 export default function LearningEditorPage() {
@@ -35,6 +34,7 @@ export default function LearningEditorPage() {
   const { articleId } = useParams();
   const isEditing = Boolean(articleId);
   const [form, setForm] = useState(EMPTY_ARTICLE);
+  const [excalidrawJson, setExcalidrawJson] = useState('');
   const [message, setMessage] = useState('');
   const { data: article, isLoading, error: loadError } = useLearningArticle(articleId);
   const createArticle = useCreateLearningArticle();
@@ -42,13 +42,17 @@ export default function LearningEditorPage() {
   const deleteArticle = useDeleteLearningArticle();
   const isSaving = createArticle.isPending || updateArticle.isPending || deleteArticle.isPending;
 
-  useEffect(() => { if (article) setForm({ ...EMPTY_ARTICLE, ...article }); }, [article]);
+  useEffect(() => {
+    if (!article) return;
+    setForm({ ...EMPTY_ARTICLE, ...article });
+    setExcalidrawJson(article.excalidrawData ? JSON.stringify(article.excalidrawData, null, 2) : '');
+  }, [article]);
 
   function change(key, value) { setForm((current) => ({ ...current, [key]: value })); }
 
   function save(status) {
     setMessage('');
-    const payload = { ...form, status };
+    const payload = { ...form, excalidrawData: excalidrawJson.trim() || null, status };
     const callbacks = {
       onSuccess: (saved) => status === 'published' ? navigate(`/learning/${saved.id}`) : (setMessage('Draft saved.'), !isEditing && navigate(`/learning/${saved.id}/edit`, { replace: true })),
       onError: (error) => setMessage(error.message),
@@ -89,6 +93,32 @@ export default function LearningEditorPage() {
         </Box>
         <TextField label="Source URLs" multiline minRows={3} value={(form.sourceLinks || []).map((source) => source.url || source).join('\n')} onChange={(event) => change('sourceLinks', event.target.value.split(/\r?\n/).filter(Boolean).map((url) => ({ label: url, url })))} helperText="One public HTTP or HTTPS source per line." />
         <Box sx={{ display: 'grid', gap: 0.75 }}><Typography variant="subtitle2" color="text.secondary">Article content</Typography><Box data-color-mode="light" sx={{ overflow: 'hidden', border: 1, borderColor: 'divider', borderRadius: 1, '& .w-md-editor': { boxShadow: 'none' } }}><MDEditor height={560} value={form.content} onChange={(value) => change('content', value || '')} preview="live" /></Box></Box>
+        <Box sx={{ display: 'grid', gap: 1.5, pt: 0.5 }}>
+          <Box>
+            <Typography variant="subtitle1" fontWeight={600}>Optional diagrams</Typography>
+            <Typography variant="body2" color="text.secondary">Paste diagram source below. Published articles render it read-only; this form does not provide a visual editor.</Typography>
+          </Box>
+          <TextField
+            label="Excalidraw scene JSON"
+            multiline
+            minRows={8}
+            value={excalidrawJson}
+            onChange={(event) => setExcalidrawJson(event.target.value)}
+            helperText="Paste the contents of an exported .excalidraw file. Leave empty to remove the diagram."
+            inputProps={{ spellCheck: false }}
+            sx={{ '& textarea': { fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13 } }}
+          />
+          <TextField
+            label="Mermaid script"
+            multiline
+            minRows={8}
+            value={form.mermaidScript || ''}
+            onChange={(event) => change('mermaidScript', event.target.value)}
+            helperText="For example: flowchart LR followed by A --> B. Leave empty to remove the diagram."
+            inputProps={{ spellCheck: false }}
+            sx={{ '& textarea': { fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: 13 } }}
+          />
+        </Box>
       </Paper>
     </Box>
   );

@@ -14,6 +14,8 @@ export function getLearningArticleModel() {
       title: { type: DataTypes.TEXT, allowNull: false },
       summary: { type: DataTypes.TEXT, allowNull: false, defaultValue: '' },
       content: { type: DataTypes.TEXT, allowNull: false, defaultValue: '' },
+      excalidrawData: { type: DataTypes.JSONB, field: 'excalidraw_data' },
+      mermaidScript: { type: DataTypes.TEXT, field: 'mermaid_script' },
       tags: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
       companyName: { type: DataTypes.TEXT, field: 'company_name' },
       city: DataTypes.TEXT,

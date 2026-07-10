@@ -7,6 +7,9 @@ import { isAdminRole } from '../../../utils/roles.js';
 export const LEARNING_CATEGORIES = ['companies', 'geography', 'machine_learning'];
 export const LEARNING_STATUSES = ['draft', 'published'];
 export const LEARNING_DIFFICULTIES = ['', 'foundation', 'intermediate', 'advanced', 'staff_plus'];
+const MAX_EXCALIDRAW_BYTES = 5_000_000;
+const MAX_EXCALIDRAW_ELEMENTS = 5_000;
+const MAX_MERMAID_CHARACTERS = 50_000;
 
 export async function listLearningArticlesForUser(user, query = {}) {
   const where = isAdminRole(user) ? {} : { status: 'published' };
@@ -91,6 +94,8 @@ export function learningArticleAttributesFromBody(body = {}, current = {}) {
     title,
     summary,
     content,
+    excalidrawData: excalidrawScene(bodyValue(body, 'excalidrawData', current.excalidrawData)),
+    mermaidScript: mermaidSource(bodyValue(body, 'mermaidScript', current.mermaidScript)),
     tags: stringList(body.tags ?? current.tags, 20),
     companyName: category === 'companies' ? nullableText(body.companyName ?? current.companyName, 240) : null,
     city: category === 'geography' ? nullableText(body.city ?? current.city, 180) : null,
@@ -110,6 +115,8 @@ export function publicLearningArticle(row) {
     title: row.title,
     summary: row.summary,
     content: row.content,
+    excalidrawData: row.excalidrawData || null,
+    mermaidScript: row.mermaidScript || '',
     tags: row.tags || [],
     companyName: row.companyName || '',
     city: row.city || '',
@@ -124,6 +131,53 @@ export function publicLearningArticle(row) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+function bodyValue(body, key, currentValue) {
+  return Object.prototype.hasOwnProperty.call(body, key) ? body[key] : currentValue;
+}
+
+function excalidrawScene(value) {
+  if (value === null || value === undefined || value === '') return null;
+  let scene = value;
+  if (typeof value === 'string') {
+    try {
+      scene = JSON.parse(value);
+    } catch {
+      throw new InputError('Excalidraw data must be valid scene JSON');
+    }
+  }
+  if (!scene || Array.isArray(scene) || typeof scene !== 'object' || !Array.isArray(scene.elements)) {
+    throw new InputError('Excalidraw data must contain an elements array');
+  }
+  if (scene.elements.length > MAX_EXCALIDRAW_ELEMENTS) {
+    throw new InputError(`Excalidraw scenes can contain no more than ${MAX_EXCALIDRAW_ELEMENTS.toLocaleString()} elements`);
+  }
+  if (scene.appState !== undefined && (!scene.appState || Array.isArray(scene.appState) || typeof scene.appState !== 'object')) {
+    throw new InputError('Excalidraw appState must be an object');
+  }
+  if (scene.files !== undefined && (!scene.files || Array.isArray(scene.files) || typeof scene.files !== 'object')) {
+    throw new InputError('Excalidraw files must be an object');
+  }
+  let serialized;
+  try {
+    serialized = JSON.stringify(scene);
+  } catch {
+    throw new InputError('Excalidraw data must be JSON serializable');
+  }
+  if (Buffer.byteLength(serialized, 'utf8') > MAX_EXCALIDRAW_BYTES) {
+    throw new InputError('Excalidraw data must be smaller than 5 MB');
+  }
+  return JSON.parse(serialized);
+}
+
+function mermaidSource(value) {
+  const source = clean(value);
+  if (!source) return null;
+  if (source.length > MAX_MERMAID_CHARACTERS) {
+    throw new InputError('Mermaid scripts must be 50,000 characters or fewer');
+  }
+  return source;
 }
 
 function stringList(value, maxItems) {

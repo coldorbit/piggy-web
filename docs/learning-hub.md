@@ -27,19 +27,29 @@ Use for ML foundations, modeling, experimentation, production systems, responsib
 1. An admin selects **New article**.
 2. Choose a library and provide a title and concise summary.
 3. Add category-specific metadata, tags, source URLs, and Markdown content.
-4. Save as a draft for review or publish for internal users.
-5. Optionally feature high-priority material.
+4. Optionally paste exported Excalidraw scene JSON, Mermaid source, or both. These render read-only in a conditional **Diagram** tab.
+5. Save as a draft for review or publish for internal users.
+6. Optionally feature high-priority material.
 
 ## Data model
 
 Articles are stored in `learning_articles` with:
 
 - category, title, summary, and Markdown content;
+- optional Excalidraw scene JSON and Mermaid source;
 - tags and source links;
 - category-specific company, geography, or ML fields;
 - featured, draft/published, author, and timestamp metadata.
 
-The table is created by the existing `ensureWebModels()` startup synchronization.
+The table and missing diagram columns are created by the existing `ensureWebModels()` startup synchronization.
+
+## Diagram behavior
+
+- Articles without diagram data keep the existing article-only view.
+- Articles with Excalidraw JSON or Mermaid source show an **Article / Diagram** tab bar.
+- Excalidraw runs in view mode with editing, links, and embeds disabled.
+- Mermaid renders as SVG with strict security enabled; invalid scripts show an inline error instead of breaking the article.
+- Diagram renderers are lazy-loaded, so they do not increase the initial bundle for articles without diagrams.
 
 ## API
 

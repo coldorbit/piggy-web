@@ -53,6 +53,7 @@ const markdownVendorPackages = [
 ];
 
 const reactVendorPackages = ['hoist-non-react-statics', 'react', 'react-dom', 'scheduler'];
+const diagramVendorPackages = ['@excalidraw/excalidraw', 'mermaid'];
 const routerVendorPackages = ['react-router'];
 const queryVendorPackages = ['@tanstack'];
 const httpVendorPackages = ['axios'];
@@ -83,6 +84,9 @@ export default defineConfig({
           if (!id.includes('node_modules')) return undefined;
           if (reactVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
             return 'vendor-react';
+          }
+          if (diagramVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
+            return 'vendor-diagrams';
           }
           if (routerVendorPackages.some((packageName) => isPackageFamily(id, packageName))) {
             return 'vendor-router';
