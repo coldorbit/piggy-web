@@ -14,6 +14,7 @@ import {
   repositories,
 } from '../../../../db.js';
 import { Readable } from 'node:stream';
+import { createHash } from 'node:crypto';
 import { Op, QueryTypes } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../../../env.js';
@@ -478,6 +479,7 @@ export async function sameCompanyTailoringByJobUrl({ sequelize, profileId, jobs 
         AND scraped_jobs.url = tailored_resumes.job_url
       WHERE tailored_resumes.profile_id = :profileId
         AND tailored_resumes.status IN (:statuses)
+        AND md5(scraped_jobs.normalized_company) IN (:companyHashes)
         AND scraped_jobs.normalized_company IN (:companies)
       ORDER BY tailored_resumes.created_at DESC NULLS LAST, tailored_resumes.updated_at DESC NULLS LAST
     `,
@@ -486,6 +488,7 @@ export async function sameCompanyTailoringByJobUrl({ sequelize, profileId, jobs 
         profileId,
         statuses: ACTIVE_TAILORED_RESUME_STATUSES,
         companies,
+        companyHashes: companies.map(md5Text),
       },
     },
   );
@@ -598,6 +601,10 @@ export function normalizeCompany(value) {
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function md5Text(value) {
+  return createHash('md5').update(String(value)).digest('hex');
 }
 
 export function daysSince(value, now = new Date()) {
