@@ -611,6 +611,7 @@ export default function InterviewsPage({ currentUser }) {
         submitManualInterview={submitManualInterview}
         updateManualCallStage={updateManualCallStage}
         updatingBid={updatingBid}
+        updatingInterviewCall={updatingInterviewCall}
       />
 
       <Dialog open={Boolean(selectedJob)} onClose={closeInterviewDialog} fullWidth maxWidth="md">

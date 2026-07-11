@@ -90,6 +90,7 @@ export function InterviewRegistrationDialogs({
   submitManualInterview,
   updateManualCallStage,
   updatingBid,
+  updatingInterviewCall,
 }) {
   return (
     <>
