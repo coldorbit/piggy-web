@@ -57,6 +57,18 @@ export function canHaveWorkspaceMemberships(userOrRole) {
   return MULTI_WORKSPACE_ROLES.includes(roleOf(userOrRole));
 }
 
+export function assignedWorkspaceIds(user) {
+  const ids = [user?.workspaceId];
+  for (const membership of user?.workspaceMemberships || []) {
+    if ((membership.status || 'active') === 'active') ids.push(membership.workspaceId);
+  }
+  return [...new Set(ids.filter(Boolean).map(String))];
+}
+
+export function canAccessAssignedWorkspace(user, workspaceId) {
+  return isSuperadmin(user) || assignedWorkspaceIds(user).includes(String(workspaceId));
+}
+
 export function canAccessConsumption(userOrRole) {
   return [ROLES.superadmin, ROLES.financeManager].includes(roleOf(userOrRole));
 }

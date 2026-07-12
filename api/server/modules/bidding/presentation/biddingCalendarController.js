@@ -63,6 +63,7 @@ import {
   INTERVIEW_ACCESS_ROLES,
   PRIVILEGED_USER_ROLES,
   canRegisterManualInterviewCalls,
+  canAccessAssignedWorkspace,
   canManageCallers as canManageCallersRole,
   isAdminRole,
   isSuperadmin,
@@ -265,13 +266,12 @@ export function calendarRangeFromQuery(query = {}) {
 }
 
 export function calendarWorkspaceIdFromQuery(query = {}, user = {}) {
-  if (!isSuperadmin(user)) return undefined;
   const value = clean(query.workspaceId);
   if (!value || value === 'all') return undefined;
-  if (value === 'unassigned') return null;
+  if (value === 'unassigned') return isSuperadmin(user) ? null : undefined;
   const workspaceId = Number(value);
   if (!Number.isSafeInteger(workspaceId) || workspaceId <= 0) throw new InputError('Choose a valid workspace');
-  return workspaceId;
+  return canAccessAssignedWorkspace(user, workspaceId) ? workspaceId : undefined;
 }
 
 export function calendarEventsInRange(interviews = [], range = null) {

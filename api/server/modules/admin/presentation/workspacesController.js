@@ -1,7 +1,7 @@
-import { fn, col } from 'sequelize';
+import { fn, col, Op } from 'sequelize';
 import { getBidProfileModel, getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel } from '../../../../db.js';
 import { InputError, handleInputError } from '../../../utils/errors.js';
-import { isSuperadmin } from '../../../utils/roles.js';
+import { assignedWorkspaceIds, isSuperadmin } from '../../../utils/roles.js';
 import { formatWorkspace, workspaceAttributesFromBody } from '../application/workspacesService.js';
 
 export async function listWorkspaces(_req, res, next) {
@@ -16,7 +16,7 @@ export async function listWorkspaces(_req, res, next) {
       include: [{ model: WebUser, as: 'users', attributes: [], required: false }],
       group: ['Workspace.id'],
       order: [['name', 'ASC']],
-      where: isSuperadmin(_req.user) ? undefined : { id: _req.user.workspaceId },
+      where: isSuperadmin(_req.user) ? undefined : { id: { [Op.in]: assignedWorkspaceIds(_req.user) } },
     });
     const membershipRows = await Membership.findAll({
       attributes: ['workspaceId', [fn('COUNT', col('id')), 'membershipCount']],

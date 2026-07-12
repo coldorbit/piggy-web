@@ -1,6 +1,6 @@
 import AddIcon from '@mui/icons-material/Add';
 import { Box, Button, Checkbox, FormControl, FormControlLabel, InputLabel, ListItemText, MenuItem, Paper, Select, Switch, TextField } from '@mui/material';
-import { ROLES, canHaveDailyBidGoal, canHaveWorkspaceMemberships, defaultDailyBidGoalForRole, isSuperadmin, roleOptionsFor } from '../../lib/roles.js';
+import { ROLES, canHaveDailyBidGoal, canHaveWorkspaceMemberships, canUseWorkspaceLens, defaultDailyBidGoalForRole, isSuperadmin, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UserForm({ currentUser, form, isSaving, workspaces = [], onChange, onSubmit }) {
   const roleOptions = roleOptionsFor(currentUser);
@@ -59,7 +59,7 @@ export default function UserForm({ currentUser, form, isSaving, workspaces = [],
       />
       <FormControl size="small">
         <InputLabel>Workspace</InputLabel>
-        <Select label="Workspace" value={String(form.workspaceId || '')} disabled={!isSuperadmin(currentUser)} onChange={(event) => onChange((current) => ({ ...current, workspaceId: event.target.value }))}>
+        <Select label="Workspace" value={String(form.workspaceId || '')} disabled={!canUseWorkspaceLens(currentUser)} onChange={(event) => onChange((current) => ({ ...current, workspaceId: event.target.value }))}>
           <MenuItem value="" disabled>
             Select workspace
           </MenuItem>

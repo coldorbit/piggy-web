@@ -52,7 +52,7 @@ import {
   useUpdateBidProfileStatus,
   downloadAuthenticatedFile,
 } from '../lib/api.js';
-import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, BIDDER_ROLES, PRIVILEGED_USER_ROLES, canAccessProfileHub, isAdminRole, isSuperadmin, roleLabel } from '../lib/roles.js';
+import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, BIDDER_ROLES, PRIVILEGED_USER_ROLES, canAccessProfileHub, canUseWorkspaceLens, isAdminRole, isSuperadmin, roleLabel } from '../lib/roles.js';
 
 const PROFILE_STATUS_ORDER = ['active', 'draft', 'legacy'];
 const PROFILE_STATUS_META = {
@@ -101,7 +101,7 @@ export default function ProfilesPage({ currentUser }) {
   const [error, setError] = useState('');
   const [activeStatus, setActiveStatus] = useState('active');
   const { activeWorkspaceId, setActiveWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
-  const superadminView = isSuperadmin(currentUser);
+  const superadminView = isSuperadmin(currentUser), workspaceLensEnabled = canUseWorkspaceLens(currentUser);
 
   const { data: profiles = [], isLoading, error: loadError, refetch } = useBidProfiles(
     isAdminRole(currentUser) ? { scope: 'manage' } : {},
@@ -109,9 +109,9 @@ export default function ProfilesPage({ currentUser }) {
   const profilesWithWorkspace = useMemo(
     () => profiles.map((profile) => ({
       ...profile,
-      workspaceName: superadminView ? workspaceLabel(workspaces, profile.workspaceId) : '',
+      workspaceName: workspaceLensEnabled ? workspaceLabel(workspaces, profile.workspaceId) : '',
     })),
-    [profiles, superadminView, workspaces],
+    [profiles, workspaceLensEnabled, workspaces],
   );
   const { data: shareRequests = {}, error: sharesError } = useProfileShareRequests();
   const { data: shareRecipients = [], isLoading: recipientsLoading, error: recipientsError } = useProfileShareRecipients();
@@ -333,8 +333,8 @@ export default function ProfilesPage({ currentUser }) {
   const canManageLegacyProfiles = isSuperadmin(currentUser);
   const highlightedProfileId = searchParams.get('profileId') || '';
   const workspaceProfiles = useMemo(
-    () => (superadminView ? filterRowsByWorkspace(profilesWithWorkspace, activeWorkspaceId) : profilesWithWorkspace),
-    [activeWorkspaceId, profilesWithWorkspace, superadminView],
+    () => (workspaceLensEnabled ? filterRowsByWorkspace(profilesWithWorkspace, activeWorkspaceId) : profilesWithWorkspace),
+    [activeWorkspaceId, profilesWithWorkspace, workspaceLensEnabled],
   );
   const profileStatusSections = useMemo(() => profileStatusSectionsForProfiles(workspaceProfiles), [workspaceProfiles]);
   const activeStatusSection = profileStatusSections.find((section) => section.status === activeStatus) || profileStatusSections[0];
@@ -354,8 +354,8 @@ export default function ProfilesPage({ currentUser }) {
     const highlightedProfile = profiles.find((profile) => String(profile.id) === String(highlightedProfileId));
     if (!highlightedProfile) return;
     setActiveStatus(normalizedProfileStatus(highlightedProfile.profileStatus));
-    if (superadminView) setActiveWorkspaceId(String(highlightedProfile.workspaceId || 'unassigned'));
-  }, [highlightedProfileId, profiles, setActiveWorkspaceId, superadminView]);
+    if (workspaceLensEnabled) setActiveWorkspaceId(String(highlightedProfile.workspaceId || 'unassigned'));
+  }, [highlightedProfileId, profiles, setActiveWorkspaceId, workspaceLensEnabled]);
 
   function handleStatusChange(status) {
     setActiveStatus(status);

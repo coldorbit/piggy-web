@@ -2,14 +2,20 @@ import { ensureDefaultUsers, hashPassword, publicUser } from '../../../../auth.j
 import { ensureDefaultWorkspace, getBidProfileModel, getSequelize, getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel, repositories } from '../../../../db.js';
 import { transferOwnedProfiles, userAttributesFromBody, workspaceMembershipIdsChanged } from '../application/usersService.js';
 import { InputError, handleUserWriteError } from '../../../utils/errors.js';
-import { ADMIN_ROLES, ROLES, canAssignAdminRole, canHaveWorkspaceMemberships, isSuperadmin } from '../../../utils/roles.js';
+import { ADMIN_ROLES, ROLES, assignedWorkspaceIds, canAccessAssignedWorkspace, canAssignAdminRole, canHaveWorkspaceMemberships, isSuperadmin } from '../../../utils/roles.js';
 
 export async function listUsers(req, res, next) {
   try {
     await ensureDefaultUsers();
     const requestedWorkspaceId = workspaceIdFromQuery(req.query?.workspaceId);
-    const workspaceId = isSuperadmin(req.user) ? requestedWorkspaceId : req.user.workspaceId;
-    const users = await repositories.listUsers({ workspaceId });
+    if (requestedWorkspaceId && !canAccessAssignedWorkspace(req.user, requestedWorkspaceId)) {
+      res.status(403).json({ error: 'Workspace access required' });
+      return;
+    }
+    const users = await repositories.listUsers({
+      workspaceId: requestedWorkspaceId,
+      workspaceIds: isSuperadmin(req.user) ? undefined : assignedWorkspaceIds(req.user),
+    });
     const profileCounts = await profileCountsByUserId(users.map((user) => user.id));
     for (const user of users) user.setDataValue('profileCount', profileCounts.get(String(user.id)) || 0);
     res.json({ users: users.map(publicUser) });
@@ -31,7 +37,7 @@ export async function createUser(req, res, next) {
       return;
     }
     const workspace = await workspaceForUserAttrs(attrs, req.user);
-    if (!isSuperadmin(req.user) && String(workspace.id) !== String(req.user.workspaceId)) {
+    if (!canAccessAssignedWorkspace(req.user, workspace.id)) {
       res.status(403).json({ error: 'Only superadmins can create users in another workspace' });
       return;
     }
@@ -63,7 +69,7 @@ export async function updateUser(req, res, next) {
       res.status(404).json({ error: 'User not found' });
       return;
     }
-    if (!isSuperadmin(req.user) && String(user.workspaceId ?? '') !== String(req.user.workspaceId ?? '')) {
+    if (!canAccessAssignedWorkspace(req.user, user.workspaceId)) {
       res.status(404).json({ error: 'User not found' });
       return;
     }
@@ -240,7 +246,7 @@ export async function deleteUser(req, res, next) {
       res.status(404).json({ error: 'User not found' });
       return;
     }
-    if (!isSuperadmin(req.user) && String(user.workspaceId ?? '') !== String(req.user.workspaceId ?? '')) {
+    if (!canAccessAssignedWorkspace(req.user, user.workspaceId)) {
       res.status(404).json({ error: 'User not found' });
       return;
     }

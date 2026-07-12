@@ -31,7 +31,7 @@ import {
   useUpdateJobBid,
 } from '../lib/api.js';
 import { writePersistedFilters } from '../lib/persistedFilters.js';
-import { APPLIED_PROFILE_FILTER_ROLES, PRIVILEGED_USER_ROLES, isAdminRole, isSuperadmin } from '../lib/roles.js';
+import { APPLIED_PROFILE_FILTER_ROLES, PRIVILEGED_USER_ROLES, canUseWorkspaceLens, isAdminRole } from '../lib/roles.js';
 import {
   BID_FILTER_KEYS,
   BID_FILTERS_STORAGE_KEY,
@@ -70,7 +70,7 @@ export default function BidPage({ currentUser }) {
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const canUseTomorrowDateFilter = isAdminRole(currentUser);
-  const superadminView = isSuperadmin(currentUser);
+  const workspaceLensEnabled = canUseWorkspaceLens(currentUser);
   const dateFiltersForRole = useMemo(
     () => (canUseTomorrowDateFilter ? filters : withoutTomorrowDateFilter(filters)),
     [canUseTomorrowDateFilter, filters],
@@ -87,13 +87,13 @@ export default function BidPage({ currentUser }) {
   const activeProfilesWithWorkspace = useMemo(
     () => activeProfiles.map((profile) => ({
       ...profile,
-      workspaceName: superadminView ? workspaceLabel(workspaces, profile.workspaceId) : '',
+      workspaceName: workspaceLensEnabled ? workspaceLabel(workspaces, profile.workspaceId) : '',
     })),
-    [activeProfiles, superadminView, workspaces],
+    [activeProfiles, workspaceLensEnabled, workspaces],
   );
   const workspaceActiveProfiles = useMemo(
-    () => (superadminView ? filterRowsByWorkspace(activeProfilesWithWorkspace, activeWorkspaceId) : activeProfilesWithWorkspace),
-    [activeProfilesWithWorkspace, activeWorkspaceId, superadminView],
+    () => (workspaceLensEnabled ? filterRowsByWorkspace(activeProfilesWithWorkspace, activeWorkspaceId) : activeProfilesWithWorkspace),
+    [activeProfilesWithWorkspace, activeWorkspaceId, workspaceLensEnabled],
   );
   const activeProfile = useMemo(
     () => workspaceActiveProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || workspaceActiveProfiles[0] || null,
@@ -109,8 +109,8 @@ export default function BidPage({ currentUser }) {
     { enabled: canUseCrossUserAppliedFilter && Boolean(activeProfile?.id) },
   );
   const workspaceAppliedFilterProfiles = useMemo(
-    () => (superadminView ? filterRowsByWorkspace(appliedFilterProfiles, activeWorkspaceId) : appliedFilterProfiles),
-    [activeWorkspaceId, appliedFilterProfiles, superadminView],
+    () => (workspaceLensEnabled ? filterRowsByWorkspace(appliedFilterProfiles, activeWorkspaceId) : appliedFilterProfiles),
+    [activeWorkspaceId, appliedFilterProfiles, workspaceLensEnabled],
   );
   const appliedProfileOptions = useMemo(
     () => appliedProfileOptionsForActiveProfile({

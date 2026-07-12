@@ -56,10 +56,14 @@ describe('calendar range query', () => {
     assert.deepEqual(events.map((event) => event.id), [1, 2]);
   });
 
-  it('applies workspace selection only for superadmins', () => {
+  it('applies workspace selection for superadmins and assigned multi-workspace admins', () => {
     assert.equal(calendarWorkspaceIdFromQuery({ workspaceId: '42' }, { role: ROLES.superadmin }), 42);
     assert.equal(calendarWorkspaceIdFromQuery({ workspaceId: 'unassigned' }, { role: ROLES.superadmin }), null);
     assert.equal(calendarWorkspaceIdFromQuery({ workspaceId: '42' }, { role: ROLES.admin }), undefined);
+    assert.equal(calendarWorkspaceIdFromQuery(
+      { workspaceId: '42' },
+      { role: ROLES.admin, workspaceId: 7, workspaceMemberships: [{ workspaceId: 42, status: 'active' }] },
+    ), 42);
   });
 });
 

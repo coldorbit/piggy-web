@@ -17,6 +17,8 @@ import {
   canAccessProfileHub,
   canRegisterManualInterviewCalls,
   canManageCallers,
+  assignedWorkspaceIds,
+  canAccessAssignedWorkspace,
 } from '../server/utils/roles.js';
 
 describe('role permissions', () => {
@@ -106,5 +108,20 @@ describe('role permissions', () => {
     assert.equal(canAccessLearningHub({ role: ROLES.user }), false);
     assert.equal(canAccessLearningHub({ role: ROLES.financeManager }), false);
     assert.equal(canAccessLearningHub({ role: ROLES.caller }), false);
+  });
+
+  it('scopes assigned workspace access to primary and active membership workspaces', () => {
+    const admin = {
+      role: ROLES.admin,
+      workspaceId: 7,
+      workspaceMemberships: [
+        { workspaceId: 8, status: 'active' },
+        { workspaceId: 9, status: 'revoked' },
+      ],
+    };
+    assert.deepEqual(assignedWorkspaceIds(admin), ['7', '8']);
+    assert.equal(canAccessAssignedWorkspace(admin, 8), true);
+    assert.equal(canAccessAssignedWorkspace(admin, 9), false);
+    assert.equal(canAccessAssignedWorkspace({ role: ROLES.superadmin }, 99), true);
   });
 });

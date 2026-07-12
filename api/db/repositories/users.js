@@ -29,10 +29,15 @@ export function findUserByUsernameCaseInsensitive(username) {
   });
 }
 
-export function listUsers({ workspaceId } = {}) {
+export function listUsers({ workspaceId, workspaceIds } = {}) {
+  const scopedWorkspaceIds = (workspaceIds || []).map(Number).filter((id) => Number.isInteger(id) && id > 0);
   return getWebUserModel().findAll({
     include: userWithWorkspace(),
-    where: workspaceId ? { workspaceId } : undefined,
+    where: workspaceId
+      ? { workspaceId }
+      : scopedWorkspaceIds.length
+        ? { workspaceId: { [Op.in]: scopedWorkspaceIds } }
+        : undefined,
     order: [['username', 'ASC']],
   });
 }

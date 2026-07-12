@@ -58,7 +58,7 @@ import {
   useUpdateJobBid,
 } from '../lib/api.js';
 import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
-import { canAccessProfileHub, canRegisterManualInterviewCalls, isAdminRole, isSuperadmin } from '../lib/roles.js';
+import { canAccessProfileHub, canRegisterManualInterviewCalls, canUseWorkspaceLens, isAdminRole } from '../lib/roles.js';
 import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
 const EMPTY_MANUAL_INTERVIEW = {
@@ -104,7 +104,7 @@ export default function InterviewsPage({ currentUser }) {
   const [error, setError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
-  const superadminView = isSuperadmin(currentUser);
+  const workspaceLensEnabled = canUseWorkspaceLens(currentUser);
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
     isAdminRole(currentUser) ? { scope: 'manage' } : {},
   );
@@ -115,13 +115,13 @@ export default function InterviewsPage({ currentUser }) {
   const interviewProfilesWithWorkspace = useMemo(
     () => interviewProfiles.map((profile) => ({
       ...profile,
-      workspaceName: superadminView ? workspaceLabel(workspaces, profile.workspaceId) : '',
+      workspaceName: workspaceLensEnabled ? workspaceLabel(workspaces, profile.workspaceId) : '',
     })),
-    [interviewProfiles, superadminView, workspaces],
+    [interviewProfiles, workspaceLensEnabled, workspaces],
   );
   const workspaceInterviewProfiles = useMemo(
-    () => (superadminView ? filterRowsByWorkspace(interviewProfilesWithWorkspace, activeWorkspaceId) : interviewProfilesWithWorkspace),
-    [activeWorkspaceId, interviewProfilesWithWorkspace, superadminView],
+    () => (workspaceLensEnabled ? filterRowsByWorkspace(interviewProfilesWithWorkspace, activeWorkspaceId) : interviewProfilesWithWorkspace),
+    [activeWorkspaceId, interviewProfilesWithWorkspace, workspaceLensEnabled],
   );
   const activeProfile = useMemo(
     () => workspaceInterviewProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || workspaceInterviewProfiles[0] || null,

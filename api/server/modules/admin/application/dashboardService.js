@@ -2,7 +2,7 @@ import { QueryTypes } from 'sequelize';
 import { ensureWebModels, getSequelize } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { normalizeTimeZone } from '../../../utils/localTime.js';
-import { canAccessConsumption, isSuperadmin } from '../../../utils/roles.js';
+import { canAccessAssignedWorkspace, canAccessConsumption, isSuperadmin } from '../../../utils/roles.js';
 import { formatDashboardResponse } from './dashboardFormatters.js';
 import { DEFAULT_GRAIN, GRAIN_KEYS, dashboardQueries, grainConfigFor } from './dashboardQueries.js';
 
@@ -95,9 +95,9 @@ function pruneDashboardCache() {
 }
 
 function dashboardWorkspaceId(query = {}, user) {
-  if (!isSuperadmin(user)) return user?.workspaceId || null;
   const id = Number(clean(query.workspaceId));
-  return Number.isInteger(id) && id > 0 ? id : null;
+  if (Number.isInteger(id) && id > 0 && canAccessAssignedWorkspace(user, id)) return id;
+  return isSuperadmin(user) ? null : user?.workspaceId || null;
 }
 
 function dashboardAnchorDate(value) {

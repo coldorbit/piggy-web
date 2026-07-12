@@ -10,7 +10,7 @@ import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearch
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { api, downloadAuthenticatedFile, useUpdateInterviewCall, useUpdateJobBid } from '../lib/api.js';
 import { formatDateInDefaultTimezone } from '../lib/formatters.js';
-import { BIDDER_ROLES, isSuperadmin } from '../lib/roles.js';
+import { BIDDER_ROLES, canUseWorkspaceLens } from '../lib/roles.js';
 import {
   addDaysToDateKey,
   addMonthsToDateKey,
@@ -42,13 +42,13 @@ export default function CalendarPage({ currentUser }) {
   const queryClient = useQueryClient();
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
-  const superadminView = isSuperadmin(currentUser);
+  const workspaceLensEnabled = canUseWorkspaceLens(currentUser);
   const visibleDays = useMemo(
     () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
     [cursorDate, view],
   );
   const calendarRange = useMemo(() => calendarRangeForDays(visibleDays), [visibleDays]);
-  const calendarWorkspaceId = superadminView ? activeWorkspaceId : 'all';
+  const calendarWorkspaceId = workspaceLensEnabled ? activeWorkspaceId : 'all';
   const updateBid = useUpdateJobBid();
   const updateInterviewCall = useUpdateInterviewCall();
   const {
@@ -73,13 +73,13 @@ export default function CalendarPage({ currentUser }) {
       profiles.map((profile) => ({
         ...profile,
         calendarColor: PROFILE_COLORS[profile.colorScheme] || PROFILE_COLORS.green,
-        workspaceName: superadminView ? workspaceLabel(workspaces, profile.workspaceId) : '',
+        workspaceName: workspaceLensEnabled ? workspaceLabel(workspaces, profile.workspaceId) : '',
       })),
-    [profiles, superadminView, workspaces],
+    [profiles, workspaceLensEnabled, workspaces],
   );
   const calendarProfiles = useMemo(
-    () => (superadminView ? filterRowsByWorkspace(allCalendarProfiles, activeWorkspaceId) : allCalendarProfiles),
-    [activeWorkspaceId, allCalendarProfiles, superadminView],
+    () => (workspaceLensEnabled ? filterRowsByWorkspace(allCalendarProfiles, activeWorkspaceId) : allCalendarProfiles),
+    [activeWorkspaceId, allCalendarProfiles, workspaceLensEnabled],
   );
   const calendarProfileIds = useMemo(
     () => calendarProfiles.map((profile) => String(profile.id)),

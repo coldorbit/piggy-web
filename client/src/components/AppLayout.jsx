@@ -66,6 +66,7 @@ import {
   ROLES,
   canAccessBidderDirectory,
   canAccessBidWorkspace,
+  canUseWorkspaceLens,
   canAccessConsumption,
   canAccessAssessments,
   canAccessInbox,
@@ -106,10 +107,12 @@ export default function AppLayout({ user }) {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [accountUsername, setAccountUsername] = useState(user.username || '');
   const [accountError, setAccountError] = useState('');
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(ALL_WORKSPACES);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => (
+    isSuperadmin(user) ? ALL_WORKSPACES : String(user.workspaceId || ALL_WORKSPACES)
+  ));
   const { mutate: logout } = useLogout();
   const { mutate: updateMe, isPending: isUpdatingMe } = useUpdateMe();
-  const canUseWorkspaceFilter = isSuperadmin(user);
+  const canUseWorkspaceFilter = canUseWorkspaceLens(user);
   const { data: workspaces = [], isLoading: workspacesLoading, error: workspaceError } = useAdminWorkspaces({ enabled: canUseWorkspaceFilter });
   const isAdminDashboardRoute = location.pathname.startsWith('/admin/dashboard');
   const isPersonalDashboardRoute = location.pathname.startsWith('/dashboard');
@@ -165,11 +168,15 @@ export default function AppLayout({ user }) {
   const adminDashboardSearch = isAdminDashboardRoute ? location.search : '';
 
   useEffect(() => {
+    if (canUseWorkspaceFilter && !isSuperadmin(user) && activeWorkspaceId === ALL_WORKSPACES && workspaces.length) {
+      setActiveWorkspaceId(String(user.workspaceId || workspaces[0].id));
+      return;
+    }
     if (!canUseWorkspaceFilter || activeWorkspaceId === ALL_WORKSPACES) return;
     if (activeWorkspaceId === UNASSIGNED_WORKSPACE) return;
     if (workspaces.some((workspace) => String(workspace.id) === String(activeWorkspaceId))) return;
     setActiveWorkspaceId(ALL_WORKSPACES);
-  }, [activeWorkspaceId, canUseWorkspaceFilter, workspaces]);
+  }, [activeWorkspaceId, canUseWorkspaceFilter, user, workspaces]);
   const handleOpenMailboxNotification = useCallback((message) => {
     const profileId = message?.matchedProfile?.id;
     const params = new URLSearchParams();
@@ -603,6 +610,7 @@ export default function AppLayout({ user }) {
                 <HeaderWorkspaceSelect
                   activeWorkspaceId={activeWorkspaceId}
                   isLoading={workspacesLoading}
+                  showGlobalOptions={isSuperadmin(user)}
                   workspaces={workspaces}
                   onChange={setActiveWorkspaceId}
                 />
@@ -724,7 +732,7 @@ function mailboxNotificationTooltip(mailboxNotifications) {
   return 'Enable email notifications';
 }
 
-function HeaderWorkspaceSelect({ activeWorkspaceId, isLoading, onChange, workspaces = [] }) {
+function HeaderWorkspaceSelect({ activeWorkspaceId, isLoading, onChange, showGlobalOptions = false, workspaces = [] }) {
   const activeLabel = activeWorkspaceId === ALL_WORKSPACES ? 'All workspaces' : workspaceLabel(workspaces, activeWorkspaceId);
 
   return (
@@ -756,8 +764,8 @@ function HeaderWorkspaceSelect({ activeWorkspaceId, isLoading, onChange, workspa
         renderValue={() => activeLabel}
         startAdornment={<ApartmentIcon fontSize="small" sx={{ color: 'text.secondary', mr: 0.75 }} />}
       >
-        <MenuItem value={ALL_WORKSPACES}>All workspaces</MenuItem>
-        <MenuItem value={UNASSIGNED_WORKSPACE}>Unassigned workspace</MenuItem>
+        {showGlobalOptions ? <MenuItem value={ALL_WORKSPACES}>All workspaces</MenuItem> : null}
+        {showGlobalOptions ? <MenuItem value={UNASSIGNED_WORKSPACE}>Unassigned workspace</MenuItem> : null}
         {workspaces.map((workspace) => (
           <MenuItem key={workspace.id} value={String(workspace.id)}>
             {workspace.name}

@@ -78,6 +78,12 @@ export function canHaveWorkspaceMemberships(userOrRole) {
   return MULTI_WORKSPACE_ROLES.includes(roleOf(userOrRole));
 }
 
+export function canUseWorkspaceLens(user) {
+  if (isSuperadmin(user)) return true;
+  if (!isAdminRole(user)) return false;
+  return (user?.workspaceMemberships || []).some((membership) => (membership.status || 'active') === 'active');
+}
+
 export function canAccessConsumption(userOrRole) {
   return [ROLES.superadmin, ROLES.financeManager].includes(roleOf(userOrRole));
 }

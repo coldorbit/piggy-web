@@ -29,7 +29,7 @@ import { ALL_WORKSPACES } from '../components/admin/SuperadminWorkspaceLens.jsx'
 import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import { useAdminDashboard } from '../lib/api.js';
 import { formatFirstNameLastInitial } from '../lib/formatters.js';
-import { canAccessConsumption, isSuperadmin } from '../lib/roles.js';
+import { canAccessConsumption, canUseWorkspaceLens } from '../lib/roles.js';
 import { addDaysToDateKey, dateKeyDayOfWeek, zonedDateParts } from '../lib/timezone.js';
 
 export default function AdminDashboardPage({ currentUser }) {
@@ -40,8 +40,8 @@ export default function AdminDashboardPage({ currentUser }) {
   const [anchorDate, setAnchorDate] = useState(() => dashboardAnchorFrom(searchParams.get('anchorDate')));
   const { activeWorkspaceId, workspaceError } = useWorkspaceFilter();
   const dashboardTimeZone = currentUser?.timezone || '';
-  const superadminView = isSuperadmin(currentUser);
-  const dashboardWorkspaceId = superadminView && activeWorkspaceId !== ALL_WORKSPACES ? activeWorkspaceId : '';
+  const workspaceLensEnabled = canUseWorkspaceLens(currentUser);
+  const dashboardWorkspaceId = workspaceLensEnabled && activeWorkspaceId !== ALL_WORKSPACES ? activeWorkspaceId : '';
   const dashboardFilters = useMemo(
     () => ({
       grain,
