@@ -188,7 +188,7 @@ export async function listBidJobs(req, res, next) {
         role: user.role,
         dailyBidGoal: Number(user.dailyBidGoal || 0) || null,
       },
-      profile: formatProfile(profile),
+      profile: formatBidProfile(profile),
       total: activeTabCount,
       tabCounts: {
         todo: todoCount,
@@ -264,5 +264,11 @@ async function bidTabCountsForProfile({ profile, query, user, appliedProfileId =
 export function formatBidJob(job) {
   const formatted = formatJob(job);
   delete formatted.listingText;
+  return formatted;
+}
+
+export function formatBidProfile(profile) {
+  const formatted = formatProfile(profile);
+  delete formatted.progress;
   return formatted;
 }

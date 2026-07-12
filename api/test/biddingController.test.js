@@ -6,6 +6,7 @@ import {
   canWriteInterviewForProfile,
   bidStatusFromInterviewStatus,
   groupedBidJobs,
+  formatBidProfile,
   normalizeCompany,
   interviewStatusFromAttrs,
   interviewOccurrenceLogFromSnapshot,
@@ -65,6 +66,16 @@ describe('normalizeCompany', () => {
   it('matches the normalized company value stored for indexed lookups', () => {
     assert.equal(normalizeCompany('  Acme   Incorporated.  '), 'acme');
     assert.equal(normalizeCompany('Northwind LLC'), 'northwind');
+  });
+});
+
+describe('formatBidProfile', () => {
+  it('does not overwrite separately loaded period progress with fallback zeros', () => {
+    const profile = formatBidProfile({ id: 42, name: 'Ada', get: () => undefined });
+
+    assert.equal(profile.id, 42);
+    assert.equal(profile.name, 'Ada');
+    assert.equal(Object.hasOwn(profile, 'progress'), false);
   });
 });
 
