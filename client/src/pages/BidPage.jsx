@@ -417,6 +417,16 @@ export default function BidPage({ currentUser }) {
     );
   }
 
+  function batchMarkApplied(selectedJobs) {
+    batchUpdateStatus(
+      selectedJobs.map((job) => ({
+        jobId: bidJobActionId(job),
+        bidId: job.bid?.id || null,
+      })),
+      'submitted',
+    );
+  }
+
   function setBatchResultError(result, label) {
     const failed = (result?.results || []).filter((item) => !item.ok);
     if (!failed.length) return;
@@ -466,6 +476,7 @@ export default function BidPage({ currentUser }) {
       total,
       onDraftChange: updateDraft,
       onBulkCallerChange: batchAssignCaller,
+      onBulkMarkApplied: batchMarkApplied,
       onBulkStatusChange: batchUpdateStatus,
       onBulkTailorResumes: batchTailorResumes,
       onHiddenChange: updateHiddenState,

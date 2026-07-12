@@ -47,6 +47,7 @@ export default function BidJobsPanel() {
     onPageChange,
     onPageSizeChange,
     onHiddenChange,
+    onBulkMarkApplied,
     onBulkTailorResumes,
     onTabChange,
     onTailorResume,
@@ -124,6 +125,11 @@ export default function BidJobsPanel() {
 
   function hideSelectedJobs() {
     selectedVisibleJobs.forEach((job) => onHiddenChange(job, true));
+    clearSelectedJobs();
+  }
+
+  function markSelectedJobsApplied() {
+    onBulkMarkApplied(selectedVisibleJobs);
     clearSelectedJobs();
   }
 
@@ -251,16 +257,30 @@ export default function BidJobsPanel() {
               </Button>
             </>
           ) : (
-            <Button
-              disabled={!readyResumeIds.length}
-              onClick={downloadAllReadyResumes}
-              size="small"
-              startIcon={<ArchiveIcon />}
-              variant="outlined"
-              sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
-            >
-              Download all
-            </Button>
+            <>
+              {activeTab === BID_TABS.tailored ? (
+                <Button
+                  disabled={!selectedVisibleJobs.length || isBulkUpdating}
+                  onClick={markSelectedJobsApplied}
+                  size="small"
+                  startIcon={<CheckCircleIcon />}
+                  variant="contained"
+                  sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+                >
+                  Mark selected applied
+                </Button>
+              ) : null}
+              <Button
+                disabled={!readyResumeIds.length}
+                onClick={downloadAllReadyResumes}
+                size="small"
+                startIcon={<ArchiveIcon />}
+                variant="outlined"
+                sx={{ my: 0.75, minHeight: 34, whiteSpace: 'nowrap' }}
+              >
+                Download all
+              </Button>
+            </>
           )}
         </Stack>
       </Box>
@@ -360,7 +380,10 @@ export default function BidJobsPanel() {
 
 function isJobSelectionDisabled(job, activeTab, currentUser, activeProfileIsStatic = false) {
   const canRecoverReviewedBid = activeTab === BID_TABS.badWork && isSuperadmin(currentUser);
-  return (isReviewBidStatus(job.bid?.status) && !canRecoverReviewedBid) || (!activeProfileIsStatic && activeTab === BID_TABS.todo && isTodoTailoringLocked(job));
+  const tailoredResumeNotReady = activeTab === BID_TABS.tailored && !activeProfileIsStatic && job.tailoredResume?.status !== 'ready';
+  return tailoredResumeNotReady
+    || (isReviewBidStatus(job.bid?.status) && !canRecoverReviewedBid)
+    || (!activeProfileIsStatic && activeTab === BID_TABS.todo && isTodoTailoringLocked(job));
 }
 
 function bidJobCardKey(job) {
