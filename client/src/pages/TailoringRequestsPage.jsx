@@ -33,7 +33,6 @@ import {
   Typography,
 } from '@mui/material';
 import EmptyState from '../components/common/EmptyState.jsx';
-import ContextualFaqPanel from '../components/faqs/ContextualFaqPanel.jsx';
 import RefreshButton from '../components/common/RefreshButton.jsx';
 import { downloadAuthenticatedFile, useBidProfiles, useCreateManualTailoredResume, useTailoringRequests } from '../lib/api.js';
 import { formatDateTime } from '../lib/formatters.js';
@@ -274,11 +273,6 @@ export default function TailoringRequestsPage() {
           />
         ))}
       </Box>
-
-      <ContextualFaqPanel
-        keywords={['tailoring', 'tailor', 'resume', 'queued', 'ready', 'blocked', 'manual']}
-        title="Tailoring FAQs"
-      />
 
       <Paper variant="outlined" sx={{ borderRadius: 2, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateRows: 'minmax(0, 1fr) auto' }}>
         <TableContainer sx={{ minHeight: 0, overflow: 'auto' }}>
