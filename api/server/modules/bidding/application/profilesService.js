@@ -46,9 +46,8 @@ export async function accessibleProfile(req, profileId) {
 
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
-  if (!isProfileInUserWorkspace(profile, user)) throw new NotFoundError('Profile not found');
-  if (isAdminRole(user)) return profile;
-  if (String(profile.userId) === String(user.id)) return profile;
+  if (isProfileInUserWorkspace(profile, user) && isAdminRole(user)) return profile;
+  if (isProfileInUserWorkspace(profile, user) && String(profile.userId) === String(user.id)) return profile;
 
   const share = await getProfileShareRequestModel().findOne({
     where: {
@@ -124,6 +123,10 @@ export function workspaceIdsForUser(user) {
 export function canUserAccessWorkspace(user, workspaceId) {
   if (isSuperadmin(user)) return true;
   return workspaceIdsForUser(user).some((candidateId) => String(candidateId ?? '') === String(workspaceId ?? ''));
+}
+
+export function canShareProfileWithUser(actor, recipient, workspaceId) {
+  return isSuperadmin(actor) || canUserAccessWorkspace(recipient, workspaceId);
 }
 
 export function formatProfile(row) {
@@ -574,7 +577,7 @@ export async function profilesVisibleToUser(user) {
     ProfileShareRequest.findAll({
       where: { recipientUserId: user.id, status: 'accepted' },
       include: [
-        { model: BidProfile, as: 'profile', required: true, where: workspaceWhere },
+        { model: BidProfile, as: 'profile', required: true },
         { model: WebUser, as: 'owner', required: true },
       ],
       order: [['updatedAt', 'ASC']],

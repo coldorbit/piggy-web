@@ -11,6 +11,7 @@ import {
   getSequelize,
   getTailoredResumeModel,
   getWebUserModel,
+  getWorkspaceModel,
   repositories,
 } from '../../../../db.js';
 import { Readable } from 'node:stream';
@@ -122,6 +123,7 @@ export async function changeProfileOwner(req, res, next) {
     if (!canManageProfiles(req, res)) return;
     const profile = await manageableProfile(req, req.params.id);
     const owner = await profileOwnerFromBody(req.body, req.user);
+    const workspaceId = await profileTransferWorkspaceFromBody(req.body, req.user, owner, profile);
     const ProfileShareRequest = getProfileShareRequestModel();
 
     await getSequelize().transaction(async (transaction) => {
@@ -139,7 +141,7 @@ export async function changeProfileOwner(req, res, next) {
           transaction,
         },
       );
-      await profile.update({ userId: owner.id, workspaceId: owner.workspaceId ?? profile.workspaceId ?? null }, { transaction });
+      await profile.update({ userId: owner.id, workspaceId }, { transaction });
     });
 
     profile.setDataValue('user', owner);
@@ -234,7 +236,7 @@ export async function profileOwnerFromBody(body = {}, currentUser = null) {
   if (!userId && !username) throw new InputError('Choose a new owner');
 
   const user = userId
-    ? await getWebUserModel().findByPk(userId)
+    ? await repositories.findUserById(userId)
     : await repositories.findUserByUsernameCaseInsensitive(username);
   if (!user) throw new NotFoundError('User not found');
   if (!isSuperadmin(currentUser) && String(currentUser?.workspaceId ?? '') !== String(user.workspaceId ?? '')) {
@@ -245,6 +247,26 @@ export async function profileOwnerFromBody(body = {}, currentUser = null) {
   }
 
   return user;
+}
+
+export async function profileTransferWorkspaceFromBody(body = {}, currentUser = null, owner, profile = null) {
+  const hasWorkspaceId = Object.prototype.hasOwnProperty.call(body, 'workspaceId');
+  if (!hasWorkspaceId) return owner.workspaceId ?? profile?.workspaceId ?? null;
+  if (!isSuperadmin(currentUser)) throw new NotFoundError('Workspace not found');
+
+  const rawWorkspaceId = clean(body.workspaceId);
+  const workspaceId = rawWorkspaceId === 'unassigned' ? null : Number(rawWorkspaceId);
+  if (workspaceId === null) {
+    if (!canUserAccessWorkspace(owner, null)) throw new InputError('The new owner does not have access to the target workspace');
+    return null;
+  }
+  if (!Number.isInteger(workspaceId) || workspaceId <= 0) throw new InputError('Choose a valid workspace');
+  const workspace = await getWorkspaceModel().findByPk(workspaceId);
+  if (!workspace) throw new NotFoundError('Workspace not found');
+  if (!canUserAccessWorkspace(owner, workspaceId)) {
+    throw new InputError('The new owner does not have access to the target workspace');
+  }
+  return workspace.id;
 }
 
 export async function manageableProfile(req, profileId) {

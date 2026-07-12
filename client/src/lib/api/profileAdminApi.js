@@ -74,7 +74,10 @@ export function useMarkAssessmentDone() {
 export function useChangeBidProfileOwner() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ profileId, ownerUserId }) => api(`/api/bid/profiles/${profileId}/owner`, { method: 'PATCH', body: JSON.stringify({ ownerUserId }) }).then((data) => data.profile),
+    mutationFn: ({ profileId, ownerUserId, workspaceId }) => api(`/api/bid/profiles/${profileId}/owner`, {
+      method: 'PATCH',
+      body: JSON.stringify({ ownerUserId, ...(workspaceId !== undefined ? { workspaceId } : {}) }),
+    }).then((data) => data.profile),
     onSuccess: () => invalidateBidAdmin(queryClient),
   });
 }

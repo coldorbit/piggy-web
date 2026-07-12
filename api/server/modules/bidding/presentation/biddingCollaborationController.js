@@ -48,6 +48,7 @@ import {
   profilesWithSharing,
   isDraftProfile,
   isProfileInUserWorkspace,
+  canShareProfileWithUser,
   canUserAccessWorkspace,
   workspaceProfileWhereForUser,
 } from '../application/profilesService.js';
@@ -178,6 +179,15 @@ export async function listProfileShareRecipients(req, res, next) {
           name: row.workspace.name,
           slug: row.workspace.slug,
         } : null,
+        workspaceMemberships: (row.workspaceMemberships || row.get?.('workspaceMemberships') || []).map((membership) => ({
+          workspaceId: membership.workspaceId,
+          status: membership.status,
+          workspace: membership.workspace ? {
+            id: membership.workspace.id,
+            name: membership.workspace.name,
+            slug: membership.workspace.slug,
+          } : null,
+        })),
       })),
     });
   } catch (error) {
@@ -830,7 +840,7 @@ export async function shareProfile(req, res, next) {
     if (recipients.some((recipient) => String(recipient.id) === String(profile.userId))) {
       return res.status(400).json({ error: 'You cannot share a profile with its owner' });
     }
-    const blockedRecipient = recipients.find((recipient) => !canUserAccessWorkspace(recipient, profile.workspaceId));
+    const blockedRecipient = recipients.find((recipient) => !canShareProfileWithUser(req.user, recipient, profile.workspaceId));
     if (blockedRecipient) {
       return res.status(400).json({ error: `${blockedRecipient.username} does not have access to this workspace` });
     }

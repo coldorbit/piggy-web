@@ -52,7 +52,7 @@ import {
   useUpdateBidProfileStatus,
   downloadAuthenticatedFile,
 } from '../lib/api.js';
-import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, BIDDER_ROLES, PRIVILEGED_USER_ROLES, canAccessProfileHub, isAdminRole, isSuperadmin } from '../lib/roles.js';
+import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, BIDDER_ROLES, PRIVILEGED_USER_ROLES, canAccessProfileHub, isAdminRole, isSuperadmin, roleLabel } from '../lib/roles.js';
 
 const PROFILE_STATUS_ORDER = ['active', 'draft', 'legacy'];
 const PROFILE_STATUS_META = {
@@ -95,6 +95,7 @@ export default function ProfilesPage({ currentUser }) {
   const [viewingProfile, setViewingProfile] = useState(null);
   const [shareUsernames, setShareUsernames] = useState([]);
   const [ownerUserId, setOwnerUserId] = useState('');
+  const [ownerWorkspaceId, setOwnerWorkspaceId] = useState('');
   const [closeReason, setCloseReason] = useState('');
   const [form, setForm] = useState(EMPTY_PROFILE);
   const [error, setError] = useState('');
@@ -178,11 +179,13 @@ export default function ProfilesPage({ currentUser }) {
     setError('');
     setOwnerProfile(profile);
     setOwnerUserId('');
+    setOwnerWorkspaceId(String(profile.workspaceId || ''));
   }
 
   function closeOwnerDialog() {
     setOwnerProfile(null);
     setOwnerUserId('');
+    setOwnerWorkspaceId('');
   }
 
   function openCloseDialog(profile) {
@@ -294,7 +297,7 @@ export default function ProfilesPage({ currentUser }) {
     if (!ownerProfile || !ownerUserId) return;
     setError('');
     changeProfileOwner(
-      { profileId: ownerProfile.id, ownerUserId },
+      { profileId: ownerProfile.id, ownerUserId, workspaceId: superadminView ? ownerWorkspaceId : undefined },
       {
         onSuccess: closeOwnerDialog,
         onError: (ownerError) => setError(ownerError.message),
@@ -313,13 +316,15 @@ export default function ProfilesPage({ currentUser }) {
   }
 
   const incomingShares = shareRequests.incoming || [];
-  const shareRecipientOptions = shareRecipients.filter(
-    (user) => String(user.id) !== String(currentUser?.id) && String(user.id) !== String(sharingProfile?.userId),
-  );
+  const shareRecipientOptions = shareRecipients.filter((user) => (
+    String(user.id) !== String(currentUser?.id)
+      && String(user.id) !== String(sharingProfile?.userId)
+      && (superadminView || userCanAccessWorkspace(user, sharingProfile?.workspaceId))
+  ));
   const ownerRecipientOptions = shareRecipients.filter(
     (user) => ADMIN_MANAGED_PROFILE_OWNER_ROLES.includes(user.role)
       && String(user.id) !== String(ownerProfile?.userId)
-      && (superadminView || String(user.workspaceId ?? '') === String(ownerProfile?.workspaceId ?? '')),
+      && userCanAccessWorkspace(user, superadminView ? ownerWorkspaceId : ownerProfile?.workspaceId),
   );
   const pageError = error || loadError?.message || sharesError?.message || recipientsError?.message || workspaceError?.message || '';
   const canManageProfiles = !BIDDER_ROLES.includes(currentUser?.role);
@@ -538,7 +543,10 @@ export default function ProfilesPage({ currentUser }) {
                 {shareRecipientOptions.map((user) => (
                   <MenuItem key={user.id} value={user.username}>
                     <Checkbox checked={shareUsernames.includes(user.username)} />
-                    <ListItemText primary={user.username} />
+                    <ListItemText
+                      primary={user.username}
+                      secondary={`${roleLabel(user.role)} · ${workspaceNamesForUser(user).join(', ') || 'Unassigned workspace'}`}
+                    />
                   </MenuItem>
                 ))}
               </Select>
@@ -564,12 +572,31 @@ export default function ProfilesPage({ currentUser }) {
 
       <Dialog open={Boolean(ownerProfile)} onClose={closeOwnerDialog} fullWidth maxWidth="xs">
         <form onSubmit={submitOwnerChange}>
-          <DialogTitle>Transfer profile to another owner?</DialogTitle>
+          <DialogTitle>{superadminView ? 'Transfer profile to another workspace' : 'Transfer profile to another owner?'}</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
+            {superadminView ? (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Workspace</InputLabel>
+                <Select
+                  autoFocus
+                  label="Workspace"
+                  value={ownerWorkspaceId}
+                  onChange={(event) => {
+                    setOwnerWorkspaceId(event.target.value);
+                    setOwnerUserId('');
+                  }}
+                  disabled={recipientsLoading || !workspaces.length}
+                >
+                  {workspaces.map((workspace) => (
+                    <MenuItem key={workspace.id} value={String(workspace.id)}>{workspace.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : null}
             <FormControl fullWidth>
               <InputLabel>Owner</InputLabel>
               <Select
-                autoFocus
+                autoFocus={!superadminView}
                 label="Owner"
                 value={ownerUserId}
                 onChange={(event) => setOwnerUserId(event.target.value)}
@@ -577,7 +604,7 @@ export default function ProfilesPage({ currentUser }) {
               >
                 {ownerRecipientOptions.map((user) => (
                   <MenuItem key={user.id} value={String(user.id)}>
-                    {user.username}{user.workspace?.name ? ` · ${user.workspace.name}` : ''}
+                    {user.username} · {roleLabel(user.role)}
                   </MenuItem>
                 ))}
               </Select>
@@ -585,7 +612,7 @@ export default function ProfilesPage({ currentUser }) {
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {ownerRecipientOptions.length
                 ? ownerProfile
-                  ? ownerTransferDescription(ownerProfile, ownerUserId, ownerRecipientOptions)
+                  ? ownerTransferDescription(ownerProfile, ownerUserId, ownerRecipientOptions, ownerWorkspaceId, workspaces)
                   : ''
                 : recipientsLoading
                   ? 'Loading users...'
@@ -594,7 +621,7 @@ export default function ProfilesPage({ currentUser }) {
           </DialogContent>
           <DialogActions>
             <Button onClick={closeOwnerDialog}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={changingOwner || recipientsLoading || !ownerProfile || !ownerUserId}>
+            <Button type="submit" variant="contained" disabled={changingOwner || recipientsLoading || !ownerProfile || !ownerUserId || (superadminView && !ownerWorkspaceId)}>
               Transfer profile
             </Button>
           </DialogActions>
@@ -668,11 +695,25 @@ export default function ProfilesPage({ currentUser }) {
   );
 }
 
-function ownerTransferDescription(profile, ownerUserId, users) {
+function ownerTransferDescription(profile, ownerUserId, users, workspaceId, workspaces) {
   const owner = users.find((user) => String(user.id) === String(ownerUserId));
   if (!owner) return `Choose the new owner for ${profile.name}.`;
-  const workspaceText = owner.workspace?.name ? ` in ${owner.workspace.name}` : '';
+  const targetWorkspace = workspaceLabel(workspaces, workspaceId || owner.workspaceId);
+  const workspaceText = targetWorkspace ? ` in ${targetWorkspace}` : '';
   return `Transfer ${profile.name}${profile.ownerUsername ? ` from ${profile.ownerUsername}` : ''} to ${owner.username}${workspaceText}? The profile will move to the new owner's workspace automatically.`;
+}
+
+function userCanAccessWorkspace(user, workspaceId) {
+  if (!workspaceId) return !user.workspaceId;
+  if (isSuperadmin(user) || String(user.workspaceId ?? '') === String(workspaceId)) return true;
+  return (user.workspaceMemberships || []).some((membership) => (
+    (membership.status || 'active') === 'active' && String(membership.workspaceId ?? '') === String(workspaceId)
+  ));
+}
+
+function workspaceNamesForUser(user) {
+  const membershipNames = (user.workspaceMemberships || []).map((membership) => membership.workspace?.name);
+  return [...new Set([user.workspace?.name, ...membershipNames].filter(Boolean))];
 }
 
 function ProfileSkeletonCards() {

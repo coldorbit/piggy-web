@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
 import {
   appliedFilterProfileWhere,
+  canShareProfileWithUser,
   forwardingAliasForProfileName,
   isProfileInUserWorkspace,
   profileAttributesFromBody,
@@ -55,6 +56,13 @@ describe('profile workspace helpers', () => {
   it('allows superadmins to cross workspace boundaries', () => {
     assert.equal(isProfileInUserWorkspace({ workspaceId: 8 }, { role: ROLES.superadmin, workspaceId: 7 }), true);
     assert.equal(workspaceProfileWhereForUser({ role: ROLES.superadmin, workspaceId: 7 }), undefined);
+  });
+
+  it('allows only superadmins to share profiles across workspace boundaries', () => {
+    const recipient = { role: ROLES.editableBidder, workspaceId: 8 };
+    assert.equal(canShareProfileWithUser({ role: ROLES.superadmin }, recipient, 7), true);
+    assert.equal(canShareProfileWithUser({ role: ROLES.admin, workspaceId: 7 }, recipient, 7), false);
+    assert.equal(canShareProfileWithUser({ role: ROLES.admin, workspaceId: 7 }, recipient, 8), true);
   });
 
   it('builds exact workspace filters for non-superadmins', () => {
