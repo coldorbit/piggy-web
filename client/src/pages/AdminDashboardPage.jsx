@@ -20,6 +20,7 @@ import {
   ProfileInterviewTrendChart,
 } from '../components/adminDashboard/DashboardCharts.jsx';
 import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
+import DashboardConsumptionPanel from '../components/adminDashboard/DashboardConsumptionPanel.jsx';
 import { GRAIN_OPTIONS, labelForGrain, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
 import BidderPerformanceTable from '../components/adminDashboard/BidderPerformanceTable.jsx';
 import FunnelPerformanceTable from '../components/adminDashboard/FunnelPerformanceTable.jsx';
@@ -28,7 +29,7 @@ import { ALL_WORKSPACES } from '../components/admin/SuperadminWorkspaceLens.jsx'
 import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import { useAdminDashboard } from '../lib/api.js';
 import { formatFirstNameLastInitial } from '../lib/formatters.js';
-import { isSuperadmin } from '../lib/roles.js';
+import { canAccessConsumption, isSuperadmin } from '../lib/roles.js';
 import { addDaysToDateKey, dateKeyDayOfWeek, zonedDateParts } from '../lib/timezone.js';
 
 export default function AdminDashboardPage({ currentUser }) {
@@ -120,6 +121,8 @@ export default function AdminDashboardPage({ currentUser }) {
             <DashboardMetric icon={<TrendingUpIcon />} label="Technical success" value={percent(totals.technicalSuccessRate)} detail={`${number(totals.successfulTechnicalInterviews)} successful`} />
             <DashboardMetric icon={<EmojiEventsIcon />} label="Offers" value={totals.successfulOffers} detail={`${percent(totals.interviewToOfferRate)} interview-to-offer`} />
           </Grid>
+
+          {canAccessConsumption(currentUser) ? <DashboardConsumptionPanel consumption={dashboard.consumption} /> : null}
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1.35fr 1fr' }, gap: 1.5 }}>
             <ActivityTrendChart title={`${labelForGrain(grain)} activity trend`} trend={trend} />

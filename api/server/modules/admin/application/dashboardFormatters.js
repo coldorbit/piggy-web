@@ -18,6 +18,7 @@ export function formatDashboardResponse({
   bidStatuses,
   interviewStages,
   interviewStatuses,
+  consumption = [],
 }) {
   const sourceMixByUserId = rowsByUser(userSources, 'source');
   const categoryMixByUserId = rowsByUser(userCategories, 'category');
@@ -51,7 +52,21 @@ export function formatDashboardResponse({
       interviewStages: interviewStages.map(formatCountRow('stage')),
       interviewStatuses: interviewStatuses.map(formatCountRow('status')),
     },
+    consumption: formatConsumption(consumption),
   };
+}
+
+export function formatConsumption(rows = []) {
+  const consumption = { card: [], crypto: [] };
+  for (const row of rows) {
+    if (!consumption[row.channel]) continue;
+    consumption[row.channel].push({
+      currency: row.currency || 'Unknown',
+      amount: Number(row.amount || 0),
+      transactionCount: Number(row.transaction_count || 0),
+    });
+  }
+  return consumption;
 }
 
 function formatProfileInterviewTrendRow(row) {

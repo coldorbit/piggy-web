@@ -2,7 +2,7 @@ import { QueryTypes } from 'sequelize';
 import { ensureWebModels, getSequelize } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { normalizeTimeZone } from '../../../utils/localTime.js';
-import { isSuperadmin } from '../../../utils/roles.js';
+import { canAccessConsumption, isSuperadmin } from '../../../utils/roles.js';
 import { formatDashboardResponse } from './dashboardFormatters.js';
 import { DEFAULT_GRAIN, GRAIN_KEYS, dashboardQueries, grainConfigFor } from './dashboardQueries.js';
 
@@ -18,14 +18,15 @@ export async function getDashboardMetrics(query = {}, { user } = {}) {
   const anchorDate = dashboardAnchorDate(query.anchorDate || query.anchor);
   const timeZone = normalizeTimeZone(query.timeZone || user?.timezone);
   const workspaceId = dashboardWorkspaceId(query, user);
-  const cacheKey = JSON.stringify({ grain, anchor: query.anchorDate || query.anchor || 'current', timeZone, workspaceId });
+  const includeConsumption = canAccessConsumption(user);
+  const cacheKey = JSON.stringify({ grain, anchor: query.anchorDate || query.anchor || 'current', timeZone, workspaceId, includeConsumption });
   const cached = dashboardCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.value;
 
   const sequelize = getSequelize();
   const sql = dashboardQueries(grainConfigFor(grain), { anchorDate, timeZone, workspaceId });
 
-  const pending = runInBatches([
+  const tasks = [
     () => queryOne(sequelize, sql.overall),
     () => queryAll(sequelize, sql.trend),
     () => queryAll(sequelize, sql.users),
@@ -42,10 +43,13 @@ export async function getDashboardMetrics(query = {}, { user } = {}) {
     () => queryAll(sequelize, sql.bidStatuses),
     () => queryAll(sequelize, sql.interviewStages),
     () => queryAll(sequelize, sql.interviewStatuses),
-  ]).then(([
+  ];
+  if (includeConsumption) tasks.push(() => queryAll(sequelize, sql.consumption));
+
+  const pending = runInBatches(tasks).then(([
     overall, trend, users, bidders, callers, profileFunnels, profileInterviewTrend,
     roleFamilyFunnels, userSources, userCategories, userProfiles, profileActivity,
-    sources, bidStatuses, interviewStages, interviewStatuses,
+    sources, bidStatuses, interviewStages, interviewStatuses, consumption = [],
   ]) => formatDashboardResponse({
     grain,
     grainOptions: GRAIN_KEYS,
@@ -66,6 +70,7 @@ export async function getDashboardMetrics(query = {}, { user } = {}) {
     bidStatuses,
     interviewStages,
     interviewStatuses,
+    consumption,
   }));
 
   dashboardCache.set(cacheKey, { expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS, value: pending });

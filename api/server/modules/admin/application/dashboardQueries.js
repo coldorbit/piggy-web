@@ -1,4 +1,5 @@
 import { DEFAULT_TIME_ZONE, localBucketSql, localNowBucketSql, normalizeTimeZone } from '../../../utils/localTime.js';
+import { consumptionBreakdownSql } from './dashboardConsumptionQueries.js';
 
 const GRAINS = {
   daily: { sql: 'day', step: "1 day", lookback: "29 days", labelFormat: 'YYYY-MM-DD' },
@@ -38,6 +39,10 @@ export function dashboardQueries(grainConfig, { anchorDate, timeZone = DEFAULT_T
     bidStatuses: bidStatusBreakdownSql(grainConfig, timeZone, anchor, workspaceId),
     interviewStages: interviewStageBreakdownSql(grainConfig, timeZone, anchor, workspaceId),
     interviewStatuses: interviewStatusBreakdownSql(grainConfig, timeZone, anchor, workspaceId),
+    consumption: consumptionBreakdownSql({
+      periodCte: currentPeriodCte(grainConfig, timeZone, anchor),
+      periodPredicate: currentPeriodPredicate('consumption_transactions.occurred_at', timeZone),
+    }),
   };
 }
 

@@ -1,8 +1,23 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { dashboardQueries, grainConfigFor } from '../server/modules/admin/application/dashboardQueries.js';
+import { formatConsumption } from '../server/modules/admin/application/dashboardFormatters.js';
 
 describe('dashboard queries', () => {
+  it('formats card and crypto consumption without combining currencies', () => {
+    assert.deepEqual(formatConsumption([
+      { channel: 'card', currency: 'USD', amount: '125.50', transaction_count: '2' },
+      { channel: 'crypto', currency: 'USDC', amount: '40', transaction_count: '1' },
+      { channel: 'crypto', currency: 'ETH', amount: '0.0025', transaction_count: '2' },
+    ]), {
+      card: [{ currency: 'USD', amount: 125.5, transactionCount: 2 }],
+      crypto: [
+        { currency: 'USDC', amount: 40, transactionCount: 1 },
+        { currency: 'ETH', amount: 0.0025, transactionCount: 2 },
+      ],
+    });
+  });
+
   it('filters overall interview totals by scheduled date in the selected period', () => {
     const sql = dashboardQueries(grainConfigFor('daily'), { timeZone: 'America/Los_Angeles' }).overall;
 
@@ -109,6 +124,19 @@ describe('dashboard queries', () => {
     assert.match(queries.sources, /timezone\('America\/Los_Angeles', job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) < current_period\.ends_at/);
     assert.match(queries.bidStatuses, /timezone\('America\/Los_Angeles', bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', bid_at\) < current_period\.ends_at/);
     assert.match(queries.interviewStages, /timezone\('America\/Los_Angeles', created_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', created_at\) < current_period\.ends_at/);
+  });
+
+  it('tracks card and crypto consumption inside the selected period without counting transfers', () => {
+    const sql = dashboardQueries(grainConfigFor('monthly'), {
+      anchorDate: new Date('2026-06-18T12:00:00.000Z'),
+      timeZone: 'America/Los_Angeles',
+    }).consumption;
+
+    assert.match(sql, /consumption_transactions\.type = 'card_pay'/);
+    assert.match(sql, /consumption_transactions\.type IN \('crypto_spend', 'eth_fee'\)/);
+    assert.match(sql, /timezone\('America\/Los_Angeles', consumption_transactions\.occurred_at\) >= current_period\.starts_at/);
+    assert.match(sql, /timezone\('America\/Los_Angeles', consumption_transactions\.occurred_at\) < current_period\.ends_at/);
+    assert.doesNotMatch(sql, /card_main_transfer|card_internal_transfer|wallet_deposit|card_deposit/);
   });
 
   it('caps rolling dashboard metrics at the selected range end', () => {

@@ -3,7 +3,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import SearchIcon from '@mui/icons-material/Search';
-import { forwardRef, useEffect, useMemo, useState } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
@@ -67,7 +67,6 @@ export default function TailoringRequestsPage() {
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [manualForm, setManualForm] = useState(emptyManualForm);
   const [manualValidationError, setManualValidationError] = useState('');
-  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const filters = useMemo(
     () => ({ status, profileId, since, dateFrom, dateTo, search, page: page + 1, limit: rowsPerPage }),
     [dateFrom, dateTo, page, profileId, rowsPerPage, search, since, status],
@@ -94,10 +93,6 @@ export default function TailoringRequestsPage() {
     manualForm.jobUrl.trim() &&
     manualForm.jobDescription.trim() &&
     !createManualTailoring.isPending;
-
-  useEffect(() => {
-    if (data) setLastUpdatedAt(new Date());
-  }, [data]);
 
   function handleStatusChange(nextStatus) {
     setStatus(nextStatus);
@@ -170,7 +165,7 @@ export default function TailoringRequestsPage() {
     <Box
       sx={{
         display: 'grid',
-        gridTemplateRows: 'auto auto auto auto minmax(0, 1fr)',
+        gridTemplateRows: 'auto auto auto minmax(0, 1fr)',
         gap: 1.5,
         height: '100%',
         minHeight: 0,
@@ -248,7 +243,6 @@ export default function TailoringRequestsPage() {
         dateFrom={dateFrom}
         dateTo={dateTo}
         isFetching={isFetching}
-        lastUpdatedAt={lastUpdatedAt}
         onCustomRangeChange={handleCustomRangeChange}
         onProfileChange={handleProfileChange}
         onRefresh={refetch}
@@ -332,7 +326,6 @@ function TailoringFilters({
   dateFrom,
   dateTo,
   isFetching,
-  lastUpdatedAt,
   onCustomRangeChange,
   onProfileChange,
   onRefresh,
@@ -407,7 +400,6 @@ function TailoringFilters({
       />
       <RefreshButton
         isRefreshing={isFetching}
-        lastUpdatedAt={lastUpdatedAt}
         onRefresh={onRefresh}
         sx={{ alignSelf: { xs: 'stretch', lg: 'center' } }}
       />
