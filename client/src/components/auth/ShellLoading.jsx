@@ -1,4 +1,4 @@
-import { Avatar, Box, LinearProgress, Skeleton, Stack, Typography } from '@mui/material';
+import { Box, LinearProgress, Skeleton, Stack, Typography } from '@mui/material';
 
 const DRAWER_WIDTH = 248;
 const shellLine = 'rgba(0, 0, 0, 0.09)';
@@ -42,29 +42,12 @@ export default function ShellLoading() {
           sx={{ minHeight: 68, px: 1.5, borderBottom: 1, borderColor: shellLine, alignItems: 'center' }}
         >
           <Box
-            sx={{
-              width: 38,
-              height: 38,
-              display: 'grid',
-              placeItems: 'center',
-              border: 1,
-              borderColor: accentLine,
-              borderRadius: 2,
-              bgcolor: accentSoft,
-              boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset, 0 10px 24px rgba(0, 0, 0, 0.08)',
-            }}
-          >
-            <Avatar
-              src="/assets/applypilot-logo.png"
-              alt=""
-              variant="rounded"
-              sx={{ width: 26, height: 26, bgcolor: 'background.paper', borderRadius: 1 }}
-            />
-          </Box>
+            component="img"
+            src="/assets/applypilot-wordmark.png"
+            alt=""
+            sx={{ width: 150, height: 42, objectFit: 'contain', objectPosition: 'left center' }}
+          />
           <Box sx={{ minWidth: 0 }}>
-            <Typography fontWeight={600} sx={{ color: '#004E8C', letterSpacing: 0, lineHeight: 1.1 }}>
-              ApplyPilot
-            </Typography>
             <Typography variant="caption" color="text.secondary">
               Loading workspace
             </Typography>
@@ -131,15 +114,12 @@ export default function ShellLoading() {
           }}
         >
           <Stack direction="row" spacing={1} sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center' }}>
-            <Avatar
-              src="/assets/applypilot-logo.png"
-              alt="ApplyPilot logo"
-              variant="rounded"
-              sx={{ width: 32, height: 32, bgcolor: 'background.paper', border: 1, borderColor: 'divider' }}
+            <Box
+              component="img"
+              src="/assets/applypilot-wordmark.png"
+              alt="ApplyPilot"
+              sx={{ width: 150, height: 40, objectFit: 'contain', objectPosition: 'left center' }}
             />
-            <Typography fontWeight={600} sx={{ color: '#004E8C', letterSpacing: 0 }}>
-              ApplyPilot
-            </Typography>
           </Stack>
 
           <Box sx={{ minWidth: 0, flex: 1, display: { xs: 'none', sm: 'grid' }, gap: 0.35 }}>

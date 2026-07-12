@@ -10,7 +10,7 @@ import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import SecurityIcon from '@mui/icons-material/Security';
 import TuneIcon from '@mui/icons-material/Tune';
 import WorkIcon from '@mui/icons-material/Work';
-import { Avatar, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import SignInCard from './SignInCard.jsx';
 import {
   audienceBandSx,
@@ -137,16 +137,13 @@ export default function MarketingLandingPage() {
       <Box sx={heroBackdropSx} />
       <Box component="header" sx={topbarSx}>
         <Stack direction="row" alignItems="center" spacing={1.25} minWidth={0}>
-          <Avatar
-            src="/assets/applypilot-logo.png"
-            alt="ApplyPilot logo"
-            variant="rounded"
-            sx={{ width: 40, height: 40, bgcolor: 'background.paper', boxShadow: '0 1px 0 rgba(255,255,255,0.64) inset, 0 10px 24px rgba(0,0,0,0.18)' }}
+          <Box
+            component="img"
+            src="/assets/applypilot-wordmark.png"
+            alt="ApplyPilot"
+            sx={{ width: { xs: 150, sm: 190 }, height: 52, objectFit: 'contain', objectPosition: 'left center' }}
           />
           <Box minWidth={0}>
-            <Typography fontWeight={600} lineHeight={1} color="#FFFFFF">
-              ApplyPilot
-            </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.72)' }}>
               Software engineering firm
             </Typography>

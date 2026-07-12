@@ -12,7 +12,6 @@ import JobDetail from '../components/jobs/JobDetail.jsx';
 import JobFiltersDrawer from '../components/jobs/JobFiltersDrawer.jsx';
 import JobList from '../components/jobs/JobList.jsx';
 import Metric from '../components/jobs/Metric.jsx';
-import ContextualFaqPanel from '../components/faqs/ContextualFaqPanel.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { useBulkMarkJobsHidden, useBulkMarkJobsSpam, useDeleteJob, useImportJobsCsv, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
 import { PAGE_SIZE } from '../lib/constants.js';
@@ -348,11 +347,6 @@ export default function JobsPage({ currentUser }) {
           onSpamReview={updateSpamReview}
         />
       </Box>
-
-      <ContextualFaqPanel
-        keywords={['job', 'jobs', 'spam', 'hidden', 'import', 'visibility', 'review']}
-        title="Job workflow FAQs"
-      />
 
       <Dialog open={isImportOpen} onClose={() => setIsImportOpen(false)} fullWidth maxWidth="sm">
         <Box component="form" onSubmit={importCsv}>

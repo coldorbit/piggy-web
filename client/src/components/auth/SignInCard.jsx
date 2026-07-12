@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import LockIcon from '@mui/icons-material/Lock';
-import { Alert, Avatar, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useLogin } from '../../lib/authApi.js';
 import { signinCardSx } from './landingStyles.js';
 
@@ -32,16 +32,11 @@ export default function SignInCard() {
     <Paper id="signin" component="form" variant="outlined" onSubmit={handleSubmit} sx={signinCardSx}>
       <Stack spacing={2.25}>
         <Stack direction="row" alignItems="center" spacing={1.25}>
-          <Avatar
-            src="/assets/applypilot-logo.png"
-            alt="ApplyPilot logo"
-            variant="rounded"
-            sx={{
-              width: 48,
-              height: 48,
-              bgcolor: 'background.paper',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset, 0 12px 28px rgba(0, 103, 192, 0.18)',
-            }}
+          <Box
+            component="img"
+            src="/assets/applypilot-wordmark.png"
+            alt="ApplyPilot"
+            sx={{ width: 150, height: 54, objectFit: 'contain', objectPosition: 'left center', flexShrink: 0 }}
           />
           <Box>
             <Typography variant="h5" fontWeight={600}>

@@ -12,14 +12,14 @@ import {
   Tabs,
   Typography,
 } from '@mui/material';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import FaqMarkdownPreview from '../components/faqs/FaqMarkdownPreview.jsx';
 import DiagramErrorBoundary from '../components/learning/DiagramErrorBoundary.jsx';
 import { DIAGRAM_FONT_FACE, DIAGRAM_FONT_FAMILY } from '../components/learning/diagramFont.js';
 import { EMPTY_PAGE_HEADER, usePageHeader } from '../components/PageHeaderContext.jsx';
 import { useLearningArticle } from '../lib/api.js';
 
-const FaqMarkdownPreview = lazy(() => import('../components/faqs/FaqMarkdownPreview.jsx'));
 const ReadOnlyExcalidraw = lazy(() => import('../components/learning/ReadOnlyExcalidraw.jsx'));
 const MermaidDiagram = lazy(() => import('../components/learning/MermaidDiagram.jsx'));
 
@@ -32,6 +32,7 @@ export default function LearningArticlePage() {
   const [activeSectionId, setActiveSectionId] = useState('');
   const articleScrollRef = useRef(null);
   const markdownContentRef = useRef(null);
+  const headingIndexRef = useRef([]);
   const mobileNavigatorRef = useRef(null);
   const initialHashArticleRef = useRef('');
   const hasExcalidraw = Boolean(article?.excalidrawData?.elements?.length);
@@ -68,34 +69,44 @@ export default function LearningArticlePage() {
     const scrollPane = articleScrollRef.current;
     const markdownRoot = markdownContentRef.current;
     if (!scrollPane || !markdownRoot) return undefined;
-    let frame = 0;
+    let updateFrame = 0;
+    let indexFrame = 0;
 
     function stickyOffset() {
       return (mobileNavigatorRef.current?.offsetHeight || 0) + 16;
     }
 
     function updateActiveSection() {
-      frame = 0;
-      const sectionElements = sections.map((section) => markdownRoot.querySelector(`[data-article-section="${section.id}"]`));
-      const atBottom = scrollPane.scrollHeight - scrollPane.scrollTop - scrollPane.clientHeight < 4;
-      if (atBottom && sectionElements.at(-1)) {
-        setActiveSectionId(sections.at(-1).id);
-        return;
+      updateFrame = 0;
+      const headings = headingIndexRef.current;
+      if (!headings.length) return;
+      let currentIndex = 0;
+      let low = 0;
+      let high = headings.length - 1;
+      const position = scrollPane.scrollTop + stickyOffset() + 1;
+      while (low <= high) {
+        const middle = Math.floor((low + high) / 2);
+        if (headings[middle].top <= position) {
+          currentIndex = middle;
+          low = middle + 1;
+        } else {
+          high = middle - 1;
+        }
       }
-      const paneTop = scrollPane.getBoundingClientRect().top + stickyOffset();
-      let currentId = sections[0].id;
-      sectionElements.forEach((element, index) => {
-        if (element && element.getBoundingClientRect().top <= paneTop) currentId = sections[index].id;
-      });
-      setActiveSectionId(currentId);
+      if (scrollPane.scrollHeight - scrollPane.scrollTop - scrollPane.clientHeight < 4) currentIndex = headings.length - 1;
+      const nextId = headings[currentIndex].id;
+      setActiveSectionId((current) => current === nextId ? current : nextId);
     }
 
     function scheduleActiveSectionUpdate() {
-      if (!frame) frame = window.requestAnimationFrame(updateActiveSection);
+      if (!updateFrame) updateFrame = window.requestAnimationFrame(updateActiveSection);
     }
 
-    function synchronizeHeadings() {
-      const headingElements = markdownRoot.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    function rebuildHeadingIndex() {
+      indexFrame = 0;
+      const headingElements = [...markdownRoot.querySelectorAll('h1, h2, h3, h4, h5, h6')];
+      const paneTop = scrollPane.getBoundingClientRect().top;
+      const scrollTop = scrollPane.scrollTop;
       sections.forEach((section, index) => {
         const element = headingElements[index];
         if (!element) return;
@@ -103,43 +114,58 @@ export default function LearningArticlePage() {
         element.dataset.articleSection = section.id;
         element.style.scrollMarginTop = `${stickyOffset()}px`;
       });
+      headingIndexRef.current = sections.flatMap((section, index) => {
+        const element = headingElements[index];
+        if (!element) return [];
+        return [{ id: section.id, element, top: element.getBoundingClientRect().top - paneTop + scrollTop }];
+      });
 
       if (String(article?.id) !== initialHashArticleRef.current && headingElements.length) {
         initialHashArticleRef.current = String(article?.id);
         const hashId = decodeURIComponent(window.location.hash.slice(1));
-        const target = sections.some((section) => section.id === hashId) ? markdownRoot.querySelector(`[data-article-section="${hashId}"]`) : null;
+        const target = headingIndexRef.current.find((heading) => heading.id === hashId);
         if (target) {
-          const top = target.getBoundingClientRect().top - scrollPane.getBoundingClientRect().top + scrollPane.scrollTop - stickyOffset();
+          const top = target.top - stickyOffset();
           scrollPane.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
         }
       }
       scheduleActiveSectionUpdate();
     }
 
-    const observer = new MutationObserver(synchronizeHeadings);
-    observer.observe(markdownRoot, { childList: true, subtree: true });
+    function scheduleHeadingIndexRebuild() {
+      if (!indexFrame) indexFrame = window.requestAnimationFrame(rebuildHeadingIndex);
+    }
+
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleHeadingIndexRebuild);
+    resizeObserver?.observe(markdownRoot);
+    markdownRoot.addEventListener('load', scheduleHeadingIndexRebuild, true);
+    window.addEventListener('resize', scheduleHeadingIndexRebuild, { passive: true });
     scrollPane.addEventListener('scroll', scheduleActiveSectionUpdate, { passive: true });
-    synchronizeHeadings();
+    scheduleHeadingIndexRebuild();
 
     return () => {
-      observer.disconnect();
+      resizeObserver?.disconnect();
+      markdownRoot.removeEventListener('load', scheduleHeadingIndexRebuild, true);
+      window.removeEventListener('resize', scheduleHeadingIndexRebuild);
       scrollPane.removeEventListener('scroll', scheduleActiveSectionUpdate);
-      if (frame) window.cancelAnimationFrame(frame);
+      if (updateFrame) window.cancelAnimationFrame(updateFrame);
+      if (indexFrame) window.cancelAnimationFrame(indexFrame);
+      headingIndexRef.current = [];
     };
   }, [activeTab, article?.id, sections]);
 
-  function navigateToSection(sectionId, event) {
+  const navigateToSection = useCallback((sectionId, event) => {
     event.preventDefault();
     const scrollPane = articleScrollRef.current;
-    const target = markdownContentRef.current?.querySelector(`[data-article-section="${sectionId}"]`);
+    const target = headingIndexRef.current.find((heading) => heading.id === sectionId);
     if (!scrollPane || !target) return;
     const offset = (mobileNavigatorRef.current?.offsetHeight || 0) + 16;
-    const top = target.getBoundingClientRect().top - scrollPane.getBoundingClientRect().top + scrollPane.scrollTop - offset;
+    const top = target.top - offset;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     scrollPane.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
     setActiveSectionId(sectionId);
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}#${sectionId}`);
-  }
+  }, []);
 
   if (isLoading) return <Box sx={{ height: '100%', minHeight: 0, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>;
   if (error || !article) return <Alert severity="error">{error?.message || 'Learning article not found.'}</Alert>;
@@ -171,15 +197,15 @@ export default function LearningArticlePage() {
               {sections.map((section) => <SectionLink key={section.id} section={section} active={activeSectionId === section.id} compact onNavigate={navigateToSection} />)}
             </Paper>
           ) : null}
-          <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2.5 }, boxShadow: 1 }}>
+          <Paper variant="outlined" sx={{ minWidth: 0, p: { xs: 1.5, md: 2.5 }, boxShadow: 1, overflow: 'hidden' }}>
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
               {article.featured ? <Chip label="Featured" color="warning" variant="outlined" /> : null}
               <Chip label={humanize(article.category)} variant="outlined" />
               {context ? <Chip label={context} variant="outlined" /> : null}
             </Stack>
             <Typography color="text.secondary" sx={{ mb: 2 }}>{article.summary}</Typography>
-            <Box ref={markdownContentRef} data-color-mode="light" sx={{ '& .wmde-markdown': { bgcolor: 'transparent', color: 'text.primary', fontSize: 14 } }}>
-              <Suspense fallback={<CircularProgress size={24} />}><FaqMarkdownPreview source={article.content} /></Suspense>
+            <Box ref={markdownContentRef} data-color-mode="light" sx={markdownViewerSx}>
+              <FaqMarkdownPreview source={article.content} />
             </Box>
           </Paper>
           <Box sx={{ display: { xs: 'grid', lg: 'none' }, gap: 1.5 }}>
@@ -248,7 +274,7 @@ function ArticleSources({ sources = [] }) {
   );
 }
 
-function SectionLink({ active, compact = false, onNavigate, section }) {
+const SectionLink = memo(function SectionLink({ active, compact = false, onNavigate, section }) {
   return (
     <Button
       component="a"
@@ -283,7 +309,7 @@ function SectionLink({ active, compact = false, onNavigate, section }) {
       {section.label}
     </Button>
   );
-}
+});
 
 function markdownSections(source) {
   const sections = [];
@@ -326,3 +352,44 @@ function slugifyHeading(value) {
 }
 
 function humanize(value) { return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); }
+
+const markdownViewerSx = {
+  minWidth: 0,
+  maxWidth: '100%',
+  '& .wmde-markdown': {
+    minWidth: 0,
+    maxWidth: '100%',
+    bgcolor: 'transparent',
+    color: 'text.primary',
+    fontSize: 14,
+    overflowWrap: 'anywhere',
+  },
+  '& .wmde-markdown > *': {
+    contentVisibility: 'auto',
+    containIntrinsicSize: 'auto 44px',
+  },
+  '& .wmde-markdown pre': {
+    display: 'block',
+    maxWidth: '100%',
+    overflowX: 'auto',
+    overflowY: 'hidden',
+    overscrollBehaviorInline: 'contain',
+    scrollbarGutter: 'stable',
+    whiteSpace: 'pre',
+  },
+  '& .wmde-markdown table': {
+    display: 'block',
+    width: 'max-content',
+    maxWidth: '100%',
+    overflowX: 'auto',
+    overscrollBehaviorInline: 'contain',
+    scrollbarGutter: 'stable',
+  },
+  '& .wmde-markdown img, & .wmde-markdown video, & .wmde-markdown svg': {
+    maxWidth: '100%',
+    height: 'auto',
+  },
+  '& .wmde-markdown a': {
+    overflowWrap: 'anywhere',
+  },
+};

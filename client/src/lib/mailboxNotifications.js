@@ -138,7 +138,7 @@ function showMailboxNotification(message, onOpenMessage) {
   try {
     const notification = new window.Notification(notificationTitle(message), {
       body: notificationBody(message),
-      icon: '/assets/applypilot-logo.png',
+      icon: '/assets/applypilot-shield-logo.png',
       tag: `applypilot-mailbox:${message.id}`,
     });
 

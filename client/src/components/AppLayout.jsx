@@ -28,7 +28,6 @@ import StyleIcon from '@mui/icons-material/Style';
 import WorkIcon from '@mui/icons-material/Work';
 import {
   AppBar,
-  Avatar,
   Box,
   Badge as MuiBadge,
   Button,
@@ -275,38 +274,35 @@ export default function AppLayout({ user }) {
           justifyContent: isDrawerCollapsed ? 'center' : 'space-between',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-          {!isDrawerCollapsed ? (
-            <>
-              <Box
-                sx={{
-                  width: 38,
-                  height: 38,
-                  display: 'grid',
-                  placeItems: 'center',
-                  border: 1,
-                  borderColor: accentLine,
-                  borderRadius: 2,
-                  bgcolor: accentSoft,
-                  boxShadow: '0 1px 0 rgba(255,255,255,0.7) inset, 0 10px 24px rgba(0, 0, 0, 0.08)',
-                  flexShrink: 0,
-                }}
-              >
-                <Avatar
-                  src="/assets/applypilot-logo.png"
-                  alt="ApplyPilot logo"
-                  variant="rounded"
-                  sx={{ width: 26, height: 26, bgcolor: 'background.paper', borderRadius: 1 }}
-                />
-              </Box>
-              <Box minWidth={0}>
-                <Typography fontWeight={600} lineHeight={1.1} sx={{ color: accentText, letterSpacing: 0 }}>
-                  ApplyPilot
-                </Typography>
-              </Box>
-            </>
-          ) : null}
-        </Box>
+        {!isDrawerCollapsed ? (
+          <Box
+            component={NavLink}
+            to="/"
+            onClick={() => setMobileOpen(false)}
+            aria-label="ApplyPilot home"
+            sx={{
+              minWidth: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              p: 0.5,
+              ml: -0.5,
+              borderRadius: 2,
+              textDecoration: 'none',
+              transition: 'background-color 140ms ease, transform 140ms ease',
+              '&:hover': { bgcolor: accentSoft },
+              '&:active': { transform: 'translateY(1px)' },
+              '&:focus-visible': { outline: `3px solid ${accentLine}`, outlineOffset: 2 },
+            }}
+          >
+            <Box
+              component="img"
+              src="/assets/applypilot-wordmark.png"
+              alt="ApplyPilot"
+              sx={{ width: 154, height: 44, objectFit: 'contain', objectPosition: 'left center', flexShrink: 0 }}
+            />
+          </Box>
+        ) : null}
         {isDesktop ? (
           <Tooltip title={isDrawerCollapsed ? 'Expand navigation' : 'Collapse navigation'} placement="right">
             <IconButton

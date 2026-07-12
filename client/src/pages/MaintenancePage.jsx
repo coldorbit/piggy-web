@@ -3,7 +3,7 @@ import BuildIcon from '@mui/icons-material/Build';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import SecurityIcon from '@mui/icons-material/Security';
-import { Avatar, Box, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Chip, Paper, Stack, Typography } from '@mui/material';
 
 const maintenanceItems = [
   { icon: <BuildIcon />, label: 'Platform upgrades in progress' },
@@ -28,21 +28,13 @@ export default function MaintenancePage() {
     >
       <Box sx={{ width: 'min(980px, 100%)', display: 'grid', gap: 2.5 }}>
         <Stack direction="row" spacing={1.25} alignItems="center">
-          <Avatar
-            src="/assets/applypilot-logo.png"
-            alt="ApplyPilot logo"
-            variant="rounded"
-            sx={{
-              width: 42,
-              height: 42,
-              bgcolor: '#FFFFFF',
-              boxShadow: '0 18px 42px rgba(37, 99, 235, 0.28)',
-            }}
+          <Box
+            component="img"
+            src="/assets/applypilot-wordmark.png"
+            alt="ApplyPilot"
+            sx={{ width: 190, height: 60, objectFit: 'contain', objectPosition: 'left center' }}
           />
           <Box minWidth={0}>
-            <Typography fontWeight={600} lineHeight={1}>
-              ApplyPilot
-            </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255, 255, 255, 0.72)' }}>
               Software engineering firm
             </Typography>
