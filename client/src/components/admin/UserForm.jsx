@@ -1,18 +1,18 @@
 import AddIcon from '@mui/icons-material/Add';
 import { Box, Button, Checkbox, FormControl, FormControlLabel, InputLabel, ListItemText, MenuItem, Paper, Select, Switch, TextField } from '@mui/material';
-import { BIDDER_ROLES, ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isSuperadmin, roleOptionsFor } from '../../lib/roles.js';
+import { ROLES, canHaveDailyBidGoal, canHaveWorkspaceMemberships, defaultDailyBidGoalForRole, isSuperadmin, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UserForm({ currentUser, form, isSaving, workspaces = [], onChange, onSubmit }) {
   const roleOptions = roleOptionsFor(currentUser);
   const canSetDailyGoal = canHaveDailyBidGoal(form.role);
-  const canSetExtraWorkspaces = isSuperadmin(currentUser) && BIDDER_ROLES.includes(form.role);
+  const canSetExtraWorkspaces = isSuperadmin(currentUser) && canHaveWorkspaceMemberships(form.role);
   const canGrantProfileHub = isSuperadmin(currentUser) && form.role === ROLES.admin;
 
   function handleRoleChange(role) {
     onChange((current) => ({
       ...current,
       role,
-      workspaceMembershipIds: BIDDER_ROLES.includes(role) ? current.workspaceMembershipIds || [] : [],
+      workspaceMembershipIds: canHaveWorkspaceMemberships(role) ? current.workspaceMembershipIds || [] : [],
       dailyBidGoal: canHaveDailyBidGoal(role) ? current.dailyBidGoal || defaultDailyBidGoalForRole(role) : '',
       profileHubAccess: role === ROLES.admin ? Boolean(current.profileHubAccess) : false,
     }));

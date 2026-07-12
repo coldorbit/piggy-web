@@ -1,6 +1,6 @@
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
-import { BIDDER_ROLES, ROLES, VALID_USER_ROLES } from '../../../utils/roles.js';
+import { BIDDER_ROLES, ROLES, VALID_USER_ROLES, canHaveWorkspaceMemberships } from '../../../utils/roles.js';
 import { DEFAULT_TIME_ZONE, isValidTimeZone } from '../../../utils/localTime.js';
 
 const DAILY_BID_GOAL_DEFAULTS = {
@@ -39,7 +39,7 @@ export function userAttributesFromBody(body, { requirePassword }) {
     password,
     role,
     workspaceId,
-    workspaceMembershipIds: BIDDER_ROLES.includes(role) ? workspaceMembershipIds : [],
+    workspaceMembershipIds: canHaveWorkspaceMemberships(role) ? workspaceMembershipIds : [],
     dailyBidGoal,
     timezone,
     profileHubAccess,
@@ -64,6 +64,17 @@ export async function transferOwnedProfiles({ Profile, transaction, userId, work
     { where: { userId }, transaction },
   );
   return Number(updatedCount || 0);
+}
+
+export function workspaceMembershipIdsChanged(user, requestedIds = []) {
+  const currentIds = (user.workspaceMemberships || user.get?.('workspaceMemberships') || [])
+    .filter((membership) => (membership.status || 'active') === 'active')
+    .map((membership) => String(membership.workspaceId))
+    .sort();
+  const nextIds = [...new Set(requestedIds.map(String))]
+    .filter((workspaceId) => workspaceId !== String(user.workspaceId ?? ''))
+    .sort();
+  return currentIds.length !== nextIds.length || currentIds.some((workspaceId, index) => workspaceId !== nextIds[index]);
 }
 
 function dailyBidGoalFromBody(body, role) {

@@ -1,8 +1,8 @@
 import { ensureDefaultUsers, hashPassword, publicUser } from '../../../../auth.js';
 import { ensureDefaultWorkspace, getBidProfileModel, getSequelize, getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel, repositories } from '../../../../db.js';
-import { transferOwnedProfiles, userAttributesFromBody } from '../application/usersService.js';
+import { transferOwnedProfiles, userAttributesFromBody, workspaceMembershipIdsChanged } from '../application/usersService.js';
 import { InputError, handleUserWriteError } from '../../../utils/errors.js';
-import { ADMIN_ROLES, BIDDER_ROLES, ROLES, canAssignAdminRole, isSuperadmin } from '../../../utils/roles.js';
+import { ADMIN_ROLES, ROLES, canAssignAdminRole, canHaveWorkspaceMemberships, isSuperadmin } from '../../../utils/roles.js';
 
 export async function listUsers(req, res, next) {
   try {
@@ -27,7 +27,7 @@ export async function createUser(req, res, next) {
       return;
     }
     if (attrs.workspaceMembershipIds.length && !isSuperadmin(req.user)) {
-      res.status(403).json({ error: 'Only superadmins can share bidders between workspaces' });
+      res.status(403).json({ error: 'Only superadmins can assign users to multiple workspaces' });
       return;
     }
     const workspace = await workspaceForUserAttrs(attrs, req.user);
@@ -91,8 +91,8 @@ export async function updateUser(req, res, next) {
       const adminCount = await WebUser.count({ where: { role: ADMIN_ROLES } });
       if (adminCount <= 1) return res.status(400).json({ error: 'At least one admin or superadmin user is required' });
     }
-    if (attrs.workspaceMembershipIds.length && !isSuperadmin(req.user)) {
-      res.status(403).json({ error: 'Only superadmins can share bidders between workspaces' });
+    if (!isSuperadmin(req.user) && workspaceMembershipIdsChanged(user, attrs.workspaceMembershipIds)) {
+      res.status(403).json({ error: 'Only superadmins can change multi-workspace access' });
       return;
     }
 
@@ -126,7 +126,7 @@ export async function updateUser(req, res, next) {
           workspaceId: workspace.id,
         });
       }
-      await setUserWorkspaceMemberships(user, attrs, req.user, transaction);
+      if (isSuperadmin(req.user)) await setUserWorkspaceMemberships(user, attrs, req.user, transaction);
     });
     await user.reload(userReloadOptions());
     user.setDataValue('profileCount', await getBidProfileModel().count({ where: { userId: user.id } }));
@@ -151,17 +151,13 @@ async function ensureMembershipWorkspacesExist(attrs) {
 
 async function setUserWorkspaceMemberships(user, attrs, actor, transaction = undefined) {
   const Membership = getUserWorkspaceMembershipModel();
-  if (!BIDDER_ROLES.includes(attrs.role)) {
+  if (!canHaveWorkspaceMemberships(attrs.role)) {
     await Membership.destroy({ where: { userId: user.id }, transaction });
     return;
   }
 
   const requestedIds = [...new Set((attrs.workspaceMembershipIds || []).map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0))]
     .filter((workspaceId) => String(workspaceId) !== String(attrs.workspaceId));
-  if (requestedIds.length && !isSuperadmin(actor)) {
-    throw new InputError('Only superadmins can share bidders between workspaces');
-  }
-
   const existing = await Membership.findAll({ where: { userId: user.id }, transaction });
   const requestedIdSet = new Set(requestedIds.map(String));
   await Promise.all(existing.map(async (membership) => {

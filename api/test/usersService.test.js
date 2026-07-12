@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { transferOwnedProfiles, userAttributesFromBody } from '../server/modules/admin/application/usersService.js';
+import { transferOwnedProfiles, userAttributesFromBody, workspaceMembershipIdsChanged } from '../server/modules/admin/application/usersService.js';
 
 describe('userAttributesFromBody daily bid goals', () => {
   it('defaults regular users to 100 daily bids', () => {
@@ -35,6 +35,12 @@ describe('userAttributesFromBody daily bid goals', () => {
 
   it('accepts extra workspaces for bidder roles', () => {
     const attrs = userAttributesFromBody(validUserBody({ role: 'editable_bidder', workspaceMembershipIds: ['42', 43] }), { requirePassword: true });
+
+    assert.deepEqual(attrs.workspaceMembershipIds, [42, 43]);
+  });
+
+  it('accepts extra workspaces for admin roles', () => {
+    const attrs = userAttributesFromBody(validUserBody({ role: 'admin', workspaceMembershipIds: ['42', 43] }), { requirePassword: true });
 
     assert.deepEqual(attrs.workspaceMembershipIds, [42, 43]);
   });
@@ -126,6 +132,22 @@ describe('workspace user transfers', () => {
       values: { workspaceId: 9 },
       options: { where: { userId: 42 }, transaction },
     }]);
+  });
+});
+
+describe('multi-workspace membership changes', () => {
+  const user = {
+    workspaceId: 7,
+    workspaceMemberships: [{ workspaceId: 8, status: 'active' }, { workspaceId: 9, status: 'active' }],
+  };
+
+  it('treats reordered existing memberships as unchanged', () => {
+    assert.equal(workspaceMembershipIdsChanged(user, [9, 8]), false);
+  });
+
+  it('detects added or removed workspace memberships', () => {
+    assert.equal(workspaceMembershipIdsChanged(user, [8]), true);
+    assert.equal(workspaceMembershipIdsChanged(user, [8, 9, 10]), true);
   });
 });
 

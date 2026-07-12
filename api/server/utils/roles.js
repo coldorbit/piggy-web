@@ -34,6 +34,7 @@ export const INTERVIEW_ACCESS_ROLES = [...STAFF_WORKSPACE_ROLES, ROLES.caller];
 export const MANUAL_INTERVIEW_CALL_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.user, ROLES.financeManager, ROLES.internal];
 export const INTERNAL_DATA_ROLES = [ROLES.superadmin, ROLES.admin, ROLES.financeManager, ROLES.internal];
 export const BIDDER_ROLES = [ROLES.bidder, ROLES.readonlyBidder, ROLES.editableBidder];
+export const MULTI_WORKSPACE_ROLES = [ROLES.admin, ...BIDDER_ROLES];
 export const CALLER_BLOCKED_ROLES = [...BIDDER_ROLES, ROLES.caller, ROLES.guest];
 export const JOB_ACCESS_ROLES = VALID_USER_ROLES.filter((role) => ![ROLES.caller, ROLES.guest].includes(role));
 export const BID_WORKSPACE_ACCESS_ROLES = [...STAFF_WORKSPACE_ROLES, ...BIDDER_ROLES];
@@ -50,6 +51,10 @@ export function isSuperadmin(userOrRole) {
 
 export function isAdminRole(userOrRole) {
   return ADMIN_ROLES.includes(roleOf(userOrRole));
+}
+
+export function canHaveWorkspaceMemberships(userOrRole) {
+  return MULTI_WORKSPACE_ROLES.includes(roleOf(userOrRole));
 }
 
 export function canAccessConsumption(userOrRole) {

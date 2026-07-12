@@ -9,7 +9,7 @@ import UserForm from '../components/admin/UserForm.jsx';
 import UsersTable from '../components/admin/UsersTable.jsx';
 import ConfirmationDialog from '../components/common/ConfirmationDialog.jsx';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '../lib/api.js';
-import { BIDDER_ROLES, ROLES, canHaveDailyBidGoal, defaultDailyBidGoalForRole, roleLabel, roleOptionsFor } from '../lib/roles.js';
+import { ROLES, canHaveDailyBidGoal, canHaveWorkspaceMemberships, defaultDailyBidGoalForRole, roleLabel, roleOptionsFor } from '../lib/roles.js';
 
 const DEFAULT_USER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York';
 const EMPTY_FORM = { email: '', username: '', password: '', role: 'user', workspaceId: '', workspaceMembershipIds: [], dailyBidGoal: '', timezone: DEFAULT_USER_TIMEZONE, profileHubAccess: false };
@@ -77,7 +77,7 @@ export default function AdminUsersPage({ currentUser }) {
         ...current,
         role: activeSection.role,
         workspaceId: nextWorkspaceId,
-        workspaceMembershipIds: BIDDER_ROLES.includes(activeSection.role) ? current.workspaceMembershipIds || [] : [],
+        workspaceMembershipIds: canHaveWorkspaceMemberships(activeSection.role) ? current.workspaceMembershipIds || [] : [],
         dailyBidGoal: canHaveDailyBidGoal(activeSection.role)
           ? current.dailyBidGoal || defaultDailyBidGoalForRole(activeSection.role)
           : '',

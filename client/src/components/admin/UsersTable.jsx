@@ -27,7 +27,7 @@ import {
 } from '@mui/material';
 import EmptyState from '../common/EmptyState.jsx';
 import { formatDateTime } from '../../lib/formatters.js';
-import { BIDDER_ROLES, ROLES, canAccessProfileHub, canHaveDailyBidGoal, defaultDailyBidGoalForRole, isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
+import { ROLES, canAccessProfileHub, canHaveDailyBidGoal, canHaveWorkspaceMemberships, defaultDailyBidGoalForRole, isAdminRole, isSuperadmin, roleLabel, roleOptionsFor } from '../../lib/roles.js';
 
 export default function UsersTable({
   currentUser,
@@ -126,7 +126,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
   const roleOptions = roleOptionsWithCurrent(roleOptionsFor(currentUser), editing.role);
   const canEditRole = isSuperadmin(currentUser) || !isAdminRole(user);
   const canSetDailyGoal = canHaveDailyBidGoal(editing.role);
-  const canSetExtraWorkspaces = isSuperadmin(currentUser) && BIDDER_ROLES.includes(editing.role);
+  const canSetExtraWorkspaces = isSuperadmin(currentUser) && canHaveWorkspaceMemberships(editing.role);
   const canGrantProfileHub = isSuperadmin(currentUser) && editing.role === ROLES.admin;
   const workspaceLabel = user.workspace?.name || (user.workspaceId ? `Workspace ${user.workspaceId}` : 'Unassigned workspace');
   const extraMemberships = (user.workspaceMemberships || []).filter((membership) => String(membership.workspaceId) !== String(user.workspaceId || ''));
@@ -135,7 +135,7 @@ function UserRow({ currentUser, editing, editingId, saving, user, workspaces, on
     onEditingChange((current) => ({
       ...current,
       role,
-      workspaceMembershipIds: BIDDER_ROLES.includes(role) ? current.workspaceMembershipIds || [] : [],
+      workspaceMembershipIds: canHaveWorkspaceMemberships(role) ? current.workspaceMembershipIds || [] : [],
       dailyBidGoal: canHaveDailyBidGoal(role) ? current.dailyBidGoal || defaultDailyBidGoalForRole(role) : '',
       profileHubAccess: role === ROLES.admin ? Boolean(current.profileHubAccess) : false,
     }));
