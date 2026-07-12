@@ -125,7 +125,7 @@ export default function LearningArticlePage() {
         const hashId = decodeURIComponent(window.location.hash.slice(1));
         const target = headingIndexRef.current.find((heading) => heading.id === hashId);
         if (target) {
-          const top = target.top - stickyOffset();
+          const top = target.element.getBoundingClientRect().top - scrollPane.getBoundingClientRect().top + scrollPane.scrollTop - stickyOffset();
           scrollPane.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
         }
       }
@@ -160,7 +160,7 @@ export default function LearningArticlePage() {
     const target = headingIndexRef.current.find((heading) => heading.id === sectionId);
     if (!scrollPane || !target) return;
     const offset = (mobileNavigatorRef.current?.offsetHeight || 0) + 16;
-    const top = target.top - offset;
+    const top = target.element.getBoundingClientRect().top - scrollPane.getBoundingClientRect().top + scrollPane.scrollTop - offset;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     scrollPane.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
     setActiveSectionId(sectionId);
@@ -197,7 +197,7 @@ export default function LearningArticlePage() {
               {sections.map((section) => <SectionLink key={section.id} section={section} active={activeSectionId === section.id} compact onNavigate={navigateToSection} />)}
             </Paper>
           ) : null}
-          <Paper variant="outlined" sx={{ minWidth: 0, p: { xs: 1.5, md: 2.5 }, boxShadow: 1, overflow: 'hidden' }}>
+          <Paper variant="outlined" sx={{ minWidth: 0, p: { xs: 1.5, md: 2.5 }, boxShadow: 1 }}>
             <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
               {article.featured ? <Chip label="Featured" color="warning" variant="outlined" /> : null}
               <Chip label={humanize(article.category)} variant="outlined" />
@@ -363,10 +363,6 @@ const markdownViewerSx = {
     color: 'text.primary',
     fontSize: 14,
     overflowWrap: 'anywhere',
-  },
-  '& .wmde-markdown > *': {
-    contentVisibility: 'auto',
-    containIntrinsicSize: 'auto 44px',
   },
   '& .wmde-markdown pre': {
     display: 'block',
