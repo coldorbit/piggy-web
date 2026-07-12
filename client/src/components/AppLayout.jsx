@@ -732,10 +732,18 @@ function HeaderWorkspaceSelect({ activeWorkspaceId, isLoading, onChange, workspa
       size="small"
       sx={{
         display: { xs: 'none', md: 'block' },
-        width: { md: 300, lg: 340 },
-        flexShrink: 0,
+        width: 300,
+        minWidth: 300,
+        maxWidth: 300,
+        flex: '0 0 300px',
         '& .MuiInputBase-root': {
           bgcolor: 'rgba(255, 255, 255, 0.72)',
+        },
+        '& .MuiSelect-select': {
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         },
       }}
     >
