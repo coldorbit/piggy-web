@@ -17,7 +17,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { authUrl, useDeleteInterviewCall } from '../../lib/api.js';
 import { BIDDER_ROLES, isSuperadmin } from '../../lib/roles.js';
@@ -54,7 +54,7 @@ export default function CalendarGrid({
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [draggedEventId, setDraggedEventId] = useState('');
   const selectedEventId = selectedEvent?.id || '';
-  const eventById = eventLookup(eventsByDay);
+  const eventById = useMemo(() => eventLookup(eventsByDay), [eventsByDay]);
 
   function handleDragStart(event) {
     setDraggedEventId(event.id);

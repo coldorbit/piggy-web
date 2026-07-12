@@ -20,6 +20,7 @@ export * from './api/dashboardApi.js';
 export * from './api/marketplaceApi.js';
 export * from './api/profileAdminApi.js';
 import { api, authUrl } from './authApi.js';
+import { updateCachedCalendarBidQueries, updateCachedCalendarCallQueries } from './api/calendarCache.js';
 import { jobRegion } from './jobRegion.js';
 import { millisecondsUntilNextLocalDayStart } from './timezone.js';
 
@@ -760,15 +761,21 @@ export function useUpdateJobBid() {
         body: JSON.stringify(bidData),
       }).then((data) => data.bid),
     onMutate: async ({ jobId, bidId, bidData }) => {
-      await queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] });
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['bid', 'jobs'] }),
+        queryClient.cancelQueries({ queryKey: ['calendar', 'interviews'] }),
+      ]);
       const previousBidJobsQueries = queryClient.getQueriesData({ queryKey: ['bid', 'jobs'] });
+      const previousCalendarQueries = queryClient.getQueriesData({ queryKey: ['calendar', 'interviews'] });
       updateCachedBidQueries(queryClient, jobId, {
         bid: optimisticBid({ id: bidId, jobId, bidData }),
       });
-      return { previousBidJobsQueries };
+      updateCachedCalendarBidQueries(queryClient, { bidId, jobId, bidData });
+      return { previousBidJobsQueries, previousCalendarQueries };
     },
     onError: (_error, _variables, context) => {
       restoreQueries(queryClient, context?.previousBidJobsQueries);
+      restoreQueries(queryClient, context?.previousCalendarQueries);
     },
     onSuccess: (bid, { jobId }) => {
       updateCachedBidQueries(queryClient, jobId, { bid });
@@ -871,6 +878,15 @@ export function useUpdateInterviewCall() {
         method: 'PATCH',
         body: JSON.stringify(callData),
       }),
+    onMutate: async ({ interviewCallId, callData }) => {
+      await queryClient.cancelQueries({ queryKey: ['calendar', 'interviews'] });
+      const previousCalendarQueries = queryClient.getQueriesData({ queryKey: ['calendar', 'interviews'] });
+      updateCachedCalendarCallQueries(queryClient, interviewCallId, callData);
+      return { previousCalendarQueries };
+    },
+    onError: (_error, _variables, context) => {
+      restoreQueries(queryClient, context?.previousCalendarQueries);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });

@@ -1,6 +1,6 @@
 import { Alert, Box } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
 import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import CalendarGrid from '../components/calendar/CalendarGrid.jsx';
@@ -18,6 +18,7 @@ import {
   dateKeyMonth,
   defaultTimezoneDateKey,
   defaultTimezoneTodayKey,
+  fromDefaultTimezoneDatetimeLocal,
   monthLabelForDateKey,
 } from '../lib/timezone.js';
 
@@ -28,6 +29,7 @@ const UNKNOWN_OWNER_ID = '__unknown_owner__';
 const USER_COLOR = { main: '#0067C0', dark: '#004E8C', soft: 'rgba(0, 103, 192, 0.16)' };
 const CALLER_COLOR = { main: '#C77700', dark: '#92400E', soft: '#FEF3C7' };
 const UNASSIGNED_COLOR = { main: '#94A3B8', dark: '#475569', soft: '#F1F5F9' };
+const CALENDAR_STALE_TIME = 60_000;
 
 export default function CalendarPage({ currentUser }) {
   const [view, setView] = useState(CALENDAR_VIEWS.week);
@@ -37,25 +39,35 @@ export default function CalendarPage({ currentUser }) {
   const [checkedUserIds, setCheckedUserIds] = useState([]);
   const [checkedCallerIds, setCheckedCallerIds] = useState([]);
   const [calendarActionError, setCalendarActionError] = useState('');
+  const queryClient = useQueryClient();
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const superadminView = isSuperadmin(currentUser);
+  const visibleDays = useMemo(
+    () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
+    [cursorDate, view],
+  );
+  const calendarRange = useMemo(() => calendarRangeForDays(visibleDays), [visibleDays]);
+  const calendarWorkspaceId = superadminView ? activeWorkspaceId : 'all';
   const updateBid = useUpdateJobBid();
   const updateInterviewCall = useUpdateInterviewCall();
   const {
     data: calendarData,
     isLoading: calendarLoading,
+    isFetching: calendarFetching,
     error: calendarError,
   } = useQuery({
-    queryKey: ['calendar', 'interviews'],
-    queryFn: fetchCalendarInterviews,
-    staleTime: 30_000,
+    queryKey: calendarQueryKey(calendarRange, calendarWorkspaceId),
+    queryFn: () => fetchCalendarInterviews(calendarRange, calendarWorkspaceId),
+    staleTime: CALENDAR_STALE_TIME,
+    placeholderData: keepPreviousData,
   });
   const profiles = calendarData?.profiles || EMPTY_ARRAY;
   const jobs = calendarData?.jobs || EMPTY_ARRAY;
   const callerUsers = calendarData?.callerUsers || EMPTY_ARRAY;
   const calendarMeta = calendarData?.calendar || EMPTY_OBJECT;
   const calendarCurrentUser = calendarData?.currentUser || EMPTY_OBJECT;
+  const deferredSearch = useDeferredValue(search);
   const allCalendarProfiles = useMemo(
     () =>
       profiles.map((profile) => ({
@@ -91,13 +103,25 @@ export default function CalendarPage({ currentUser }) {
     return () => setHeaderSearch(EMPTY_HEADER_SEARCH);
   }, [setHeaderSearch]);
 
+  useEffect(() => {
+    if (!calendarData) return;
+    const adjacentCursors = view === CALENDAR_VIEWS.week
+      ? [addDaysToDateKey(cursorDate, -7), addDaysToDateKey(cursorDate, 7)]
+      : [addMonthsToDateKey(cursorDate, -1), addMonthsToDateKey(cursorDate, 1)];
+    adjacentCursors.forEach((adjacentCursor) => {
+      const adjacentDays = view === CALENDAR_VIEWS.week ? weekDays(adjacentCursor) : monthDays(adjacentCursor);
+      const adjacentRange = calendarRangeForDays(adjacentDays);
+      void queryClient.prefetchQuery({
+        queryKey: calendarQueryKey(adjacentRange, calendarWorkspaceId),
+        queryFn: () => fetchCalendarInterviews(adjacentRange, calendarWorkspaceId),
+        staleTime: CALENDAR_STALE_TIME,
+      });
+    });
+  }, [calendarData, calendarWorkspaceId, cursorDate, queryClient, view]);
+
   const searchableEvents = useMemo(
-    () => calendarEvents(jobs, profileById, calendarProfileIds, search, calendarMeta.conflicts || EMPTY_ARRAY),
-    [jobs, profileById, calendarProfileIds, search, calendarMeta.conflicts],
-  );
-  const visibleDays = useMemo(
-    () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
-    [cursorDate, view],
+    () => calendarEvents(jobs, profileById, calendarProfileIds, deferredSearch, calendarMeta.conflicts || EMPTY_ARRAY),
+    [jobs, profileById, calendarProfileIds, deferredSearch, calendarMeta.conflicts],
   );
   const rangeFilteredSearchableEvents = useMemo(
     () => filterEventsByVisibleRange(searchableEvents, view, cursorDate, visibleDays),
@@ -146,7 +170,7 @@ export default function CalendarPage({ currentUser }) {
     }),
     [callerGroups, checkedCallerIds, checkedUserIds, profileFilteredEvents, userGroups],
   );
-  const loading = calendarLoading;
+  const loading = calendarLoading || calendarFetching;
   const pageError = calendarActionError || calendarError?.message || workspaceError?.message || '';
   const eventsByDay = useMemo(() => groupEventsByDay(events), [events]);
   const rangeLabel = view === CALENDAR_VIEWS.week ? weekRangeLabel(cursorDate) : monthLabel(cursorDate);
@@ -514,8 +538,23 @@ function toggleCheckedId(currentIds, rawId, checked, activeIds) {
   return sameStringArray(currentIds, nextIds) ? currentIds : nextIds;
 }
 
-function fetchCalendarInterviews() {
-  return api('/api/bid/calendar');
+function fetchCalendarInterviews(range, workspaceId) {
+  const query = new URLSearchParams({ from: range.from, to: range.to });
+  if (workspaceId && workspaceId !== 'all') query.set('workspaceId', String(workspaceId));
+  return api(`/api/bid/calendar?${query}`);
+}
+
+function calendarQueryKey(range, workspaceId) {
+  return ['calendar', 'interviews', workspaceId || 'all', range.from, range.to];
+}
+
+function calendarRangeForDays(days) {
+  const firstDay = days[0];
+  const dayAfterLast = addDaysToDateKey(days[days.length - 1], 1);
+  return {
+    from: fromDefaultTimezoneDatetimeLocal(`${firstDay}T00:00`),
+    to: fromDefaultTimezoneDatetimeLocal(`${dayAfterLast}T00:00`),
+  };
 }
 
 function groupEventsByDay(events) {

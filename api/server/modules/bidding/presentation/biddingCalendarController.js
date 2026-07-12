@@ -92,19 +92,30 @@ export async function listCalendarInterviews(req, res, next) {
     requireInterviewAccessUser(user, res);
     if (res.headersSent) return;
 
-    const interviews = calendarEventsForInterviews(await calendarInterviewsForUser(user));
-    const tailoredResumesByEvent = await tailoredResumesForCalendarEvents(interviews);
+    const range = calendarRangeFromQuery(req.query);
+    const workspaceId = calendarWorkspaceIdFromQuery(req.query, user);
+    const userWorkspaceWhere = {
+      ...workspaceFilterForUser(user),
+      ...(workspaceId === undefined ? {} : { workspaceId }),
+    };
+    const interviews = calendarEventsInRange(
+      calendarEventsForInterviews(await calendarInterviewsForUser(user, { range, workspaceId })),
+      range,
+    );
     const ownerUserIds = [...new Set(interviews.map(calendarOwnerUserId).filter(Boolean).map(String))];
-    const ownerUsers = ownerUserIds.length
-      ? await getWebUserModel().findAll({
+    const [tailoredResumesByEvent, ownerUsers, callerUsers] = await Promise.all([
+      tailoredResumesForCalendarEvents(interviews),
+      ownerUserIds.length
+        ? getWebUserModel().findAll({
           where: { id: { [Op.in]: ownerUserIds }, ...workspaceFilterForUser(user) },
           order: [['username', 'ASC']],
         })
-      : [];
+        : [],
+      canRegisterManualInterviewCalls(user)
+        ? getWebUserModel().findAll({ where: { role: 'caller', ...userWorkspaceWhere }, order: [['username', 'ASC']] })
+        : [],
+    ]);
     const ownerUsersById = new Map(ownerUsers.map((owner) => [String(owner.id), owner]));
-    const callerUsers = canRegisterManualInterviewCalls(user)
-      ? await getWebUserModel().findAll({ where: { role: 'caller', ...workspaceFilterForUser(user) }, order: [['username', 'ASC']] })
-      : [];
     const callerUsersForDisplay = user.role === 'caller' && !callerUsers.some((caller) => String(caller.id) === String(user.id))
       ? [...callerUsers, user]
       : callerUsers;
@@ -120,7 +131,7 @@ export async function listCalendarInterviews(req, res, next) {
     res.json({
       profiles: sortProfilesForDisplay([...profilesById.values()]).map(formatProfile),
       jobs: interviews.map((interview) => (
-        formatInterviewAsJob(interview, ownerUsersById, callerUsersById, tailoredResumesByEvent.get(calendarResumeKey(interview)) || null)
+        formatCalendarInterviewAsJob(interview, ownerUsersById, callerUsersById, tailoredResumesByEvent.get(calendarResumeKey(interview)) || null)
       )),
       callerUsers: callerUsersForDisplay.map((caller) => ({ id: caller.id, username: caller.username })),
       calendar: {
@@ -155,7 +166,7 @@ export async function exportCalendarIcs(req, res, next) {
   }
 }
 
-export async function calendarInterviewsForUser(user) {
+export async function calendarInterviewsForUser(user, { range = null, workspaceId = undefined } = {}) {
   const Interview = getInterviewModel();
   const InterviewCall = getInterviewCallModel();
   const BidProfile = getBidProfileModel();
@@ -167,7 +178,7 @@ export async function calendarInterviewsForUser(user) {
         group: ['interviewId'],
       })).map((call) => call.interviewId)
     : [];
-  const where = {
+  const accessWhere = {
     ...(user.role === 'caller'
       ? {
           [Op.or]: [
@@ -178,14 +189,28 @@ export async function calendarInterviewsForUser(user) {
       : {}),
   };
 
+  const rangeInterviewIds = range ? await calendarRangeInterviewIds(range) : [];
+  const rangeWhere = range
+    ? {
+        [Op.or]: [
+          { interviewNextAt: { [Op.gte]: range.from, [Op.lt]: range.to } },
+          ...(rangeInterviewIds.length ? [{ id: { [Op.in]: rangeInterviewIds } }] : []),
+        ],
+      }
+    : {};
+  const profileWhere = {
+    ...workspaceFilterForUser(user),
+    ...(workspaceId === undefined ? {} : { workspaceId }),
+  };
+
   const interviews = await Interview.findAll({
-    where,
+    where: { [Op.and]: [accessWhere, rangeWhere] },
     include: [
       {
         model: BidProfile,
         as: 'profile',
         required: true,
-        where: workspaceFilterForUser(user),
+        where: profileWhere,
         include: [{ model: WebUser, as: 'user', required: false }],
       },
     ],
@@ -195,14 +220,106 @@ export async function calendarInterviewsForUser(user) {
     ],
   });
   const [logsByInterviewId, callsByInterviewId] = await Promise.all([
-    interviewLogsByInterviewId(interviews),
-    interviewCallsByInterviewId(interviews, user),
+    interviewLogsByInterviewId(interviews, range),
+    interviewCallsByInterviewId(interviews, user, range),
   ]);
   for (const interview of interviews) {
     interview.setDataValue('logs', logsByInterviewId.get(String(interview.id)) || []);
     interview.setDataValue('calls', callsByInterviewId.get(String(interview.id)) || []);
   }
   return interviews;
+}
+
+async function calendarRangeInterviewIds(range) {
+  const isoRange = { [Op.gte]: range.from.toISOString(), [Op.lt]: range.to.toISOString() };
+  const [calls, logs] = await Promise.all([
+    getInterviewCallModel().findAll({
+      where: { scheduledAt: { [Op.gte]: range.from, [Op.lt]: range.to } },
+      attributes: ['interviewId'],
+      group: ['interviewId'],
+    }),
+    getInterviewLogModel().findAll({
+      where: { eventType: 'interview_occurrence', toValue: isoRange },
+      attributes: ['interviewId'],
+      group: ['interviewId'],
+    }),
+  ]);
+  return [...new Set([...calls, ...logs].map((row) => row.interviewId).filter(Boolean))];
+}
+
+export function calendarRangeFromQuery(query = {}) {
+  const rawFrom = clean(query.from);
+  const rawTo = clean(query.to);
+  if (!rawFrom && !rawTo) return null;
+  if (!rawFrom || !rawTo) throw new InputError('Calendar range requires both from and to');
+
+  const from = new Date(rawFrom);
+  const to = new Date(rawTo);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
+    throw new InputError('Choose a valid calendar range');
+  }
+  if (to.getTime() - from.getTime() > 62 * DAY_MS) {
+    throw new InputError('Calendar range cannot exceed 62 days');
+  }
+  return { from, to };
+}
+
+export function calendarWorkspaceIdFromQuery(query = {}, user = {}) {
+  if (!isSuperadmin(user)) return undefined;
+  const value = clean(query.workspaceId);
+  if (!value || value === 'all') return undefined;
+  if (value === 'unassigned') return null;
+  const workspaceId = Number(value);
+  if (!Number.isSafeInteger(workspaceId) || workspaceId <= 0) throw new InputError('Choose a valid workspace');
+  return workspaceId;
+}
+
+export function calendarEventsInRange(interviews = [], range = null) {
+  if (!range) return interviews;
+  return interviews.filter((interview) => {
+    const scheduledAt = new Date(interview.interviewNextAt).getTime();
+    return scheduledAt >= range.from.getTime() && scheduledAt < range.to.getTime();
+  });
+}
+
+export function formatCalendarInterviewAsJob(interview, bidUsersById = new Map(), callerUsersById = new Map(), tailoredResume = null) {
+  const job = formatInterviewAsJob(interview, bidUsersById, callerUsersById, tailoredResume);
+  const bid = job.bid || {};
+  return {
+    id: job.id,
+    interviewId: job.interviewId,
+    interviewCallId: job.interviewCallId,
+    occurrenceLogId: job.occurrenceLogId,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    url: job.url,
+    sourceUrl: job.sourceUrl,
+    tailoredResume: job.tailoredResume,
+    bid: {
+      id: bid.id,
+      isInterview: true,
+      parentInterviewId: bid.parentInterviewId,
+      interviewCallId: bid.interviewCallId,
+      occurrenceLogId: bid.occurrenceLogId,
+      userId: bid.userId,
+      profileOwnerUserId: bid.profileOwnerUserId,
+      profileOwnerUsername: bid.profileOwnerUsername,
+      callerUserId: bid.callerUserId,
+      profileId: bid.profileId,
+      jobId: bid.jobId,
+      jobBidId: bid.jobBidId,
+      status: bid.status,
+      interviewStage: bid.interviewStage,
+      interviewNextAt: bid.interviewNextAt,
+      interviewDurationMinutes: bid.interviewDurationMinutes,
+      interviewNotes: bid.interviewNotes,
+      stageMeetingLinks: bid.stageMeetingLinks,
+      meetingLink: bid.meetingLink,
+      ...(bid.user ? { user: bid.user } : {}),
+      ...(bid.callerUser ? { callerUser: bid.callerUser } : {}),
+    },
+  };
 }
 
 export async function tailoredResumesForCalendarEvents(interviews = []) {
@@ -231,7 +348,7 @@ export async function tailoredResumesForCalendarEvents(interviews = []) {
     const currentPriority = priority[current?.status] || 0;
     const rowPriority = priority[formatted.status] || 0;
     if (!current || rowPriority > currentPriority) {
-      byEvent.set(key, formatted);
+      byEvent.set(key, { id: formatted.id, status: formatted.status, filePath: formatted.filePath });
     }
   }
 

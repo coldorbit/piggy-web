@@ -209,12 +209,22 @@ export async function ensureInterviewIndexes() {
     ON interviews (profile_id, status, interview_next_at ASC NULLS LAST)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interviews_interview_next_at_idx
+    ON interviews (interview_next_at)
+    WHERE interview_next_at IS NOT NULL
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS interviews_caller_status_idx
     ON interviews (caller_user_id, status)
   `);
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS interview_logs_interview_created_at_idx
     ON interview_logs (interview_id, created_at)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interview_logs_event_to_value_idx
+    ON interview_logs (event_type, to_value)
+    WHERE event_type = 'interview_occurrence'
   `);
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS interview_calls_interview_scheduled_at_idx

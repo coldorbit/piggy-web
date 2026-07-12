@@ -423,11 +423,19 @@ export function formatInterviewCall(call) {
   };
 }
 
-export async function interviewLogsByInterviewId(interviews) {
+export async function interviewLogsByInterviewId(interviews, range = null) {
   const interviewIds = interviews.map((interview) => interview.id).filter(Boolean);
   if (!interviewIds.length) return new Map();
   const logs = await getInterviewLogModel().findAll({
-    where: { interviewId: interviewIds },
+    where: {
+      interviewId: interviewIds,
+      ...(range
+        ? {
+            eventType: 'interview_occurrence',
+            toValue: { [Op.gte]: range.from.toISOString(), [Op.lt]: range.to.toISOString() },
+          }
+        : {}),
+    },
     order: [
       ['interviewId', 'ASC'],
       ['createdAt', 'ASC'],
@@ -440,7 +448,7 @@ export async function interviewLogsByInterviewId(interviews) {
   return byInterviewId;
 }
 
-export async function interviewCallsByInterviewId(interviews, user = null) {
+export async function interviewCallsByInterviewId(interviews, user = null, range = null) {
   const interviewIds = interviews.map((interview) => interview.id).filter(Boolean);
   if (!interviewIds.length) return new Map();
   const currentCallerInterviewIds = user?.role === 'caller'
@@ -451,6 +459,7 @@ export async function interviewCallsByInterviewId(interviews, user = null) {
   const calls = await getInterviewCallModel().findAll({
     where: {
       interviewId: interviewIds,
+      ...(range ? { scheduledAt: { [Op.gte]: range.from, [Op.lt]: range.to } } : {}),
       ...(user?.role === 'caller'
         ? {
             [Op.or]: [

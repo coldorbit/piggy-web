@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  calendarEventsInRange,
   calendarEventsForInterviews,
+  calendarRangeFromQuery,
+  calendarWorkspaceIdFromQuery,
   canDeleteInterviewCall,
   canWriteInterviewForProfile,
   bidStatusFromInterviewStatus,
@@ -15,6 +18,50 @@ import {
   shouldRegisterInterviewCallForStageChange,
 } from '../server/modules/bidding/presentation/biddingController.js';
 import { ROLES } from '../server/utils/roles.js';
+
+describe('calendar range query', () => {
+  it('parses a bounded half-open range', () => {
+    const range = calendarRangeFromQuery({
+      from: '2026-07-06T04:00:00.000Z',
+      to: '2026-07-13T04:00:00.000Z',
+    });
+
+    assert.equal(range.from.toISOString(), '2026-07-06T04:00:00.000Z');
+    assert.equal(range.to.toISOString(), '2026-07-13T04:00:00.000Z');
+  });
+
+  it('rejects incomplete, reversed, and oversized ranges', () => {
+    assert.throws(() => calendarRangeFromQuery({ from: '2026-07-06T04:00:00.000Z' }), /requires both/);
+    assert.throws(
+      () => calendarRangeFromQuery({ from: '2026-07-13T04:00:00.000Z', to: '2026-07-06T04:00:00.000Z' }),
+      /valid calendar range/,
+    );
+    assert.throws(
+      () => calendarRangeFromQuery({ from: '2026-01-01T00:00:00.000Z', to: '2026-04-01T00:00:00.000Z' }),
+      /cannot exceed 62 days/,
+    );
+  });
+
+  it('filters events with an exclusive upper bound', () => {
+    const range = calendarRangeFromQuery({
+      from: '2026-07-06T04:00:00.000Z',
+      to: '2026-07-13T04:00:00.000Z',
+    });
+    const events = calendarEventsInRange([
+      { id: 1, interviewNextAt: new Date('2026-07-06T04:00:00.000Z') },
+      { id: 2, interviewNextAt: new Date('2026-07-10T16:00:00.000Z') },
+      { id: 3, interviewNextAt: new Date('2026-07-13T04:00:00.000Z') },
+    ], range);
+
+    assert.deepEqual(events.map((event) => event.id), [1, 2]);
+  });
+
+  it('applies workspace selection only for superadmins', () => {
+    assert.equal(calendarWorkspaceIdFromQuery({ workspaceId: '42' }, { role: ROLES.superadmin }), 42);
+    assert.equal(calendarWorkspaceIdFromQuery({ workspaceId: 'unassigned' }, { role: ROLES.superadmin }), null);
+    assert.equal(calendarWorkspaceIdFromQuery({ workspaceId: '42' }, { role: ROLES.admin }), undefined);
+  });
+});
 
 describe('groupedBidJobs', () => {
   it('uses a stable group id while promoting the tailored representative', () => {
