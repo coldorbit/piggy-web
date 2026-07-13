@@ -40,6 +40,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import CollaborationPanel from '../components/collaboration/CollaborationPanel.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
+import ProfileLearningReview from '../components/profiles/ProfileLearningReview.jsx';
 import {
   useCreateProfileStory,
   useDeleteProfileStory,
@@ -50,12 +51,14 @@ import {
   useUpdateProfileStory,
 } from '../lib/api.js';
 import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
+import { canAccessLearningHub } from '../lib/roles.js';
 
-const HUB_TABS = ['overview', 'career-story', 'interview-prep', 'location-context', 'activity'];
+const HUB_TABS = ['overview', 'career-story', 'interview-prep', 'learning-review', 'location-context', 'activity'];
 const HUB_TAB_LABELS = {
   overview: 'Overview',
   'career-story': 'Career Story',
   'interview-prep': 'Interview Prep',
+  'learning-review': 'Learning Review',
   'location-context': 'Location Context',
   activity: 'Activity',
 };
@@ -247,6 +250,13 @@ export default function ProfileHubPage({ currentUser }) {
           stories={hub.stories}
           onChange={setPrepDraft}
           onSubmit={savePrep}
+        />
+      ) : null}
+      {activeTab === 'learning-review' ? (
+        <ProfileLearningReview
+          canEdit={hub.canEdit}
+          canOpenLearningHub={canAccessLearningHub(currentUser)}
+          profileId={profile.id}
         />
       ) : null}
       {activeTab === 'location-context' ? (

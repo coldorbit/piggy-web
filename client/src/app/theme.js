@@ -347,10 +347,15 @@ export const theme = createTheme({
     MuiInputLabel: {
       styleOverrides: {
         outlined: {
-          backgroundColor: 'rgba(255,255,255,0.86)',
-          paddingLeft: 4,
-          paddingRight: 4,
-          maxWidth: 'calc(100% - 20px)',
+          maxWidth: 'calc(100% - 24px)',
+          '&.MuiInputLabel-shrink': {
+            backgroundColor: 'rgba(255,255,255,0.86)',
+            paddingLeft: 4,
+            paddingRight: 4,
+            // MUI scales floating labels to 75%, so their layout width must
+            // expand to keep the full label visible inside the outline notch.
+            maxWidth: 'calc(133% - 32px)',
+          },
         },
       },
     },

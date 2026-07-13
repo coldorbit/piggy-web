@@ -20,6 +20,7 @@ export {
   getMarketplaceParticipantModel,
   getProfileShareRequestModel,
   getProfileIntelligenceModel,
+  getProfileLearningReviewModel,
   getProfilePrepPlanModel,
   getProfileStoryModel,
   getScrapedJobModel,

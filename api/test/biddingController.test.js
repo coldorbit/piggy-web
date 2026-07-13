@@ -315,12 +315,14 @@ describe('interview scheduled occurrences', () => {
 });
 
 describe('canDeleteInterviewCall', () => {
-  it('allows the call owner, interview owner, and superadmin to delete a call', () => {
+  it('allows the call owner, interview owner, current profile owner, and superadmin to delete a call', () => {
     const call = interviewCall({ userId: 20 });
     const interview = interviewRow({ userId: 30 });
+    const profile = { userId: 40 };
 
     assert.equal(canDeleteInterviewCall({ id: 20, role: ROLES.user }, call, interview), true);
     assert.equal(canDeleteInterviewCall({ id: 30, role: ROLES.user }, call, interview), true);
+    assert.equal(canDeleteInterviewCall({ id: 40, role: ROLES.user }, call, interview, profile), true);
     assert.equal(canDeleteInterviewCall({ id: 99, role: ROLES.superadmin }, call, interview), true);
   });
 

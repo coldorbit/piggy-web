@@ -21,6 +21,7 @@ import {
   getMarketplaceParticipantModel,
   getProfileShareRequestModel,
   getProfileIntelligenceModel,
+  getProfileLearningReviewModel,
   getProfilePrepPlanModel,
   getProfileStoryModel,
   getScrapedJobModel,
@@ -94,6 +95,7 @@ export async function ensureWebModels() {
       await getInterviewModel().sync();
       await getInterviewCallModel().sync();
       await getInterviewLogModel().sync();
+      await getProfileLearningReviewModel().sync();
       await getTailoredResumeModel().sync();
       await getMarketplaceParticipantModel().sync();
       await getMarketplaceInterviewOpportunityModel().sync();

@@ -1,6 +1,7 @@
 import DeleteIcon from '@mui/icons-material/Delete';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -620,7 +621,7 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
 }
 
 function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssigningCaller = false, onCallerChange = null, onClose }) {
-  const { mutate: deleteInterviewCall, isPending: deletingInterviewCall } = useDeleteInterviewCall();
+  const { mutate: deleteInterviewCall, isPending: deletingInterviewCall, error: deleteCallError } = useDeleteInterviewCall();
   const [callerUserId, setCallerUserId] = useState('');
   const jobUrl = externalJobUrl(event);
   const meetingUrl = meetingLinkForEvent(event);
@@ -628,7 +629,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
   const resumeHref = resumeUrl ? authUrl(resumeUrl) : '';
   const resumeStatus = event?.job?.tailoredResume?.status || '';
   const owner = profileOwnerForEvent(event);
-  const canDeleteCall = isSuperadmin(currentUser) && event?.interviewCallId;
+  const canDeleteCall = canDeleteCalendarCall(currentUser, event);
   const canAssignCaller = Boolean(onCallerChange && callerUsers.length && event?.interviewId && currentUser?.role !== 'caller');
 
   useEffect(() => {
@@ -701,6 +702,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
               />
             ) : null}
             {event.job?.bid?.interviewNotes ? <DetailRow label="Notes" value={event.job.bid.interviewNotes} multiline /> : null}
+            {deleteCallError ? <Alert severity="error">{deleteCallError.message}</Alert> : null}
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'space-between' }}>
             <Box>
@@ -919,6 +921,18 @@ function durationLabel(durationMinutes = 60) {
 
 function compactEventLabel(event) {
   return [event.profile?.name || 'Profile', event.company || 'Unknown company'].filter(Boolean).join(' · ');
+}
+
+export function canDeleteCalendarCall(user, event) {
+  if (!event?.interviewCallId) return false;
+  if (isSuperadmin(user)) return true;
+  const userId = String(user?.id || '');
+  if (!userId) return false;
+  const ownerUserId = event.job?.bid?.profileOwnerUserId
+    || event.job?.bid?.userId
+    || event.profile?.userId
+    || '';
+  return String(ownerUserId) === userId;
 }
 
 function callCountLabel(count) {

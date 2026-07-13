@@ -18,6 +18,7 @@ import {
   profileStoryAttributesFromBody,
   readinessForProfile,
 } from '../application/profileIntelligenceService.js';
+import { listProfileLearningReview, saveProfileLearningReview } from '../application/profileLearningReviewService.js';
 import { clean } from '../../../utils/index.js';
 import { ForbiddenError, InputError, NotFoundError, handleInputError } from '../../../utils/errors.js';
 import { canAccessProfileHub, isAdminRole } from '../../../utils/roles.js';
@@ -65,6 +66,32 @@ export async function getProfileHub(req, res, next) {
         },
       },
     });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function getProfileLearningReview(req, res, next) {
+  try {
+    await ensureWebModels();
+    const access = await profileHubAccess(req, req.params.id);
+    res.json({ review: await listProfileLearningReview({ access, query: req.query }) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function updateProfileLearningReview(req, res, next) {
+  try {
+    await ensureWebModels();
+    const access = await profileHubAccess(req, req.params.id);
+    const learning = await saveProfileLearningReview({
+      access,
+      sourceType: clean(req.params.sourceType).toLowerCase(),
+      sourceId: req.params.sourceId,
+      body: req.body,
+    });
+    res.json({ learning });
   } catch (error) {
     handleInputError(error, res, next);
   }

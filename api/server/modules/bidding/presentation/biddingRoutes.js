@@ -54,7 +54,9 @@ import {
   deleteProfileStory,
   geocodeProfileLocation,
   getProfileHub,
+  getProfileLearningReview,
   updateProfileIntelligence,
+  updateProfileLearningReview,
   updateProfilePrepPlan,
   updateProfileStory,
 } from './profileIntelligenceController.js';
@@ -85,6 +87,8 @@ export function registerBidRoutes(app) {
   app.post('/api/bid/callers', requireCallerManagement, createCaller);
   app.post('/api/bid/profiles', requireBidWorkspaceAccess, createProfile);
   app.get('/api/bid/profiles/:id/hub', requireProfileHubAccess, getProfileHub);
+  app.get('/api/bid/profiles/:id/learning-review', requireProfileHubAccess, getProfileLearningReview);
+  app.patch('/api/bid/profiles/:id/learning-review/:sourceType/:sourceId', requireProfileHubAccess, updateProfileLearningReview);
   app.patch('/api/bid/profiles/:id/intelligence', requireProfileHubAccess, updateProfileIntelligence);
   app.post('/api/bid/profiles/:id/location/geocode', requireProfileHubAccess, geocodeProfileLocation);
   app.post('/api/bid/profiles/:id/stories', requireProfileHubAccess, createProfileStory);

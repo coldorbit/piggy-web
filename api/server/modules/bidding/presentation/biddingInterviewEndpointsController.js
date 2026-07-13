@@ -323,8 +323,9 @@ export async function deleteInterviewCall(req, res, next) {
     }
 
     const interview = await getInterviewModel().findByPk(call.interviewId);
-    if (!canDeleteInterviewCall(user, call, interview)) {
-      res.status(403).json({ error: 'Only the interview owner or a superadmin can delete interview calls' });
+    const profile = interview ? await getBidProfileModel().findByPk(interview.profileId) : null;
+    if (!canDeleteInterviewCall(user, call, interview, profile)) {
+      res.status(403).json({ error: 'Only the call owner, interview owner, or a superadmin can delete interview calls' });
       return;
     }
     const clearsCurrentSchedule = interview && callMatchesCurrentInterviewSchedule(call, interview);
@@ -349,11 +350,13 @@ export function callMatchesCurrentInterviewSchedule(call, interview) {
     && String(call.interviewStage || '') === String(interview.interviewStage || '');
 }
 
-export function canDeleteInterviewCall(user, call, interview = null) {
+export function canDeleteInterviewCall(user, call, interview = null, profile = null) {
   if (isSuperadmin(user)) return true;
   const userId = String(user?.id || '');
   if (!userId) return false;
-  return String(call?.userId || '') === userId || String(interview?.userId || '') === userId;
+  return String(call?.userId || '') === userId
+    || String(interview?.userId || '') === userId
+    || String(profile?.userId || '') === userId;
 }
 
 export async function ensureCallerUser(callerUserId) {

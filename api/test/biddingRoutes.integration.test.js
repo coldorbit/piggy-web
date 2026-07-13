@@ -40,6 +40,13 @@ describe('bidding API routes', () => {
     assert.equal(response.statusCode, 401);
     assert.deepEqual(response.body, { error: 'Authentication required' });
   });
+
+  it('protects the profile learning review endpoint', async () => {
+    const response = await request(`${baseUrl}/api/bid/profiles/7/learning-review`);
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(response.body, { error: 'Authentication required' });
+  });
 });
 
 function listen(app) {

@@ -106,6 +106,28 @@ export function useProfileHub(profileId, queryOptions = {}) {
   });
 }
 
+export function useProfileLearningReview(profileId, filters = {}, queryOptions = {}) {
+  const queryParams = new URLSearchParams(filters).toString();
+  return useQuery({
+    queryKey: ['bid', 'profiles', profileId, 'learning-review', filters],
+    queryFn: () => api(`/api/bid/profiles/${profileId}/learning-review${queryParams ? `?${queryParams}` : ''}`).then((data) => data.review),
+    enabled: Boolean(profileId),
+    staleTime: 30_000,
+    ...queryOptions,
+  });
+}
+
+export function useUpdateProfileLearningReview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ profileId, sourceType, sourceId, learning }) => api(
+      `/api/bid/profiles/${profileId}/learning-review/${sourceType}/${sourceId}`,
+      { method: 'PATCH', body: JSON.stringify(learning) },
+    ).then((data) => data.learning),
+    onSuccess: (_learning, variables) => queryClient.invalidateQueries({ queryKey: ['bid', 'profiles', variables.profileId, 'learning-review'] }),
+  });
+}
+
 export function useUpdateProfileIntelligence() {
   const queryClient = useQueryClient();
   return useMutation({
