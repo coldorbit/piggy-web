@@ -1,4 +1,4 @@
-import { Box, LinearProgress, Skeleton, Stack, Typography } from '@mui/material';
+import { Box, LinearProgress, Skeleton, Stack } from '@mui/material';
 
 const DRAWER_WIDTH = 248;
 const shellLine = 'rgba(0, 0, 0, 0.09)';
@@ -36,22 +36,13 @@ export default function ShellLoading() {
           backdropFilter: 'blur(28px) saturate(1.25)',
         }}
       >
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{ minHeight: 68, px: 1.5, borderBottom: 1, borderColor: shellLine, alignItems: 'center' }}
-        >
+        <Stack direction="row" sx={{ minHeight: 68, px: 1.5, borderBottom: 1, borderColor: shellLine, alignItems: 'center' }}>
           <Box
             component="img"
             src="/assets/applypilot-wordmark.png"
             alt=""
             sx={{ width: 150, height: 42, objectFit: 'contain', objectPosition: 'left center' }}
           />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary">
-              Loading workspace
-            </Typography>
-          </Box>
         </Stack>
 
         <Box sx={{ display: 'grid', gap: 0.35, px: 1, py: 1.25 }}>
