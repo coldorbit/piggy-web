@@ -48,6 +48,25 @@ export async function listWorkspaces(_req, res, next) {
   }
 }
 
+export async function listWorkspaceOptions(req, res, next) {
+  try {
+    const rows = await getWorkspaceModel().findAll({
+      attributes: ['id', 'name', 'slug'],
+      order: [['name', 'ASC']],
+      where: isSuperadmin(req.user) ? undefined : { id: { [Op.in]: assignedWorkspaceIds(req.user) } },
+    });
+    res.json({
+      workspaces: rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        slug: row.slug,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function createWorkspace(req, res, next) {
   try {
     const Workspace = getWorkspaceModel();

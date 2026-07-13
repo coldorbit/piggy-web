@@ -62,6 +62,7 @@ import {
   ensureWebUserSessionColumns,
   ensureWebUserTimezoneColumn,
   removeDeprecatedBidProfileColumns,
+  runOnceSchemaMigration,
 } from './schema/migrations.js';
 import { addMissingColumns } from './utils.js';
 
@@ -79,7 +80,7 @@ export async function ensureWebModels() {
       await getLearningCompanyModel().sync();
       await getLearningArticleModel().sync();
       await ensureLearningArticleColumns();
-      await ensureLearningCompanies();
+      await runOnceSchemaMigration('20260713-learning-company-directories', migrateLearningCompanies);
       await getBidProfileModel().sync();
       await getProfileIntelligenceModel().sync();
       await getProfilePrepPlanModel().sync();
@@ -179,17 +180,22 @@ const UBER_COMPANY = {
   headquarters: '1725 Third Street, San Francisco, CA',
 };
 
-async function ensureLearningCompanies() {
+async function migrateLearningCompanies(transaction) {
   const Company = getLearningCompanyModel();
   const Article = getLearningArticleModel();
-  const [uber] = await Company.findOrCreate({ where: { slug: UBER_COMPANY.slug }, defaults: UBER_COMPANY });
+  const [uber] = await Company.findOrCreate({
+    where: { slug: UBER_COMPANY.slug },
+    defaults: UBER_COMPANY,
+    transaction,
+  });
   const missingUberDetails = Object.fromEntries(Object.entries(UBER_COMPANY).filter(([key, value]) => key !== 'slug' && value && !uber[key]));
-  if (Object.keys(missingUberDetails).length) await uber.update(missingUberDetails);
+  if (Object.keys(missingUberDetails).length) await uber.update(missingUberDetails, { transaction });
 
   const unlinkedArticles = await Article.findAll({
     attributes: ['companyName', 'companyWebsite', 'companyLogoUrl'],
     where: { category: 'companies', companyId: null },
     raw: true,
+    transaction,
   });
   for (const article of unlinkedArticles) {
     const name = String(article.companyName || '').trim();
@@ -200,8 +206,12 @@ async function ensureLearningCompanies() {
       : await Company.findOrCreate({
         where: { slug },
         defaults: { slug, name, description: '', website: article.companyWebsite || null, logoUrl: article.companyLogoUrl || null },
+        transaction,
       });
-    await Article.update({ companyId: company.id }, { where: { category: 'companies', companyId: null, companyName: article.companyName } });
+    await Article.update(
+      { companyId: company.id },
+      { where: { category: 'companies', companyId: null, companyName: article.companyName }, transaction },
+    );
   }
 }
 

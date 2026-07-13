@@ -14,6 +14,7 @@ export {
 export {
   createWorkspace,
   deleteWorkspace,
+  listWorkspaceOptions,
   listWorkspaces,
   updateWorkspace,
 } from './workspacesController.js';

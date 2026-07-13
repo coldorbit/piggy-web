@@ -9,6 +9,7 @@ import {
   getDashboard,
   listConsumption,
   listUsers,
+  listWorkspaceOptions,
   listWorkspaces,
   updateConsumption,
   updateUser,
@@ -25,6 +26,7 @@ export function registerAdminRoutes(app) {
   app.post('/api/admin/users', requireAdmin, createUser);
   app.patch('/api/admin/users/:id', requireAdmin, updateUser);
   app.delete('/api/admin/users/:id', requireAdmin, deleteUser);
+  app.get('/api/admin/workspace-options', requireAdmin, listWorkspaceOptions);
   app.get('/api/admin/workspaces', requireAdmin, listWorkspaces);
   app.post('/api/admin/workspaces', requireSuperadmin, createWorkspace);
   app.patch('/api/admin/workspaces/:id', requireSuperadmin, updateWorkspace);

@@ -17,6 +17,15 @@ export function useAdminWorkspaces(queryOptions = {}) {
   });
 }
 
+export function useWorkspaceOptions(queryOptions = {}) {
+  return useQuery({
+    queryKey: ['admin', 'workspace-options'],
+    queryFn: () => api('/api/admin/workspace-options').then((data) => data.workspaces),
+    staleTime: 5 * 60_000,
+    ...queryOptions,
+  });
+}
+
 export function useCreateWorkspace() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -27,6 +36,7 @@ export function useCreateWorkspace() {
       }).then((data) => data.workspace),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspace-options'] });
     },
   });
 }
@@ -41,6 +51,7 @@ export function useUpdateWorkspace() {
       }).then((data) => data.workspace),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspace-options'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     },
   });
@@ -55,6 +66,7 @@ export function useDeleteWorkspace() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'workspace-options'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     },
   });

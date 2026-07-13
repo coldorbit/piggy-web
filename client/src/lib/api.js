@@ -6,6 +6,7 @@ export {
   useAdminDashboard,
   useAdminUsers,
   useAdminWorkspaces,
+  useWorkspaceOptions,
   useCreateConsumptionRecord,
   useCreateWorkspace,
   useDeleteConsumptionRecord,

@@ -2,6 +2,42 @@ import { DataTypes, QueryTypes } from 'sequelize';
 import { getSequelize } from '../connection.js';
 import { addMissingColumns, removeExistingColumns } from '../utils.js';
 
+export async function runOnceSchemaMigration(name, migrate) {
+  const sequelize = getSequelize();
+  await sequelize.query(`
+    CREATE TABLE IF NOT EXISTS app_schema_migrations (
+      name TEXT PRIMARY KEY,
+      completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  const completed = await schemaMigrationCompleted(sequelize, name);
+  if (completed) return false;
+
+  return sequelize.transaction(async (transaction) => {
+    await sequelize.query('SELECT pg_advisory_xact_lock(hashtext(:name))', {
+      replacements: { name },
+      transaction,
+    });
+    if (await schemaMigrationCompleted(sequelize, name, transaction)) return false;
+
+    await migrate(transaction);
+    await sequelize.query(
+      'INSERT INTO app_schema_migrations (name) VALUES (:name)',
+      { replacements: { name }, transaction },
+    );
+    return true;
+  });
+}
+
+async function schemaMigrationCompleted(sequelize, name, transaction = undefined) {
+  const rows = await sequelize.query(
+    'SELECT 1 FROM app_schema_migrations WHERE name = :name LIMIT 1',
+    { replacements: { name }, transaction, type: QueryTypes.SELECT },
+  );
+  return rows.length > 0;
+}
+
 export async function ensureBidProfileStaticResumeColumns() {
   const queryInterface = getSequelize().getQueryInterface();
   const tableName = 'bid_profiles';

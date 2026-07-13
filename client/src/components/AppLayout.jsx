@@ -59,7 +59,7 @@ import { useTheme } from '@mui/material/styles';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useLogout, useUpdateMe } from '../lib/authApi.js';
-import { useAdminWorkspaces } from '../lib/api.js';
+import { useWorkspaceOptions } from '../lib/api.js';
 import { useMailboxNotifications } from '../lib/mailboxNotifications.js';
 import {
   MARKETPLACE_ACCESS_ROLES,
@@ -113,7 +113,7 @@ export default function AppLayout({ user }) {
   const { mutate: logout } = useLogout();
   const { mutate: updateMe, isPending: isUpdatingMe } = useUpdateMe();
   const canUseWorkspaceFilter = canUseWorkspaceLens(user);
-  const { data: workspaces = [], isLoading: workspacesLoading, error: workspaceError } = useAdminWorkspaces({ enabled: canUseWorkspaceFilter });
+  const { data: workspaces = [], isLoading: workspacesLoading, error: workspaceError } = useWorkspaceOptions({ enabled: canUseWorkspaceFilter });
   const isAdminDashboardRoute = location.pathname.startsWith('/admin/dashboard');
   const isPersonalDashboardRoute = location.pathname.startsWith('/dashboard');
   const isConsumptionRoute = location.pathname.startsWith('/admin/consumption');

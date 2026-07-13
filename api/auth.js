@@ -4,12 +4,14 @@ import { ENV } from './env.js';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ACTIVE_WINDOW_MS = 5 * 60 * 1000;
+const ACTIVITY_TOUCH_INTERVAL_MS = 60 * 1000;
 const PASSWORD_ITERATIONS = 310000;
 const PASSWORD_KEY_LENGTH = 32;
 const PASSWORD_DIGEST = 'sha256';
 export const SESSION_COOKIE_NAME = 'applypilot_session';
 
 let defaultUsersSeeded = false;
+const scheduleUserActivityTouch = createUserActivityTracker();
 
 export function getConfiguredUsers() {
   const rawUsers =
@@ -139,7 +141,7 @@ export async function readValidSession(req) {
   const user = await repositories.findUserByUsername(session.username);
   if (!user || user.activeSessionId !== session.activeSessionId) return null;
 
-  await touchUserActivity(user);
+  scheduleUserActivityTouch(user);
   return publicUser(user);
 }
 
@@ -192,10 +194,46 @@ export function publicUser(row) {
   };
 }
 
-async function touchUserActivity(user) {
-  const now = new Date();
-  user.lastSeenAt = now;
-  await user.update({ lastSeenAt: now }, { silent: true });
+export function createUserActivityTracker({
+  intervalMs = ACTIVITY_TOUCH_INTERVAL_MS,
+  now = () => Date.now(),
+  update = updateUserActivity,
+} = {}) {
+  const scheduledAtByUserId = new Map();
+
+  return function trackUserActivity(user) {
+    const userId = String(user?.id || '');
+    if (!userId) return false;
+
+    const currentTime = now();
+    const persistedAt = new Date(user.lastSeenAt || 0).getTime();
+    const lastActivityAt = Math.max(
+      Number.isFinite(persistedAt) ? persistedAt : 0,
+      scheduledAtByUserId.get(userId) || 0,
+    );
+    if (currentTime - lastActivityAt < intervalMs) return false;
+
+    const lastSeenAt = new Date(currentTime);
+    scheduledAtByUserId.set(userId, currentTime);
+    user.lastSeenAt = lastSeenAt;
+    Promise.resolve().then(() => update(user.id, lastSeenAt)).catch((error) => {
+      if (scheduledAtByUserId.get(userId) === currentTime) scheduledAtByUserId.delete(userId);
+      console.warn(`Unable to update activity for user ${userId}:`, error?.message || error);
+    });
+    pruneActivityTracker(scheduledAtByUserId, currentTime, intervalMs);
+    return true;
+  };
+}
+
+function updateUserActivity(userId, lastSeenAt) {
+  return getWebUserModel().update({ lastSeenAt }, { where: { id: userId }, silent: true });
+}
+
+function pruneActivityTracker(scheduledAtByUserId, currentTime, intervalMs) {
+  if (scheduledAtByUserId.size < 1000) return;
+  for (const [userId, scheduledAt] of scheduledAtByUserId) {
+    if (currentTime - scheduledAt >= intervalMs * 2) scheduledAtByUserId.delete(userId);
+  }
 }
 
 function parseConfiguredUser(entry) {

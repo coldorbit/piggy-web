@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { SESSION_COOKIE_NAME, createSessionToken, publicUser, readSession, sessionCookieOptions } from '../auth.js';
+import { SESSION_COOKIE_NAME, createSessionToken, createUserActivityTracker, publicUser, readSession, sessionCookieOptions } from '../auth.js';
 
 describe('session auth', () => {
   it('reads valid sessions from the HttpOnly cookie', () => {
@@ -85,6 +85,32 @@ describe('session auth', () => {
         workspace: { id: 4, name: 'Client B', slug: 'client-b' },
       },
     ]);
+  });
+
+  it('tracks activity without waiting and throttles repeated writes', async () => {
+    let currentTime = Date.parse('2026-07-13T12:00:00.000Z');
+    const updates = [];
+    const trackActivity = createUserActivityTracker({
+      now: () => currentTime,
+      update: (userId, lastSeenAt) => {
+        updates.push({ userId, lastSeenAt });
+        return new Promise(() => {});
+      },
+    });
+    const user = { id: 7, lastSeenAt: new Date(currentTime - 120_000) };
+
+    assert.equal(trackActivity(user), true);
+    assert.equal(trackActivity(user), false);
+    assert.equal(updates.length, 0);
+    await Promise.resolve();
+    assert.equal(updates.length, 1);
+    assert.equal(updates[0].userId, 7);
+    assert.equal(user.lastSeenAt.toISOString(), '2026-07-13T12:00:00.000Z');
+
+    currentTime += 60_000;
+    assert.equal(trackActivity(user), true);
+    await Promise.resolve();
+    assert.equal(updates.length, 2);
   });
 });
 
