@@ -33,7 +33,6 @@ import {
   Button,
   Collapse,
   Drawer,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -77,12 +76,12 @@ import {
   canManageCallers,
   isAdminRole,
   isSuperadmin,
-  roleLabel,
 } from '../lib/roles.js';
 import { ALL_WORKSPACES, UNASSIGNED_WORKSPACE, workspaceLabel } from './admin/SuperadminWorkspaceLens.jsx';
 import { WorkspaceFilterProvider } from './admin/WorkspaceFilterContext.jsx';
 import { EMPTY_HEADER_SEARCH, HeaderSearchProvider } from './HeaderSearchContext.jsx';
 import { EMPTY_PAGE_HEADER, PageHeaderProvider } from './PageHeaderContext.jsx';
+import SidebarAccountFooter from './navigation/SidebarAccountFooter.jsx';
 import { prefetchRoute } from '../app/routeModules.js';
 import { markRouteNavigationStart } from '../app/PerformanceMonitor.jsx';
 
@@ -395,60 +394,7 @@ export default function AppLayout({ user }) {
           ) : null}
         </List>
       </Box>
-      <Box sx={{ mt: 'auto', p: isDrawerCollapsed ? 0.75 : 1 }}>
-        {isDrawerCollapsed ? (
-          <Tooltip title={`${user.username} · ${roleLabel(user.role)}`} placement="right">
-            <IconButton
-              type="button"
-              onClick={openAccountDialog}
-              aria-label="Edit username"
-              sx={{
-                width: 42,
-                height: 42,
-                mx: 'auto',
-                display: 'flex',
-                border: 1,
-                borderColor: shellLine,
-                bgcolor: 'rgba(255,255,255,0.58)',
-                color: accentText,
-                boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
-                '&:hover': { bgcolor: accentSoft, borderColor: accentLine },
-              }}
-            >
-              <AccountCircleIcon />
-            </IconButton>
-          </Tooltip>
-        ) : (
-          <Box
-            sx={{
-              border: 1,
-              borderColor: shellLine,
-              borderRadius: 2,
-              p: 1,
-              bgcolor: 'rgba(255,255,255,0.56)',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.72) inset',
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              Signed in as
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-              <Typography fontWeight={600} noWrap sx={{ minWidth: 0, flex: 1 }}>
-                {user.username}
-              </Typography>
-              <IconButton size="small" onClick={openAccountDialog} aria-label="Edit username">
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Box>
-            {user.email ? (
-              <Typography variant="caption" color="text.secondary" noWrap>
-                {user.email}
-              </Typography>
-            ) : null}
-            <Chip label={roleLabel(user.role)} size="small" sx={{ mt: 1, bgcolor: 'rgba(72, 104, 96, 0.13)', color: '#324B45', border: 1, borderColor: 'rgba(72, 104, 96, 0.24)' }} />
-          </Box>
-        )}
-      </Box>
+      <SidebarAccountFooter collapsed={isDrawerCollapsed} onOpen={openAccountDialog} user={user} />
     </>
   );
 
