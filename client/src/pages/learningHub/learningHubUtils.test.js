@@ -1,14 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { articleMatchesSearch, buildCompanyDirectories } from './learningHubUtils.js';
+import { articleMatchesSearch, buildCompanyDirectories, directoryMatchesSearch } from './learningHubUtils.js';
 
 describe('Learning Hub company directories', () => {
-  it('groups company articles case-insensitively and keeps other libraries separate', () => {
-    const directories = buildCompanyDirectories([
-      article({ id: '1', companyName: 'Uber', title: 'Business model', featured: true, tags: ['marketplace'], companyWebsite: 'https://old.example.com', companyLogoUrl: 'https://example.com/old-logo.png' }),
-      article({ id: '2', companyName: ' uber ', title: 'ML architecture', status: 'draft', tags: ['ranking'], companyWebsite: 'https://uber.com', companyLogoUrl: 'https://uber.com/logo.png', updatedAt: '2026-07-13T00:00:00.000Z' }),
-      article({ id: '3', category: 'geography', companyName: '', title: 'Seattle' }),
-    ]);
+  it('groups articles by their company directory ID and keeps other libraries separate', () => {
+    const directories = buildCompanyDirectories(
+      [{ id: '7', slug: 'uber', name: 'Uber', description: 'Mobility platform', website: 'https://uber.com', logoUrl: 'https://uber.com/logo.png', updatedAt: '2026-07-12T00:00:00.000Z' }],
+      [article({ id: '1', companyId: '7', title: 'Business model', featured: true, tags: ['marketplace'] }), article({ id: '2', companyId: '7', title: 'ML architecture', status: 'draft', tags: ['ranking'] }), article({ id: '3', category: 'geography', companyId: null, title: 'Seattle' })],
+    );
 
     assert.equal(directories.length, 1);
     assert.equal(directories[0].name, 'Uber');
@@ -17,6 +16,7 @@ describe('Learning Hub company directories', () => {
     assert.equal(directories[0].draftCount, 1);
     assert.equal(directories[0].companyWebsite, 'https://uber.com');
     assert.equal(directories[0].companyLogoUrl, 'https://uber.com/logo.png');
+    assert.equal(directoryMatchesSearch(directories[0], 'mobility'), true);
   });
 
   it('matches directory articles through company details and tags', () => {
@@ -30,7 +30,7 @@ describe('Learning Hub company directories', () => {
 
 function article(overrides = {}) {
   return {
-    id: '1', category: 'companies', companyName: 'Example', title: 'Overview', summary: 'Summary', content: 'Content',
+    id: '1', category: 'companies', companyId: '7', companyName: 'Example', title: 'Overview', summary: 'Summary', content: 'Content',
     tags: [], featured: false, status: 'published', publishedAt: '2026-07-12T00:00:00.000Z', updatedAt: '2026-07-12T00:00:00.000Z', ...overrides,
   };
 }

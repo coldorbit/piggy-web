@@ -14,7 +14,6 @@ import {
   MenuItem,
   Paper,
   Select,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -208,7 +207,7 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
           minWidth: { xs: 660, md: 0 },
           display: 'grid',
           gridTemplateColumns: '64px repeat(5, minmax(104px, 1fr))',
-          gridTemplateRows: `56px ${HOURS.length * HOUR_HEIGHT}px`,
+          gridTemplateRows: `66px ${HOURS.length * HOUR_HEIGHT}px`,
         }}
       >
         <Box
@@ -221,7 +220,7 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
           }}
         />
         {days.map((day) => (
-          <WeekDayHeader key={day} day={day} />
+          <WeekDayHeader key={day} day={day} eventCount={(eventsByDay.get(day) || []).length} />
         ))}
 
         <Box
@@ -276,7 +275,7 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
   );
 }
 
-function WeekDayHeader({ day }) {
+function WeekDayHeader({ day, eventCount }) {
   const isToday = day === defaultTimezoneTodayKey();
   const weekday = WEEKDAY_LABELS[dateKeyDayOfWeek(day)];
   return (
@@ -292,7 +291,7 @@ function WeekDayHeader({ day }) {
         placeItems: 'center',
       }}
     >
-      <Box sx={{ display: 'grid', justifyItems: 'center', gap: 0.25 }}>
+      <Box sx={{ display: 'grid', justifyItems: 'center', gap: 0 }}>
         <Typography variant="caption" color={GOOGLE_CALENDAR_MUTED} fontWeight={500} sx={{ fontSize: 11 }}>
           {weekday}
         </Typography>
@@ -311,6 +310,9 @@ function WeekDayHeader({ day }) {
           }}
         >
           {dateKeyDay(day)}
+        </Typography>
+        <Typography variant="caption" color={GOOGLE_CALENDAR_MUTED} sx={{ fontSize: 10, lineHeight: 1.2 }}>
+          {callCountLabel(eventCount)}
         </Typography>
       </Box>
     </Box>
@@ -384,20 +386,15 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
   const left = layout ? `${layout.leftPercent}%` : 0;
   const width = layout ? `${layout.widthPercent}%` : '100%';
   return (
-    <Tooltip
-      title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
-        event.profile?.name || 'Profile'
-      } · ${calendarPeopleLabel(event)}`}
-    >
-      <Box
-        component="button"
-        type="button"
-        draggable={Boolean(event.canDrag)}
-        aria-pressed={isSelected}
-        onDragEnd={onDragEnd}
-        onDragStart={(dragEvent) => beginEventDrag(dragEvent, event, onDragStart)}
-        onClick={() => onEventClick(event)}
-        sx={{
+    <Box
+      component="button"
+      type="button"
+      draggable={Boolean(event.canDrag)}
+      aria-pressed={isSelected}
+      onDragEnd={onDragEnd}
+      onDragStart={(dragEvent) => beginEventDrag(dragEvent, event, onDragStart)}
+      onClick={() => onEventClick(event)}
+      sx={{
           position: 'absolute',
           top,
           height,
@@ -435,29 +432,28 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
             outline: '3px solid rgba(37, 99, 235, 0.42)',
             outlineOffset: 2,
           },
-        }}
-      >
-        {isCompact ? (
-          <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.15 }}>
-            {compactEventLabel(event)}
+      }}
+    >
+      {isCompact ? (
+        <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.15 }}>
+          {compactEventLabel(event)}
+        </Typography>
+      ) : (
+        <>
+          <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
+            {event.title}
           </Typography>
-        ) : (
-          <>
-            <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
-              {event.title}
+          <Typography variant="caption" noWrap sx={{ opacity: isSelected ? 1 : 0.9, lineHeight: 1.25 }}>
+            {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {compactEventLabel(event)}
+          </Typography>
+          {event.hasConflict ? (
+            <Typography variant="caption" fontWeight={600} noWrap sx={{ opacity: isSelected ? 1 : 0.95, lineHeight: 1.25 }}>
+              Conflict
             </Typography>
-            <Typography variant="caption" noWrap sx={{ opacity: isSelected ? 1 : 0.9, lineHeight: 1.25 }}>
-              {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {compactEventLabel(event)}
-            </Typography>
-            {event.hasConflict ? (
-              <Typography variant="caption" fontWeight={600} noWrap sx={{ opacity: isSelected ? 1 : 0.95, lineHeight: 1.25 }}>
-                Conflict
-              </Typography>
-            ) : null}
-          </>
-        )}
-      </Box>
-    </Tooltip>
+          ) : null}
+        </>
+      )}
+    </Box>
   );
 }
 
@@ -540,11 +536,9 @@ function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEven
         >
           {dateKeyDay(day)}
         </Typography>
-        {events.length ? (
-          <Typography variant="caption" color={GOOGLE_CALENDAR_MUTED}>
-            {events.length}
-          </Typography>
-        ) : null}
+        <Typography variant="caption" color={GOOGLE_CALENDAR_MUTED} sx={{ pr: 0.75, fontSize: 10 }}>
+          {callCountLabel(events.length)}
+        </Typography>
       </Box>
       <Box sx={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start', gap: 0.25 }}>
         {displayedEvents.map((event) => (
@@ -571,20 +565,15 @@ function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEven
 function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, onEventClick }) {
   const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
   return (
-    <Tooltip
-      title={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)} · ${event.title} · ${
-        event.profile?.name || 'Profile'
-      } · ${calendarPeopleLabel(event)}`}
-    >
-      <Box
-        component="button"
-        type="button"
-        draggable={Boolean(event.canDrag)}
-        aria-pressed={isSelected}
-        onDragEnd={onDragEnd}
-        onDragStart={(dragEvent) => beginEventDrag(dragEvent, event, onDragStart)}
-        onClick={() => onEventClick(event)}
-        sx={{
+    <Box
+      component="button"
+      type="button"
+      draggable={Boolean(event.canDrag)}
+      aria-pressed={isSelected}
+      onDragEnd={onDragEnd}
+      onDragStart={(dragEvent) => beginEventDrag(dragEvent, event, onDragStart)}
+      onClick={() => onEventClick(event)}
+      sx={{
           minWidth: 0,
           boxSizing: 'border-box',
           border: `1px solid ${GOOGLE_CALENDAR_BORDER}`,
@@ -613,21 +602,20 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
             outline: '3px solid rgba(37, 99, 235, 0.42)',
             outlineOffset: 2,
           },
-        }}
-      >
+      }}
+    >
+      <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
+        {compactEventLabel(event)}
+      </Typography>
+      <Typography variant="caption" noWrap sx={{ opacity: 0.9, lineHeight: 1.25 }}>
+        {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)}
+      </Typography>
+      {event.hasConflict ? (
         <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
-          {compactEventLabel(event)}
+          Conflict
         </Typography>
-          <Typography variant="caption" noWrap sx={{ opacity: 0.9, lineHeight: 1.25 }}>
-            {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)}
-          </Typography>
-          {event.hasConflict ? (
-            <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
-              Conflict
-            </Typography>
-          ) : null}
-      </Box>
-    </Tooltip>
+      ) : null}
+    </Box>
   );
 }
 
@@ -933,13 +921,8 @@ function compactEventLabel(event) {
   return [event.profile?.name || 'Profile', event.company || 'Unknown company'].filter(Boolean).join(' · ');
 }
 
-function calendarPeopleLabel(event) {
-  const owner = profileOwnerForEvent(event);
-  const caller = event.job?.bid?.callerUser?.username;
-  return [
-    owner.username ? `User: ${owner.username}` : '',
-    caller ? `Caller: ${caller}` : event.job?.bid?.callerUserId ? `Caller #${event.job.bid.callerUserId}` : 'Unassigned caller',
-  ].filter(Boolean).join(' · ');
+function callCountLabel(count) {
+  return `${count} ${count === 1 ? 'call' : 'calls'}`;
 }
 
 function profileOwnerForEvent(event) {

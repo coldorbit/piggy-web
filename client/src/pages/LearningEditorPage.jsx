@@ -22,11 +22,11 @@ import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useCreateLearningArticle, useDeleteLearningArticle, useLearningArticle, useUpdateLearningArticle } from '../lib/api.js';
+import { useCreateLearningArticle, useDeleteLearningArticle, useLearningArticle, useLearningCompanies, useUpdateLearningArticle } from '../lib/api.js';
 
 const EMPTY_ARTICLE = {
   category: 'companies', title: '', summary: '', content: '## Overview\n\nWrite the internal learning guide here.\n\n## Interview relevance\n\nExplain how the team should use this information.',
-  tags: [], companyName: '', companyWebsite: '', companyLogoUrl: '', city: '', region: '', countryCode: '', difficulty: '', sourceLinks: [], featured: false, status: 'draft', mermaidScript: '',
+  tags: [], companyId: '', companyName: '', city: '', region: '', countryCode: '', difficulty: '', sourceLinks: [], featured: false, status: 'draft', mermaidScript: '',
 };
 
 export default function LearningEditorPage() {
@@ -37,13 +37,12 @@ export default function LearningEditorPage() {
   const isEditing = Boolean(articleId);
   const [form, setForm] = useState(() => ({
     ...EMPTY_ARTICLE,
-    companyName: searchParams.get('company')?.trim() || '',
-    companyWebsite: location.state?.companyDirectory?.companyWebsite || '',
-    companyLogoUrl: location.state?.companyDirectory?.companyLogoUrl || '',
+    companyId: location.state?.companyDirectory?.id || '',
   }));
   const [excalidrawJson, setExcalidrawJson] = useState('');
   const [message, setMessage] = useState('');
   const { data: article, isLoading, error: loadError } = useLearningArticle(articleId);
+  const { data: companies = [], isLoading: companiesLoading, error: companiesError } = useLearningCompanies();
   const createArticle = useCreateLearningArticle();
   const updateArticle = useUpdateLearningArticle();
   const deleteArticle = useDeleteLearningArticle();
@@ -55,6 +54,13 @@ export default function LearningEditorPage() {
     setForm({ ...EMPTY_ARTICLE, ...article });
     setExcalidrawJson(article.excalidrawData ? JSON.stringify(article.excalidrawData, null, 2) : '');
   }, [article]);
+
+  useEffect(() => {
+    if (isEditing || form.companyId || !companies.length) return;
+    const requestedCompany = searchParams.get('company');
+    const company = companies.find((item) => item.slug === requestedCompany);
+    if (company) setForm((current) => ({ ...current, companyId: company.id }));
+  }, [companies, form.companyId, isEditing, searchParams]);
 
   function change(key, value) { setForm((current) => ({ ...current, [key]: value })); }
 
@@ -74,7 +80,7 @@ export default function LearningEditorPage() {
     deleteArticle.mutate(articleId, { onSuccess: () => navigate(learningReturnTo), onError: (error) => setMessage(error.message) });
   }
 
-  if (isLoading) return <Box sx={{ minHeight: 260, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>;
+  if (isLoading || companiesLoading) return <Box sx={{ minHeight: 260, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>;
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       <Paper variant="outlined" sx={{ p: 1.25, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, boxShadow: 1 }}>
@@ -85,6 +91,7 @@ export default function LearningEditorPage() {
         <Button variant="contained" startIcon={<PublishIcon />} disabled={isSaving} onClick={() => save('published')}>Publish</Button>
       </Paper>
       {loadError ? <Alert severity="error">{loadError.message}</Alert> : null}
+      {companiesError ? <Alert severity="error">{companiesError.message}</Alert> : null}
       {message ? <Alert severity={message === 'Draft saved.' ? 'success' : 'error'}>{message}</Alert> : null}
       <Paper variant="outlined" sx={{ p: { xs: 1.25, md: 2 }, display: 'grid', gap: 1.5, boxShadow: 1 }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '220px minmax(0, 1fr)' }, gap: 1.5 }}>
@@ -93,9 +100,7 @@ export default function LearningEditorPage() {
         </Box>
         <TextField label="Summary" required multiline minRows={2} value={form.summary} onChange={(event) => change('summary', event.target.value)} helperText="A concise explanation of what internal users will learn." />
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-          {form.category === 'companies' ? <TextField label="Company directory" required value={form.companyName} onChange={(event) => change('companyName', event.target.value)} helperText="Articles with the same company name are grouped together." /> : null}
-          {form.category === 'companies' ? <TextField label="Company website" type="url" value={form.companyWebsite || ''} onChange={(event) => change('companyWebsite', event.target.value)} helperText="Shown as the directory's external website link." /> : null}
-          {form.category === 'companies' ? <TextField label="Company logo image URL" type="url" value={form.companyLogoUrl || ''} onChange={(event) => change('companyLogoUrl', event.target.value)} helperText="Use a public HTTP or HTTPS image URL." /> : null}
+          {form.category === 'companies' ? <FormControl required><InputLabel>Company directory</InputLabel><Select label="Company directory" value={form.companyId || ''} onChange={(event) => change('companyId', event.target.value)}><MenuItem value="" disabled>Choose a company</MenuItem>{companies.map((company) => <MenuItem key={company.id} value={company.id}>{company.name}</MenuItem>)}</Select></FormControl> : null}
           {form.category === 'geography' ? <><TextField label="City" value={form.city} onChange={(event) => change('city', event.target.value)} /><TextField label="State or region" value={form.region} onChange={(event) => change('region', event.target.value)} /><TextField label="Country code" inputProps={{ maxLength: 2 }} value={form.countryCode} onChange={(event) => change('countryCode', event.target.value.toUpperCase())} /></> : null}
           {form.category === 'machine_learning' ? <FormControl><InputLabel>Difficulty</InputLabel><Select label="Difficulty" value={form.difficulty || ''} onChange={(event) => change('difficulty', event.target.value)}><MenuItem value="">Not set</MenuItem><MenuItem value="foundation">Foundation</MenuItem><MenuItem value="intermediate">Intermediate</MenuItem><MenuItem value="advanced">Advanced</MenuItem><MenuItem value="staff_plus">Staff+</MenuItem></Select></FormControl> : null}
           <TextField label="Tags" value={(form.tags || []).join(', ')} onChange={(event) => change('tags', splitList(event.target.value))} helperText="Comma-separated" />

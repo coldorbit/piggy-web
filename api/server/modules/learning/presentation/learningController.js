@@ -7,6 +7,34 @@ import {
 } from '../application/learningService.js';
 import { ensureWebModels } from '../../../../db.js';
 import { handleInputError } from '../../../utils/errors.js';
+import { createLearningCompany, listLearningCompaniesForUser, updateLearningCompany } from '../application/learningCompanyService.js';
+
+export async function listLearningCompanies(req, res, next) {
+  try {
+    await ensureWebModels();
+    res.json({ companies: await listLearningCompaniesForUser(req.user) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function createLearningCompanyRecord(req, res, next) {
+  try {
+    await ensureWebModels();
+    res.status(201).json({ company: await createLearningCompany({ body: req.body, user: req.user }) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+export async function updateLearningCompanyRecord(req, res, next) {
+  try {
+    await ensureWebModels();
+    res.json({ company: await updateLearningCompany({ id: req.params.id, body: req.body }) });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
 
 export async function listLearningArticles(req, res, next) {
   try {

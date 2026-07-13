@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { getLearningArticleModel } from '../../../../db.js';
+import { getLearningArticleModel, getLearningCompanyModel } from '../../../../db.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
 import { clean } from '../../../utils/index.js';
 import { isAdminRole } from '../../../utils/roles.js';
@@ -33,6 +33,7 @@ export async function listLearningArticlesForUser(user, query = {}) {
   }
   const rows = await getLearningArticleModel().findAll({
     where,
+    include: [{ model: getLearningCompanyModel(), as: 'company', required: false }],
     order: [['featured', 'DESC'], ['status', 'ASC'], ['publishedAt', 'DESC'], ['updatedAt', 'DESC']],
   });
   return rows.map(publicLearningArticle);
@@ -41,31 +42,35 @@ export async function listLearningArticlesForUser(user, query = {}) {
 export async function findLearningArticleForUser(id, user) {
   const where = { id };
   if (!isAdminRole(user)) where.status = 'published';
-  const row = await getLearningArticleModel().findOne({ where });
+  const row = await getLearningArticleModel().findOne({ where, include: [{ model: getLearningCompanyModel(), as: 'company', required: false }] });
   if (!row) throw new NotFoundError('Learning article not found');
   return publicLearningArticle(row);
 }
 
 export async function createLearningArticle({ body, user }) {
   const attrs = learningArticleAttributesFromBody(body);
+  const company = await learningCompanyForArticle(attrs);
   const now = new Date();
   const row = await getLearningArticleModel().create({
     ...attrs,
+    ...learningCompanySnapshot(company),
     createdByUserId: user?.id || null,
     publishedAt: attrs.status === 'published' ? now : null,
   });
-  return publicLearningArticle(row);
+  return publicLearningArticle(row, company);
 }
 
 export async function updateLearningArticle({ id, body }) {
   const row = await getLearningArticleModel().findByPk(id);
   if (!row) throw new NotFoundError('Learning article not found');
   const attrs = learningArticleAttributesFromBody(body, row);
+  const company = await learningCompanyForArticle(attrs);
   await row.update({
     ...attrs,
+    ...learningCompanySnapshot(company),
     publishedAt: attrs.status === 'published' ? row.publishedAt || new Date() : null,
   });
-  return publicLearningArticle(row);
+  return publicLearningArticle(row, company);
 }
 
 export async function deleteLearningArticle(id) {
@@ -91,7 +96,8 @@ export function learningArticleAttributesFromBody(body = {}, current = {}) {
   if (!LEARNING_DIFFICULTIES.includes(difficulty)) throw new InputError('Choose a valid difficulty');
 
   const companyName = category === 'companies' ? nullableText(body.companyName ?? current.companyName, 240) : null;
-  if (category === 'companies' && !companyName) throw new InputError('Company name is required for company articles');
+  const companyId = category === 'companies' ? positiveId(body.companyId ?? current.companyId) : null;
+  if (category === 'companies' && !companyId) throw new InputError('Choose a company directory for company articles');
 
   return {
     category,
@@ -102,8 +108,7 @@ export function learningArticleAttributesFromBody(body = {}, current = {}) {
     mermaidScript: mermaidSource(bodyValue(body, 'mermaidScript', current.mermaidScript)),
     tags: stringList(body.tags ?? current.tags, 20),
     companyName,
-    companyWebsite: category === 'companies' ? nullableHttpUrl(body.companyWebsite ?? current.companyWebsite, 'Company website') : null,
-    companyLogoUrl: category === 'companies' ? nullableHttpUrl(body.companyLogoUrl ?? current.companyLogoUrl, 'Company logo') : null,
+    companyId,
     city: category === 'geography' ? nullableText(body.city ?? current.city, 180) : null,
     region: category === 'geography' ? nullableText(body.region ?? current.region, 180) : null,
     countryCode: category === 'geography' ? countryCode(body.countryCode ?? current.countryCode) : null,
@@ -114,7 +119,8 @@ export function learningArticleAttributesFromBody(body = {}, current = {}) {
   };
 }
 
-export function publicLearningArticle(row) {
+export function publicLearningArticle(row, relatedCompany = row.company) {
+  const company = relatedCompany || null;
   return {
     id: String(row.id),
     category: row.category,
@@ -124,9 +130,14 @@ export function publicLearningArticle(row) {
     excalidrawData: row.excalidrawData || null,
     mermaidScript: row.mermaidScript || '',
     tags: row.tags || [],
-    companyName: row.companyName || '',
-    companyWebsite: row.companyWebsite || '',
-    companyLogoUrl: row.companyLogoUrl || '',
+    companyId: row.companyId ? String(row.companyId) : null,
+    companySlug: company?.slug || '',
+    companyName: company?.name || row.companyName || '',
+    companyDescription: company?.description || '',
+    companyWebsite: company?.website || row.companyWebsite || '',
+    companyLogoUrl: company?.logoUrl || row.companyLogoUrl || '',
+    companyIndustry: company?.industry || '',
+    companyHeadquarters: company?.headquarters || '',
     city: row.city || '',
     region: row.region || '',
     countryCode: row.countryCode || '',
@@ -220,23 +231,27 @@ function nullableText(value, maxLength) {
   return text || null;
 }
 
-function nullableHttpUrl(value, label) {
-  const text = clean(value);
-  if (!text) return null;
-  if (text.length > 2048) throw new InputError(`${label} URL must be 2,048 characters or fewer`);
-  try {
-    const url = new URL(text);
-    if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
-  } catch {
-    throw new InputError(`${label} must use a valid HTTP or HTTPS URL`);
-  }
-  return text;
-}
-
 function countryCode(value) {
   const code = clean(value).toUpperCase();
   if (code && !/^[A-Z]{2}$/.test(code)) throw new InputError('Country code must use two letters, such as US');
   return code || null;
+}
+
+function positiveId(value) {
+  const text = clean(value);
+  return /^\d+$/.test(text) && Number(text) > 0 ? text : null;
+}
+
+async function learningCompanyForArticle(attrs) {
+  if (attrs.category !== 'companies') return null;
+  const company = await getLearningCompanyModel().findByPk(attrs.companyId);
+  if (!company) throw new InputError('Choose a valid company directory');
+  return company;
+}
+
+function learningCompanySnapshot(company) {
+  if (!company) return { companyName: null, companyWebsite: null, companyLogoUrl: null };
+  return { companyName: company.name, companyWebsite: company.website, companyLogoUrl: company.logoUrl };
 }
 
 function booleanFromBody(value) {

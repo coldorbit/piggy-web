@@ -27,9 +27,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
-import { useLearningArticles } from '../lib/api.js';
-import { isAdminRole } from '../lib/roles.js';
-import { articleMatchesSearch, buildCompanyDirectories, normalizeCompanyName } from './learningHub/learningHubUtils.js';
+import LearningCompanyDialog from '../components/learning/LearningCompanyDialog.jsx';
+import { useLearningArticles, useLearningCompanies } from '../lib/api.js';
+import { isAdminRole, isSuperadmin } from '../lib/roles.js';
+import { articleMatchesSearch, buildCompanyDirectories, directoryMatchesSearch, normalizeCompanyName } from './learningHub/learningHubUtils.js';
 
 const CATEGORIES = [
   { id: 'all', label: 'All learning', detail: 'Everything available to the internal team', icon: MenuBookIcon, color: '#0067C0', soft: 'rgba(0, 103, 192, 0.10)' },
@@ -46,11 +47,16 @@ export default function LearningHubPage({ currentUser }) {
   const activeCategory = CATEGORIES.some((category) => category.id === requestedCategory) ? requestedCategory : 'all';
   const requestedCompany = searchParams.get('company') || '';
   const [search, setSearch] = useState('');
+  const [companyEditor, setCompanyEditor] = useState({ open: false, company: null });
   const { setSearch: setHeaderSearch } = useHeaderSearch();
-  const { data: articles = [], isLoading, error, refetch } = useLearningArticles();
+  const { data: articles = [], isLoading: articlesLoading, error: articlesError, refetch: refetchArticles } = useLearningArticles();
+  const { data: companies = [], isLoading: companiesLoading, error: companiesError, refetch: refetchCompanies } = useLearningCompanies();
   const canManage = isAdminRole(currentUser);
-  const companyDirectories = useMemo(() => buildCompanyDirectories(articles), [articles]);
-  const activeDirectory = useMemo(() => companyDirectories.find((directory) => directory.key === normalizeCompanyName(requestedCompany)), [companyDirectories, requestedCompany]);
+  const canManageCompanies = isSuperadmin(currentUser);
+  const isLoading = articlesLoading || companiesLoading;
+  const error = articlesError || companiesError;
+  const companyDirectories = useMemo(() => buildCompanyDirectories(companies, articles), [articles, companies]);
+  const activeDirectory = useMemo(() => companyDirectories.find((directory) => directory.slug === requestedCompany || normalizeCompanyName(directory.name) === normalizeCompanyName(requestedCompany)), [companyDirectories, requestedCompany]);
 
   useEffect(() => {
     setHeaderSearch({ isVisible: true, placeholder: activeDirectory ? `Search ${activeDirectory.name} articles` : 'Search the Learning Hub', value: search, onChange: setSearch });
@@ -68,9 +74,7 @@ export default function LearningHubPage({ currentUser }) {
 
   const visibleDirectories = useMemo(() => {
     if (activeDirectory || !['all', 'companies'].includes(activeCategory)) return [];
-    return companyDirectories.filter((directory) => !search.trim()
-      || directory.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())
-      || directory.articles.some((article) => articleMatchesSearch(article, search)));
+    return companyDirectories.filter((directory) => directoryMatchesSearch(directory, search));
   }, [activeCategory, activeDirectory, companyDirectories, search]);
 
   const visibleArticles = useMemo(() => {
@@ -93,7 +97,7 @@ export default function LearningHubPage({ currentUser }) {
   function openDirectory(directory) {
     const next = new URLSearchParams(searchParams);
     next.set('category', 'companies');
-    next.set('company', directory.name);
+    next.set('company', directory.slug);
     setSearch('');
     setSearchParams(next);
   }
@@ -110,7 +114,17 @@ export default function LearningHubPage({ currentUser }) {
     navigate(`/learning/${article.id}`, { state: { learningReturnTo: returnTo } });
   }
 
-  const createPath = activeDirectory ? `/learning/create?company=${encodeURIComponent(activeDirectory.name)}` : '/learning/create';
+  function refreshLearningHub() {
+    refetchArticles();
+    refetchCompanies();
+  }
+
+  function companySaved(company) {
+    setCompanyEditor({ open: false, company: null });
+    openDirectory(company);
+  }
+
+  const createPath = activeDirectory ? `/learning/create?company=${encodeURIComponent(activeDirectory.slug)}` : '/learning/create';
   const totalResults = visibleDirectories.length + visibleArticles.length;
   const resultDetail = activeDirectory
     ? `${visibleArticles.length.toLocaleString()} articles in this company directory`
@@ -128,12 +142,14 @@ export default function LearningHubPage({ currentUser }) {
           {activeDirectory ? <CompanyLogo directory={activeDirectory} size={48} /> : null}
           <Box minWidth={0}>
             <Typography variant="h6" fontWeight={600}>{activeDirectory?.name || 'Internal knowledge library'}</Typography>
-            <Typography variant="body2" color="text.secondary">{activeDirectory ? 'Company directory · A collection of related company articles' : 'Learn the companies, places, and ML concepts needed for stronger interview preparation.'}</Typography>
+            <Typography variant="body2" color="text.secondary">{activeDirectory?.description || 'Learn the companies, places, and ML concepts needed for stronger interview preparation.'}</Typography>
+            {activeDirectory ? <Typography variant="caption" color="text.secondary">{[activeDirectory.industry, activeDirectory.headquarters].filter(Boolean).join(' · ')}</Typography> : null}
           </Box>
         </Stack>
         <Stack direction="row" spacing={0.75}>
           {activeDirectory?.companyWebsite ? <WebsiteButton url={activeDirectory.companyWebsite} /> : null}
-          <Button onClick={() => refetch()} variant="outlined">Refresh</Button>
+          <Button onClick={refreshLearningHub} variant="outlined">Refresh</Button>
+          {canManageCompanies ? <Button onClick={() => setCompanyEditor({ open: true, company: activeDirectory })} startIcon={activeDirectory ? <EditIcon /> : <AddIcon />} variant="outlined">{activeDirectory ? 'Edit company' : 'Add company'}</Button> : null}
           {canManage ? <Button component={RouterLink} to={createPath} state={{ learningReturnTo: returnTo, companyDirectory: activeDirectory }} startIcon={<AddIcon />} variant="contained">{activeDirectory ? 'New company article' : 'New article'}</Button> : null}
         </Stack>
       </Paper>
@@ -170,7 +186,7 @@ export default function LearningHubPage({ currentUser }) {
       {!isLoading && !totalResults ? <EmptyState title={search ? 'No learning content found' : activeDirectory ? 'This company directory is empty' : 'No content in this library'} detail={search ? 'Try another search term or category.' : canManage ? 'Publish the first article for this collection.' : 'Published learning content will appear here.'} /> : null}
       {!isLoading && visibleDirectories.length ? (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1.25 }}>
-          {visibleDirectories.map((directory) => <CompanyDirectoryCard key={directory.key} directory={directory} canManage={canManage} onOpen={() => openDirectory(directory)} />)}
+          {visibleDirectories.map((directory) => <CompanyDirectoryCard key={directory.key} directory={directory} canManage={canManage} canManageCompany={canManageCompanies} onEdit={() => setCompanyEditor({ open: true, company: directory })} onOpen={() => openDirectory(directory)} />)}
         </Box>
       ) : null}
       {!isLoading && visibleArticles.length ? (
@@ -178,11 +194,12 @@ export default function LearningHubPage({ currentUser }) {
           {visibleArticles.map((article) => <LearningArticleCard key={article.id} article={article} canManage={canManage} returnTo={returnTo} onOpen={() => openArticle(article)} />)}
         </Box>
       ) : null}
+      <LearningCompanyDialog company={companyEditor.company} open={companyEditor.open} onClose={() => setCompanyEditor({ open: false, company: null })} onSaved={companySaved} />
     </Box>
   );
 }
 
-function CompanyDirectoryCard({ directory, canManage, onOpen }) {
+function CompanyDirectoryCard({ directory, canManage, canManageCompany, onEdit, onOpen }) {
   return (
     <Card variant="outlined" sx={{ borderTop: '3px solid #7C3AED', boxShadow: 1, display: 'flex', flexDirection: 'column' }}>
       <CardActionArea onClick={onOpen} sx={{ flex: 1, alignItems: 'stretch' }}>
@@ -192,18 +209,19 @@ function CompanyDirectoryCard({ directory, canManage, onOpen }) {
             {directory.featured ? <StarIcon sx={{ color: '#C77700', fontSize: 19 }} /> : null}
           </Box>
           <Typography variant="body2" color="text.secondary">{directory.articles.length.toLocaleString()} related {directory.articles.length === 1 ? 'article' : 'articles'}{canManage && directory.draftCount ? ` · ${directory.draftCount} draft` : ''}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{directory.articles.slice(0, 3).map((article) => article.title).join(' · ')}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{directory.description}</Typography>
+          <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">{[directory.industry, directory.headquarters].filter(Boolean).map((value) => <Chip key={value} label={value} variant="outlined" />)}</Stack>
           <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">{directory.tags.slice(0, 5).map((tag) => <Chip key={tag} label={tag} variant="outlined" />)}</Stack>
           <Typography variant="caption" color="text.secondary">Updated {formatDate(directory.updatedAt)}</Typography>
         </CardContent>
       </CardActionArea>
-      {directory.companyWebsite ? <Box sx={{ borderTop: 1, borderColor: 'divider', px: 1, py: 0.5 }}><WebsiteButton url={directory.companyWebsite} compact /></Box> : null}
+      {directory.companyWebsite || canManageCompany ? <Box sx={{ borderTop: 1, borderColor: 'divider', px: 1, py: 0.5, display: 'flex', justifyContent: 'space-between' }}>{directory.companyWebsite ? <WebsiteButton url={directory.companyWebsite} compact /> : <span />}{canManageCompany ? <IconButton onClick={onEdit} aria-label={`Edit ${directory.name} company directory`}><EditIcon /></IconButton> : null}</Box> : null}
     </Card>
   );
 }
 
 function CompanyLogo({ directory, size = 48 }) {
-  return <Avatar alt={`${directory.name} logo`} src={directory.companyLogoUrl || undefined} variant="rounded" imgProps={{ loading: 'lazy', referrerPolicy: 'no-referrer' }} sx={{ width: size, height: size, flexShrink: 0, bgcolor: '#F5F3FF', color: '#7C3AED', border: 1, borderColor: 'divider', fontWeight: 600 }}>{directory.name.trim().charAt(0).toUpperCase()}</Avatar>;
+  return <Avatar alt={`${directory.name} logo`} src={directory.companyLogoUrl || undefined} variant="rounded" imgProps={{ loading: 'lazy', referrerPolicy: 'no-referrer' }} sx={{ width: size, height: size, flexShrink: 0, bgcolor: '#fff', color: '#7C3AED', border: 1, borderColor: 'divider', fontWeight: 600, '& img': { objectFit: 'contain', p: 0.5 } }}>{directory.name.trim().charAt(0).toUpperCase()}</Avatar>;
 }
 
 function WebsiteButton({ url, compact = false }) {

@@ -37,6 +37,30 @@ export function useLearningArticles(filters = {}) {
   });
 }
 
+export function useLearningCompanies() {
+  return useQuery({
+    queryKey: ['learning', 'companies'],
+    queryFn: () => api('/api/learning/companies').then((data) => data.companies),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateLearningCompany() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (company) => api('/api/learning/companies', { method: 'POST', body: JSON.stringify(company) }).then((data) => data.company),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['learning'] }),
+  });
+}
+
+export function useUpdateLearningCompany() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, company }) => api(`/api/learning/companies/${companyId}`, { method: 'PATCH', body: JSON.stringify(company) }).then((data) => data.company),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['learning'] }),
+  });
+}
+
 export function useLearningArticle(articleId) {
   return useQuery({
     queryKey: ['learning', 'articles', articleId],

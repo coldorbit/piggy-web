@@ -9,9 +9,8 @@ describe('learning article validation', () => {
       title: 'Example company interview brief',
       summary: 'How the company operates and what its ML organization values.',
       content: '## Company overview\n\nEvidence-backed notes.',
+      companyId: '7',
       companyName: 'Example Co',
-      companyWebsite: 'https://example.com',
-      companyLogoUrl: 'https://example.com/logo.png',
       tags: 'marketplace, ranking, staff+',
       sourceLinks: ['https://example.com/engineering'],
       featured: true,
@@ -19,8 +18,7 @@ describe('learning article validation', () => {
     });
 
     assert.equal(attrs.companyName, 'Example Co');
-    assert.equal(attrs.companyWebsite, 'https://example.com');
-    assert.equal(attrs.companyLogoUrl, 'https://example.com/logo.png');
+    assert.equal(attrs.companyId, '7');
     assert.deepEqual(attrs.tags, ['marketplace', 'ranking', 'staff+']);
     assert.equal(attrs.sourceLinks[0].url, 'https://example.com/engineering');
     assert.equal(attrs.featured, true);
@@ -39,8 +37,7 @@ describe('learning article validation', () => {
     });
 
     assert.equal(attrs.companyName, null);
-    assert.equal(attrs.companyWebsite, null);
-    assert.equal(attrs.companyLogoUrl, null);
+    assert.equal(attrs.companyId, null);
     assert.equal(attrs.city, null);
     assert.equal(attrs.difficulty, 'staff_plus');
   });
@@ -69,7 +66,7 @@ describe('learning article validation', () => {
 
   it('rejects malformed or oversized diagram sources and supports clearing them', () => {
     const base = {
-      category: 'companies', companyName: 'Example Co', title: 'Architecture', summary: 'Company architecture.', content: 'Article content.', status: 'draft',
+      category: 'companies', companyId: '7', companyName: 'Example Co', title: 'Architecture', summary: 'Company architecture.', content: 'Article content.', status: 'draft',
     };
     assert.throws(() => learningArticleAttributesFromBody({ ...base, excalidrawData: '{bad json' }), /valid scene JSON/);
     assert.throws(() => learningArticleAttributesFromBody({ ...base, excalidrawData: { type: 'excalidraw' } }), /elements array/);
@@ -87,15 +84,7 @@ describe('learning article validation', () => {
     assert.throws(() => learningArticleAttributesFromBody({}), /Choose companies/);
     assert.throws(
       () => learningArticleAttributesFromBody({ category: 'companies', title: 'Overview', summary: 'Company guide', content: 'Content' }),
-      /Company name is required/,
-    );
-    assert.throws(
-      () => learningArticleAttributesFromBody({ category: 'companies', companyName: 'Example', title: 'Overview', summary: 'Company guide', content: 'Content', companyWebsite: 'javascript:alert(1)' }),
-      /Company website must use a valid HTTP or HTTPS URL/,
-    );
-    assert.throws(
-      () => learningArticleAttributesFromBody({ category: 'companies', companyName: 'Example', title: 'Overview', summary: 'Company guide', content: 'Content', companyLogoUrl: 'data:image/png;base64,abc' }),
-      /Company logo must use a valid HTTP or HTTPS URL/,
+      /Choose a company directory/,
     );
     assert.throws(
       () => learningArticleAttributesFromBody({ category: 'geography', title: 'Seattle', summary: 'City guide', content: 'Content', sourceLinks: ['javascript:alert(1)'] }),

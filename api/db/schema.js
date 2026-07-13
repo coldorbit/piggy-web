@@ -14,6 +14,7 @@ import {
   getInterviewModel,
   getJobBidModel,
   getLearningArticleModel,
+  getLearningCompanyModel,
   getMarketplaceCallerProfileModel,
   getMarketplaceInterviewOpportunityModel,
   getMarketplaceMatchModel,
@@ -75,8 +76,10 @@ export async function ensureWebModels() {
       setupWebAssociations();
       await getUserWorkspaceMembershipModel().sync();
       await getFaqModel().sync();
+      await getLearningCompanyModel().sync();
       await getLearningArticleModel().sync();
       await ensureLearningArticleColumns();
+      await ensureLearningCompanies();
       await getBidProfileModel().sync();
       await getProfileIntelligenceModel().sync();
       await getProfilePrepPlanModel().sync();
@@ -151,7 +154,59 @@ async function ensureLearningArticleColumns() {
     mermaid_script: { type: DataTypes.TEXT, allowNull: true },
     company_website: { type: DataTypes.TEXT, allowNull: true },
     company_logo_url: { type: DataTypes.TEXT, allowNull: true },
+    company_id: {
+      type: DataTypes.BIGINT,
+      allowNull: true,
+      references: { model: 'learning_companies', key: 'id' },
+      onUpdate: 'CASCADE',
+      onDelete: 'RESTRICT',
+    },
   });
+
+  await queryInterface.sequelize.query(`
+    CREATE INDEX IF NOT EXISTS learning_articles_company_idx
+    ON learning_articles (company_id, status, updated_at)
+  `);
+}
+
+const UBER_COMPANY = {
+  slug: 'uber',
+  name: 'Uber',
+  description: 'Uber is a technology platform that helps people move and earn around the world through mobility, food and goods delivery, healthcare transportation, freight booking, and business travel.',
+  website: 'https://www.uber.com/',
+  logoUrl: 'https://d1a3f4spazzrp4.cloudfront.net/uberex/duc/images/logos/Uber_Logotype_Digital_black.png',
+  industry: 'Technology platform · Mobility, delivery, and freight',
+  headquarters: '1725 Third Street, San Francisco, CA',
+};
+
+async function ensureLearningCompanies() {
+  const Company = getLearningCompanyModel();
+  const Article = getLearningArticleModel();
+  const [uber] = await Company.findOrCreate({ where: { slug: UBER_COMPANY.slug }, defaults: UBER_COMPANY });
+  const missingUberDetails = Object.fromEntries(Object.entries(UBER_COMPANY).filter(([key, value]) => key !== 'slug' && value && !uber[key]));
+  if (Object.keys(missingUberDetails).length) await uber.update(missingUberDetails);
+
+  const unlinkedArticles = await Article.findAll({
+    attributes: ['companyName', 'companyWebsite', 'companyLogoUrl'],
+    where: { category: 'companies', companyId: null },
+    raw: true,
+  });
+  for (const article of unlinkedArticles) {
+    const name = String(article.companyName || '').trim();
+    if (!name) continue;
+    const slug = learningCompanySlug(name);
+    const [company] = slug === UBER_COMPANY.slug
+      ? [uber]
+      : await Company.findOrCreate({
+        where: { slug },
+        defaults: { slug, name, description: '', website: article.companyWebsite || null, logoUrl: article.companyLogoUrl || null },
+      });
+    await Article.update({ companyId: company.id }, { where: { category: 'companies', companyId: null, companyName: article.companyName } });
+  }
+}
+
+function learningCompanySlug(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 120) || 'company';
 }
 
 async function ensureUserWorkspaceMembershipIndexes() {
