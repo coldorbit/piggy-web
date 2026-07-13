@@ -18,6 +18,8 @@ export function getLearningArticleModel() {
       mermaidScript: { type: DataTypes.TEXT, field: 'mermaid_script' },
       tags: { type: DataTypes.JSONB, allowNull: false, defaultValue: [] },
       companyName: { type: DataTypes.TEXT, field: 'company_name' },
+      companyWebsite: { type: DataTypes.TEXT, field: 'company_website' },
+      companyLogoUrl: { type: DataTypes.TEXT, field: 'company_logo_url' },
       city: DataTypes.TEXT,
       region: DataTypes.TEXT,
       countryCode: { type: DataTypes.TEXT, field: 'country_code' },

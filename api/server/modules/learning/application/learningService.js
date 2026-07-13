@@ -26,6 +26,7 @@ export async function listLearningArticlesForUser(user, query = {}) {
       { summary: { [Op.iLike]: pattern } },
       { content: { [Op.iLike]: pattern } },
       { companyName: { [Op.iLike]: pattern } },
+      { companyWebsite: { [Op.iLike]: pattern } },
       { city: { [Op.iLike]: pattern } },
       { region: { [Op.iLike]: pattern } },
     ];
@@ -101,6 +102,8 @@ export function learningArticleAttributesFromBody(body = {}, current = {}) {
     mermaidScript: mermaidSource(bodyValue(body, 'mermaidScript', current.mermaidScript)),
     tags: stringList(body.tags ?? current.tags, 20),
     companyName,
+    companyWebsite: category === 'companies' ? nullableHttpUrl(body.companyWebsite ?? current.companyWebsite, 'Company website') : null,
+    companyLogoUrl: category === 'companies' ? nullableHttpUrl(body.companyLogoUrl ?? current.companyLogoUrl, 'Company logo') : null,
     city: category === 'geography' ? nullableText(body.city ?? current.city, 180) : null,
     region: category === 'geography' ? nullableText(body.region ?? current.region, 180) : null,
     countryCode: category === 'geography' ? countryCode(body.countryCode ?? current.countryCode) : null,
@@ -122,6 +125,8 @@ export function publicLearningArticle(row) {
     mermaidScript: row.mermaidScript || '',
     tags: row.tags || [],
     companyName: row.companyName || '',
+    companyWebsite: row.companyWebsite || '',
+    companyLogoUrl: row.companyLogoUrl || '',
     city: row.city || '',
     region: row.region || '',
     countryCode: row.countryCode || '',
@@ -213,6 +218,19 @@ function nullableText(value, maxLength) {
   const text = clean(value);
   if (text.length > maxLength) throw new InputError(`Text must be ${maxLength} characters or fewer`);
   return text || null;
+}
+
+function nullableHttpUrl(value, label) {
+  const text = clean(value);
+  if (!text) return null;
+  if (text.length > 2048) throw new InputError(`${label} URL must be 2,048 characters or fewer`);
+  try {
+    const url = new URL(text);
+    if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+  } catch {
+    throw new InputError(`${label} must use a valid HTTP or HTTPS URL`);
+  }
+  return text;
 }
 
 function countryCode(value) {

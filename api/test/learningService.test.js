@@ -10,6 +10,8 @@ describe('learning article validation', () => {
       summary: 'How the company operates and what its ML organization values.',
       content: '## Company overview\n\nEvidence-backed notes.',
       companyName: 'Example Co',
+      companyWebsite: 'https://example.com',
+      companyLogoUrl: 'https://example.com/logo.png',
       tags: 'marketplace, ranking, staff+',
       sourceLinks: ['https://example.com/engineering'],
       featured: true,
@@ -17,6 +19,8 @@ describe('learning article validation', () => {
     });
 
     assert.equal(attrs.companyName, 'Example Co');
+    assert.equal(attrs.companyWebsite, 'https://example.com');
+    assert.equal(attrs.companyLogoUrl, 'https://example.com/logo.png');
     assert.deepEqual(attrs.tags, ['marketplace', 'ranking', 'staff+']);
     assert.equal(attrs.sourceLinks[0].url, 'https://example.com/engineering');
     assert.equal(attrs.featured, true);
@@ -35,6 +39,8 @@ describe('learning article validation', () => {
     });
 
     assert.equal(attrs.companyName, null);
+    assert.equal(attrs.companyWebsite, null);
+    assert.equal(attrs.companyLogoUrl, null);
     assert.equal(attrs.city, null);
     assert.equal(attrs.difficulty, 'staff_plus');
   });
@@ -82,6 +88,14 @@ describe('learning article validation', () => {
     assert.throws(
       () => learningArticleAttributesFromBody({ category: 'companies', title: 'Overview', summary: 'Company guide', content: 'Content' }),
       /Company name is required/,
+    );
+    assert.throws(
+      () => learningArticleAttributesFromBody({ category: 'companies', companyName: 'Example', title: 'Overview', summary: 'Company guide', content: 'Content', companyWebsite: 'javascript:alert(1)' }),
+      /Company website must use a valid HTTP or HTTPS URL/,
+    );
+    assert.throws(
+      () => learningArticleAttributesFromBody({ category: 'companies', companyName: 'Example', title: 'Overview', summary: 'Company guide', content: 'Content', companyLogoUrl: 'data:image/png;base64,abc' }),
+      /Company logo must use a valid HTTP or HTTPS URL/,
     );
     assert.throws(
       () => learningArticleAttributesFromBody({ category: 'geography', title: 'Seattle', summary: 'City guide', content: 'Content', sourceLinks: ['javascript:alert(1)'] }),

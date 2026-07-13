@@ -26,7 +26,7 @@ import { useCreateLearningArticle, useDeleteLearningArticle, useLearningArticle,
 
 const EMPTY_ARTICLE = {
   category: 'companies', title: '', summary: '', content: '## Overview\n\nWrite the internal learning guide here.\n\n## Interview relevance\n\nExplain how the team should use this information.',
-  tags: [], companyName: '', city: '', region: '', countryCode: '', difficulty: '', sourceLinks: [], featured: false, status: 'draft', mermaidScript: '',
+  tags: [], companyName: '', companyWebsite: '', companyLogoUrl: '', city: '', region: '', countryCode: '', difficulty: '', sourceLinks: [], featured: false, status: 'draft', mermaidScript: '',
 };
 
 export default function LearningEditorPage() {
@@ -35,7 +35,12 @@ export default function LearningEditorPage() {
   const { articleId } = useParams();
   const [searchParams] = useSearchParams();
   const isEditing = Boolean(articleId);
-  const [form, setForm] = useState(() => ({ ...EMPTY_ARTICLE, companyName: searchParams.get('company')?.trim() || '' }));
+  const [form, setForm] = useState(() => ({
+    ...EMPTY_ARTICLE,
+    companyName: searchParams.get('company')?.trim() || '',
+    companyWebsite: location.state?.companyDirectory?.companyWebsite || '',
+    companyLogoUrl: location.state?.companyDirectory?.companyLogoUrl || '',
+  }));
   const [excalidrawJson, setExcalidrawJson] = useState('');
   const [message, setMessage] = useState('');
   const { data: article, isLoading, error: loadError } = useLearningArticle(articleId);
@@ -89,6 +94,8 @@ export default function LearningEditorPage() {
         <TextField label="Summary" required multiline minRows={2} value={form.summary} onChange={(event) => change('summary', event.target.value)} helperText="A concise explanation of what internal users will learn." />
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
           {form.category === 'companies' ? <TextField label="Company directory" required value={form.companyName} onChange={(event) => change('companyName', event.target.value)} helperText="Articles with the same company name are grouped together." /> : null}
+          {form.category === 'companies' ? <TextField label="Company website" type="url" value={form.companyWebsite || ''} onChange={(event) => change('companyWebsite', event.target.value)} helperText="Shown as the directory's external website link." /> : null}
+          {form.category === 'companies' ? <TextField label="Company logo image URL" type="url" value={form.companyLogoUrl || ''} onChange={(event) => change('companyLogoUrl', event.target.value)} helperText="Use a public HTTP or HTTPS image URL." /> : null}
           {form.category === 'geography' ? <><TextField label="City" value={form.city} onChange={(event) => change('city', event.target.value)} /><TextField label="State or region" value={form.region} onChange={(event) => change('region', event.target.value)} /><TextField label="Country code" inputProps={{ maxLength: 2 }} value={form.countryCode} onChange={(event) => change('countryCode', event.target.value.toUpperCase())} /></> : null}
           {form.category === 'machine_learning' ? <FormControl><InputLabel>Difficulty</InputLabel><Select label="Difficulty" value={form.difficulty || ''} onChange={(event) => change('difficulty', event.target.value)}><MenuItem value="">Not set</MenuItem><MenuItem value="foundation">Foundation</MenuItem><MenuItem value="intermediate">Intermediate</MenuItem><MenuItem value="advanced">Advanced</MenuItem><MenuItem value="staff_plus">Staff+</MenuItem></Select></FormControl> : null}
           <TextField label="Tags" value={(form.tags || []).join(', ')} onChange={(event) => change('tags', splitList(event.target.value))} helperText="Comma-separated" />

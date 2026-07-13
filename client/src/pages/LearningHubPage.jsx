@@ -4,11 +4,13 @@ import BusinessIcon from '@mui/icons-material/Business';
 import EditIcon from '@mui/icons-material/Edit';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PsychologyIcon from '@mui/icons-material/Psychology';
 import PublicIcon from '@mui/icons-material/Public';
 import StarIcon from '@mui/icons-material/Star';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
@@ -123,14 +125,16 @@ export default function LearningHubPage({ currentUser }) {
       <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, boxShadow: 1 }}>
         <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
           {activeDirectory ? <IconButton onClick={closeDirectory} aria-label="Back to company directories"><ArrowBackIcon /></IconButton> : null}
+          {activeDirectory ? <CompanyLogo directory={activeDirectory} size={48} /> : null}
           <Box minWidth={0}>
             <Typography variant="h6" fontWeight={600}>{activeDirectory?.name || 'Internal knowledge library'}</Typography>
             <Typography variant="body2" color="text.secondary">{activeDirectory ? 'Company directory · A collection of related company articles' : 'Learn the companies, places, and ML concepts needed for stronger interview preparation.'}</Typography>
           </Box>
         </Stack>
         <Stack direction="row" spacing={0.75}>
+          {activeDirectory?.companyWebsite ? <WebsiteButton url={activeDirectory.companyWebsite} /> : null}
           <Button onClick={() => refetch()} variant="outlined">Refresh</Button>
-          {canManage ? <Button component={RouterLink} to={createPath} state={{ learningReturnTo: returnTo }} startIcon={<AddIcon />} variant="contained">{activeDirectory ? 'New company article' : 'New article'}</Button> : null}
+          {canManage ? <Button component={RouterLink} to={createPath} state={{ learningReturnTo: returnTo, companyDirectory: activeDirectory }} startIcon={<AddIcon />} variant="contained">{activeDirectory ? 'New company article' : 'New article'}</Button> : null}
         </Stack>
       </Paper>
 
@@ -180,21 +184,34 @@ export default function LearningHubPage({ currentUser }) {
 
 function CompanyDirectoryCard({ directory, canManage, onOpen }) {
   return (
-    <Card variant="outlined" sx={{ borderTop: '3px solid #7C3AED', boxShadow: 1 }}>
-      <CardActionArea onClick={onOpen} sx={{ height: '100%', alignItems: 'stretch' }}>
+    <Card variant="outlined" sx={{ borderTop: '3px solid #7C3AED', boxShadow: 1, display: 'flex', flexDirection: 'column' }}>
+      <CardActionArea onClick={onOpen} sx={{ flex: 1, alignItems: 'stretch' }}>
         <CardContent sx={{ display: 'grid', gap: 1.1 }}>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
-            <Stack direction="row" spacing={0.75} alignItems="center"><FolderOutlinedIcon sx={{ color: '#7C3AED' }} /><Typography variant="caption" color="text.secondary" fontWeight={600}>Company directory</Typography></Stack>
+            <Stack direction="row" spacing={1} alignItems="center"><CompanyLogo directory={directory} /><Box><Stack direction="row" spacing={0.5} alignItems="center"><FolderOutlinedIcon sx={{ color: '#7C3AED', fontSize: 18 }} /><Typography variant="caption" color="text.secondary" fontWeight={600}>Company directory</Typography></Stack><Typography fontWeight={600}>{directory.name}</Typography></Box></Stack>
             {directory.featured ? <StarIcon sx={{ color: '#C77700', fontSize: 19 }} /> : null}
           </Box>
-          <Box><Typography fontWeight={600}>{directory.name}</Typography><Typography variant="body2" color="text.secondary">{directory.articles.length.toLocaleString()} related {directory.articles.length === 1 ? 'article' : 'articles'}{canManage && directory.draftCount ? ` · ${directory.draftCount} draft` : ''}</Typography></Box>
+          <Typography variant="body2" color="text.secondary">{directory.articles.length.toLocaleString()} related {directory.articles.length === 1 ? 'article' : 'articles'}{canManage && directory.draftCount ? ` · ${directory.draftCount} draft` : ''}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{directory.articles.slice(0, 3).map((article) => article.title).join(' · ')}</Typography>
           <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">{directory.tags.slice(0, 5).map((tag) => <Chip key={tag} label={tag} variant="outlined" />)}</Stack>
           <Typography variant="caption" color="text.secondary">Updated {formatDate(directory.updatedAt)}</Typography>
         </CardContent>
       </CardActionArea>
+      {directory.companyWebsite ? <Box sx={{ borderTop: 1, borderColor: 'divider', px: 1, py: 0.5 }}><WebsiteButton url={directory.companyWebsite} compact /></Box> : null}
     </Card>
   );
+}
+
+function CompanyLogo({ directory, size = 48 }) {
+  return <Avatar alt={`${directory.name} logo`} src={directory.companyLogoUrl || undefined} variant="rounded" imgProps={{ loading: 'lazy', referrerPolicy: 'no-referrer' }} sx={{ width: size, height: size, flexShrink: 0, bgcolor: '#F5F3FF', color: '#7C3AED', border: 1, borderColor: 'divider', fontWeight: 600 }}>{directory.name.trim().charAt(0).toUpperCase()}</Avatar>;
+}
+
+function WebsiteButton({ url, compact = false }) {
+  return <Button component="a" href={url} target="_blank" rel="noopener noreferrer" size={compact ? 'small' : 'medium'} endIcon={<OpenInNewIcon fontSize="small" />}>{websiteHost(url)}</Button>;
+}
+
+function websiteHost(value) {
+  try { return new URL(value).hostname.replace(/^www\./i, ''); } catch { return 'Company website'; }
 }
 
 function LearningArticleCard({ article, canManage, returnTo, onOpen }) {

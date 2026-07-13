@@ -76,7 +76,7 @@ export async function ensureWebModels() {
       await getUserWorkspaceMembershipModel().sync();
       await getFaqModel().sync();
       await getLearningArticleModel().sync();
-      await ensureLearningArticleDiagramColumns();
+      await ensureLearningArticleColumns();
       await getBidProfileModel().sync();
       await getProfileIntelligenceModel().sync();
       await getProfilePrepPlanModel().sync();
@@ -141,7 +141,7 @@ export async function ensureWebModels() {
   await initializationPromise;
 }
 
-async function ensureLearningArticleDiagramColumns() {
+async function ensureLearningArticleColumns() {
   const queryInterface = getSequelize().getQueryInterface();
   const tableName = 'learning_articles';
   const table = await queryInterface.describeTable(tableName);
@@ -149,6 +149,8 @@ async function ensureLearningArticleDiagramColumns() {
   await addMissingColumns(queryInterface, tableName, table, {
     excalidraw_data: { type: DataTypes.JSONB, allowNull: true },
     mermaid_script: { type: DataTypes.TEXT, allowNull: true },
+    company_website: { type: DataTypes.TEXT, allowNull: true },
+    company_logo_url: { type: DataTypes.TEXT, allowNull: true },
   });
 }
 
