@@ -546,7 +546,7 @@ export default function AppLayout({ user }) {
                 <Tooltip title="Back to Learning Hub">
                   <IconButton
                     type="button"
-                    onClick={() => navigate('/learning')}
+                    onClick={() => navigate(location.state?.learningReturnTo || '/learning')}
                     aria-label="Back to Learning Hub"
                     sx={{ border: 1, borderColor: shellLine, bgcolor: 'rgba(255, 255, 255, 0.58)' }}
                   >
@@ -598,7 +598,7 @@ export default function AppLayout({ user }) {
                 <Tooltip title="Edit article">
                   <IconButton
                     type="button"
-                    onClick={() => navigate(`/learning/${learningArticleId}/edit`)}
+                    onClick={() => navigate(`/learning/${learningArticleId}/edit`, { state: location.state })}
                     aria-label="Edit article"
                     sx={{ border: 1, borderColor: shellLine, bgcolor: 'rgba(255, 255, 255, 0.58)' }}
                   >

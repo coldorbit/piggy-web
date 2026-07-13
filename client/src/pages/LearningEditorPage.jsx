@@ -21,7 +21,7 @@ import MDEditor from '@uiw/react-md-editor/nohighlight';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCreateLearningArticle, useDeleteLearningArticle, useLearningArticle, useUpdateLearningArticle } from '../lib/api.js';
 
 const EMPTY_ARTICLE = {
@@ -30,10 +30,12 @@ const EMPTY_ARTICLE = {
 };
 
 export default function LearningEditorPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { articleId } = useParams();
+  const [searchParams] = useSearchParams();
   const isEditing = Boolean(articleId);
-  const [form, setForm] = useState(EMPTY_ARTICLE);
+  const [form, setForm] = useState(() => ({ ...EMPTY_ARTICLE, companyName: searchParams.get('company')?.trim() || '' }));
   const [excalidrawJson, setExcalidrawJson] = useState('');
   const [message, setMessage] = useState('');
   const { data: article, isLoading, error: loadError } = useLearningArticle(articleId);
@@ -41,6 +43,7 @@ export default function LearningEditorPage() {
   const updateArticle = useUpdateLearningArticle();
   const deleteArticle = useDeleteLearningArticle();
   const isSaving = createArticle.isPending || updateArticle.isPending || deleteArticle.isPending;
+  const learningReturnTo = location.state?.learningReturnTo || '/learning';
 
   useEffect(() => {
     if (!article) return;
@@ -54,7 +57,7 @@ export default function LearningEditorPage() {
     setMessage('');
     const payload = { ...form, excalidrawData: excalidrawJson.trim() || null, status };
     const callbacks = {
-      onSuccess: (saved) => status === 'published' ? navigate(`/learning/${saved.id}`) : (setMessage('Draft saved.'), !isEditing && navigate(`/learning/${saved.id}/edit`, { replace: true })),
+      onSuccess: (saved) => status === 'published' ? navigate(`/learning/${saved.id}`, { state: { learningReturnTo } }) : (setMessage('Draft saved.'), !isEditing && navigate(`/learning/${saved.id}/edit`, { replace: true, state: { learningReturnTo } })),
       onError: (error) => setMessage(error.message),
     };
     if (isEditing) updateArticle.mutate({ articleId, articleData: payload }, callbacks);
@@ -63,14 +66,14 @@ export default function LearningEditorPage() {
 
   function remove() {
     if (!articleId || !window.confirm('Delete this learning article?')) return;
-    deleteArticle.mutate(articleId, { onSuccess: () => navigate('/learning'), onError: (error) => setMessage(error.message) });
+    deleteArticle.mutate(articleId, { onSuccess: () => navigate(learningReturnTo), onError: (error) => setMessage(error.message) });
   }
 
   if (isLoading) return <Box sx={{ minHeight: 260, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>;
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       <Paper variant="outlined" sx={{ p: 1.25, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, boxShadow: 1 }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(isEditing ? `/learning/${articleId}` : '/learning')}>Back</Button>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(isEditing ? `/learning/${articleId}` : learningReturnTo, { state: { learningReturnTo } })}>Back</Button>
         <Box sx={{ flex: 1, minWidth: 220 }}><Typography variant="h6" fontWeight={600}>{isEditing ? 'Edit learning article' : 'Create learning article'}</Typography><Typography variant="body2" color="text.secondary">Draft in Markdown, attach sources, then publish for internal users.</Typography></Box>
         {isEditing ? <Button color="error" startIcon={<DeleteIcon />} disabled={isSaving} onClick={remove}>Delete</Button> : null}
         <Button variant="outlined" startIcon={<SaveIcon />} disabled={isSaving} onClick={() => save('draft')}>Save draft</Button>
@@ -85,7 +88,7 @@ export default function LearningEditorPage() {
         </Box>
         <TextField label="Summary" required multiline minRows={2} value={form.summary} onChange={(event) => change('summary', event.target.value)} helperText="A concise explanation of what internal users will learn." />
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5 }}>
-          {form.category === 'companies' ? <TextField label="Company name" value={form.companyName} onChange={(event) => change('companyName', event.target.value)} /> : null}
+          {form.category === 'companies' ? <TextField label="Company directory" required value={form.companyName} onChange={(event) => change('companyName', event.target.value)} helperText="Articles with the same company name are grouped together." /> : null}
           {form.category === 'geography' ? <><TextField label="City" value={form.city} onChange={(event) => change('city', event.target.value)} /><TextField label="State or region" value={form.region} onChange={(event) => change('region', event.target.value)} /><TextField label="Country code" inputProps={{ maxLength: 2 }} value={form.countryCode} onChange={(event) => change('countryCode', event.target.value.toUpperCase())} /></> : null}
           {form.category === 'machine_learning' ? <FormControl><InputLabel>Difficulty</InputLabel><Select label="Difficulty" value={form.difficulty || ''} onChange={(event) => change('difficulty', event.target.value)}><MenuItem value="">Not set</MenuItem><MenuItem value="foundation">Foundation</MenuItem><MenuItem value="intermediate">Intermediate</MenuItem><MenuItem value="advanced">Advanced</MenuItem><MenuItem value="staff_plus">Staff+</MenuItem></Select></FormControl> : null}
           <TextField label="Tags" value={(form.tags || []).join(', ')} onChange={(event) => change('tags', splitList(event.target.value))} helperText="Comma-separated" />

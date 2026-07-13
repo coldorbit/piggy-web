@@ -89,6 +89,9 @@ export function learningArticleAttributesFromBody(body = {}, current = {}) {
   if (!LEARNING_STATUSES.includes(status)) throw new InputError('Article status must be draft or published');
   if (!LEARNING_DIFFICULTIES.includes(difficulty)) throw new InputError('Choose a valid difficulty');
 
+  const companyName = category === 'companies' ? nullableText(body.companyName ?? current.companyName, 240) : null;
+  if (category === 'companies' && !companyName) throw new InputError('Company name is required for company articles');
+
   return {
     category,
     title,
@@ -97,7 +100,7 @@ export function learningArticleAttributesFromBody(body = {}, current = {}) {
     excalidrawData: excalidrawScene(bodyValue(body, 'excalidrawData', current.excalidrawData)),
     mermaidScript: mermaidSource(bodyValue(body, 'mermaidScript', current.mermaidScript)),
     tags: stringList(body.tags ?? current.tags, 20),
-    companyName: category === 'companies' ? nullableText(body.companyName ?? current.companyName, 240) : null,
+    companyName,
     city: category === 'geography' ? nullableText(body.city ?? current.city, 180) : null,
     region: category === 'geography' ? nullableText(body.region ?? current.region, 180) : null,
     countryCode: category === 'geography' ? countryCode(body.countryCode ?? current.countryCode) : null,

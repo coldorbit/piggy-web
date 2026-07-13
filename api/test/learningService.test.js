@@ -63,7 +63,7 @@ describe('learning article validation', () => {
 
   it('rejects malformed or oversized diagram sources and supports clearing them', () => {
     const base = {
-      category: 'companies', title: 'Architecture', summary: 'Company architecture.', content: 'Article content.', status: 'draft',
+      category: 'companies', companyName: 'Example Co', title: 'Architecture', summary: 'Company architecture.', content: 'Article content.', status: 'draft',
     };
     assert.throws(() => learningArticleAttributesFromBody({ ...base, excalidrawData: '{bad json' }), /valid scene JSON/);
     assert.throws(() => learningArticleAttributesFromBody({ ...base, excalidrawData: { type: 'excalidraw' } }), /elements array/);
@@ -79,6 +79,10 @@ describe('learning article validation', () => {
 
   it('validates required content, categories, and source protocols', () => {
     assert.throws(() => learningArticleAttributesFromBody({}), /Choose companies/);
+    assert.throws(
+      () => learningArticleAttributesFromBody({ category: 'companies', title: 'Overview', summary: 'Company guide', content: 'Content' }),
+      /Company name is required/,
+    );
     assert.throws(
       () => learningArticleAttributesFromBody({ category: 'geography', title: 'Seattle', summary: 'City guide', content: 'Content', sourceLinks: ['javascript:alert(1)'] }),
       /HTTP or HTTPS/,
