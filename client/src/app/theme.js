@@ -332,7 +332,12 @@ export const theme = createTheme({
     MuiDialogContent: {
       styleOverrides: {
         root: {
-          marginTop: 8,
+          // MUI removes top padding when DialogContent follows DialogTitle.
+          // Restore internal space so floating field labels stay inside the
+          // scrollable content boundary instead of being clipped by it.
+          '.MuiDialogTitle-root + &': {
+            paddingTop: 16,
+          },
           '& .MuiTextField-root, & .MuiFormControl-root': {
             overflow: 'visible',
           },

@@ -47,7 +47,7 @@ export default function LearningCompanyDialog({ company, open, onClose, onSaved 
   return (
     <Dialog open={open} onClose={isSaving ? undefined : onClose} fullWidth maxWidth="sm">
       <DialogTitle>{company?.id ? 'Edit company directory' : 'Add company directory'}</DialogTitle>
-      <DialogContent sx={{ display: 'grid', gap: 1.5, pt: '12px !important' }}>
+      <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 2 }}>
         {error ? <Alert severity="error">{error}</Alert> : null}
         <Box sx={{ display: 'grid', gridTemplateColumns: '64px minmax(0, 1fr)', gap: 1.5, alignItems: 'center' }}>
           <Avatar alt={form.name ? `${form.name} logo preview` : 'Company logo preview'} src={form.logoUrl || undefined} variant="rounded" imgProps={{ referrerPolicy: 'no-referrer' }} sx={{ width: 64, height: 64, border: 1, borderColor: 'divider', bgcolor: '#fff', color: '#7C3AED', fontWeight: 600, '& img': { objectFit: 'contain', p: 0.5 } }}>{form.name.trim().charAt(0).toUpperCase() || '?'}</Avatar>

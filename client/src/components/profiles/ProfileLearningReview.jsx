@@ -215,7 +215,7 @@ function LearningReviewDialog({ draft, error, isSaving, onChange, onClose, onSub
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
       <form onSubmit={onSubmit}>
         <DialogTitle>Capture learning · {draft.title}</DialogTitle>
-        <DialogContent sx={{ pt: '8px !important', display: 'grid', gap: 1.5 }}>
+        <DialogContent sx={{ pt: 2, display: 'grid', gap: 1.5 }}>
           <Typography variant="body2" color="text.secondary">{draft.company}</Typography>
           {error ? <Alert severity="error">{error.message}</Alert> : null}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.25 }}>
