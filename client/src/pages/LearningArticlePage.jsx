@@ -205,7 +205,7 @@ export default function LearningArticlePage() {
             </Stack>
             <Typography color="text.secondary" sx={{ mb: 2 }}>{article.summary}</Typography>
             <Box ref={markdownContentRef} data-color-mode="light" sx={markdownViewerSx}>
-              <FaqMarkdownPreview source={article.content} />
+              <FaqMarkdownPreview source={article.content} components={articleMarkdownComponents} />
             </Box>
           </Paper>
           <Box sx={{ display: { xs: 'grid', lg: 'none' }, gap: 1.5 }}>
@@ -353,6 +353,18 @@ function slugifyHeading(value) {
 
 function humanize(value) { return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()); }
 
+const articleMarkdownComponents = {
+  img: ({ alt = '', node: _node, ...props }) => (
+    <img
+      {...props}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      referrerPolicy="no-referrer"
+    />
+  ),
+};
+
 const markdownViewerSx = {
   minWidth: 0,
   maxWidth: '100%',
@@ -384,6 +396,19 @@ const markdownViewerSx = {
   '& .wmde-markdown img, & .wmde-markdown video, & .wmde-markdown svg': {
     maxWidth: '100%',
     height: 'auto',
+  },
+  '& .wmde-markdown img': {
+    display: 'block',
+    width: 'auto',
+    maxHeight: 'min(72vh, 760px)',
+    objectFit: 'contain',
+    mx: 'auto',
+    my: 2.5,
+    border: 1,
+    borderColor: 'divider',
+    borderRadius: 2,
+    bgcolor: 'grey.50',
+    boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)',
   },
   '& .wmde-markdown a': {
     overflowWrap: 'anywhere',

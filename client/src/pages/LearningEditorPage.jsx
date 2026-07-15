@@ -1,5 +1,6 @@
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import PublishIcon from '@mui/icons-material/Publish';
 import SaveIcon from '@mui/icons-material/Save';
 import {
@@ -20,9 +21,11 @@ import {
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import LearningImageDialog from '../components/learning/LearningImageDialog.jsx';
 import { useCreateLearningArticle, useDeleteLearningArticle, useLearningArticle, useLearningCompanies, useUpdateLearningArticle } from '../lib/api.js';
+import { insertLearningImage, normalizeLearningImageUrl } from './learningHub/learningArticleImages.js';
 
 const EMPTY_ARTICLE = {
   category: 'companies', title: '', summary: '', content: '## Overview\n\nWrite the internal learning guide here.\n\n## Interview relevance\n\nExplain how the team should use this information.',
@@ -40,7 +43,10 @@ export default function LearningEditorPage() {
     companyId: location.state?.companyDirectory?.id || '',
   }));
   const [excalidrawJson, setExcalidrawJson] = useState('');
+  const [imageDialog, setImageDialog] = useState({ open: false, initialAlt: '', initialUrl: '' });
   const [message, setMessage] = useState('');
+  const editorRef = useRef(null);
+  const editorSelectionRef = useRef({ start: 0, end: 0 });
   const { data: article, isLoading, error: loadError } = useLearningArticle(articleId);
   const { data: companies = [], isLoading: companiesLoading, error: companiesError } = useLearningCompanies();
   const createArticle = useCreateLearningArticle();
@@ -63,6 +69,36 @@ export default function LearningEditorPage() {
   }, [companies, form.companyId, isEditing, searchParams]);
 
   function change(key, value) { setForm((current) => ({ ...current, [key]: value })); }
+
+  function rememberEditorSelection(event) {
+    editorSelectionRef.current = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
+  }
+
+  function openImageDialog() {
+    const textarea = editorRef.current?.querySelector('textarea');
+    if (textarea) editorSelectionRef.current = { start: textarea.selectionStart, end: textarea.selectionEnd };
+    const { start, end } = editorSelectionRef.current;
+    const selectedText = form.content.slice(start, end).trim();
+    let initialUrl = '';
+    try { initialUrl = normalizeLearningImageUrl(selectedText); } catch { /* Selected prose becomes the suggested alt text. */ }
+    setImageDialog({ open: true, initialAlt: initialUrl ? '' : selectedText, initialUrl });
+  }
+
+  function insertImage(image) {
+    try {
+      const result = insertLearningImage(form.content, image, editorSelectionRef.current);
+      change('content', result.content);
+      setImageDialog((current) => ({ ...current, open: false }));
+      window.requestAnimationFrame(() => {
+        const textarea = editorRef.current?.querySelector('textarea');
+        textarea?.focus();
+        textarea?.setSelectionRange(result.cursor, result.cursor);
+        editorSelectionRef.current = { start: result.cursor, end: result.cursor };
+      });
+    } catch (imageError) {
+      setMessage(imageError.message);
+    }
+  }
 
   function save(status) {
     setMessage('');
@@ -107,7 +143,29 @@ export default function LearningEditorPage() {
           <FormControlLabel control={<Switch checked={Boolean(form.featured)} onChange={(event) => change('featured', event.target.checked)} />} label="Feature this article" />
         </Box>
         <TextField label="Source URLs" multiline minRows={3} value={(form.sourceLinks || []).map((source) => source.url || source).join('\n')} onChange={(event) => change('sourceLinks', event.target.value.split(/\r?\n/).filter(Boolean).map((url) => ({ label: url, url })))} helperText="One public HTTP or HTTPS source per line." />
-        <Box sx={{ display: 'grid', gap: 0.75 }}><Typography variant="subtitle2" color="text.secondary">Article content</Typography><Box data-color-mode="light" sx={{ overflow: 'hidden', border: 1, borderColor: 'divider', borderRadius: 1, '& .w-md-editor': { boxShadow: 'none' } }}><MDEditor height={560} value={form.content} onChange={(value) => change('content', value || '')} preview="live" /></Box></Box>
+        <Box sx={{ display: 'grid', gap: 0.75 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary">Article content</Typography>
+              <Typography variant="caption" color="text.secondary">Place the cursor where the image should appear, then insert it from a hosted URL.</Typography>
+            </Box>
+            <Button variant="outlined" size="small" startIcon={<ImageOutlinedIcon />} onClick={openImageDialog}>Insert image</Button>
+          </Box>
+          <Box ref={editorRef} data-color-mode="light" sx={{ overflow: 'hidden', border: 1, borderColor: 'divider', borderRadius: 1, '& .w-md-editor': { boxShadow: 'none' } }}>
+            <MDEditor
+              height={560}
+              value={form.content}
+              onChange={(value) => change('content', value || '')}
+              preview="live"
+              textareaProps={{
+                'aria-label': 'Article Markdown content',
+                onSelect: rememberEditorSelection,
+                onClick: rememberEditorSelection,
+                onKeyUp: rememberEditorSelection,
+              }}
+            />
+          </Box>
+        </Box>
         <Box sx={{ display: 'grid', gap: 1.5, pt: 0.5 }}>
           <Box>
             <Typography variant="subtitle1" fontWeight={600}>Optional diagrams</Typography>
@@ -135,6 +193,13 @@ export default function LearningEditorPage() {
           />
         </Box>
       </Paper>
+      <LearningImageDialog
+        open={imageDialog.open}
+        initialAlt={imageDialog.initialAlt}
+        initialUrl={imageDialog.initialUrl}
+        onClose={() => setImageDialog((current) => ({ ...current, open: false }))}
+        onInsert={insertImage}
+      />
     </Box>
   );
 }

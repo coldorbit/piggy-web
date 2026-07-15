@@ -26,7 +26,7 @@ Use for ML foundations, modeling, experimentation, production systems, responsib
 
 1. An admin selects **New article**.
 2. Choose a library and provide a title and concise summary.
-3. Add category-specific metadata, tags, source URLs, and Markdown content.
+3. Add category-specific metadata, tags, source URLs, and Markdown content. Use **Insert image** to place a hosted HTTP(S) image at the current editor cursor; provide descriptive alt text for accessibility.
 4. Optionally paste exported Excalidraw scene JSON, Mermaid source, or both. These render read-only in a conditional **Diagram** tab.
 5. Save as a draft for review or publish for internal users.
 6. Optionally feature high-priority material.
@@ -53,6 +53,7 @@ The table and missing diagram columns are created by the existing `ensureWebMode
 - Zoom-in has no application-level percentage limit; zoom-out retains a usability floor.
 - The article page is bound to the application viewport: the global header owns Back and Edit actions, article content scrolls inside its pane, and the diagram fills all remaining height without scrolling the page.
 - Article Markdown headings generate a sticky section navigator with active-section highlighting and shareable hash links; navigation scrolls only the internal article pane.
+- Markdown images are responsive, lazy-loaded, and constrained to the article pane. The editor validates image URLs and inserts accessible Markdown image syntax at the current selection.
 - Articles with both diagram formats show a compact format switcher so only one full-height canvas is visible at a time.
 - Diagram renderers are lazy-loaded, so they do not increase the initial bundle for articles without diagrams.
 
