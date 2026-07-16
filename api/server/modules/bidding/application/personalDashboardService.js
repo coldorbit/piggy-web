@@ -2,6 +2,9 @@ import { QueryTypes } from 'sequelize';
 import { ensureWebModels, getSequelize } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { localDaySql, normalizeTimeZone } from '../../../utils/localTime.js';
+import { canAccessConsumption } from '../../../utils/roles.js';
+import { consumptionBreakdownSql } from '../../admin/application/dashboardConsumptionQueries.js';
+import { formatConsumption } from '../../admin/application/dashboardFormatters.js';
 
 const APPLICATION_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
 const ACTIVE_TAILORING_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
@@ -23,6 +26,7 @@ export async function getPersonalDashboardMetrics(user, query = {}) {
   const timeZone = normalizeTimeZone(user?.timezone);
   const grain = PERIOD_GRAINS[clean(query.grain)] ? clean(query.grain) : DEFAULT_PERIOD_GRAIN;
   const anchorDate = personalDashboardAnchorDate(query.anchorDate || query.anchor);
+  const includeConsumption = canAccessConsumption(user);
   const replacements = {
     userId: user.id,
     applicationStatuses: APPLICATION_STATUSES,
@@ -30,7 +34,7 @@ export async function getPersonalDashboardMetrics(user, query = {}) {
   };
 
   const sql = personalDashboardQueries(timeZone, { grain, anchorDate });
-  const [overall, trend, upcomingInterviews, recentApplications, profiles, actionToday, overdueAssessments, readyResumes, interviewsMissingLinks, mailboxReviewMessages, journeyRows] = await Promise.all([
+  const [overall, trend, upcomingInterviews, recentApplications, profiles, actionToday, overdueAssessments, readyResumes, interviewsMissingLinks, mailboxReviewMessages, journeyRows, consumption] = await Promise.all([
     queryOne(sequelize, sql.overall, replacements),
     queryAll(sequelize, sql.trend, replacements),
     queryAll(sequelize, sql.upcomingInterviews, replacements),
@@ -42,6 +46,7 @@ export async function getPersonalDashboardMetrics(user, query = {}) {
     queryAll(sequelize, sql.interviewsMissingLinks, replacements),
     queryAll(sequelize, sql.mailboxReviewMessages, replacements),
     queryAll(sequelize, sql.journeyRows, replacements),
+    includeConsumption ? queryAll(sequelize, sql.consumption, replacements) : Promise.resolve([]),
   ]);
 
   return {
@@ -68,6 +73,7 @@ export async function getPersonalDashboardMetrics(user, query = {}) {
       mailboxMessagesNeedingReview: mailboxReviewMessages.map(formatCommandCenterItem),
     },
     journeys: journeyRows.map(formatJourneyRow),
+    ...(includeConsumption ? { consumption: formatConsumption(consumption) } : {}),
   };
 }
 
@@ -82,8 +88,14 @@ export function personalDashboardQueries(timeZone, { grain = DEFAULT_PERIOD_GRAI
   const periodBidPredicate = personalDashboardPeriodPredicate('ob.bid_at', timeZone);
   const periodInterviewPredicate = personalDashboardPeriodPredicate('ic.scheduled_at', timeZone);
   const periodScheduledPredicate = personalDashboardPeriodPredicate('il.created_at', timeZone);
+  const periodConsumptionPredicate = personalDashboardPeriodPredicate('consumption_transactions.occurred_at', timeZone);
 
   return {
+    consumption: consumptionBreakdownSql({
+      periodCte,
+      periodPredicate: periodConsumptionPredicate,
+      periodRelation: 'selected_period',
+    }),
     overall: `
       WITH ${periodCte},
       owned_profiles AS (

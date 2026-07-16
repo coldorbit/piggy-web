@@ -1,4 +1,4 @@
-export function consumptionBreakdownSql({ periodCte, periodPredicate }) {
+export function consumptionBreakdownSql({ periodCte, periodPredicate, periodRelation = 'current_period' }) {
   return `
     WITH ${periodCte}
     SELECT
@@ -11,7 +11,7 @@ export function consumptionBreakdownSql({ periodCte, periodPredicate }) {
       ON consumption_ledger_entries.transaction_id = consumption_transactions.id
     JOIN consumption_accounts
       ON consumption_accounts.id = consumption_ledger_entries.account_id
-    CROSS JOIN current_period
+    CROSS JOIN ${periodRelation}
     WHERE ${periodPredicate}
       AND consumption_ledger_entries.direction = 'outflow'
       AND (

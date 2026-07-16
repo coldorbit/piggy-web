@@ -24,4 +24,16 @@ describe('personal dashboard period activity', () => {
     assert.match(sql, /EXTRACT\(DOW FROM timezone\('America\/New_York', '2026-07-16T18:00:00\.000Z'::timestamptz\)\)::int \* interval '1 day'/);
     assert.match(sql, /interval '1 week'/);
   });
+
+  it('filters finance consumption to the same selected period', () => {
+    const sql = personalDashboardQueries('America/New_York', {
+      grain: 'monthly',
+      anchorDate: new Date('2026-07-16T18:00:00.000Z'),
+    }).consumption;
+
+    assert.match(sql, /WITH selected_period AS/);
+    assert.match(sql, /CROSS JOIN selected_period/);
+    assert.match(sql, /timezone\('America\/New_York', consumption_transactions\.occurred_at\) >= selected_period\.starts_at/);
+    assert.match(sql, /timezone\('America\/New_York', consumption_transactions\.occurred_at\) < selected_period\.ends_at/);
+  });
 });

@@ -48,11 +48,13 @@ import {
   YAxis,
 } from 'recharts';
 import { ChartPanel } from '../components/adminDashboard/DashboardCharts.jsx';
+import DashboardConsumptionPanel from '../components/adminDashboard/DashboardConsumptionPanel.jsx';
 import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
 import { GRAIN_OPTIONS, labelize, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { useActionQueue, usePersonalDashboard } from '../lib/api.js';
 import { formatFirstNameLastInitial } from '../lib/formatters.js';
+import { canAccessConsumption } from '../lib/roles.js';
 import { addDaysToDateKey, dateKeyDayOfWeek, zonedDateParts } from '../lib/timezone.js';
 
 export default function UserDashboardPage({ currentUser }) {
@@ -95,6 +97,8 @@ export default function UserDashboardPage({ currentUser }) {
             <DashboardMetric icon={<BadgeIcon />} label="Profiles" value={totals.activeProfiles} detail={`${number(totals.totalProfiles)} total profiles`} />
             <DashboardMetric icon={<StyleIcon />} label="Tailoring" value={totals.readyTailoredResumes} detail={`${number(totals.tailoredResumeRequests)} active requests`} />
           </Grid>
+
+          {canAccessConsumption(currentUser) ? <DashboardConsumptionPanel consumption={dashboard.consumption} /> : null}
 
           <ActionQueuePanel queue={actionQueue} />
           <CommandCenterPanel commandCenter={dashboard.commandCenter || {}} />
