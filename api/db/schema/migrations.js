@@ -336,6 +336,23 @@ export async function ensureForwardedMailboxMessageIndexes() {
   `);
 }
 
+export async function ensureInterviewFailureFeedbackColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'interviews';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    failure_feedback: { type: DataTypes.TEXT, allowNull: true },
+    failure_feedback_notes: { type: DataTypes.TEXT, allowNull: true },
+  });
+  await queryInterface.sequelize.query(`
+    UPDATE interviews
+    SET failure_feedback = 'bad_preparation'
+    WHERE status IN ('failed', 'lost')
+      AND (failure_feedback IS NULL OR btrim(failure_feedback) = '')
+  `);
+}
+
 export async function ensureForwardedMailboxMessageColumns() {
   const queryInterface = getSequelize().getQueryInterface();
   const tableName = 'forwarded_mailbox_messages';

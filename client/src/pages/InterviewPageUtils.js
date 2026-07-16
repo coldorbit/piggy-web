@@ -58,6 +58,7 @@ import {
 import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
 import { canAccessProfileHub, canRegisterManualInterviewCalls, isAdminRole, isSuperadmin } from '../lib/roles.js';
 import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
+import { failureFeedbackLabel } from '../components/interviews/InterviewFailureFeedback.jsx';
 
 
 export function externalJobUrl(job) {
@@ -189,5 +190,9 @@ export function formatJourneyLog(log) {
     stage_changed: `Moved ${stageLabel(log.fromValue)} -> ${stageLabel(log.toValue)}`,
     stage_note_changed: `${stage || 'Stage'} note updated`,
     stage_meeting_link_changed: `${stage || 'Stage'} meeting link updated`,
+    status_changed: log.toValue === 'lost'
+      ? `Marked failed/lost: ${failureFeedbackLabel(log.metadata?.failureFeedback)}`
+      : `Status changed to ${statusLabel(log.toValue) || log.toValue}`,
+    failure_feedback_changed: `Failure feedback updated: ${failureFeedbackLabel(log.toValue)}`,
   }[log.eventType] || log.eventType;
 }

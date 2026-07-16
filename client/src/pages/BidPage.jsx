@@ -10,6 +10,7 @@ import { filterRowsByWorkspace, workspaceLabel } from '../components/admin/Super
 import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import SameCompanyTailoringDialog from '../components/bids/SameCompanyTailoringDialog.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
+import { InterviewFailureFeedbackDialog, isFailedInterviewStatus } from '../components/interviews/InterviewFailureFeedback.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { BID_TABS, EMPTY_BID } from '../components/bids/bidConstants.js';
 import ProfileDialog from '../components/profiles/ProfileDialog.jsx';
@@ -67,6 +68,7 @@ export default function BidPage({ currentUser }) {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [tailoringByProfileJobId, setTailoringByProfileJobId] = useState({});
   const [sameCompanyConfirmation, setSameCompanyConfirmation] = useState(null);
+  const [pendingFailureSave, setPendingFailureSave] = useState(null);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
   const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const canUseTomorrowDateFilter = isAdminRole(currentUser);
@@ -274,10 +276,29 @@ export default function BidPage({ currentUser }) {
     const jobId = bidJobActionId(job);
     const payload = job.bid ? { bidId: job.bid.id, jobId, bidData } : { jobId, bidData };
 
+    if (job.bid?.isInterview && isFailedInterviewStatus(bidData.status) && !bidData.failureFeedback) {
+      setPendingFailureSave({ job, payload });
+      return;
+    }
+
+    submitBidSave(mutation, payload);
+  }
+
+  function submitBidSave(mutation, payload) {
     setError('');
     mutation(payload, {
       onError: (bidError) => setError(bidError.message),
     });
+  }
+
+  function confirmFailureFeedback(feedback) {
+    if (!pendingFailureSave) return;
+    const { job, payload } = pendingFailureSave;
+    submitBidSave(job.bid ? updateBid : createBid, {
+      ...payload,
+      bidData: { ...payload.bidData, ...feedback },
+    });
+    setPendingFailureSave(null);
   }
 
   function tailorResume(job, options = {}) {
@@ -605,6 +626,13 @@ export default function BidPage({ currentUser }) {
         confirmation={sameCompanyConfirmation}
         onClose={closeSameCompanyConfirmation}
         onConfirm={confirmSameCompanyTailoring}
+      />
+      <InterviewFailureFeedbackDialog
+        interviewLabel={[pendingFailureSave?.job?.title, pendingFailureSave?.job?.company].filter(Boolean).join(' at ')}
+        isSaving={creatingBid || updatingBid}
+        onClose={() => setPendingFailureSave(null)}
+        onConfirm={confirmFailureFeedback}
+        open={Boolean(pendingFailureSave)}
       />
     </Box>
   );

@@ -35,6 +35,7 @@ import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.jsx';
 import InterviewLoadingState from '../components/interviews/InterviewLoadingState.jsx';
+import { InterviewFailureFeedbackDialog, InterviewFailureFeedbackFields, isFailedInterviewStatus } from '../components/interviews/InterviewFailureFeedback.jsx';
 import {
   canonicalInterviewStage,
   DEFAULT_INTERVIEW_DURATION_MINUTES,
@@ -100,6 +101,7 @@ export default function InterviewsPage({ currentUser }) {
   const [manualInterview, setManualInterview] = useState(EMPTY_MANUAL_INTERVIEW);
   const [manualCall, setManualCall] = useState(EMPTY_MANUAL_CALL);
   const [pendingStepChangeSave, setPendingStepChangeSave] = useState(null);
+  const [pendingFailureSave, setPendingFailureSave] = useState(null);
   const [isJourneyExpanded, setIsJourneyExpanded] = useState(false);
   const [error, setError] = useState('');
   const { setSearch: setHeaderSearch } = useHeaderSearch();
@@ -226,12 +228,22 @@ export default function InterviewsPage({ currentUser }) {
       interviewStage: canonicalInterviewStage(overrides.interviewStage || draft.interviewStage),
       profileId: activeProfile?.id,
     };
+    if (isFailedInterviewStatus(bidData.status) && !bidData.failureFeedback) {
+      setPendingFailureSave({ job, bidData });
+      return;
+    }
     const stepChange = interviewStepChange(job, bidData);
     if (stepChange && !options.confirmStepChange) {
       setPendingStepChangeSave({ job, bidData, ...stepChange });
       return;
     }
     submitInterviewSave(job, bidData);
+  }
+
+  function confirmFailureFeedback(feedback) {
+    if (!pendingFailureSave) return;
+    submitInterviewSave(pendingFailureSave.job, { ...pendingFailureSave.bidData, ...feedback });
+    setPendingFailureSave(null);
   }
 
   function submitInterviewSave(job, bidData) {
@@ -614,6 +626,14 @@ export default function InterviewsPage({ currentUser }) {
         updatingInterviewCall={updatingInterviewCall}
       />
 
+      <InterviewFailureFeedbackDialog
+        interviewLabel={[pendingFailureSave?.job?.title, pendingFailureSave?.job?.company].filter(Boolean).join(' at ')}
+        isSaving={updatingBid}
+        onClose={() => setPendingFailureSave(null)}
+        onConfirm={confirmFailureFeedback}
+        open={Boolean(pendingFailureSave)}
+      />
+
       <Dialog open={Boolean(selectedJob)} onClose={closeInterviewDialog} fullWidth maxWidth="md">
         {selectedJob && selectedDraft ? (
           <>
@@ -794,6 +814,10 @@ export default function InterviewsPage({ currentUser }) {
                       const stageChanged = nextStage !== selectedStage;
                       updateDraft(selectedJob, 'interviewStage', nextStage);
                       updateDraft(selectedJob, 'status', nextStatus);
+                      if (nextStatus !== selectedDraft.status) {
+                        updateDraft(selectedJob, 'failureFeedback', '');
+                        updateDraft(selectedJob, 'failureFeedbackNotes', '');
+                      }
                       updateDraft(selectedJob, 'interviewNotes', selectedStageNotes[nextStage] || '');
                       updateDraft(selectedJob, 'meetingLink', selectedStageMeetingLinks[nextStage] || '');
                       if (stageChanged) updateDraft(selectedJob, 'interviewNextAt', null);
@@ -807,6 +831,16 @@ export default function InterviewsPage({ currentUser }) {
                     ))}
                   </Select>
                 </FormControl>
+                {isFailedInterviewStatus(selectedDraft.status) ? (
+                  <InterviewFailureFeedbackFields
+                    disabled={updatingBid || !canEditInterviews}
+                    notes={selectedDraft.failureFeedbackNotes || ''}
+                    onNotesChange={(value) => updateDraft(selectedJob, 'failureFeedbackNotes', value)}
+                    onReasonChange={(value) => updateDraft(selectedJob, 'failureFeedback', value)}
+                    reason={selectedDraft.failureFeedback || ''}
+                    showError
+                  />
+                ) : null}
                 <TextField
                   label={`Next interview (${DEFAULT_TIME_ZONE_LABEL})`}
                   size="small"
@@ -915,7 +949,7 @@ export default function InterviewsPage({ currentUser }) {
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button onClick={closeInterviewDialog}>Close</Button>
                 <Button
-                  disabled={updatingBid || !canEditInterviews}
+                  disabled={updatingBid || !canEditInterviews || (isFailedInterviewStatus(selectedDraft.status) && !selectedDraft.failureFeedback)}
                   onClick={() => saveInterview(selectedJob)}
                   variant="contained"
                 >

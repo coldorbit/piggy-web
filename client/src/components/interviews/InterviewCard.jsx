@@ -12,6 +12,7 @@ import {
 import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
 import { formatDate, formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { downloadAuthenticatedFile } from '../../lib/api.js';
+import { failureFeedbackLabel, isFailedInterviewStatus } from './InterviewFailureFeedback.jsx';
 
 const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="combobox"], .MuiSelect-select';
 
@@ -124,6 +125,9 @@ export default function InterviewCard({
           />
           {owner ? <Chip label={owner} size="small" sx={{ ...chipSx, bgcolor: '#edf0ff', color: '#343f91' }} /> : null}
           <Chip label={stageLabel(currentStage)} size="small" sx={{ ...chipSx, bgcolor: 'rgba(0, 103, 192, 0.10)', color: '#005A9E' }} />
+          {isFailedInterviewStatus(draft.status) ? (
+            <Chip label={failureFeedbackLabel(draft.failureFeedback)} size="small" sx={{ ...chipSx, bgcolor: '#FEE2E2', color: '#991B1B' }} />
+          ) : null}
           {!hasAssociatedCall ? <Chip label="Missing call" size="small" sx={{ ...chipSx, bgcolor: '#FEF3C7', color: '#92400E' }} /> : null}
           {scheduledStepCount > 1 ? <Chip label={`${scheduledStepCount} interviews`} size="small" sx={{ ...chipSx, bgcolor: '#F5F3FF', color: '#6D28D9' }} /> : null}
           <Chip label={formatDate(job.bid?.updatedAt)} size="small" sx={{ ...chipSx, bgcolor: '#f7ead1', color: '#70400d' }} />

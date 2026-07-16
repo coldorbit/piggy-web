@@ -45,6 +45,7 @@ import {
   ensureForwardedMailboxMessageIndexes,
   ensureHiddenJobColumns,
   ensureInterviewIndexes,
+  ensureInterviewFailureFeedbackColumns,
   ensureInterviewJourneyColumns,
   ensureJobBidInterviewColumns,
   ensureJobBidProfileScopedUniqueness,
@@ -111,6 +112,7 @@ export async function ensureWebModels() {
       await ensureBidProfileStaticResumeColumns();
       await ensureJobBidInterviewColumns();
       await ensureInterviewJourneyColumns();
+      await ensureInterviewFailureFeedbackColumns();
       await ensureTailoredResumeStatusColumns();
       await ensureTailoredResumeManualColumns();
       await ensureTailoredResumeCvDataColumn();

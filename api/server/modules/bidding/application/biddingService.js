@@ -2,6 +2,7 @@ import { Op, Sequelize } from 'sequelize';
 import { formatJob } from '../../jobs/application/jobsService.js';
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
+import { interviewFailureFeedbackAttributes } from './interviewFailureFeedbackService.js';
 import {
   addLocalDays,
   localDateRange,
@@ -400,6 +401,7 @@ export function bidAttributesFromBody(body, options = {}) {
     stageNotes,
     ...(hasStageMeetingLinks ? { stageMeetingLinks } : {}),
     ...(hasInterviewMeetingLink ? { interviewMeetingLink } : {}),
+    ...interviewFailureFeedbackAttributes(body, status),
   };
 }
 

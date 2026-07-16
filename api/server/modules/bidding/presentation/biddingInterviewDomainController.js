@@ -82,6 +82,7 @@ const BATCH_LIMIT = 100;
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 import { canAccessInterviews, isInterviewBidStatus } from './biddingQueriesController.js';
+import { interviewFailureFeedbackValues } from '../application/interviewFailureFeedbackService.js';
 
 export async function ensureBidBatchWritable({ req, res, user, bid, attrs }) {
   if (!isAdminRole(req.user)) {
@@ -189,11 +190,12 @@ export function interviewValuesFromAttrs(attrs, existing = null) {
     incomingLinks: attrs.stageMeetingLinks,
   });
   const interviewNextAt = attrs.interviewNextAt || null;
+  const status = interviewStatusFromAttrs(attrs, existing);
   return {
     callerUserId: Object.prototype.hasOwnProperty.call(attrs, 'callerUserId')
       ? attrs.callerUserId
       : existing?.callerUserId || null,
-    status: interviewStatusFromAttrs(attrs, existing),
+    status,
     interviewStage: stage,
     interviewNextAt,
     interviewDurationMinutes: attrs.interviewDurationMinutes || existing?.interviewDurationMinutes || 60,
@@ -201,6 +203,7 @@ export function interviewValuesFromAttrs(attrs, existing = null) {
     interviewNotes: stageNotes[stage] || attrs.interviewNotes || null,
     stageNotes,
     stageMeetingLinks,
+    ...interviewFailureFeedbackValues(attrs, existing, status),
   };
 }
 
@@ -389,6 +392,8 @@ export function formatInterviewBid(interview, bidUsersById = new Map(), callerUs
     interviewDurationMinutes: interview.interviewDurationMinutes || 60,
     firstInterviewScheduledAt: interview.firstInterviewScheduledAt,
     interviewNotes: interview.interviewNotes,
+    failureFeedback: interview.failureFeedback || null,
+    failureFeedbackNotes: interview.failureFeedbackNotes || null,
     stageNotes: interview.stageNotes || {},
     stageMeetingLinks: interview.stageMeetingLinks || {},
     meetingLink: meetingLinkForStage(interview.stageMeetingLinks, interview.interviewStage),
@@ -521,6 +526,7 @@ export function interviewSnapshot(interview) {
   const stageNotes = { ...((interview.stageNotes && typeof interview.stageNotes === 'object') ? interview.stageNotes : {}) };
   const stageMeetingLinks = { ...((interview.stageMeetingLinks && typeof interview.stageMeetingLinks === 'object') ? interview.stageMeetingLinks : {}) };
   return {
+    status: interview.status,
     interviewStage: stage,
     interviewNextAt: interview.interviewNextAt,
     interviewDurationMinutes: interview.interviewDurationMinutes || 60,
@@ -529,6 +535,8 @@ export function interviewSnapshot(interview) {
     stageNotes,
     stageMeetingLinks,
     meetingLink: meetingLinkForStage(stageMeetingLinks, stage),
+    failureFeedback: interview.failureFeedback || null,
+    failureFeedbackNotes: interview.failureFeedbackNotes || null,
   };
 }
 
@@ -553,6 +561,27 @@ export async function logInterviewCreated(interview, userId) {
 
 export async function logInterviewChanges({ interview, previous, attrs, userId }) {
   const logs = [];
+  if (previous.status !== interview.status) {
+    logs.push({
+      eventType: 'status_changed',
+      fromValue: previous.status,
+      toValue: interview.status,
+      metadata: {
+        failureFeedback: interview.failureFeedback || null,
+        failureFeedbackNotes: interview.failureFeedbackNotes || null,
+      },
+    });
+  } else if (
+    previous.failureFeedback !== interview.failureFeedback
+    || previous.failureFeedbackNotes !== interview.failureFeedbackNotes
+  ) {
+    logs.push({
+      eventType: 'failure_feedback_changed',
+      fromValue: previous.failureFeedback,
+      toValue: interview.failureFeedback,
+      metadata: { failureFeedbackNotes: interview.failureFeedbackNotes || null },
+    });
+  }
   if (previous.interviewStage !== interview.interviewStage) {
     const occurrenceLog = interviewOccurrenceLogFromSnapshot(previous, interview);
     if (occurrenceLog) logs.push(occurrenceLog);

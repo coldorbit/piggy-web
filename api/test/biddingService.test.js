@@ -36,6 +36,18 @@ describe('bidAttributesFromBody', () => {
 
     assert.equal(attrs.interviewDurationMinutes, 180);
   });
+
+  it('requires feedback when an interview is marked lost', () => {
+    assert.throws(() => bidAttributesFromBody({ status: 'lost' }), /feedback is required/);
+    const attrs = bidAttributesFromBody({
+      status: 'lost',
+      failureFeedback: 'linkedin_problem',
+      failureFeedbackNotes: 'Account verification blocked the interview.',
+    });
+
+    assert.equal(attrs.failureFeedback, 'linkedin_problem');
+    assert.equal(attrs.failureFeedbackNotes, 'Account verification blocked the interview.');
+  });
 });
 
 describe('buildBidTabQuery', () => {

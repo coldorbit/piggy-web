@@ -81,6 +81,14 @@ export function getInterviewModel() {
         type: DataTypes.TEXT,
         field: 'interview_notes',
       },
+      failureFeedback: {
+        type: DataTypes.TEXT,
+        field: 'failure_feedback',
+      },
+      failureFeedbackNotes: {
+        type: DataTypes.TEXT,
+        field: 'failure_feedback_notes',
+      },
       stageNotes: {
         type: DataTypes.JSONB,
         allowNull: false,

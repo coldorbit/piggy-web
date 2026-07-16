@@ -182,7 +182,16 @@ export async function updateInterview(req, res, next) {
       return;
     }
     const attrs = bidAttributesFromBody(
-      { ...req.body, status: req.body?.status || interview.status },
+      {
+        ...req.body,
+        status: req.body?.status || interview.status,
+        ...(!Object.prototype.hasOwnProperty.call(req.body || {}, 'failureFeedback')
+          ? { failureFeedback: interview.failureFeedback }
+          : {}),
+        ...(!Object.prototype.hasOwnProperty.call(req.body || {}, 'failureFeedbackNotes')
+          ? { failureFeedbackNotes: interview.failureFeedbackNotes }
+          : {}),
+      },
       { allowInterviewTodoStatus: true },
     );
     if (attrs.callerUserId) await ensureCallerUser(attrs.callerUserId);
