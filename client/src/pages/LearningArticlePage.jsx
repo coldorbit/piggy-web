@@ -400,7 +400,6 @@ const markdownViewerSx = {
   '& .wmde-markdown img': {
     display: 'block',
     width: 'auto',
-    maxHeight: 'min(72vh, 760px)',
     objectFit: 'contain',
     mx: 'auto',
     my: 2.5,

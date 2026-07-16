@@ -244,7 +244,7 @@ function LearningArticleCard({ article, canManage, returnTo, onOpen }) {
             <Stack direction="row" spacing={0.75} alignItems="center" minWidth={0}><Icon sx={{ color: category.color }} fontSize="small" /><Typography variant="caption" color="text.secondary" fontWeight={600}>{article.category === 'companies' ? 'Company article' : category.label}</Typography></Stack>
             <Stack direction="row" spacing={0.5}>{article.featured ? <StarIcon sx={{ color: '#C77700', fontSize: 19 }} /> : null}{canManage ? <Chip label={article.status} color={article.status === 'published' ? 'success' : 'default'} /> : null}</Stack>
           </Box>
-          <Box><Typography fontWeight={600}>{article.title}</Typography>{context ? <Typography variant="caption" color="text.secondary">{context}</Typography> : null}</Box>
+          <Box><Typography fontWeight={700}>{article.title}</Typography>{context ? <Typography variant="caption" color="text.secondary">{context}</Typography> : null}</Box>
           <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{article.summary}</Typography>
           <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">{(article.tags || []).slice(0, 5).map((tag) => <Chip key={tag} label={tag} variant="outlined" />)}</Stack>
           <Typography variant="caption" color="text.secondary">Updated {formatDate(article.updatedAt)} · {(article.sourceLinks || []).length} sources</Typography>
