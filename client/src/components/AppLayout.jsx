@@ -88,6 +88,7 @@ import { markRouteNavigationStart } from '../app/PerformanceMonitor.jsx';
 const DRAWER_WIDTH = 248;
 const COLLAPSED_DRAWER_WIDTH = 72;
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'applypilot-sidebar-collapsed';
+const WORKSPACE_PREFERENCE_STORAGE_KEY_PREFIX = 'applypilot-active-workspace';
 const shellLine = 'rgba(0, 0, 0, 0.09)';
 const micaPane = 'rgba(255, 255, 255, 0.72)';
 const micaPaneStrong = 'rgba(255, 255, 255, 0.88)';
@@ -106,8 +107,9 @@ export default function AppLayout({ user }) {
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [accountUsername, setAccountUsername] = useState(user.username || '');
   const [accountError, setAccountError] = useState('');
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => (
-    isSuperadmin(user) ? ALL_WORKSPACES : String(user.workspaceId || ALL_WORKSPACES)
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => readWorkspacePreference(
+    user,
+    isSuperadmin(user) ? ALL_WORKSPACES : String(user.workspaceId || ALL_WORKSPACES),
   ));
   const { mutate: logout } = useLogout();
   const { mutate: updateMe, isPending: isUpdatingMe } = useUpdateMe();
@@ -167,15 +169,16 @@ export default function AppLayout({ user }) {
   const adminDashboardSearch = isAdminDashboardRoute ? location.search : '';
 
   useEffect(() => {
-    if (canUseWorkspaceFilter && !isSuperadmin(user) && activeWorkspaceId === ALL_WORKSPACES && workspaces.length) {
-      setActiveWorkspaceId(String(user.workspaceId || workspaces[0].id));
-      return;
-    }
-    if (!canUseWorkspaceFilter || activeWorkspaceId === ALL_WORKSPACES) return;
-    if (activeWorkspaceId === UNASSIGNED_WORKSPACE) return;
-    if (workspaces.some((workspace) => String(workspace.id) === String(activeWorkspaceId))) return;
-    setActiveWorkspaceId(ALL_WORKSPACES);
-  }, [activeWorkspaceId, canUseWorkspaceFilter, user, workspaces]);
+    if (!canUseWorkspaceFilter || workspacesLoading || workspaceError) return;
+    if (workspaceSelectionIsAvailable(activeWorkspaceId, user, workspaces)) return;
+    setActiveWorkspaceId(defaultWorkspaceSelection(user, workspaces));
+  }, [activeWorkspaceId, canUseWorkspaceFilter, user, workspaceError, workspaces, workspacesLoading]);
+
+  useEffect(() => {
+    if (!canUseWorkspaceFilter || workspacesLoading || workspaceError) return;
+    if (!workspaceSelectionIsAvailable(activeWorkspaceId, user, workspaces)) return;
+    writeWorkspacePreference(user, activeWorkspaceId);
+  }, [activeWorkspaceId, canUseWorkspaceFilter, user, workspaceError, workspaces, workspacesLoading]);
   const handleOpenMailboxNotification = useCallback((message) => {
     const profileId = message?.matchedProfile?.id;
     const params = new URLSearchParams();
@@ -927,4 +930,38 @@ function readSidebarCollapsedPreference() {
 function writeSidebarCollapsedPreference(value) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(Boolean(value)));
+}
+
+function readWorkspacePreference(user, fallback) {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    return window.localStorage.getItem(workspacePreferenceStorageKey(user)) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeWorkspacePreference(user, workspaceId) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(workspacePreferenceStorageKey(user), String(workspaceId));
+  } catch {
+    // Browsers can disable storage; workspace selection still works for the current session.
+  }
+}
+
+function workspacePreferenceStorageKey(user) {
+  return `${WORKSPACE_PREFERENCE_STORAGE_KEY_PREFIX}:${String(user?.id || user?.username || 'anonymous')}`;
+}
+
+function workspaceSelectionIsAvailable(workspaceId, user, workspaces) {
+  if (isSuperadmin(user) && [ALL_WORKSPACES, UNASSIGNED_WORKSPACE].includes(String(workspaceId))) return true;
+  return workspaces.some((workspace) => String(workspace.id) === String(workspaceId));
+}
+
+function defaultWorkspaceSelection(user, workspaces) {
+  if (isSuperadmin(user)) return ALL_WORKSPACES;
+  const homeWorkspaceId = String(user?.workspaceId || '');
+  if (workspaces.some((workspace) => String(workspace.id) === homeWorkspaceId)) return homeWorkspaceId;
+  return String(workspaces[0]?.id || ALL_WORKSPACES);
 }
