@@ -55,6 +55,7 @@ export default function CalendarGrid({
   const [draggedEventId, setDraggedEventId] = useState('');
   const selectedEventId = selectedEvent?.id || '';
   const eventById = useMemo(() => eventLookup(eventsByDay), [eventsByDay]);
+  const isTimeGrid = view !== CALENDAR_VIEWS.month;
 
   function handleDragStart(event) {
     setDraggedEventId(event.id);
@@ -83,11 +84,11 @@ export default function CalendarGrid({
           borderColor: GOOGLE_CALENDAR_BORDER,
           borderRadius: 2,
           display: 'grid',
-          gridTemplateRows: view === CALENDAR_VIEWS.week ? '1fr' : 'auto 1fr',
+          gridTemplateRows: isTimeGrid ? '1fr' : 'auto 1fr',
           bgcolor: '#FFFFFF',
         }}
       >
-        {view === CALENDAR_VIEWS.week ? (
+        {isTimeGrid ? (
           <WeekCalendar
             days={visibleDays}
             draggedEventId={draggedEventId}
@@ -181,6 +182,7 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
   const [now, setNow] = useState(() => new Date());
   const scrollRef = useRef(null);
   const centeredRangeRef = useRef('');
+  const isDayView = days.length === 1;
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setNow(new Date()), 60_000);
@@ -205,9 +207,9 @@ function WeekCalendar({ days, draggedEventId, eventsByDay, selectedEventId, onDr
     <Box ref={scrollRef} sx={{ height: '100%', minHeight: 0, overflow: 'auto', bgcolor: '#FFFFFF', overscrollBehavior: 'contain' }}>
       <Box
         sx={{
-          minWidth: { xs: 660, md: 0 },
+          minWidth: { xs: isDayView ? 360 : 660, md: 0 },
           display: 'grid',
-          gridTemplateColumns: '64px repeat(5, minmax(104px, 1fr))',
+          gridTemplateColumns: `64px repeat(${days.length}, minmax(${isDayView ? 240 : 104}px, 1fr))`,
           gridTemplateRows: `66px ${HOURS.length * HOUR_HEIGHT}px`,
         }}
       >

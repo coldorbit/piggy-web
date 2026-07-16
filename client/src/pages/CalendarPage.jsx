@@ -44,7 +44,7 @@ export default function CalendarPage({ currentUser }) {
   const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const workspaceLensEnabled = canUseWorkspaceLens(currentUser);
   const visibleDays = useMemo(
-    () => (view === CALENDAR_VIEWS.week ? weekDays(cursorDate) : monthDays(cursorDate)),
+    () => calendarDays(view, cursorDate),
     [cursorDate, view],
   );
   const calendarRange = useMemo(() => calendarRangeForDays(visibleDays), [visibleDays]);
@@ -105,11 +105,9 @@ export default function CalendarPage({ currentUser }) {
 
   useEffect(() => {
     if (!calendarData) return;
-    const adjacentCursors = view === CALENDAR_VIEWS.week
-      ? [addDaysToDateKey(cursorDate, -7), addDaysToDateKey(cursorDate, 7)]
-      : [addMonthsToDateKey(cursorDate, -1), addMonthsToDateKey(cursorDate, 1)];
+    const adjacentCursors = [-1, 1].map((direction) => moveCalendarCursor(view, cursorDate, direction));
     adjacentCursors.forEach((adjacentCursor) => {
-      const adjacentDays = view === CALENDAR_VIEWS.week ? weekDays(adjacentCursor) : monthDays(adjacentCursor);
+      const adjacentDays = calendarDays(view, adjacentCursor);
       const adjacentRange = calendarRangeForDays(adjacentDays);
       void queryClient.prefetchQuery({
         queryKey: calendarQueryKey(adjacentRange, calendarWorkspaceId),
@@ -173,7 +171,7 @@ export default function CalendarPage({ currentUser }) {
   const loading = calendarLoading || calendarFetching;
   const pageError = calendarActionError || calendarError?.message || workspaceError?.message || '';
   const eventsByDay = useMemo(() => groupEventsByDay(events), [events]);
-  const rangeLabel = view === CALENDAR_VIEWS.week ? weekRangeLabel(cursorDate) : monthLabel(cursorDate);
+  const rangeLabel = calendarRangeLabel(view, cursorDate);
   const scheduledCount = useMemo(
     () => scheduledInterviewCount(events, view, cursorDate, visibleDays),
     [cursorDate, events, view, visibleDays],
@@ -184,7 +182,7 @@ export default function CalendarPage({ currentUser }) {
   );
 
   function moveCursor(direction) {
-    setCursorDate((current) => (view === CALENDAR_VIEWS.week ? addDaysToDateKey(current, direction * 7) : addMonthsToDateKey(current, direction)));
+    setCursorDate((current) => moveCalendarCursor(view, current, direction));
   }
 
   function toggleProfile(profileId, checked) {
@@ -375,7 +373,7 @@ function filterEventsByProfiles(events, checkedProfileIds) {
 }
 
 function filterEventsByVisibleRange(events, view, cursorDate, visibleDays) {
-  if (view === CALENDAR_VIEWS.week) {
+  if (view !== CALENDAR_VIEWS.month) {
     const visibleDaySet = new Set(visibleDays);
     return events.filter((event) => visibleDaySet.has(defaultTimezoneDateKey(event.startsAt)));
   }
@@ -577,6 +575,18 @@ function monthDays(dateKey) {
   ).flat();
 }
 
+function calendarDays(view, dateKey) {
+  if (view === CALENDAR_VIEWS.day) return [dateKey];
+  if (view === CALENDAR_VIEWS.week) return weekDays(dateKey);
+  return monthDays(dateKey);
+}
+
+function moveCalendarCursor(view, dateKey, direction) {
+  if (view === CALENDAR_VIEWS.day) return addDaysToDateKey(dateKey, direction);
+  if (view === CALENDAR_VIEWS.week) return addDaysToDateKey(dateKey, direction * 7);
+  return addMonthsToDateKey(dateKey, direction);
+}
+
 function weekDays(dateKey) {
   const start = startOfWorkWeek(dateKey);
   return Array.from({ length: 5 }, (_item, index) => addDays(start, index));
@@ -602,6 +612,23 @@ function addDays(dateKey, days) {
 
 function monthLabel(dateKey) {
   return monthLabelForDateKey(dateKey);
+}
+
+function calendarRangeLabel(view, dateKey) {
+  if (view === CALENDAR_VIEWS.day) return dayLabel(dateKey);
+  if (view === CALENDAR_VIEWS.week) return weekRangeLabel(dateKey);
+  return monthLabel(dateKey);
+}
+
+function dayLabel(dateKey) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
 function weekRangeLabel(date) {

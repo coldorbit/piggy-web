@@ -17,6 +17,7 @@ import {
 import { DEFAULT_TIME_ZONE_LABEL } from '../../lib/timezone.js';
 
 export const CALENDAR_VIEWS = {
+  day: 'day',
   month: 'month',
   week: 'week',
 };
@@ -95,6 +96,7 @@ export default function CalendarToolbar({ conflictCount = 0, isLoading, onExport
             },
           }}
         >
+          <ToggleButton value={CALENDAR_VIEWS.day}>Day</ToggleButton>
           <ToggleButton value={CALENDAR_VIEWS.week}>Week</ToggleButton>
           <ToggleButton value={CALENDAR_VIEWS.month}>Month</ToggleButton>
         </ToggleButtonGroup>
