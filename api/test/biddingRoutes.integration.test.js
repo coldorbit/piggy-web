@@ -47,6 +47,13 @@ describe('bidding API routes', () => {
     assert.equal(response.statusCode, 401);
     assert.deepEqual(response.body, { error: 'Authentication required' });
   });
+
+  it('protects the related calendar calls endpoint', async () => {
+    const response = await request(`${baseUrl}/api/bid/calendar/interviews/7/related-calls`);
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(response.body, { error: 'Authentication required' });
+  });
 });
 
 function listen(app) {

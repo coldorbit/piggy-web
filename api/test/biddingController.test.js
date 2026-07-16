@@ -1,14 +1,17 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  calendarCompanyKey,
   calendarEventsInRange,
   calendarEventsForInterviews,
+  calendarInterviewId,
   calendarRangeFromQuery,
   calendarWorkspaceIdFromQuery,
   canDeleteInterviewCall,
   canWriteInterviewForProfile,
   bidStatusFromInterviewStatus,
   groupedBidJobs,
+  formatCalendarRelatedCall,
   formatBidProfile,
   normalizeCompany,
   interviewStatusFromAttrs,
@@ -64,6 +67,48 @@ describe('calendar range query', () => {
       { workspaceId: '42' },
       { role: ROLES.admin, workspaceId: 7, workspaceMemberships: [{ workspaceId: 42, status: 'active' }] },
     ), 42);
+  });
+});
+
+describe('related calendar calls', () => {
+  it('matches company names case-insensitively while preserving exact-name semantics', () => {
+    assert.equal(calendarCompanyKey('  Google  '), 'google');
+    assert.equal(calendarCompanyKey('GOOGLE'), 'google');
+    assert.notEqual(calendarCompanyKey('Google Cloud'), calendarCompanyKey('Google'));
+  });
+
+  it('validates interview ids', () => {
+    assert.equal(calendarInterviewId('42'), 42);
+    assert.throws(() => calendarInterviewId('not-an-id'), /valid calendar call/);
+    assert.throws(() => calendarInterviewId('-1'), /valid calendar call/);
+  });
+
+  it('formats call details for the related-call timeline', () => {
+    const [event] = calendarEventsForInterviews([interviewRow({
+      id: 77,
+      company: 'Google',
+      interviewStage: 'technical_interview',
+      interviewNextAt: new Date('2026-07-20T18:00:00.000Z'),
+      stageMeetingLinks: { technical_interview: 'https://meet.google.com/example' },
+    })]);
+
+    assert.deepEqual(formatCalendarRelatedCall(event), {
+      id: 'interview-77-current',
+      interviewId: '77',
+      interviewCallId: null,
+      occurrenceLogId: null,
+      title: 'Senior Data Engineer',
+      company: 'Google',
+      location: 'Remote',
+      jobUrl: 'https://example.com/jobs/30',
+      status: 'interviewing',
+      stage: 'technical_interview',
+      startsAt: '2026-07-20T18:00:00.000Z',
+      durationMinutes: 60,
+      meetingLink: 'https://meet.google.com/example',
+      notes: '',
+      isHistoricalOccurrence: false,
+    });
   });
 });
 

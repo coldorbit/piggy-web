@@ -32,6 +32,7 @@ import {
 } from '../../lib/timezone.js';
 import { PROFILE_COLORS } from '../profiles/profileConstants.js';
 import { CALENDAR_VIEWS } from './CalendarToolbar.jsx';
+import CalendarRelatedCalls from './CalendarRelatedCalls.jsx';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DISPLAY_WEEKDAYS = WEEKDAY_LABELS.slice(1, 6);
@@ -651,7 +652,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
   }
 
   return (
-    <Dialog open={Boolean(event)} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={Boolean(event)} onClose={onClose} fullWidth maxWidth="md">
       {event ? (
         <>
           <DialogTitle sx={{ pb: 1 }}>
@@ -667,44 +668,55 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
               ) : null}
             </Box>
           </DialogTitle>
-          <DialogContent sx={{ display: 'grid', gap: 1.25, pt: 2 }}>
-            <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)}`} />
-            <DetailRow label="Profile" value={event.profile?.name || 'Profile'} />
-            {owner.username ? <DetailRow label="User" value={owner.username} /> : null}
-            <DetailRow label="Company" value={event.company || 'Unknown company'} />
-            <DetailRow label="Role" value={event.title || 'Untitled role'} />
-            {event.location ? <DetailRow label="Location" value={event.location} /> : null}
-            {event.job?.bid?.interviewStage ? <DetailRow label="Step" value={stageLabel(event.job.bid.interviewStage)} /> : null}
-            {canAssignCaller ? (
-              <FormControl size="small">
-                <InputLabel>Assignee</InputLabel>
-                <Select
-                  label="Assignee"
-                  value={callerUserId}
-                  onChange={(selectEvent) => handleCallerChange(selectEvent.target.value)}
-                  disabled={isAssigningCaller}
-                >
-                  <MenuItem value="">Unassigned</MenuItem>
-                  {callerUsers.map((caller) => (
-                    <MenuItem key={caller.id} value={String(caller.id)}>
-                      {caller.username}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            ) : event.job?.bid?.callerUser ? (
-              <DetailRow label="Assignee" value={event.job.bid.callerUser.username} />
-            ) : null}
-            {meetingUrl ? <DetailRow label="Meeting link" value={meetingUrl} /> : null}
-            {resumeStatus ? (
-              <DetailRow
-                href={resumeHref}
-                label="Resume"
-                value={resumeUrl ? resumeFileName(event.job.tailoredResume.filePath) : resumeStatus}
-              />
-            ) : null}
-            {event.job?.bid?.interviewNotes ? <DetailRow label="Notes" value={event.job.bid.interviewNotes} multiline /> : null}
-            {deleteCallError ? <Alert severity="error">{deleteCallError.message}</Alert> : null}
+          <DialogContent
+            sx={{
+              alignItems: 'start',
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 0.9fr) minmax(360px, 1.1fr)' },
+              pt: 2,
+            }}
+          >
+            <Box sx={{ display: 'grid', gap: 1.25 }}>
+              <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)}`} />
+              <DetailRow label="Profile" value={event.profile?.name || 'Profile'} />
+              {owner.username ? <DetailRow label="User" value={owner.username} /> : null}
+              <DetailRow label="Company" value={event.company || 'Unknown company'} />
+              <DetailRow label="Role" value={event.title || 'Untitled role'} />
+              {event.location ? <DetailRow label="Location" value={event.location} /> : null}
+              {event.job?.bid?.interviewStage ? <DetailRow label="Step" value={stageLabel(event.job.bid.interviewStage)} /> : null}
+              {canAssignCaller ? (
+                <FormControl size="small">
+                  <InputLabel>Assignee</InputLabel>
+                  <Select
+                    label="Assignee"
+                    value={callerUserId}
+                    onChange={(selectEvent) => handleCallerChange(selectEvent.target.value)}
+                    disabled={isAssigningCaller}
+                  >
+                    <MenuItem value="">Unassigned</MenuItem>
+                    {callerUsers.map((caller) => (
+                      <MenuItem key={caller.id} value={String(caller.id)}>
+                        {caller.username}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : event.job?.bid?.callerUser ? (
+                <DetailRow label="Assignee" value={event.job.bid.callerUser.username} />
+              ) : null}
+              {meetingUrl ? <DetailRow label="Meeting link" value={meetingUrl} /> : null}
+              {resumeStatus ? (
+                <DetailRow
+                  href={resumeHref}
+                  label="Resume"
+                  value={resumeUrl ? resumeFileName(event.job.tailoredResume.filePath) : resumeStatus}
+                />
+              ) : null}
+              {event.job?.bid?.interviewNotes ? <DetailRow label="Notes" value={event.job.bid.interviewNotes} multiline /> : null}
+              {deleteCallError ? <Alert severity="error">{deleteCallError.message}</Alert> : null}
+            </Box>
+            <CalendarRelatedCalls event={event} />
           </DialogContent>
           <DialogActions sx={{ justifyContent: 'space-between' }}>
             <Box>

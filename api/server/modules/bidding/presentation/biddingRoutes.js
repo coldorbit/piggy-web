@@ -30,6 +30,7 @@ import {
   listBidders,
   listCallers,
   listCalendarInterviews,
+  listRelatedCalendarCalls,
   listCollaborationEvents,
   listBidJobs,
   listBidJobCounts,
@@ -110,6 +111,7 @@ export function registerBidRoutes(app) {
   app.patch('/api/bid/profile-shares/:id', requireBidWorkspaceAccess, respondToProfileShare);
   app.get('/api/bid/tailored-resume-events', requireBidWorkspaceAccess, subscribeTailoredResumeEvents);
   app.get('/api/bid/calendar', requireInterviewAccess, listCalendarInterviews);
+  app.get('/api/bid/calendar/interviews/:id/related-calls', requireInterviewAccess, listRelatedCalendarCalls);
   app.get('/api/bid/calendar.ics', requireInterviewAccess, exportCalendarIcs);
   app.get('/api/bid/jobs', requireBidJobsAccess, listBidJobs);
   app.get('/api/bid/job-counts', requireBidJobsAccess, listBidJobCounts);

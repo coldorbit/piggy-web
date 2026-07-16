@@ -14,7 +14,7 @@ import {
   repositories,
 } from '../../../../db.js';
 import { Readable } from 'node:stream';
-import { Op, QueryTypes } from 'sequelize';
+import { col, fn, Op, QueryTypes, where as sequelizeWhere } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../../../env.js';
 import { hashPassword, publicUser } from '../../../../auth.js';
@@ -150,6 +150,40 @@ export async function listCalendarInterviews(req, res, next) {
   }
 }
 
+export async function listRelatedCalendarCalls(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    requireInterviewAccessUser(user, res);
+    if (res.headersSent) return;
+
+    const interviewId = calendarInterviewId(req.params.id);
+    const [sourceInterview] = await calendarInterviewsForUser(user, { interviewId });
+    if (!sourceInterview) throw new NotFoundError('Calendar call not found');
+
+    const companyKey = calendarCompanyKey(sourceInterview.company);
+    const relatedInterviews = companyKey
+      ? await calendarInterviewsForUser(user, {
+          company: sourceInterview.company,
+          profileId: sourceInterview.profileId,
+        })
+      : [sourceInterview];
+    const calls = calendarEventsForInterviews(relatedInterviews).map(formatCalendarRelatedCall);
+
+    res.json({
+      profile: {
+        id: sourceInterview.profile?.id ? String(sourceInterview.profile.id) : null,
+        name: sourceInterview.profile?.name || 'Profile',
+      },
+      company: sourceInterview.company || 'Unknown company',
+      calls,
+      total: calls.length,
+    });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
 export async function exportCalendarIcs(req, res, next) {
   try {
     await ensureWebModels();
@@ -167,7 +201,13 @@ export async function exportCalendarIcs(req, res, next) {
   }
 }
 
-export async function calendarInterviewsForUser(user, { range = null, workspaceId = undefined } = {}) {
+export async function calendarInterviewsForUser(user, {
+  company = '',
+  interviewId = null,
+  profileId = null,
+  range = null,
+  workspaceId = undefined,
+} = {}) {
   const Interview = getInterviewModel();
   const InterviewCall = getInterviewCallModel();
   const BidProfile = getBidProfileModel();
@@ -202,10 +242,22 @@ export async function calendarInterviewsForUser(user, { range = null, workspaceI
   const profileWhere = {
     ...workspaceFilterForUser(user),
     ...(workspaceId === undefined ? {} : { workspaceId }),
+    ...(profileId ? { id: profileId } : {}),
+  };
+  const relatedWhere = {
+    ...(interviewId ? { id: interviewId } : {}),
+    ...(calendarCompanyKey(company)
+      ? {
+          [Op.and]: sequelizeWhere(
+            fn('lower', fn('btrim', col('Interview.company'))),
+            calendarCompanyKey(company),
+          ),
+        }
+      : {}),
   };
 
   const interviews = await Interview.findAll({
-    where: { [Op.and]: [accessWhere, rangeWhere] },
+    where: { [Op.and]: [accessWhere, rangeWhere, relatedWhere] },
     include: [
       {
         model: BidProfile,
@@ -229,6 +281,16 @@ export async function calendarInterviewsForUser(user, { range = null, workspaceI
     interview.setDataValue('calls', callsByInterviewId.get(String(interview.id)) || []);
   }
   return interviews;
+}
+
+export function calendarCompanyKey(value) {
+  return clean(value).toLowerCase();
+}
+
+export function calendarInterviewId(value) {
+  const id = Number(clean(value));
+  if (!Number.isSafeInteger(id) || id <= 0) throw new InputError('Choose a valid calendar call');
+  return id;
 }
 
 async function calendarRangeInterviewIds(range) {
@@ -370,6 +432,26 @@ export function calendarEventsForInterviews(interviews = []) {
       ];
     })
     .sort((left, right) => new Date(left.interviewNextAt || 0) - new Date(right.interviewNextAt || 0));
+}
+
+export function formatCalendarRelatedCall(event) {
+  return {
+    id: String(event.calendarEventId || event.id),
+    interviewId: event.parentInterviewId ? String(event.parentInterviewId) : null,
+    interviewCallId: event.interviewCallId ? String(event.interviewCallId) : null,
+    occurrenceLogId: event.occurrenceLogId ? String(event.occurrenceLogId) : null,
+    title: event.title || 'Untitled role',
+    company: event.company || 'Unknown company',
+    location: event.location || '',
+    jobUrl: event.jobUrl || '',
+    status: event.status || '',
+    stage: event.interviewStage || '',
+    startsAt: event.interviewNextAt ? new Date(event.interviewNextAt).toISOString() : null,
+    durationMinutes: Number(event.interviewDurationMinutes || 60),
+    meetingLink: meetingLinkForStage(event.stageMeetingLinks, event.interviewStage),
+    notes: event.interviewNotes || '',
+    isHistoricalOccurrence: Boolean(event.isHistoricalOccurrence),
+  };
 }
 
 export function interviewCallEvents(interview) {

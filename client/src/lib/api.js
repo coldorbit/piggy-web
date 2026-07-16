@@ -15,6 +15,7 @@ export {
   useUpdateConsumptionRecord,
 } from './api/adminApi.js';
 export * from './api/contentApi.js';
+export * from './api/calendarApi.js';
 export * from './api/mailboxApi.js';
 export * from './api/collaborationApi.js';
 export * from './api/dashboardApi.js';
