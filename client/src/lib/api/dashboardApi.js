@@ -22,8 +22,12 @@ export function useAssessments(profileId, queryOptions = {}) {
   return useQuery({ queryKey: ['assessments', normalizedProfileId || 'all'], queryFn: () => api(`/api/assessments${params.size ? `?${params}` : ''}`), staleTime: 15_000, ...queryOptions });
 }
 
-export function usePersonalDashboard(queryOptions = {}) {
-  return useQuery({ queryKey: ['bid', 'dashboard'], queryFn: () => api('/api/bid/dashboard').then((data) => data.dashboard), staleTime: 30_000, refetchInterval: localDayRolloverRefetchInterval, ...queryOptions });
+export function usePersonalDashboard(filters = {}, queryOptions = {}) {
+  const params = new URLSearchParams();
+  if (filters.grain) params.set('grain', filters.grain);
+  if (filters.anchorDate) params.set('anchorDate', filters.anchorDate);
+  const query = params.toString();
+  return useQuery({ queryKey: ['bid', 'dashboard', filters], queryFn: () => api(`/api/bid/dashboard${query ? `?${query}` : ''}`).then((data) => data.dashboard), staleTime: 30_000, refetchInterval: localDayRolloverRefetchInterval, ...queryOptions });
 }
 
 export function useActionQueue(queryOptions = {}) {

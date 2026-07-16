@@ -1,5 +1,7 @@
 import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import BadgeIcon from '@mui/icons-material/Badge';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DownloadIcon from '@mui/icons-material/Download';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
@@ -14,11 +16,16 @@ import {
   Box,
   Button,
   Chip,
+  FormControl,
   Grid,
+  IconButton,
+  InputLabel,
   LinearProgress,
   Link,
+  MenuItem,
   Paper,
   Skeleton,
+  Select,
   Stack,
   Table,
   TableBody,
@@ -26,8 +33,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip as MuiTooltip,
   Typography,
 } from '@mui/material';
+import { useMemo, useState } from 'react';
 import {
   CartesianGrid,
   Legend,
@@ -40,29 +49,48 @@ import {
 } from 'recharts';
 import { ChartPanel } from '../components/adminDashboard/DashboardCharts.jsx';
 import DashboardMetric from '../components/adminDashboard/DashboardMetric.jsx';
-import { labelize, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
+import { GRAIN_OPTIONS, labelize, number, percent } from '../components/adminDashboard/dashboardFormatters.js';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { useActionQueue, usePersonalDashboard } from '../lib/api.js';
 import { formatFirstNameLastInitial } from '../lib/formatters.js';
+import { addDaysToDateKey, dateKeyDayOfWeek, zonedDateParts } from '../lib/timezone.js';
 
-export default function UserDashboardPage() {
-  const { data: dashboard, isLoading, error } = usePersonalDashboard();
+export default function UserDashboardPage({ currentUser }) {
+  const [grain, setGrain] = useState(DEFAULT_DASHBOARD_GRAIN);
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const dashboardTimeZone = currentUser?.timezone || '';
+  const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString() }), [anchorDate, grain]);
+  const { data: dashboard, isLoading, error } = usePersonalDashboard(dashboardFilters);
   const { data: actionQueue } = useActionQueue();
   const totals = dashboard?.totals || {};
+  const activityTotals = dashboard?.activityTotals || {};
   const trend = dashboard?.trend || [];
+  const periodLabel = labelForDashboardPeriod(grain, anchorDate, dashboardTimeZone);
+
+  function movePeriod(direction) {
+    setAnchorDate((current) => addDashboardPeriod(current, grain, direction));
+  }
 
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
-      <DashboardHeader dashboard={dashboard} />
+      <DashboardHeader
+        dashboard={dashboard}
+        grain={grain}
+        isLoading={isLoading}
+        onGrainChange={setGrain}
+        onMove={movePeriod}
+        onToday={() => setAnchorDate(new Date())}
+        periodLabel={periodLabel}
+      />
 
       {error ? <Alert severity="error">{error.message}</Alert> : null}
       {isLoading && !dashboard ? <LoadingPanel /> : null}
       {dashboard ? (
         <>
           <Grid container spacing={1.25}>
-            <DashboardMetric icon={<AssignmentTurnedInIcon />} label="Applications" value={totals.totalApplications} detail={`${number(totals.weekApplications)} in the last 7 days`} />
-            <DashboardMetric icon={<TodayIcon />} label="Today" value={totals.todayApplications} detail={dailyGoalDetail(totals)} />
-            <DashboardMetric icon={<EventAvailableIcon />} label="Interviews" value={totals.activeInterviews} detail={`${number(totals.upcomingInterviews)} upcoming`} />
+            <DashboardMetric icon={<AssignmentTurnedInIcon />} label="Bids" value={activityTotals.totalBids} detail={periodLabel} />
+            <DashboardMetric icon={<EventAvailableIcon />} label="Interviews" value={activityTotals.interviews} detail={`Scheduled for ${periodLabel}`} />
+            <DashboardMetric icon={<TodayIcon />} label="Newly scheduled" value={activityTotals.newlyScheduledInterviews} detail={`First scheduled during ${periodLabel}`} />
             <DashboardMetric icon={<EmojiEventsIcon />} label="Offers" value={totals.offers} detail={`${number(totals.lostInterviews)} closed as lost`} />
             <DashboardMetric icon={<BadgeIcon />} label="Profiles" value={totals.activeProfiles} detail={`${number(totals.totalProfiles)} total profiles`} />
             <DashboardMetric icon={<StyleIcon />} label="Tailoring" value={totals.readyTailoredResumes} detail={`${number(totals.tailoredResumeRequests)} active requests`} />
@@ -341,17 +369,46 @@ function journeyPalette(status) {
   return { bg: 'rgba(246, 248, 251, 0.86)', border: 'rgba(0, 0, 0, 0.09)', dot: '#94A3B8' };
 }
 
-function DashboardHeader({ dashboard }) {
+function DashboardHeader({ dashboard, grain, isLoading, onGrainChange, onMove, onToday, periodLabel }) {
   return (
-    <Box sx={{ display: 'grid', gap: 0.35 }}>
-      <Typography color="text.secondary">
-        Your profile activity, application movement, interviews, and resume tailoring queue.
-      </Typography>
-      {dashboard?.generatedAt ? (
-        <Typography variant="caption" color="text.secondary">
-          Updated {formatDateTime(dashboard.generatedAt)}
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) auto' }, gap: 1.25, alignItems: 'center' }}>
+      <Box sx={{ display: 'grid', gap: 0.35, minWidth: 0 }}>
+        <Typography color="text.secondary">
+          Your profile activity, application movement, interviews, and resume tailoring queue.
         </Typography>
-      ) : null}
+        {dashboard?.generatedAt ? (
+          <Typography variant="caption" color="text.secondary">
+            Updated {formatDateTime(dashboard.generatedAt)}
+          </Typography>
+        ) : null}
+      </Box>
+      <Stack direction="row" spacing={0.75} alignItems="center" justifyContent={{ xs: 'stretch', sm: 'flex-end' }} useFlexGap sx={{ flexWrap: 'wrap' }}>
+        <MuiTooltip title="Previous period">
+          <IconButton aria-label="Previous dashboard period" onClick={() => onMove(-1)} sx={periodIconButtonSx}>
+            <ChevronLeftIcon fontSize="small" />
+          </IconButton>
+        </MuiTooltip>
+        <MuiTooltip title="Next period">
+          <IconButton aria-label="Next dashboard period" onClick={() => onMove(1)} sx={periodIconButtonSx}>
+            <ChevronRightIcon fontSize="small" />
+          </IconButton>
+        </MuiTooltip>
+        <Box sx={{ minHeight: 40, minWidth: { xs: '100%', sm: 190 }, px: 1.25, border: 1, borderColor: 'divider', borderRadius: 1, display: 'grid', alignContent: 'center', bgcolor: '#ffffff' }}>
+          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
+            {isLoading ? 'Loading activity' : 'Activity window'}
+          </Typography>
+          <Typography variant="body2" fontWeight={600} noWrap>{periodLabel}</Typography>
+        </Box>
+        <Button onClick={onToday} startIcon={<TodayIcon fontSize="small" />} size="small" variant="outlined" sx={toolbarButtonSx}>
+          Today
+        </Button>
+        <FormControl size="small" sx={{ width: { xs: '100%', sm: 180 } }}>
+          <InputLabel>Activity period</InputLabel>
+          <Select label="Activity period" value={grain} onChange={(event) => onGrainChange(event.target.value)}>
+            {GRAIN_OPTIONS.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
+          </Select>
+        </FormControl>
+      </Stack>
     </Box>
   );
 }
@@ -598,6 +655,83 @@ function dailyGoalDetail(totals) {
   if (!totals.dailyBidGoal) return 'No daily goal set';
   return `${percent(totals.dailyGoalProgress)} of ${number(totals.dailyBidGoal)} goal`;
 }
+
+const DEFAULT_DASHBOARD_GRAIN = 'daily';
+
+function addDashboardPeriod(value, grain, amount) {
+  const date = new Date(value);
+  if (grain === 'weekly') return addDays(date, amount * 7);
+  if (grain === 'monthly') return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+  if (grain === 'quarterly') return new Date(date.getFullYear(), date.getMonth() + amount * 3, 1);
+  if (grain === 'annually') return new Date(date.getFullYear() + amount, 0, 1);
+  return addDays(date, amount);
+}
+
+function labelForDashboardPeriod(grain, anchor, timeZone) {
+  const start = startForDashboardPeriod(grain, anchor, timeZone);
+  if (grain === 'annually') return String(start.year);
+  if (grain === 'quarterly') return `Q${Math.floor((start.month - 1) / 3) + 1} ${start.year}`;
+  if (grain === 'monthly') return formatDateKey(start.dateKey, { month: 'long', year: 'numeric' });
+  if (grain === 'weekly') return `${shortDateKey(start.dateKey)} - ${shortDateKey(addDaysToDateKey(start.dateKey, 6))}`;
+  return formatDateKey(start.dateKey, { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function startForDashboardPeriod(grain, anchor, timeZone) {
+  const parts = zonedDateParts(anchor, timeZone);
+  const dateKey = dateKeyForParts(parts);
+  if (grain === 'weekly') return datePartsForKey(addDaysToDateKey(dateKey, -dateKeyDayOfWeek(dateKey)));
+  if (grain === 'monthly') return { year: parts.year, month: parts.month, day: 1, dateKey: `${parts.year}-${pad(parts.month)}-01` };
+  if (grain === 'quarterly') {
+    const month = Math.floor((parts.month - 1) / 3) * 3 + 1;
+    return { year: parts.year, month, day: 1, dateKey: `${parts.year}-${pad(month)}-01` };
+  }
+  if (grain === 'annually') return { year: parts.year, month: 1, day: 1, dateKey: `${parts.year}-01-01` };
+  return { ...parts, dateKey };
+}
+
+function addDays(value, days) {
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+function shortDateKey(dateKey) {
+  return formatDateKey(dateKey, { month: 'short', day: 'numeric' });
+}
+
+function formatDateKey(dateKey, options) {
+  const { year, month, day } = datePartsForKey(dateKey);
+  return new Intl.DateTimeFormat(undefined, { ...options, timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)));
+}
+
+function dateKeyForParts(parts) {
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+}
+
+function datePartsForKey(dateKey) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return { year, month, day, dateKey };
+}
+
+function pad(value) {
+  return String(value).padStart(2, '0');
+}
+
+const periodIconButtonSx = {
+  width: 36,
+  height: 36,
+  border: 1,
+  borderColor: 'divider',
+  bgcolor: '#ffffff',
+  '&:hover': { bgcolor: 'rgba(0, 103, 192, 0.10)', borderColor: 'rgba(0, 103, 192, 0.28)' },
+};
+
+const toolbarButtonSx = {
+  minHeight: 36,
+  fontWeight: 600,
+  textTransform: 'none',
+  whiteSpace: 'nowrap',
+};
 
 function formatDateTime(value) {
   if (!value) return '-';

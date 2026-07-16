@@ -1,24 +1,35 @@
 import { QueryTypes } from 'sequelize';
 import { ensureWebModels, getSequelize } from '../../../../db.js';
+import { clean } from '../../../utils/index.js';
 import { localDaySql, normalizeTimeZone } from '../../../utils/localTime.js';
 
 const APPLICATION_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
 const ACTIVE_TAILORING_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const ACTIVE_PROFILE_STATUS = 'active';
 const ACTIVE_INTERVIEW_STATUS = 'interviewing';
+const DEFAULT_PERIOD_GRAIN = 'daily';
+const PERIOD_GRAINS = {
+  daily: { sql: 'day', step: '1 day' },
+  weekly: { sql: 'week', step: '1 week' },
+  monthly: { sql: 'month', step: '1 month' },
+  quarterly: { sql: 'quarter', step: '3 months' },
+  annually: { sql: 'year', step: '1 year' },
+};
 
-export async function getPersonalDashboardMetrics(user) {
+export async function getPersonalDashboardMetrics(user, query = {}) {
   await ensureWebModels();
 
   const sequelize = getSequelize();
   const timeZone = normalizeTimeZone(user?.timezone);
+  const grain = PERIOD_GRAINS[clean(query.grain)] ? clean(query.grain) : DEFAULT_PERIOD_GRAIN;
+  const anchorDate = personalDashboardAnchorDate(query.anchorDate || query.anchor);
   const replacements = {
     userId: user.id,
     applicationStatuses: APPLICATION_STATUSES,
     activeTailoringStatuses: ACTIVE_TAILORING_STATUSES,
   };
 
-  const sql = personalDashboardQueries(timeZone);
+  const sql = personalDashboardQueries(timeZone, { grain, anchorDate });
   const [overall, trend, upcomingInterviews, recentApplications, profiles, actionToday, overdueAssessments, readyResumes, interviewsMissingLinks, mailboxReviewMessages, journeyRows] = await Promise.all([
     queryOne(sequelize, sql.overall, replacements),
     queryAll(sequelize, sql.trend, replacements),
@@ -36,6 +47,7 @@ export async function getPersonalDashboardMetrics(user) {
   return {
     generatedAt: new Date().toISOString(),
     timeZone,
+    period: { grain, anchorDate: anchorDate.toISOString() },
     user: {
       id: String(user.id),
       username: user.username,
@@ -43,6 +55,7 @@ export async function getPersonalDashboardMetrics(user) {
       dailyBidGoal: numberOrNull(user.dailyBidGoal),
     },
     totals: formatOverall(overall, user),
+    activityTotals: formatPeriodActivity(overall),
     trend: trend.map(formatTrendRow),
     upcomingInterviews: upcomingInterviews.map(formatInterviewRow),
     recentApplications: recentApplications.map(formatApplicationRow),
@@ -58,17 +71,22 @@ export async function getPersonalDashboardMetrics(user) {
   };
 }
 
-function personalDashboardQueries(timeZone) {
+export function personalDashboardQueries(timeZone, { grain = DEFAULT_PERIOD_GRAIN, anchorDate = new Date() } = {}) {
   const today = localDaySql('now()', timeZone);
   const overallBidDay = localDaySql('ob.bid_at', timeZone);
   const bidDay = localDaySql('jb.bid_at', timeZone);
   const interviewCreatedDay = localDaySql('i.created_at', timeZone);
   const interviewUpdatedDay = localDaySql('i.updated_at', timeZone);
   const resumeCreatedDay = localDaySql('tr.created_at', timeZone);
+  const periodCte = personalDashboardPeriodCte(grain, timeZone, anchorDate);
+  const periodBidPredicate = personalDashboardPeriodPredicate('ob.bid_at', timeZone);
+  const periodInterviewPredicate = personalDashboardPeriodPredicate('ic.scheduled_at', timeZone);
+  const periodScheduledPredicate = personalDashboardPeriodPredicate('il.created_at', timeZone);
 
   return {
     overall: `
-      WITH owned_profiles AS (
+      WITH ${periodCte},
+      owned_profiles AS (
         SELECT id, profile_status
         FROM bid_profiles
         WHERE user_id = :userId
@@ -95,7 +113,10 @@ function personalDashboardQueries(timeZone) {
         (SELECT COUNT(*) FROM owned_bids WHERE status IN (:applicationStatuses))::int AS total_applications,
         (SELECT COUNT(*) FROM owned_bids ob WHERE status IN (:applicationStatuses) AND ${overallBidDay} = ${today})::int AS today_applications,
         (SELECT COUNT(*) FROM owned_bids ob WHERE status IN (:applicationStatuses) AND ${overallBidDay} >= ${today} - interval '6 days')::int AS week_applications,
+        (SELECT COUNT(*) FROM owned_bids ob CROSS JOIN selected_period WHERE status IN (:applicationStatuses) AND ${periodBidPredicate})::int AS period_bids,
         (SELECT COUNT(*) FROM owned_interviews)::int AS total_interviews,
+        (SELECT COUNT(*) FROM interview_calls ic JOIN owned_interviews oi ON oi.id = ic.interview_id CROSS JOIN selected_period WHERE ${periodInterviewPredicate})::int AS period_interviews,
+        (SELECT COUNT(DISTINCT il.interview_id) FROM interview_logs il JOIN owned_interviews oi ON oi.id = il.interview_id CROSS JOIN selected_period WHERE il.event_type = 'first_scheduled' AND ${periodScheduledPredicate})::int AS period_newly_scheduled_interviews,
         (SELECT COUNT(*) FROM owned_interviews WHERE status = '${ACTIVE_INTERVIEW_STATUS}')::int AS active_interviews,
         (SELECT COUNT(*) FROM owned_interviews WHERE status = '${ACTIVE_INTERVIEW_STATUS}' AND interview_next_at >= now())::int AS upcoming_interviews,
         (SELECT COUNT(*) FROM owned_interviews WHERE status = 'won')::int AS offers,
@@ -497,6 +518,40 @@ function formatOverall(row, user) {
     tailoredResumeRequests: numberValue(row.tailored_resume_requests),
     readyTailoredResumes: numberValue(row.ready_tailored_resumes),
   };
+}
+
+function formatPeriodActivity(row) {
+  return {
+    totalBids: numberValue(row.period_bids),
+    interviews: numberValue(row.period_interviews),
+    newlyScheduledInterviews: numberValue(row.period_newly_scheduled_interviews),
+  };
+}
+
+function personalDashboardPeriodCte(grain, timeZone, anchorDate) {
+  const config = PERIOD_GRAINS[grain] || PERIOD_GRAINS[DEFAULT_PERIOD_GRAIN];
+  const normalizedTimeZone = normalizeTimeZone(timeZone).replaceAll("'", "''");
+  const anchor = personalDashboardAnchorDate(anchorDate).toISOString().replaceAll("'", "''");
+  const localAnchor = `timezone('${normalizedTimeZone}', '${anchor}'::timestamptz)`;
+  const startsAt = config.sql === 'week'
+    ? `(date_trunc('day', ${localAnchor}) - (EXTRACT(DOW FROM ${localAnchor})::int * interval '1 day'))`
+    : `date_trunc('${config.sql}', ${localAnchor})`;
+  return `selected_period AS (
+        SELECT
+          ${startsAt} AS starts_at,
+          (${startsAt} + interval '${config.step}') AS ends_at
+      )`;
+}
+
+function personalDashboardPeriodPredicate(column, timeZone) {
+  const normalizedTimeZone = normalizeTimeZone(timeZone).replaceAll("'", "''");
+  const localTimestamp = `timezone('${normalizedTimeZone}', ${column})`;
+  return `${localTimestamp} >= selected_period.starts_at AND ${localTimestamp} < selected_period.ends_at`;
+}
+
+function personalDashboardAnchorDate(value) {
+  const date = value instanceof Date ? value : value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
 function formatTrendRow(row) {

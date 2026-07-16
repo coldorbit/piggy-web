@@ -12,7 +12,7 @@ export async function getPersonalDashboard(req, res, next) {
       return;
     }
 
-    const dashboard = await getPersonalDashboardMetrics(user);
+    const dashboard = await getPersonalDashboardMetrics(user, req.query);
     res.json({ dashboard });
   } catch (error) {
     next(error);
