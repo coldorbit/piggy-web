@@ -98,9 +98,9 @@ function BidJobCard({
   const tailorActionLabel = tailoredStatus === 'dead_letter' ? 'Retry' : hasTailoringRequest ? 'Requested' : 'Tailor';
   const retailorActionLabel = isTailoring ? 'Tailoring now' : 'Re-tailor';
   const isResumeDownloaded = Boolean(job.tailoredResume?.downloadedAt);
-  const sameCompanyTailoring = job.sameCompanyTailoring || null;
-  const hasSameCompanyWarning = Boolean(sameCompanyTailoring?.requiresConfirmation);
-  const sameCompanyNotice = sameCompanyNoticeText(sameCompanyTailoring);
+  const sameCompanyBid = job.sameCompanyBid || null;
+  const hasSameCompanyWarning = Boolean(sameCompanyBid);
+  const sameCompanyNotice = sameCompanyBidNoticeText(sameCompanyBid);
   const isLinkedInJob = sourceKey(job.source) === 'linkedin';
   const isEasyApply = isEasyApplyMode(job.applyMode);
   const hasUpdatedJobLink = isLinkedInJob && isExternalLinkMode(job.applyMode);
@@ -307,13 +307,13 @@ function BidJobCard({
                   />
                 ) : null}
                 {job.applyMode && !isLinkedInJob ? <ApplyModeChip applyMode={job.applyMode} /> : null}
-                {sameCompanyTailoring ? (
+                {sameCompanyBid ? (
                   <Chip
-                    label={hasSameCompanyWarning ? 'Same company warning' : `Prior same-company ${sameCompanyTailoring.daysSincePrior}d`}
+                    label="Same company warning"
                     size="small"
                     sx={{
-                      bgcolor: hasSameCompanyWarning ? '#fee2e2' : '#fff7ed',
-                      color: hasSameCompanyWarning ? '#991b1b' : '#9a3412',
+                      bgcolor: '#fee2e2',
+                      color: '#991b1b',
                       fontWeight: 600,
                     }}
                   />
@@ -613,17 +613,11 @@ function tailoredStatusSx(status) {
   return { bgcolor: '#edf0ff', color: '#343f91', fontWeight: 600 };
 }
 
-function sameCompanyNoticeText(value) {
+function sameCompanyBidNoticeText(value) {
   if (!value) return '';
   const days = Number(value.daysSincePrior || 0);
   const age = `${days} day${days === 1 ? '' : 's'} ago`;
-  const title = value.priorTitle || 'another role';
-  if (value.requiresConfirmation) {
-    return `Different role at same company: ${title} was tailored ${age}. Tailoring this job requires confirmation.`;
-  }
-  const postingDays = Number(value.daysSincePriorPosting ?? value.daysSincePrior ?? 0);
-  const postingAge = `${postingDays} day${postingDays === 1 ? '' : 's'} ago`;
-  return `Prior same-company posting ${postingAge}: ${title}.`;
+  return `This profile already bid on that company ${age}.`;
 }
 
 function appliedByChipLabel(bid, currentUser) {

@@ -79,6 +79,7 @@ import {
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
 const DAILY_BID_GOAL_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
+const SAME_COMPANY_BID_STATUSES = [...DAILY_BID_GOAL_STATUSES, ...REVIEW_BID_STATUSES];
 const BATCH_LIMIT = 100;
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -513,6 +514,79 @@ export async function sameCompanyTailoringByJobUrl({ sequelize, profileId, jobs 
   }
 
   return result;
+}
+
+export async function sameCompanyBidByJobId({ sequelize, profileId, jobs }) {
+  const companyByJobId = new Map(
+    jobs
+      .map((job) => [String(job.id), caseInsensitiveCompanyName(job.company)])
+      .filter(([jobId, company]) => jobId && company),
+  );
+  const companies = [...new Set(companyByJobId.values())];
+  if (!companies.length) return new Map();
+
+  const [rows] = await sequelize.query(
+    `
+      SELECT
+        job_bids.id,
+        job_bids.job_id,
+        job_bids.status,
+        job_bids.bid_at,
+        scraped_jobs.title,
+        scraped_jobs.company
+      FROM job_bids
+      JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+      WHERE job_bids.profile_id = :profileId
+        AND job_bids.status IN (:statuses)
+        AND lower(btrim(coalesce(scraped_jobs.company, ''))) IN (:companies)
+      ORDER BY job_bids.bid_at DESC NULLS LAST, job_bids.updated_at DESC NULLS LAST
+    `,
+    {
+      replacements: {
+        profileId,
+        statuses: SAME_COMPANY_BID_STATUSES,
+        companies,
+      },
+    },
+  );
+
+  const priorBidsByCompany = new Map();
+  for (const row of rows) {
+    const company = caseInsensitiveCompanyName(row.company);
+    if (!company) continue;
+    const bids = priorBidsByCompany.get(company) || [];
+    bids.push(row);
+    priorBidsByCompany.set(company, bids);
+  }
+
+  const now = new Date();
+  const result = new Map();
+  for (const job of jobs) {
+    const jobId = String(job.id);
+    const company = companyByJobId.get(jobId);
+    if (!company) continue;
+    const priorBid = (priorBidsByCompany.get(company) || []).find((row) => String(row.job_id) !== jobId);
+    if (!priorBid) continue;
+    result.set(jobId, sameCompanyBidSummary(priorBid, now));
+  }
+
+  return result;
+}
+
+export function sameCompanyBidSummary(row, now = new Date()) {
+  return {
+    priorBidId: row.id,
+    priorJobId: row.job_id,
+    priorTitle: row.title || 'Untitled role',
+    priorCompany: row.company || 'Unknown company',
+    priorStatus: row.status,
+    priorBidAt: row.bid_at || null,
+    daysSincePrior: daysSince(row.bid_at, now),
+  };
+}
+
+export function caseInsensitiveCompanyName(value) {
+  return clean(value).toLowerCase();
 }
 
 export async function existingTailoredResumesByJobUrl({ profileId, jobs }) {

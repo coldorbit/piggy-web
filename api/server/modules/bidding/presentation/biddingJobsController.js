@@ -82,7 +82,7 @@ const BATCH_LIMIT = 100;
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 import { workspaceFilterForUser } from './biddingCollaborationController.js';
-import { appliedProfileFilter, assignedCallerProfile, bidDateRange, bidDateRangeForTab, bidUsersForProfile, countInterviewsForProfile, dailyBidProgressForUser, ensureProfileBidEligible, formatBidWithUser, groupedBidJobs, isInternalUser, jobQueryForBidTab, listInterviewJobs, requireInterviewAccessUser, sameCompanyTailoringByJobUrl, shouldGroupBidTab } from './biddingQueriesController.js';
+import { appliedProfileFilter, assignedCallerProfile, bidDateRange, bidDateRangeForTab, bidUsersForProfile, countInterviewsForProfile, dailyBidProgressForUser, ensureProfileBidEligible, formatBidWithUser, groupedBidJobs, isInternalUser, jobQueryForBidTab, listInterviewJobs, requireInterviewAccessUser, sameCompanyBidByJobId, shouldGroupBidTab } from './biddingQueriesController.js';
 
 export async function listBidJobs(req, res, next) {
   try {
@@ -156,9 +156,9 @@ export async function listBidJobs(req, res, next) {
     ]);
     const { todo: todoCount, tailored: tailoredCount, done: doneCount, badWork: badWorkCount } = tabCounts;
 
-    const [tailoredResumesByUrl, sameCompanyTailoringByUrl] = await Promise.all([
+    const [tailoredResumesByUrl, sameCompanyBidById] = await Promise.all([
       tailoredResumesForJobs({ TailoredResume, jobs: rows, profileId: profile.id }),
-      sameCompanyTailoringByJobUrl({ sequelize, profileId: profile.id, jobs: rows }),
+      sameCompanyBidByJobId({ sequelize, profileId: profile.id, jobs: rows }),
     ]);
     const bidUsersById = new Map(bidUsers.map((bidUser) => [String(bidUser.id), bidUser]));
     const callerUsersById = new Map(callerUsers.map((caller) => [String(caller.id), { id: caller.id, username: caller.username }]));
@@ -167,7 +167,7 @@ export async function listBidJobs(req, res, next) {
       ...formatBidJob(job),
       bid: job.bids?.[0] ? formatBidWithUser(job.bids[0], bidUsersById, callerUsersById) : null,
       tailoredResume: tailoredResumesByUrl.get(job.url) || null,
-      sameCompanyTailoring: sameCompanyTailoringByUrl.get(job.url) || null,
+      sameCompanyBid: sameCompanyBidById.get(String(job.id)) || null,
     }));
     const tabJobs = shouldGroupBidTab(bidTab) ? groupedBidJobs(formattedJobs) : formattedJobs;
     const activeTabCount = bidTab === 'tailored'
