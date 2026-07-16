@@ -164,10 +164,14 @@ export function useUpdateMe() {
         method: 'PATCH',
         body: JSON.stringify(userData),
       }),
-    onSuccess: (data) => {
+    onSuccess: (data, userData) => {
       clearAuthToken();
       queryClient.setQueryData(['me'], data.user);
-      queryClient.invalidateQueries();
+      if (userData?.timezone !== undefined) {
+        queryClient.invalidateQueries({
+          predicate: (query) => ['jobs', 'bid', 'calendar', 'assessments', 'admin'].includes(query.queryKey[0]),
+        });
+      }
     },
   });
 }

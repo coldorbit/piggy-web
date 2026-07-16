@@ -317,6 +317,22 @@ export function formatJob(row, { includeRawJob = true } = {}) {
   return job;
 }
 
+export function jobSummaryAttributes() {
+  return {
+    exclude: ['listingText', 'rawJob'],
+    include: [[literal(`jsonb_strip_nulls(jsonb_build_object(
+      'importType', raw_job->'importType',
+      'isManualImport', raw_job->'isManualImport',
+      'applyMode', COALESCE(raw_job->'applyMode', raw_job->'apply_mode', raw_job->'applicationMode', raw_job->'application_mode', raw_job->'applyType', raw_job->'apply_type', raw_job->'easyApply', raw_job->'easy_apply', raw_job->'isEasyApply', raw_job->'is_easy_apply'),
+      'applyUrl', COALESCE(raw_job->'applyUrl', raw_job->'apply_url', raw_job->'applicationUrl', raw_job->'application_url', raw_job->'externalApplyUrl', raw_job->'external_apply_url'),
+      'companyLogoUrl', COALESCE(raw_job->'companyLogoUrl', raw_job->'company_logo_url', raw_job->'companyLogo', raw_job->'company_logo', raw_job->'employerLogoUrl', raw_job->'employer_logo_url'),
+      'company', raw_job->'company',
+      'employer', raw_job->'employer',
+      'organization', raw_job->'organization'
+    ))`), 'rawJob']],
+  };
+}
+
 export function publicJobIdFromId(value) {
   const existingValue = clean(value).toUpperCase();
   if (/^[A-Z0-9]{8}$/.test(existingValue)) return existingValue;

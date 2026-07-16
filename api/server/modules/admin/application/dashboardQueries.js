@@ -140,12 +140,15 @@ function rangeCte({ sql, step, lookback }, timeZone, anchor = 'now()') {
 }
 
 function currentPeriodCte({ sql, step }, timeZone, anchor = 'now()') {
+  const normalizedTimeZone = normalizeTimeZone(timeZone).replaceAll("'", "''");
   const startsAt = currentPeriodStartSql(sql, timeZone, anchor);
   return `
     current_period AS (
       SELECT
         ${startsAt} AS starts_at,
-        (${startsAt} + interval '${step}') AS ends_at
+        (${startsAt} + interval '${step}') AS ends_at,
+        ${startsAt} AT TIME ZONE '${normalizedTimeZone}' AS starts_at_utc,
+        (${startsAt} + interval '${step}') AT TIME ZONE '${normalizedTimeZone}' AS ends_at_utc
     )
   `;
 }
@@ -195,7 +198,7 @@ function dashboardAnchorSql(value) {
 
 function currentPeriodPredicate(column, timeZone, alias = 'current_period') {
   const localTimestamp = localTimestampSql(column, timeZone);
-  return `${localTimestamp} >= ${alias}.starts_at AND ${localTimestamp} < ${alias}.ends_at`;
+  return `${column} >= ${alias}.starts_at_utc AND ${column} < ${alias}.ends_at_utc AND ${localTimestamp} >= ${alias}.starts_at AND ${localTimestamp} < ${alias}.ends_at`;
 }
 
 function timestampPeriodPredicate(column, alias = 'current_period_utc') {

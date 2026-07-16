@@ -182,7 +182,10 @@ export async function deleteProfile(req, res, next) {
 export async function downloadProfileStaticResume(req, res, next) {
   try {
     await ensureWebModels();
-    const profile = await accessibleProfile(req, req.params.id);
+    const accessible = await accessibleProfile(req, req.params.id);
+    const profile = await getBidProfileModel().scope('withStaticResume').findByPk(accessible.id, {
+      attributes: ['id', 'isStatic', 'staticResumeData', 'staticResumeFilename', 'staticResumeContentType'],
+    });
     if (!profile.isStatic || !profile.staticResumeData || !profile.staticResumeFilename) {
       res.status(404).json({ error: 'Static resume not found' });
       return;

@@ -4,6 +4,8 @@ import { Op } from 'sequelize';
 import {
   appliedFilterProfileWhere,
   canShareProfileWithUser,
+  currentDbUser,
+  formatProfile,
   forwardingAliasForProfileName,
   isProfileInUserWorkspace,
   profileAttributesFromBody,
@@ -42,6 +44,12 @@ describe('appliedFilterProfileWhere', () => {
 });
 
 describe('profile workspace helpers', () => {
+  it('reuses the user row already loaded by authentication', async () => {
+    const authUserRow = { id: 17, username: 'authenticated-user' };
+
+    assert.equal(await currentDbUser({ authUserRow }), authUserRow);
+  });
+
   it('matches profiles only inside the same workspace for non-superadmins', () => {
     assert.equal(isProfileInUserWorkspace({ workspaceId: 7 }, { role: ROLES.user, workspaceId: 7 }), true);
     assert.equal(isProfileInUserWorkspace({ workspaceId: 8 }, { role: ROLES.user, workspaceId: 7 }), false);
@@ -95,6 +103,16 @@ describe('profile workspace helpers', () => {
 });
 
 describe('profile status helpers', () => {
+  it('reports a static resume from metadata without loading the file blob', () => {
+    const profile = formatProfile({
+      id: 1,
+      staticResumeFilename: 'resume.pdf',
+      get: () => null,
+    });
+
+    assert.equal(profile.hasStaticResume, true);
+  });
+
   it('accepts a profile daily bid goal', () => {
     assert.equal(profileAttributesFromBody({ name: 'SWE', dailyBidGoal: '25' }, { canSetDailyBidGoal: true }).dailyBidGoal, 25);
   });

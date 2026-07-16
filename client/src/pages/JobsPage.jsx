@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
@@ -13,10 +14,11 @@ import JobFiltersDrawer from '../components/jobs/JobFiltersDrawer.jsx';
 import JobList from '../components/jobs/JobList.jsx';
 import Metric from '../components/jobs/Metric.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
-import { useBulkMarkJobsHidden, useBulkMarkJobsSpam, useDeleteJob, useImportJobsCsv, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
+import { fetchJobDetail, useBulkMarkJobsHidden, useBulkMarkJobsSpam, useDeleteJob, useImportJobsCsv, useJobDetail, useJobs, useJobsMeta, useMarkJobHidden, useMarkJobSpam } from '../lib/api.js';
 import { PAGE_SIZE } from '../lib/constants.js';
 import { formatDateTime } from '../lib/formatters.js';
 import { matchesSpamFilter, matchesVisibilityFilter } from '../lib/jobFilters.js';
+import { copyJobDescription } from '../lib/jobDescription.js';
 import { readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 import { ROLES, isAdminRole } from '../lib/roles.js';
 
@@ -43,6 +45,7 @@ const DEFAULT_FILTERS = {
 };
 
 export default function JobsPage({ currentUser }) {
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState(() =>
     readPersistedFilters(JOB_FILTERS_STORAGE_KEY, DEFAULT_FILTERS, JOB_FILTER_KEYS),
   );
@@ -94,10 +97,14 @@ export default function JobsPage({ currentUser }) {
     [jobs, selectedId],
   );
   const selectedLocationId = selectedJob ? selectedLocationByJobId[selectedJob.id] || selectedJob.locationOptions?.[0]?.id || selectedJob.id : '';
-  const selectedLocationJob = useMemo(
+  const selectedLocationSummary = useMemo(
     () => selectedLocationForJob(selectedJob, selectedLocationId),
     [selectedJob, selectedLocationId],
   );
+  const { data: selectedJobDetail } = useJobDetail(selectedLocationSummary?.id);
+  const selectedLocationJob = selectedJobDetail && String(selectedJobDetail.id) === String(selectedLocationSummary?.id)
+    ? { ...selectedLocationSummary, ...selectedJobDetail }
+    : selectedLocationSummary;
 
   useEffect(() => {
     writePersistedFilters(JOB_FILTERS_STORAGE_KEY, filters, JOB_FILTER_KEYS);
@@ -161,6 +168,16 @@ export default function JobsPage({ currentUser }) {
     const job = jobs.find((item) => String(item.id) === String(jobId));
     if (!job?.locationOptions?.length || selectedLocationByJobId[job.id]) return;
     setSelectedLocationByJobId((current) => ({ ...current, [job.id]: job.locationOptions[0].id }));
+  }
+
+  async function copyDescriptionForJob(job) {
+    const jobId = job.locationOptions?.[0]?.id || job.representativeJobId || job.id;
+    const detail = await queryClient.fetchQuery({
+      queryKey: ['jobs', 'detail', String(jobId)],
+      queryFn: () => fetchJobDetail(jobId),
+      staleTime: 5 * 60_000,
+    });
+    return copyJobDescription(detail);
   }
 
   function toggleJobSelection(jobId) {
@@ -332,6 +349,7 @@ export default function JobsPage({ currentUser }) {
           total={total}
           onPage={(page) => updateFilter('page', page)}
           onPageSize={(limit) => updateFilter('limit', limit)}
+          onCopyDescription={copyDescriptionForJob}
           onSelectJob={selectJob}
           onSelectedChange={toggleJobSelection}
         />

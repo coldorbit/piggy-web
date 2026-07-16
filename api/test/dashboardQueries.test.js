@@ -57,6 +57,7 @@ describe('dashboard queries', () => {
     assert.match(sql, /current_period_utc AS \([\s\S]*AT TIME ZONE 'America\/Los_Angeles' AS starts_at[\s\S]*AT TIME ZONE 'America\/Los_Angeles' AS ends_at/);
     assert.match(sql, /job_totals AS \([\s\S]*FROM scraped_jobs[\s\S]*CROSS JOIN current_period_utc[\s\S]*scraped_at >= current_period_utc\.starts_at[\s\S]*scraped_at < current_period_utc\.ends_at/);
     assert.match(sql, /bid_totals AS \([\s\S]*FROM job_bids[\s\S]*CROSS JOIN current_period[\s\S]*timezone\('America\/Los_Angeles', bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', bid_at\) < current_period\.ends_at/);
+    assert.match(sql, /bid_at >= current_period\.starts_at_utc AND bid_at < current_period\.ends_at_utc/);
     assert.match(sql, /period_bid_totals AS \([\s\S]*job_bids\.status IN \('submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'\)[\s\S]*AS period_total_bids[\s\S]*'internal'[\s\S]*AS period_user_role_bids[\s\S]*AS period_bidder_bids[\s\S]*LEFT JOIN web_users ON web_users\.id = job_bids\.user_id[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) >= current_period\.starts_at[\s\S]*timezone\('America\/Los_Angeles', job_bids\.bid_at\) < current_period\.ends_at/);
     assert.match(sql, /tailoring_totals AS \([\s\S]*FROM tailored_resumes[\s\S]*CROSS JOIN current_period_utc[\s\S]*created_at >= current_period_utc\.starts_at[\s\S]*created_at < current_period_utc\.ends_at/);
     assert.doesNotMatch(sql, /daily_bid_totals/);
@@ -136,6 +137,7 @@ describe('dashboard queries', () => {
     assert.match(sql, /consumption_transactions\.type IN \('crypto_spend', 'eth_fee'\)/);
     assert.match(sql, /timezone\('America\/Los_Angeles', consumption_transactions\.occurred_at\) >= current_period\.starts_at/);
     assert.match(sql, /timezone\('America\/Los_Angeles', consumption_transactions\.occurred_at\) < current_period\.ends_at/);
+    assert.match(sql, /consumption_transactions\.occurred_at >= current_period\.starts_at_utc AND consumption_transactions\.occurred_at < current_period\.ends_at_utc/);
     assert.doesNotMatch(sql, /card_main_transfer|card_internal_transfer|wallet_deposit|card_deposit/);
   });
 

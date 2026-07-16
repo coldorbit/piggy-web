@@ -61,7 +61,7 @@ export default function UserDashboardPage({ currentUser }) {
   const [grain, setGrain] = useState(DEFAULT_DASHBOARD_GRAIN);
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const dashboardTimeZone = currentUser?.timezone || '';
-  const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString() }), [anchorDate, grain]);
+  const dashboardFilters = useMemo(() => ({ grain, anchorDate: anchorDate.toISOString(), timeZone: dashboardTimeZone }), [anchorDate, dashboardTimeZone, grain]);
   const { data: dashboard, isLoading, error } = usePersonalDashboard(dashboardFilters);
   const { data: actionQueue } = useActionQueue();
   const totals = dashboard?.totals || {};
@@ -90,7 +90,12 @@ export default function UserDashboardPage({ currentUser }) {
       {dashboard ? (
         <>
           <Grid container spacing={1.25}>
-            <DashboardMetric icon={<AssignmentTurnedInIcon />} label="Bids" value={activityTotals.totalBids} detail={periodLabel} />
+            <DashboardMetric
+              icon={<AssignmentTurnedInIcon />}
+              label="Bids"
+              value={`${number(activityTotals.totalBids)}/${number(activityTotals.userBids)}`}
+              detail={`Owned profiles / your bids · ${periodLabel}`}
+            />
             <DashboardMetric icon={<EventAvailableIcon />} label="Interviews" value={activityTotals.interviews} detail={`Scheduled for ${periodLabel}`} />
             <DashboardMetric icon={<TodayIcon />} label="Newly scheduled" value={activityTotals.newlyScheduledInterviews} detail={`First scheduled during ${periodLabel}`} />
             <DashboardMetric icon={<EmojiEventsIcon />} label="Offers" value={totals.offers} detail={`${number(totals.lostInterviews)} closed as lost`} />

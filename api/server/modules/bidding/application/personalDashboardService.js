@@ -11,6 +11,7 @@ const ACTIVE_TAILORING_STATUSES = ['requested', 'processing', 'ready', 'dead_let
 const ACTIVE_PROFILE_STATUS = 'active';
 const ACTIVE_INTERVIEW_STATUS = 'interviewing';
 const DEFAULT_PERIOD_GRAIN = 'daily';
+const PERSONAL_DASHBOARD_QUERY_CONCURRENCY = 4;
 const PERIOD_GRAINS = {
   daily: { sql: 'day', step: '1 day' },
   weekly: { sql: 'week', step: '1 week' },
@@ -34,20 +35,21 @@ export async function getPersonalDashboardMetrics(user, query = {}) {
   };
 
   const sql = personalDashboardQueries(timeZone, { grain, anchorDate });
-  const [overall, trend, upcomingInterviews, recentApplications, profiles, actionToday, overdueAssessments, readyResumes, interviewsMissingLinks, mailboxReviewMessages, journeyRows, consumption] = await Promise.all([
-    queryOne(sequelize, sql.overall, replacements),
-    queryAll(sequelize, sql.trend, replacements),
-    queryAll(sequelize, sql.upcomingInterviews, replacements),
-    queryAll(sequelize, sql.recentApplications, replacements),
-    queryAll(sequelize, sql.profiles, replacements),
-    queryAll(sequelize, sql.actionToday, replacements),
-    queryAll(sequelize, sql.overdueAssessments, replacements),
-    queryAll(sequelize, sql.readyResumes, replacements),
-    queryAll(sequelize, sql.interviewsMissingLinks, replacements),
-    queryAll(sequelize, sql.mailboxReviewMessages, replacements),
-    queryAll(sequelize, sql.journeyRows, replacements),
-    includeConsumption ? queryAll(sequelize, sql.consumption, replacements) : Promise.resolve([]),
-  ]);
+  const tasks = [
+    () => queryOne(sequelize, sql.overall, replacements),
+    () => queryAll(sequelize, sql.trend, replacements),
+    () => queryAll(sequelize, sql.upcomingInterviews, replacements),
+    () => queryAll(sequelize, sql.recentApplications, replacements),
+    () => queryAll(sequelize, sql.profiles, replacements),
+    () => queryAll(sequelize, sql.actionToday, replacements),
+    () => queryAll(sequelize, sql.overdueAssessments, replacements),
+    () => queryAll(sequelize, sql.readyResumes, replacements),
+    () => queryAll(sequelize, sql.interviewsMissingLinks, replacements),
+    () => queryAll(sequelize, sql.mailboxReviewMessages, replacements),
+    () => queryAll(sequelize, sql.journeyRows, replacements),
+  ];
+  if (includeConsumption) tasks.push(() => queryAll(sequelize, sql.consumption, replacements));
+  const [overall, trend, upcomingInterviews, recentApplications, profiles, actionToday, overdueAssessments, readyResumes, interviewsMissingLinks, mailboxReviewMessages, journeyRows, consumption = []] = await runDashboardQueries(tasks);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -86,6 +88,7 @@ export function personalDashboardQueries(timeZone, { grain = DEFAULT_PERIOD_GRAI
   const resumeCreatedDay = localDaySql('tr.created_at', timeZone);
   const periodCte = personalDashboardPeriodCte(grain, timeZone, anchorDate);
   const periodBidPredicate = personalDashboardPeriodPredicate('ob.bid_at', timeZone);
+  const periodUserBidPredicate = personalDashboardPeriodPredicate('ub.bid_at', timeZone);
   const periodInterviewPredicate = personalDashboardPeriodPredicate('ic.scheduled_at', timeZone);
   const periodScheduledPredicate = personalDashboardPeriodPredicate('il.created_at', timeZone);
   const periodConsumptionPredicate = personalDashboardPeriodPredicate('consumption_transactions.occurred_at', timeZone);
@@ -108,6 +111,11 @@ export function personalDashboardQueries(timeZone, { grain = DEFAULT_PERIOD_GRAI
         FROM job_bids jb
         JOIN owned_profiles op ON op.id = jb.profile_id
       ),
+      user_bids AS (
+        SELECT jb.*
+        FROM job_bids jb
+        WHERE jb.user_id = :userId
+      ),
       owned_interviews AS (
         SELECT i.*
         FROM interviews i
@@ -126,6 +134,7 @@ export function personalDashboardQueries(timeZone, { grain = DEFAULT_PERIOD_GRAI
         (SELECT COUNT(*) FROM owned_bids ob WHERE status IN (:applicationStatuses) AND ${overallBidDay} = ${today})::int AS today_applications,
         (SELECT COUNT(*) FROM owned_bids ob WHERE status IN (:applicationStatuses) AND ${overallBidDay} >= ${today} - interval '6 days')::int AS week_applications,
         (SELECT COUNT(*) FROM owned_bids ob CROSS JOIN selected_period WHERE status IN (:applicationStatuses) AND ${periodBidPredicate})::int AS period_bids,
+        (SELECT COUNT(*) FROM user_bids ub CROSS JOIN selected_period WHERE status IN (:applicationStatuses) AND ${periodUserBidPredicate})::int AS period_user_bids,
         (SELECT COUNT(*) FROM owned_interviews)::int AS total_interviews,
         (SELECT COUNT(*) FROM interview_calls ic JOIN owned_interviews oi ON oi.id = ic.interview_id CROSS JOIN selected_period WHERE ${periodInterviewPredicate})::int AS period_interviews,
         (SELECT COUNT(DISTINCT il.interview_id) FROM interview_logs il JOIN owned_interviews oi ON oi.id = il.interview_id CROSS JOIN selected_period WHERE il.event_type = 'first_scheduled' AND ${periodScheduledPredicate})::int AS period_newly_scheduled_interviews,
@@ -532,9 +541,18 @@ function formatOverall(row, user) {
   };
 }
 
-function formatPeriodActivity(row) {
+async function runDashboardQueries(tasks) {
+  const results = [];
+  for (let index = 0; index < tasks.length; index += PERSONAL_DASHBOARD_QUERY_CONCURRENCY) {
+    results.push(...await Promise.all(tasks.slice(index, index + PERSONAL_DASHBOARD_QUERY_CONCURRENCY).map((task) => task())));
+  }
+  return results;
+}
+
+export function formatPeriodActivity(row) {
   return {
     totalBids: numberValue(row.period_bids),
+    userBids: numberValue(row.period_user_bids),
     interviews: numberValue(row.period_interviews),
     newlyScheduledInterviews: numberValue(row.period_newly_scheduled_interviews),
   };
@@ -551,14 +569,16 @@ function personalDashboardPeriodCte(grain, timeZone, anchorDate) {
   return `selected_period AS (
         SELECT
           ${startsAt} AS starts_at,
-          (${startsAt} + interval '${config.step}') AS ends_at
+          (${startsAt} + interval '${config.step}') AS ends_at,
+          ${startsAt} AT TIME ZONE '${normalizedTimeZone}' AS starts_at_utc,
+          (${startsAt} + interval '${config.step}') AT TIME ZONE '${normalizedTimeZone}' AS ends_at_utc
       )`;
 }
 
 function personalDashboardPeriodPredicate(column, timeZone) {
   const normalizedTimeZone = normalizeTimeZone(timeZone).replaceAll("'", "''");
   const localTimestamp = `timezone('${normalizedTimeZone}', ${column})`;
-  return `${localTimestamp} >= selected_period.starts_at AND ${localTimestamp} < selected_period.ends_at`;
+  return `${column} >= selected_period.starts_at_utc AND ${column} < selected_period.ends_at_utc AND ${localTimestamp} >= selected_period.starts_at AND ${localTimestamp} < selected_period.ends_at`;
 }
 
 function personalDashboardAnchorDate(value) {

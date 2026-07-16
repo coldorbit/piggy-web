@@ -25,7 +25,7 @@ const APPLIED_STATUSES = new Set(['submitted', 'interviewing', 'won', 'lost']);
 let mailboxApplicationSyncTimer = null;
 let mailboxApplicationSyncRunning = false;
 
-import { classifyForwardedMessage, classifyMailboxMessageIntent, emptyMailboxStats, formatStoredMailboxMessage, formatStoredMailboxNotificationMessage, mailboxNotificationProfilesForUser, mailboxProfileForStoredRow, mailboxProfileForUser, mailboxProfilesMessageWhere, mailboxStatsByProfile, mailboxStatsForWhere, profileMailboxMessageConditions, storedForwardedMailboxMessagePageForProfiles, storedForwardedProfileMessagePage, storedMailboxProfileInclude, unreadMailboxCountsByProfile, upsertForwardedMailboxMessage } from './forwardingMailboxFormatting.js';
+import { classifyForwardedMessage, classifyMailboxMessageIntent, emptyMailboxStats, formatStoredMailboxMessage, formatStoredMailboxNotificationMessage, mailboxNotificationProfilesForUser, mailboxProfileForStoredRow, mailboxProfileForUser, mailboxProfilesMessageWhere, mailboxStatsByProfile, mailboxStatsForWhere, profileMailboxMessageConditions, storedForwardedMailboxMessagePageForProfiles, storedForwardedProfileMessagePage, storedMailboxProfileInclude, upsertForwardedMailboxMessage } from './forwardingMailboxFormatting.js';
 import { applicationResultForMailboxMessage, booleanOption, emptyMailboxApplicationSyncStats, fetchRecentMailboxMessages, integerOption, markImapMessageRefRead, normalizedMessageLimit, notificationMessageLimit, runForwardingMailboxApplicationSync, storedMailboxMessageOrder } from './forwardingMailboxPersistence.js';
 import { assertForwardingMailboxConfigured, mailboxMessageRefFromId, mailboxPort, mailboxSecure, profileMessagePage } from './forwardingMailboxImap.js';
 
@@ -225,22 +225,19 @@ export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_
 export async function listForwardedMailboxSummary(req) {
   const user = await currentDbUser(req);
   const profiles = await mailboxNotificationProfilesForUser(user);
-  const unreadWhere = mailboxProfilesMessageWhere(profiles, { isRead: false });
   const aggregateWhere = mailboxProfilesMessageWhere(profiles);
-  const [unreadCountsByProfileId, unreadTotal, aggregateStats, profileStatsById] = await Promise.all([
-    unreadMailboxCountsByProfile(profiles),
-    unreadWhere ? getForwardedMailboxMessageModel().count({ where: unreadWhere }) : 0,
+  const [aggregateStats, profileStatsById] = await Promise.all([
     aggregateWhere ? mailboxStatsForWhere(aggregateWhere) : emptyMailboxStats(),
     mailboxStatsByProfile(profiles),
   ]);
 
   return {
     mailbox: forwardingMailboxStatus(),
-    unreadTotal,
+    unreadTotal: aggregateStats.unreadTotal,
     stats: aggregateStats,
     profiles: profiles.map((profile) => ({
       id: profile.id,
-      unreadTotal: unreadCountsByProfileId.get(String(profile.id)) || 0,
+      unreadTotal: profileStatsById.get(String(profile.id))?.unreadTotal || 0,
       stats: profileStatsById.get(String(profile.id)) || emptyMailboxStats(),
     })),
   };

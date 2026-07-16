@@ -328,43 +328,89 @@ export async function unreadMailboxCountsByProfile(profiles) {
 }
 
 export async function mailboxStatsByProfile(profiles) {
-  const entries = await Promise.all(
-    profiles.map(async (profile) => [
-      String(profile.id),
-      await mailboxStatsForWhere(profileMailboxMessageWhere(profile)),
-    ]),
-  );
-  return new Map(entries);
+  const statsByProfileId = new Map(profiles.map((profile) => [String(profile.id), emptyMailboxStats()]));
+  if (!profiles.length) return statsByProfileId;
+
+  const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
+  const aliasProfileIds = new Map();
+  for (const profile of profiles) {
+    for (const matcher of profileMailboxMatchers(profile)) {
+      const ids = aliasProfileIds.get(matcher.value) || [];
+      ids.push(String(profile.id));
+      aliasProfileIds.set(matcher.value, ids);
+    }
+  }
+  const aliases = [...aliasProfileIds.keys()];
+  const Message = getForwardedMailboxMessageModel();
+  const [aliasRows, legacyRows] = await Promise.all([
+    aliases.length
+      ? Message.findAll({
+          attributes: ['matchValue', ...mailboxStatsAttributes()],
+          where: { matchValue: { [Op.in]: aliases } },
+          group: ['matchValue'],
+          raw: true,
+        })
+      : [],
+    profileIds.length
+      ? Message.findAll({
+          attributes: ['profileId', ...mailboxStatsAttributes()],
+          where: {
+            profileId: { [Op.in]: profileIds },
+            [Op.or]: [{ matchValue: { [Op.is]: null } }, { matchValue: '' }],
+          },
+          group: ['profileId'],
+          raw: true,
+        })
+      : [],
+  ]);
+
+  for (const row of aliasRows) {
+    for (const profileId of aliasProfileIds.get(normalizeEmail(row.matchValue)) || []) {
+      statsByProfileId.set(profileId, addMailboxStats(statsByProfileId.get(profileId), mailboxStatsFromRow(row)));
+    }
+  }
+  for (const row of legacyRows) {
+    const profileId = String(row.profileId);
+    statsByProfileId.set(profileId, addMailboxStats(statsByProfileId.get(profileId), mailboxStatsFromRow(row)));
+  }
+  return statsByProfileId;
 }
 
 export async function mailboxStatsForWhere(where) {
   if (!where) return emptyMailboxStats();
 
-  const Message = getForwardedMailboxMessageModel();
-  const [
-    total,
-    unreadTotal,
-    interviewTotal,
-    confirmationTotal,
-    declinedTotal,
-    autoAppliedTotal,
-  ] = await Promise.all([
-    Message.count({ where }),
-    Message.count({ where: { [Op.and]: [where, { isRead: false }] } }),
-    Message.count({ where: { [Op.and]: [where, interviewMailboxStatsCondition()] } }),
-    Message.count({ where: { [Op.and]: [where, jsonTextEqualsCondition('classification', 'type', 'application_confirmation')] } }),
-    Message.count({ where: { [Op.and]: [where, jsonTextEqualsCondition('classification', 'type', 'declined')] } }),
-    Message.count({ where: { [Op.and]: [where, jsonTextInCondition('application', 'status', ['applied', 'already_applied'])] } }),
-  ]);
+  const row = await getForwardedMailboxMessageModel().findOne({
+    attributes: mailboxStatsAttributes(),
+    where,
+    raw: true,
+  });
+  return mailboxStatsFromRow(row);
+}
 
+function mailboxStatsAttributes() {
+  return [
+    [literal('COUNT(*)'), 'total'],
+    [literal('COUNT(*) FILTER (WHERE is_read = false)'), 'unreadTotal'],
+    [literal("COUNT(*) FILTER (WHERE classification->>'type' IN ('interview_invite', 'interview_related') OR calendar_event IS NOT NULL)"), 'interviewTotal'],
+    [literal("COUNT(*) FILTER (WHERE classification->>'type' = 'application_confirmation')"), 'confirmationTotal'],
+    [literal("COUNT(*) FILTER (WHERE classification->>'type' = 'declined')"), 'declinedTotal'],
+    [literal("COUNT(*) FILTER (WHERE application->>'status' IN ('applied', 'already_applied'))"), 'autoAppliedTotal'],
+  ];
+}
+
+function mailboxStatsFromRow(row = {}) {
   return {
-    total,
-    unreadTotal,
-    interviewTotal,
-    confirmationTotal,
-    declinedTotal,
-    autoAppliedTotal,
+    total: Number(row?.total || 0),
+    unreadTotal: Number(row?.unreadTotal || 0),
+    interviewTotal: Number(row?.interviewTotal || 0),
+    confirmationTotal: Number(row?.confirmationTotal || 0),
+    declinedTotal: Number(row?.declinedTotal || 0),
+    autoAppliedTotal: Number(row?.autoAppliedTotal || 0),
   };
+}
+
+function addMailboxStats(left = emptyMailboxStats(), right = emptyMailboxStats()) {
+  return Object.fromEntries(Object.keys(emptyMailboxStats()).map((key) => [key, Number(left[key] || 0) + Number(right[key] || 0)]));
 }
 
 export function emptyMailboxStats() {
@@ -454,7 +500,7 @@ export function mailboxProfileForStoredRow(row, profiles) {
 }
 
 export async function storedForwardedMailboxMessagePage(where, { limit, offset, profiles = [] }) {
-  const [messages, total, unreadTotal] = await Promise.all([
+  const [messages, stats] = await Promise.all([
     getForwardedMailboxMessageModel().findAll({
       where,
       include: [storedMailboxProfileInclude()],
@@ -462,14 +508,13 @@ export async function storedForwardedMailboxMessagePage(where, { limit, offset, 
       offset,
       order: storedMailboxMessageOrder(),
     }),
-    getForwardedMailboxMessageModel().count({ where }),
-    getForwardedMailboxMessageModel().count({ where: { ...where, isRead: false } }),
+    mailboxStatsForWhere(where),
   ]);
 
   return {
     messages: messages.map((row) => formatStoredMailboxMessage(row, mailboxProfileForStoredRow(row, profiles))),
-    total,
-    unreadTotal,
+    total: stats.total,
+    unreadTotal: stats.unreadTotal,
   };
 }
 

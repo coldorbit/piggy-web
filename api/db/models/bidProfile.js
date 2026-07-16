@@ -120,6 +120,12 @@ export function getBidProfileModel() {
       underscored: true,
       createdAt: 'createdAt',
       updatedAt: 'updatedAt',
+      defaultScope: {
+        attributes: { exclude: ['staticResumeData'] },
+      },
+      scopes: {
+        withStaticResume: {},
+      },
       indexes: [{ fields: ['user_id'] }],
     },
   );

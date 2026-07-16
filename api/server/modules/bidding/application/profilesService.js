@@ -25,6 +25,7 @@ const FORWARDING_ALIAS_LOCAL_PART = 'service';
 const FORWARDING_ALIAS_DOMAIN = 'co-bounce.com';
 
 export async function currentDbUser(req) {
+  if (req.authUserRow) return req.authUserRow;
   const user = await repositories.findUserByUsername(req.user.username);
   if (!user) throw new InputError('Current user is not available');
   return user;
@@ -44,7 +45,7 @@ export async function accessibleProfile(req, profileId) {
   const id = clean(profileId);
   if (!id) throw new InputError('Profile is required');
 
-  const profile = await getBidProfileModel().findByPk(id);
+  const profile = await getBidProfileModel().findByPk(id, { attributes: profileListAttributes() });
   if (!profile) throw new NotFoundError('Profile not found');
   if (isProfileInUserWorkspace(profile, user) && isAdminRole(user)) return profile;
   if (isProfileInUserWorkspace(profile, user) && String(profile.userId) === String(user.id)) return profile;
@@ -66,6 +67,7 @@ export async function accessibleAppliedProfile(req, profileId, activeProfileId) 
   const user = await currentDbUser(req);
   const profile = await accessibleProfile(req, activeProfileId);
   const appliedProfile = await getBidProfileModel().findByPk(clean(profileId), {
+    attributes: profileListAttributes(),
     include: [{ model: getWebUserModel(), as: 'user', required: false }],
   });
   if (!appliedProfile) throw new NotFoundError('Profile not found');
@@ -144,7 +146,7 @@ export function formatProfile(row) {
     resumeText: row.resumeText,
     resumeTemplate: row.resumeTemplate || 'classic',
     isStatic: Boolean(row.isStatic),
-    hasStaticResume: Boolean(row.staticResumeData && row.staticResumeFilename),
+    hasStaticResume: Boolean(row.staticResumeFilename),
     staticResumeFilename: row.staticResumeFilename || null,
     staticResumeContentType: row.staticResumeContentType || null,
     staticResumeUploadedAt: row.staticResumeUploadedAt || null,
@@ -501,6 +503,7 @@ export async function profilesManagedByUser(user) {
 
   if (isAdminRole(user)) {
     return BidProfile.findAll({
+      attributes: profileListAttributes(),
       where: workspaceProfileWhereForUser(user),
       include: [{ model: WebUser, as: 'user', required: false }],
       order: [['createdAt', 'ASC']],
@@ -516,6 +519,7 @@ export async function profilesForAppliedFilter(user, { profileBadge, workspaceId
   const WebUser = getWebUserModel();
 
   return BidProfile.findAll({
+    attributes: profileListAttributes(),
     where: appliedFilterProfileWhere({ profileBadge, workspaceId: workspaceId ?? user.workspaceId ?? null }),
     include: [
       {
@@ -557,7 +561,7 @@ export async function profilesVisibleToUser(user) {
   if (user.role === 'caller') {
     const assignments = await Interview.findAll({
       where: { callerUserId: user.id },
-      include: [{ model: BidProfile, as: 'profile', required: true, where: workspaceWhere }],
+      include: [{ model: BidProfile, as: 'profile', required: true, where: workspaceWhere, attributes: profileListAttributes() }],
       order: [['updatedAt', 'DESC']],
     });
     const profilesById = new Map();
@@ -571,13 +575,14 @@ export async function profilesVisibleToUser(user) {
 
   const [ownedProfiles, acceptedShares] = await Promise.all([
     BidProfile.findAll({
+      attributes: profileListAttributes(),
       where: { userId: user.id, ...workspaceScope },
       order: [['createdAt', 'ASC']],
     }),
     ProfileShareRequest.findAll({
       where: { recipientUserId: user.id, status: 'accepted' },
       include: [
-        { model: BidProfile, as: 'profile', required: true },
+        { model: BidProfile, as: 'profile', required: true, attributes: profileListAttributes() },
         { model: WebUser, as: 'owner', required: true },
       ],
       order: [['updatedAt', 'ASC']],
@@ -590,6 +595,10 @@ export async function profilesVisibleToUser(user) {
   }
 
   return [...ownedProfiles, ...acceptedShares.map((share) => share.profile)];
+}
+
+export function profileListAttributes() {
+  return { exclude: ['staticResumeData'] };
 }
 
 const DEFAULT_PROFILE_DAILY_BID_GOAL = 60;

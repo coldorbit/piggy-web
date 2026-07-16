@@ -141,6 +141,7 @@ export async function readValidSession(req) {
   const user = await repositories.findUserByUsername(session.username);
   if (!user || user.activeSessionId !== session.activeSessionId) return null;
 
+  req.authUserRow = user;
   scheduleUserActivityTouch(user);
   return publicUser(user);
 }

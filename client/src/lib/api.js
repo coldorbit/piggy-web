@@ -18,6 +18,7 @@ export * from './api/contentApi.js';
 export * from './api/mailboxApi.js';
 export * from './api/collaborationApi.js';
 export * from './api/dashboardApi.js';
+export * from './api/jobsApi.js';
 export * from './api/marketplaceApi.js';
 export * from './api/profileAdminApi.js';
 import { api, authUrl } from './authApi.js';

@@ -565,6 +565,10 @@ export async function ensureBidPageIndexes() {
     ON job_bids (profile_id, user_id, bid_at DESC)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS job_bids_profile_status_bid_at_idx
+    ON job_bids (profile_id, status, bid_at DESC)
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS interviews_created_at_idx
     ON interviews (created_at DESC)
   `);
@@ -575,6 +579,27 @@ export async function ensureBidPageIndexes() {
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS interviews_user_updated_at_idx
     ON interviews (user_id, updated_at DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interviews_profile_created_at_idx
+    ON interviews (profile_id, created_at DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interviews_profile_updated_at_idx
+    ON interviews (profile_id, updated_at DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interviews_activity_at_idx
+    ON interviews ((COALESCE(updated_at, created_at)) DESC)
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS interview_logs_first_scheduled_created_at_idx
+    ON interview_logs (created_at DESC, interview_id)
+    WHERE event_type = 'first_scheduled'
+  `);
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS tailored_resumes_profile_created_at_idx
+    ON tailored_resumes (profile_id, created_at DESC)
   `);
   await sequelize.query('DROP INDEX IF EXISTS tailored_resumes_job_url');
   await sequelize.query('DROP INDEX IF EXISTS tailored_resumes_job_url_idx');

@@ -5,6 +5,7 @@ import {
   getSequelize,
   getWebUserModel,
 } from '../../../../db.js';
+import { QueryTypes } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, ROLES } from '../../../utils/roles.js';
@@ -38,6 +39,7 @@ const DEFAULT_ACCOUNTS = [
   { name: CARD_MAIN_ACCOUNT_NAME, currency: FIAT_CURRENCY, type: 'card_main', sortOrder: 35 },
   { name: CARD_ACCOUNT_NAME, currency: FIAT_CURRENCY, type: 'card', sortOrder: 40 },
 ];
+let defaultConsumptionAccountsPromise;
 
 export async function listConsumptionRecords() {
   await ensureDefaultConsumptionAccounts();
@@ -46,7 +48,7 @@ export async function listConsumptionRecords() {
   const LedgerEntry = getConsumptionLedgerEntryModel();
   const WebUser = getWebUserModel();
 
-  const [accounts, transactions] = await Promise.all([
+  const [accounts, transactions, balanceRows, spenderOptions] = await Promise.all([
     Account.findAll({ where: { isActive: true }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] }),
     Transaction.findAll({
       include: [
@@ -57,15 +59,16 @@ export async function listConsumptionRecords() {
       order: [['occurredAt', 'DESC'], ['id', 'DESC']],
       limit: 500,
     }),
+    consumptionBalanceRows(),
+    consumptionSpenderOptions(),
   ]);
-  const balances = balancesForAccounts(accounts, transactions);
-  const spenderOptions = await consumptionSpenderOptions();
+  const balances = new Map(balanceRows.map((row) => [String(row.account_id), Number(row.balance || 0)]));
+  const formattedAccounts = accounts.map((account) => formatAccount(account, balances.get(String(account.id)) || 0));
+  const formattedTransactions = transactions.map(formatTransaction);
 
   return {
-    accounts: accounts.map((account) => formatAccount(account, balances.get(String(account.id)) || 0)),
-    balances: accounts.map((account) => formatAccount(account, balances.get(String(account.id)) || 0)),
-    records: transactions.map(formatTransaction),
-    transactions: transactions.map(formatTransaction),
+    accounts: formattedAccounts,
+    transactions: formattedTransactions,
     totals: accounts.map((account) => ({ currency: account.currency, amount: balances.get(String(account.id)) || 0, accountName: account.name })),
     transactionTypes: TRANSACTION_TYPES,
     cryptoCurrencies: CRYPTO_CURRENCIES,
@@ -123,13 +126,39 @@ export async function deleteConsumptionRecord(id) {
 }
 
 async function ensureDefaultConsumptionAccounts() {
-  const Account = getConsumptionAccountModel();
-  for (const account of DEFAULT_ACCOUNTS) {
-    await Account.findOrCreate({
-      where: { name: account.name },
-      defaults: account,
-    });
+  if (!defaultConsumptionAccountsPromise) {
+    defaultConsumptionAccountsPromise = getConsumptionAccountModel()
+      .bulkCreate(DEFAULT_ACCOUNTS, { ignoreDuplicates: true })
+      .catch((error) => {
+        defaultConsumptionAccountsPromise = undefined;
+        throw error;
+      });
   }
+  await defaultConsumptionAccountsPromise;
+}
+
+async function consumptionBalanceRows() {
+  return getSequelize().query(
+    `
+      SELECT
+        consumption_ledger_entries.account_id,
+        COALESCE(SUM(
+          CASE
+            WHEN consumption_ledger_entries.direction = 'inflow' THEN consumption_ledger_entries.amount
+            ELSE -consumption_ledger_entries.amount
+          END
+        ), 0)::numeric AS balance
+      FROM consumption_ledger_entries
+      JOIN consumption_transactions
+        ON consumption_transactions.id = consumption_ledger_entries.transaction_id
+      WHERE NOT (
+        consumption_transactions.type = 'card_deposit'
+        AND consumption_ledger_entries.entry_kind = 'card_fee'
+      )
+      GROUP BY consumption_ledger_entries.account_id
+    `,
+    { type: QueryTypes.SELECT },
+  );
 }
 
 async function transactionAttrsFromBody(body = {}) {
@@ -352,18 +381,6 @@ async function consumptionSpenderOptions() {
         role: user.role,
       })),
   ];
-}
-
-function balancesForAccounts(accounts, transactions) {
-  const balances = new Map(accounts.map((account) => [String(account.id), 0]));
-  for (const transaction of transactions) {
-    for (const entry of balanceEntriesForTransaction(transaction)) {
-      const key = String(entry.accountId);
-      const signedAmount = entry.direction === 'inflow' ? Number(entry.amount || 0) : -Number(entry.amount || 0);
-      balances.set(key, Number(balances.get(key) || 0) + signedAmount);
-    }
-  }
-  return balances;
 }
 
 function balanceEntriesForTransaction(transaction) {

@@ -32,6 +32,7 @@ export default function JobList({
   total,
   onPage,
   onPageSize,
+  onCopyDescription,
   onSelectJob,
   onSelectedChange = () => {},
 }) {
@@ -149,11 +150,15 @@ export default function JobList({
                         <span>
                           <IconButton
                             size="small"
-                            disabled={!jobDescriptionText(job)}
+                            disabled={!onCopyDescription && !jobDescriptionText(job)}
                             sx={{ width: 28, height: 28 }}
                             onClick={(event) => {
                               event.stopPropagation();
-                              copyJobDescription(job);
+                              if (onCopyDescription) {
+                                void onCopyDescription(job);
+                              } else {
+                                copyJobDescription(job);
+                              }
                             }}
                             aria-label="Copy job description"
                           >

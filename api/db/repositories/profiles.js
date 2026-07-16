@@ -3,6 +3,7 @@ import { getBidProfileModel } from '../models/index.js';
 export function listProfilesForUser(userId, options = {}) {
   const workspaceWhere = workspaceWhereFromOptions(options);
   return getBidProfileModel().findAll({
+    attributes: { exclude: ['staticResumeData'] },
     where: { userId, ...workspaceWhere },
     order: [['createdAt', 'ASC']],
   });
@@ -10,7 +11,10 @@ export function listProfilesForUser(userId, options = {}) {
 
 export function findProfileForUser(params) {
   const workspaceWhere = workspaceWhereFromOptions(params);
-  return getBidProfileModel().findOne({ where: { id: params.id, userId: params.userId, ...workspaceWhere } });
+  return getBidProfileModel().findOne({
+    attributes: { exclude: ['staticResumeData'] },
+    where: { id: params.id, userId: params.userId, ...workspaceWhere },
+  });
 }
 
 function workspaceWhereFromOptions(options = {}) {

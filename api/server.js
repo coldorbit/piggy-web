@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import http from 'node:http';
 import { ensureWebModels } from './db.js';
 import { ENV } from './env.js';
@@ -47,6 +48,9 @@ app.use((req, res, next) => {
 });
 
 app.use(securityHeaders);
+app.use(compression({
+  filter: (req, res) => req.path !== '/api/bid/tailored-resume-events' && compression.filter(req, res),
+}));
 app.use(requestLogger);
 app.use(express.json({ limit: '15mb' }));
 

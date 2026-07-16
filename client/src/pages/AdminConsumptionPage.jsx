@@ -31,8 +31,8 @@ export default function AdminConsumptionPage() {
   const { data, isFetching, isLoading, error: queryError, refetch } = useAdminConsumption();
   const { mutate: createRecord, isPending: isCreating } = useCreateConsumptionRecord();
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteConsumptionRecord();
-  const accounts = data?.accounts || data?.balances || [];
-  const transactions = data?.transactions || data?.records || [];
+  const accounts = data?.accounts || [];
+  const transactions = data?.transactions || [];
   const spenderOptions = data?.spenderOptions || [{ value: 'team', label: 'Team' }];
   const accountOptions = useMemo(() => accounts.map((account) => ({ name: account.name, type: account.type })), [accounts]);
   const periodRange = useMemo(() => rangeForPeriod(period, periodAnchor), [period, periodAnchor]);

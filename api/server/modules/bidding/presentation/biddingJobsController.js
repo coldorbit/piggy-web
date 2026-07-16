@@ -30,7 +30,7 @@ import {
   shouldSetInterviewAtForStatus,
   tailoredResumesForJobs,
 } from '../application/biddingService.js';
-import { buildJobQuery, formatJob, jobDateFiltersForUser, jobSourceLabel, normalizeJobSource } from '../../jobs/application/jobsService.js';
+import { buildJobQuery, formatJob, jobDateFiltersForUser, jobSourceLabel, jobSummaryAttributes, normalizeJobSource } from '../../jobs/application/jobsService.js';
 import {
   accessibleProfile,
   accessibleAppliedProfile,
@@ -137,6 +137,7 @@ export async function listBidJobs(req, res, next) {
       callerUsers,
     ] = await Promise.all([
       ScrapedJob.findAll({
+        attributes: jobSummaryAttributes(),
         where: activeTabQuery.where,
         order: activeTabQuery.order || jobOrder,
         limit,

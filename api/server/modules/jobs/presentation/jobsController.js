@@ -10,6 +10,7 @@ import {
   jobsFromCsv,
   mergedJobSourceOptions,
   groupedJobsFromRows,
+  jobSummaryAttributes,
   planCsvJobImport,
   parseHiddenState,
   parseSpamReview,
@@ -31,6 +32,7 @@ export async function listJobs(req, res, next) {
     const query = jobDateFiltersForUser(req.query, req.user);
     const { where, order, limit, offset } = buildJobQuery(query, { timeZone: req.user?.timezone });
     const { count, rows } = await ScrapedJob.findAndCountAll({
+      attributes: jobSummaryAttributes(),
       where,
       order,
       limit,
@@ -44,6 +46,20 @@ export async function listJobs(req, res, next) {
       limit,
       offset,
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getJob(req, res, next) {
+  try {
+    await ensureWebModels();
+    const job = await getScrapedJobModel().findByPk(req.params.id);
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+    res.json({ job: formatJob(job) });
   } catch (error) {
     next(error);
   }

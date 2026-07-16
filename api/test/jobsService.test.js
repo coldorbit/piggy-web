@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
-import { buildJobDuplicateKey, buildJobQuery, canImportJobs, capitalizeJobTitle, groupedJobsFromRows, jobDateFiltersForUser, jobsFromCsv, mergedJobSourceOptions, normalizeCompanyName, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
+import { buildJobDuplicateKey, buildJobQuery, canImportJobs, capitalizeJobTitle, groupedJobsFromRows, jobDateFiltersForUser, jobSummaryAttributes, jobsFromCsv, mergedJobSourceOptions, normalizeCompanyName, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
 import { addLocalDays, localDayStart } from '../server/utils/localTime.js';
 
 describe('job query filters', () => {
+  it('keeps large descriptions and raw payloads out of list queries', () => {
+    const attributes = jobSummaryAttributes();
+    const summarySql = attributes.include[0][0].val;
+
+    assert.deepEqual(attributes.exclude, ['listingText', 'rawJob']);
+    assert.match(summarySql, /jsonb_build_object/);
+    assert.doesNotMatch(summarySql, /description|listingText|jobDescription/);
+  });
+
   it('filters roleFamily against the scraped_jobs category field', () => {
     const query = buildJobQuery({ roleFamily: 'data', since: 'all', visibility: 'all' });
 

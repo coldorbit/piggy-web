@@ -3,6 +3,7 @@ import {
   bulkMarkJobsHidden,
   bulkMarkJobsSpam,
   deleteJob,
+  getJob,
   getMeta,
   importJobsCsv,
   listJobs,
@@ -14,6 +15,7 @@ import {
 
 export function registerJobRoutes(app) {
   app.get('/api/jobs', requireJobAccess, listJobs);
+  app.get('/api/jobs/:id', requireJobAccess, getJob);
   app.post('/api/jobs/import-csv', requireJobAccess, importJobsCsv);
   app.patch('/api/jobs/bulk/spam', requireJobAccess, bulkMarkJobsSpam);
   app.patch('/api/jobs/bulk/hidden', requireJobAccess, bulkMarkJobsHidden);
