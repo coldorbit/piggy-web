@@ -107,7 +107,7 @@ export function canAccessProfileHub(userOrRole) {
 }
 
 export function canAccessLearningHub(userOrRole) {
-  return [ROLES.superadmin, ROLES.admin, ROLES.internal].includes(roleOf(userOrRole));
+  return [ROLES.superadmin, ROLES.admin, ROLES.financeManager, ROLES.internal].includes(roleOf(userOrRole));
 }
 
 export function canRegisterManualInterviewCalls(userOrRole) {

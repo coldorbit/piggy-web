@@ -123,7 +123,7 @@ export function requireProfileHubAccess(req, res, next) {
 export function requireLearningHubAccess(req, res, next) {
   requireAuth(req, res, () => {
     if (!canAccessLearningHub(req.user)) {
-      res.status(403).json({ error: 'Learning Hub access requires an internal or admin role' });
+      res.status(403).json({ error: 'Learning Hub access requires a finance manager, internal, or admin role' });
       return;
     }
     next();
