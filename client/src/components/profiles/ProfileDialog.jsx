@@ -25,7 +25,7 @@ import {
   forwardingAliasForProfileName,
 } from './profileConstants.js';
 
-export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpen, isSaving, mode = 'create', onChange, onClose, onSubmit }) {
+export default function ProfileDialog({ canCreateDraft = false, canEditDailyBidGoal = false, canSetFeatured = false, form, isOpen, isSaving, mode = 'create', onChange, onClose, onSubmit }) {
   async function handleStaticResumeChange(event) {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -183,6 +183,37 @@ export default function ProfileDialog({ canEditDailyBidGoal = false, form, isOpe
                 inputProps={{ min: 0, step: 1 }}
                 helperText="Submitted or advanced applications expected for this profile each day."
               />
+            ) : null}
+            {canCreateDraft && mode === 'create' ? (
+              <Box>
+                <FormControlLabel
+                  control={(
+                    <Switch
+                      checked={form.profileStatus === 'draft'}
+                      onChange={(event) => onChange((current) => ({
+                        ...current,
+                        profileStatus: event.target.checked ? 'draft' : 'active',
+                      }))}
+                    />
+                  )}
+                  label="Create as draft"
+                />
+                <FormHelperText>Draft profiles stay out of bidding and tailoring until activated.</FormHelperText>
+              </Box>
+            ) : null}
+            {canSetFeatured ? (
+              <Box>
+                <FormControlLabel
+                  control={(
+                    <Switch
+                      checked={Boolean(form.isFeatured)}
+                      onChange={(event) => onChange((current) => ({ ...current, isFeatured: event.target.checked }))}
+                    />
+                  )}
+                  label="Featured profile"
+                />
+                <FormHelperText>Featured profiles appear before other profiles.</FormHelperText>
+              </Box>
             ) : null}
             <TextField
               label="Resume text"

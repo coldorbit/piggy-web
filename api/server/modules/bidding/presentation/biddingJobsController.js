@@ -100,7 +100,7 @@ export async function listBidJobs(req, res, next) {
       await listInterviewJobs(req, res, { user, profile });
       return;
     }
-    if (!ensureProfileBidEligible(profile, res)) return;
+    if (!ensureProfileBidEligible(profile, res, { allowPastApplications: bidTab === 'done' })) return;
     const ScrapedJob = getScrapedJobModel();
     const JobBid = getJobBidModel();
     const TailoredResume = getTailoredResumeModel();

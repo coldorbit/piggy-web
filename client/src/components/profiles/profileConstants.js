@@ -13,6 +13,8 @@ export const EMPTY_PROFILE = {
   staticResumeUpload: null,
   colorScheme: 'blue',
   profileBadge: 'SWE',
+  profileStatus: 'active',
+  isFeatured: false,
   dailyBidGoal: 60,
 };
 

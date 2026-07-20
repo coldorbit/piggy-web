@@ -176,9 +176,13 @@ describe('formatBidProfile', () => {
 });
 
 describe('canWriteInterviewForProfile', () => {
-  it('allows user role owners to modify their interviews', () => {
+  it('allows user and finance manager owners to modify their interviews', () => {
     assert.equal(
       canWriteInterviewForProfile({ id: 7, role: ROLES.user }, { userId: 7 }),
+      true,
+    );
+    assert.equal(
+      canWriteInterviewForProfile({ id: 7, role: ROLES.financeManager }, { userId: 7 }),
       true,
     );
   });

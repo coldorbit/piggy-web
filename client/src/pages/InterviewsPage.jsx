@@ -154,7 +154,7 @@ export default function InterviewsPage({ currentUser }) {
   const {
     data: applicationPickerData,
     isLoading: applicationPickerLoading,
-  } = useBidJobs(isManualDialogOpen ? activeProfile?.id : '', applicationPickerFilters);
+  } = useBidJobs(isManualDialogOpen ? activeProfile?.id : '', applicationPickerFilters, { includeTabCounts: false });
   const { mutate: updateBid, isPending: updatingBid } = useUpdateJobBid();
   const { mutate: createManualInterview, isPending: creatingManualInterview } = useCreateManualInterview();
   const { mutate: createInterviewCall, isPending: creatingInterviewCall } = useCreateInterviewCall();

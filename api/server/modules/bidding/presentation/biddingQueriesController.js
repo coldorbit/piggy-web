@@ -377,8 +377,8 @@ export function canManageCallers(user) {
   return canManageCallersRole(user);
 }
 
-export function ensureProfileBidEligible(profile, res) {
-  if (!isLegacyProfile(profile)) return true;
+export function ensureProfileBidEligible(profile, res, { allowPastApplications = false } = {}) {
+  if (!isLegacyProfile(profile) || allowPastApplications) return true;
   res.status(403).json({ error: 'Legacy profiles can register interviews, but cannot be used for bidding or tailoring' });
   return false;
 }

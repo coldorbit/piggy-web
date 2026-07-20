@@ -153,6 +153,7 @@ export function formatProfile(row) {
     colorScheme: row.colorScheme,
     profileBadge: row.profileBadge || 'SWE',
     profileStatus: row.profileStatus || 'active',
+    isFeatured: Boolean(row.isFeatured),
     dailyBidGoal: row.dailyBidGoal ?? null,
     closedReason: row.closedReason || null,
     closedAt: row.closedAt || null,
@@ -605,7 +606,12 @@ const DEFAULT_PROFILE_DAILY_BID_GOAL = 60;
 const MAX_STATIC_RESUME_BYTES = 8 * 1024 * 1024;
 const ALLOWED_PROFILE_COLORS = new Set(['green', 'blue', 'violet', 'amber', 'rose', 'slate', 'teal', 'cyan', 'pink', 'indigo', 'lime', 'orange']);
 
-export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, currentDailyBidGoal = DEFAULT_PROFILE_DAILY_BID_GOAL } = {}) {
+export function profileAttributesFromBody(body, {
+  canSetDailyBidGoal = false,
+  canSetFeatured = false,
+  currentDailyBidGoal = DEFAULT_PROFILE_DAILY_BID_GOAL,
+  currentIsFeatured = false,
+} = {}) {
   const name = clean(body?.name);
   const colorScheme = clean(body?.colorScheme || 'green');
   const profileBadge = profileBadgeFromBody(body?.profileBadge);
@@ -621,6 +627,9 @@ export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, cu
   const dailyBidGoal = canSetDailyBidGoal
     ? dailyBidGoalFromBody(body?.dailyBidGoal)
     : Number(currentDailyBidGoal ?? DEFAULT_PROFILE_DAILY_BID_GOAL);
+  const isFeatured = canSetFeatured
+    ? booleanFromBody(body?.isFeatured ?? currentIsFeatured)
+    : Boolean(currentIsFeatured);
 
   const attrs = {
     name,
@@ -635,6 +644,7 @@ export function profileAttributesFromBody(body, { canSetDailyBidGoal = false, cu
     isStatic,
     colorScheme,
     profileBadge,
+    isFeatured,
     dailyBidGoal,
   };
   if (staticResume) {
@@ -672,7 +682,15 @@ export function profileStatusAttributesFromBody(body) {
   };
 }
 
+export function initialProfileStatusFromBody(body) {
+  const status = clean(body?.profileStatus || body?.status || 'active').toLowerCase();
+  if (!['active', 'draft'].includes(status)) throw new InputError('New profile status must be active or draft');
+  return status;
+}
+
 function compareProfilesForDisplay(left, right) {
+  const featuredDelta = Number(Boolean(right.isFeatured)) - Number(Boolean(left.isFeatured));
+  if (featuredDelta) return featuredDelta;
   const statusDelta = profileStatusWeight(left) - profileStatusWeight(right);
   if (statusDelta) return statusDelta;
   const leftCreatedAt = Date.parse(left.createdAt || 0) || 0;

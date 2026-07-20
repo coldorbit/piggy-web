@@ -90,6 +90,12 @@ export function getBidProfileModel() {
         defaultValue: 'active',
         field: 'profile_status',
       },
+      isFeatured: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'is_featured',
+      },
       dailyBidGoal: {
         type: DataTypes.INTEGER,
         allowNull: false,

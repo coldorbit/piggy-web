@@ -7,6 +7,7 @@ import {
   currentDbUser,
   formatProfile,
   forwardingAliasForProfileName,
+  initialProfileStatusFromBody,
   isProfileInUserWorkspace,
   profileAttributesFromBody,
   profileStatusAttributesFromBody,
@@ -210,6 +211,29 @@ describe('profile status helpers', () => {
     });
   });
 
+  it('allows superadmins to feature profiles', () => {
+    assert.equal(profileAttributesFromBody({ name: 'Featured', isFeatured: true }, { canSetFeatured: true }).isFeatured, true);
+  });
+
+  it('preserves featured status when the actor cannot change it', () => {
+    assert.equal(
+      profileAttributesFromBody({ name: 'Featured', isFeatured: false }, { currentIsFeatured: true }).isFeatured,
+      true,
+    );
+  });
+
+  it('accepts draft as the initial profile status', () => {
+    assert.equal(initialProfileStatusFromBody({ profileStatus: 'draft' }), 'draft');
+  });
+
+  it('defaults the initial profile status to active', () => {
+    assert.equal(initialProfileStatusFromBody({}), 'active');
+  });
+
+  it('rejects unsupported initial profile statuses', () => {
+    assert.throws(() => initialProfileStatusFromBody({ profileStatus: 'closed' }), /active or draft/);
+  });
+
   it('sorts draft and legacy profiles after active profiles', () => {
     const profiles = [
       profileRow({ id: 1, name: 'Legacy', profileStatus: 'legacy', createdAt: '2024-01-01T00:00:00.000Z' }),
@@ -219,6 +243,15 @@ describe('profile status helpers', () => {
     ];
 
     assert.deepEqual(sortProfilesForDisplay(profiles).map((profile) => profile.name), ['Active', 'Closed', 'Draft', 'Legacy']);
+  });
+
+  it('sorts featured profiles before all other profiles', () => {
+    const profiles = [
+      profileRow({ id: 1, name: 'Active', profileStatus: 'active' }),
+      profileRow({ id: 2, name: 'Featured draft', profileStatus: 'draft', isFeatured: true }),
+    ];
+
+    assert.deepEqual(sortProfilesForDisplay(profiles).map((profile) => profile.name), ['Featured draft', 'Active']);
   });
 });
 

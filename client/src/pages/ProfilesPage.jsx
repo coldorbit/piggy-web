@@ -129,7 +129,6 @@ export default function ProfilesPage({ currentUser }) {
     setEditingProfileId(null);
     setDialogMode('create');
   }
-
   function openEditDialog(profile) {
     setError('');
     setForm({
@@ -147,6 +146,7 @@ export default function ProfilesPage({ currentUser }) {
       staticResumeUpload: null,
       colorScheme: profile.colorScheme || 'green',
       profileBadge: profile.profileBadge || 'SWE',
+      isFeatured: Boolean(profile.isFeatured),
       dailyBidGoal: profile.dailyBidGoal ?? '',
     });
     setEditingProfileId(profile.id);
@@ -511,7 +511,7 @@ export default function ProfilesPage({ currentUser }) {
         </Box>
       </Box>
 
-      <ProfileDialog
+      <ProfileDialog canCreateDraft canSetFeatured={superadminView}
         canEditDailyBidGoal={isAdminRole(currentUser)}
         form={form}
         isOpen={Boolean(dialogMode)}

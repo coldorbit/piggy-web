@@ -738,6 +738,7 @@ export async function ensureBidProfileColumns() {
     resume_template: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'classic' },
     profile_badge: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'SWE' },
     profile_status: { type: DataTypes.TEXT, allowNull: false, defaultValue: 'active' },
+    is_featured: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
     daily_bid_goal: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 60 },
     closed_reason: { type: DataTypes.TEXT, allowNull: true },
     closed_at: { type: DataTypes.DATE, allowNull: true },

@@ -5,6 +5,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import LockOpenIcon from '@mui/icons-material/LockOpen';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import ShareIcon from '@mui/icons-material/Share';
+import StarIcon from '@mui/icons-material/Star';
 import StopCircleIcon from '@mui/icons-material/StopCircle';
 import { Box, Button, Card, CardActions, CardContent, Chip, IconButton, LinearProgress, Stack, Tooltip, Typography } from '@mui/material';
 import { PROFILE_BADGE_COLORS, PROFILE_COLORS } from './profileConstants.js';
@@ -143,6 +144,9 @@ export default function ProfileCard({
             </Stack>
           ) : null}
           <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
+            {profile.isFeatured ? (
+              <Chip icon={<StarIcon />} label="Featured" size="small" sx={{ ...profileChipSx, bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />
+            ) : null}
             <Chip
               label={isLegacy ? 'Legacy' : isDraft ? 'Draft' : isClosed ? 'Closed' : 'Active'}
               size="small"

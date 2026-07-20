@@ -37,6 +37,7 @@ import {
   accessibleAppliedProfile,
   currentDbUser,
   formatProfile,
+  initialProfileStatusFromBody,
   isLegacyProfile,
   ownedProfile,
   profileAttributesFromBody,
@@ -89,12 +90,16 @@ export async function createProfile(req, res, next) {
     await ensureWebModels();
     if (!canManageProfiles(req, res)) return;
     const user = await currentDbUser(req);
-    const attrs = profileAttributesFromBody(req.body, { canSetDailyBidGoal: isAdminRole(req.user) });
+    const attrs = profileAttributesFromBody(req.body, {
+      canSetDailyBidGoal: isAdminRole(req.user),
+      canSetFeatured: isSuperadmin(req.user),
+    });
+    const profileStatus = initialProfileStatusFromBody(req.body);
     const profile = await getBidProfileModel().create({
       ...attrs,
       userId: user.id,
       workspaceId: user.workspaceId ?? null,
-      profileStatus: 'active',
+      profileStatus,
     });
     res.status(201).json({ profile: formatProfile(profile) });
   } catch (error) {
@@ -109,7 +114,9 @@ export async function updateProfile(req, res, next) {
     const profile = await manageableProfile(req, req.params.id);
     await profile.update(profileAttributesFromBody(req.body, {
       canSetDailyBidGoal: isAdminRole(req.user),
+      canSetFeatured: isSuperadmin(req.user),
       currentDailyBidGoal: profile.dailyBidGoal,
+      currentIsFeatured: profile.isFeatured,
     }));
     res.json({ profile: formatProfile(profile) });
   } catch (error) {
