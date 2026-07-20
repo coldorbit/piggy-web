@@ -632,6 +632,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
   const resumeHref = resumeUrl ? authUrl(resumeUrl) : '';
   const resumeStatus = event?.job?.tailoredResume?.status || '';
   const owner = profileOwnerForEvent(event);
+  const applicationActor = event?.job?.bid?.applicationActor || null;
   const canDeleteCall = canDeleteCalendarCall(currentUser, event);
   const canAssignCaller = Boolean(onCallerChange && callerUsers.length && event?.interviewId && currentUser?.role !== 'caller');
 
@@ -681,6 +682,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
               <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)}`} />
               <DetailRow label="Profile" value={event.profile?.name || 'Profile'} />
               {owner.username ? <DetailRow label="User" value={owner.username} /> : null}
+              {applicationActor ? <DetailRow label="Applied by" value={[applicationActor.username, applicationActor.label].filter(Boolean).join(' · ')} /> : null}
               <DetailRow label="Company" value={event.company || 'Unknown company'} />
               <DetailRow label="Role" value={event.title || 'Untitled role'} />
               {event.location ? <DetailRow label="Location" value={event.location} /> : null}
@@ -934,7 +936,7 @@ function durationLabel(durationMinutes = 60) {
 }
 
 function compactEventLabel(event) {
-  return [event.profile?.name || 'Profile', event.company || 'Unknown company'].filter(Boolean).join(' · ');
+  return [event.profile?.name || 'Profile', event.company || 'Unknown company', event.job?.bid?.applicationActor?.label].filter(Boolean).join(' · ');
 }
 
 export function canDeleteCalendarCall(user, event) {

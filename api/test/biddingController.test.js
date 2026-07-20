@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  calendarApplicationActor,
+  calendarApplicationClassification,
   calendarCompanyKey,
   calendarEventsInRange,
   calendarEventsForInterviews,
@@ -11,6 +13,7 @@ import {
   canWriteInterviewForProfile,
   bidStatusFromInterviewStatus,
   groupedBidJobs,
+  formatCalendarInterviewAsJob,
   formatCalendarRelatedCall,
   formatBidProfile,
   normalizeCompany,
@@ -67,6 +70,36 @@ describe('calendar range query', () => {
       { workspaceId: '42' },
       { role: ROLES.admin, workspaceId: 7, workspaceMemberships: [{ workspaceId: 42, status: 'active' }] },
     ), 42);
+  });
+});
+
+describe('calendar application classification', () => {
+  it('classifies application actors by bidder, user, and finance manager roles', () => {
+    assert.equal(calendarApplicationClassification(ROLES.editableBidder), 'bidder');
+    assert.equal(calendarApplicationClassification(ROLES.readonlyBidder), 'bidder');
+    assert.equal(calendarApplicationClassification(ROLES.user), 'user');
+    assert.equal(calendarApplicationClassification(ROLES.financeManager), 'finance_manager');
+  });
+
+  it('formats the actor for application-backed interviews only', () => {
+    assert.deepEqual(calendarApplicationActor({ id: 7, username: 'bidder-1', role: ROLES.bidder }, 42), {
+      id: 7,
+      username: 'bidder-1',
+      role: ROLES.bidder,
+      classification: 'bidder',
+      label: 'Bidder',
+    });
+    assert.equal(calendarApplicationActor({ id: 7, username: 'bidder-1', role: ROLES.bidder }, null), null);
+
+    const job = formatCalendarInterviewAsJob(
+      interviewRow({ jobBidId: 42 }),
+      new Map(),
+      new Map(),
+      null,
+      new Map([['42', { id: 7, username: 'bidder-1', role: ROLES.bidder }]]),
+    );
+    assert.equal(job.bid.applicationActor.label, 'Bidder');
+    assert.equal(job.bid.applicationActor.username, 'bidder-1');
   });
 });
 

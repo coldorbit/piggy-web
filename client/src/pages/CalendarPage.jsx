@@ -360,7 +360,8 @@ function calendarEvents(jobs, profileById, checkedProfileIds, search, conflicts 
     .filter((event) => checkedProfileIdSet.has(String(event.profile?.id || '')))
     .filter((event) => {
       if (!pattern) return true;
-      return [event.title, event.company, event.location, event.profile?.name]
+      return [event.title, event.company, event.location, event.profile?.name,
+        event.job?.bid?.applicationActor?.username, event.job?.bid?.applicationActor?.label]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(pattern));
     })

@@ -104,19 +104,29 @@ export async function listCalendarInterviews(req, res, next) {
       range,
     );
     const ownerUserIds = [...new Set(interviews.map(calendarOwnerUserId).filter(Boolean).map(String))];
-    const [tailoredResumesByEvent, ownerUsers, callerUsers] = await Promise.all([
+    const jobBidIds = [...new Set(interviews.map((interview) => interview.jobBidId).filter(Boolean).map(String))];
+    const [tailoredResumesByEvent, applicationBids, callerUsers] = await Promise.all([
       tailoredResumesForCalendarEvents(interviews),
-      ownerUserIds.length
-        ? getWebUserModel().findAll({
-          where: { id: { [Op.in]: ownerUserIds }, ...workspaceFilterForUser(user) },
-          order: [['username', 'ASC']],
-        })
+      jobBidIds.length
+        ? getJobBidModel().findAll({ where: { id: { [Op.in]: jobBidIds } }, attributes: ['id', 'userId'] })
         : [],
       canRegisterManualInterviewCalls(user)
         ? getWebUserModel().findAll({ where: { role: 'caller', ...userWorkspaceWhere }, order: [['username', 'ASC']] })
         : [],
     ]);
-    const ownerUsersById = new Map(ownerUsers.map((owner) => [String(owner.id), owner]));
+    const applicationUserIds = applicationBids.map((bid) => String(bid.userId)).filter(Boolean);
+    const calendarUserIds = [...new Set([...ownerUserIds, ...applicationUserIds])];
+    const calendarUsers = calendarUserIds.length
+      ? await getWebUserModel().findAll({
+        where: { id: { [Op.in]: calendarUserIds }, ...workspaceFilterForUser(user) },
+        order: [['username', 'ASC']],
+      })
+      : [];
+    const ownerUsersById = new Map(calendarUsers.map((owner) => [String(owner.id), owner]));
+    const applicationActorsByJobBidId = new Map(applicationBids.map((bid) => [
+      String(bid.id),
+      ownerUsersById.get(String(bid.userId)) || null,
+    ]));
     const callerUsersForDisplay = user.role === 'caller' && !callerUsers.some((caller) => String(caller.id) === String(user.id))
       ? [...callerUsers, user]
       : callerUsers;
@@ -132,7 +142,13 @@ export async function listCalendarInterviews(req, res, next) {
     res.json({
       profiles: sortProfilesForDisplay([...profilesById.values()]).map(formatProfile),
       jobs: interviews.map((interview) => (
-        formatCalendarInterviewAsJob(interview, ownerUsersById, callerUsersById, tailoredResumesByEvent.get(calendarResumeKey(interview)) || null)
+        formatCalendarInterviewAsJob(
+          interview,
+          ownerUsersById,
+          callerUsersById,
+          tailoredResumesByEvent.get(calendarResumeKey(interview)) || null,
+          applicationActorsByJobBidId,
+        )
       )),
       callerUsers: callerUsersForDisplay.map((caller) => ({ id: caller.id, username: caller.username })),
       calendar: {
@@ -344,9 +360,19 @@ export function calendarEventsInRange(interviews = [], range = null) {
   });
 }
 
-export function formatCalendarInterviewAsJob(interview, bidUsersById = new Map(), callerUsersById = new Map(), tailoredResume = null) {
+export function formatCalendarInterviewAsJob(
+  interview,
+  bidUsersById = new Map(),
+  callerUsersById = new Map(),
+  tailoredResume = null,
+  applicationActorsByJobBidId = new Map(),
+) {
   const job = formatInterviewAsJob(interview, bidUsersById, callerUsersById, tailoredResume);
   const bid = job.bid || {};
+  const applicationActor = calendarApplicationActor(
+    applicationActorsByJobBidId.get(String(interview.jobBidId || '')),
+    interview.jobBidId,
+  );
   return {
     id: job.id,
     interviewId: job.interviewId,
@@ -378,10 +404,37 @@ export function formatCalendarInterviewAsJob(interview, bidUsersById = new Map()
       interviewNotes: bid.interviewNotes,
       stageMeetingLinks: bid.stageMeetingLinks,
       meetingLink: bid.meetingLink,
+      ...(applicationActor ? { applicationActor } : {}),
       ...(bid.user ? { user: bid.user } : {}),
       ...(bid.callerUser ? { callerUser: bid.callerUser } : {}),
     },
   };
+}
+
+export function calendarApplicationActor(user, jobBidId) {
+  if (!jobBidId) return null;
+  const classification = calendarApplicationClassification(user?.role);
+  return {
+    id: user?.id || null,
+    username: user?.username || '',
+    role: user?.role || '',
+    classification,
+    label: calendarApplicationClassificationLabel(classification),
+  };
+}
+
+export function calendarApplicationClassification(role) {
+  if (BIDDER_ROLES.includes(role)) return 'bidder';
+  if (role === 'finance_manager') return 'finance_manager';
+  if (role === 'user') return 'user';
+  return 'other';
+}
+
+function calendarApplicationClassificationLabel(classification) {
+  if (classification === 'bidder') return 'Bidder';
+  if (classification === 'finance_manager') return 'Finance manager';
+  if (classification === 'user') return 'User';
+  return 'Applicant';
 }
 
 export async function tailoredResumesForCalendarEvents(interviews = []) {
