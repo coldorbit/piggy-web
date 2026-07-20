@@ -115,14 +115,26 @@ export function buildJobQuery(query, { timeZone } = {}) {
   applyLocationRegionFilter(where, locationRegion);
   applyDateFilter(where, { since, dateFrom: query.dateFrom, dateTo: query.dateTo, timeZone: localTimeZone });
   if (search) {
-    const pattern = `%${search}%`;
-    where[Op.or] = [
-      { publicJobId: { [Op.iLike]: pattern } },
-      { title: { [Op.iLike]: pattern } },
-      { company: { [Op.iLike]: pattern } },
-      { location: { [Op.iLike]: pattern } },
-      { listingText: { [Op.iLike]: pattern } },
-    ];
+    if (clean(query.searchScope) === 'title_company') {
+      search.split(/[\s·|]+/).filter(Boolean).forEach((term) => {
+        const pattern = `%${term}%`;
+        appendAndCondition(where, {
+          [Op.or]: [
+            { title: { [Op.iLike]: pattern } },
+            { company: { [Op.iLike]: pattern } },
+          ],
+        });
+      });
+    } else {
+      const pattern = `%${search}%`;
+      where[Op.or] = [
+        { publicJobId: { [Op.iLike]: pattern } },
+        { title: { [Op.iLike]: pattern } },
+        { company: { [Op.iLike]: pattern } },
+        { location: { [Op.iLike]: pattern } },
+        { listingText: { [Op.iLike]: pattern } },
+      ];
+    }
   }
 
   return {

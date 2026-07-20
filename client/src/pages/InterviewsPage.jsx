@@ -147,6 +147,7 @@ export default function InterviewsPage({ currentUser }) {
       bidTab: BID_TABS.done,
       since: 'all',
       search: applicationSearch,
+      searchScope: 'title_company',
       limit: 75,
     }),
     [applicationSearch],

@@ -140,8 +140,8 @@ export function InterviewRegistrationDialogs({
                 <TextField
                   {...params}
                   label="Application"
-                  placeholder="Search done applications"
-                  helperText="Done-tab applications for this profile"
+                  placeholder="Search by job title or company"
+                  helperText="Matches job title and company in done applications"
                 />
               )}
               sx={{ mt: 1 }}

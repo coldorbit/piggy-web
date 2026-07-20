@@ -82,6 +82,27 @@ describe('job query filters', () => {
     assert.ok(query.where[Op.or].some((condition) => condition.publicJobId?.[Op.iLike] === '%J000001A%'));
   });
 
+  it('limits interview application searches to title and company', () => {
+    const query = buildJobQuery({
+      search: 'Senior Engineer · Acme',
+      searchScope: 'title_company',
+      since: 'all',
+      visibility: 'all',
+    });
+    const termConditions = query.where[Op.and].filter((condition) =>
+      condition[Op.or]?.some((field) => Object.prototype.hasOwnProperty.call(field, 'company')));
+
+    assert.equal(query.where[Op.or], undefined);
+    assert.deepEqual(
+      termConditions.map((condition) => condition[Op.or].map((field) => Object.keys(field))),
+      [[['title'], ['company']], [['title'], ['company']], [['title'], ['company']]],
+    );
+    assert.deepEqual(
+      termConditions.map((condition) => condition[Op.or][0].title[Op.iLike]),
+      ['%Senior%', '%Engineer%', '%Acme%'],
+    );
+  });
+
   it('normalizes source filters before comparing scraped job sources', () => {
     const query = buildJobQuery({ source: 'LinkedIn ', since: 'all', visibility: 'all' });
     const sourceCondition = query.where[Op.and].find((condition) => String(condition.val || '').includes('regexp_replace'));
