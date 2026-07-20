@@ -32,7 +32,7 @@ export async function getActionQueue(req, options = {}) {
 
 async function visibleProfileIds(user) {
   if (isAdminRole(user)) {
-    const rows = await getSequelize().query('SELECT id::text AS id FROM bid_profiles', { type: QueryTypes.SELECT });
+    const rows = await getSequelize().query('SELECT id FROM bid_profiles', { type: QueryTypes.SELECT });
     return rows.map((row) => row.id).filter(Boolean);
   }
   const profiles = await profilesVisibleToUser(user);
@@ -44,7 +44,7 @@ function actionQueueSql() {
     WITH visible_profiles AS (
       SELECT id, name
       FROM bid_profiles
-      WHERE id::text IN (:profileIds)
+      WHERE id IN (:profileIds)
     ),
     due_assessments AS (
       SELECT

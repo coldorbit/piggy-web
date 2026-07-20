@@ -67,6 +67,12 @@ When mailbox sync is enabled, the API also scans recent forwarded email in the b
 - `DATABASE_SSL_REJECT_UNAUTHORIZED`: set to `true` only when the runtime trusts the RDS CA certificate. Defaults to `false`.
 - `DATABASE_CONNECT_TIMEOUT_MS`: Postgres connection timeout, defaults to `10000`.
 - `DATABASE_POOL_MAX`, `DATABASE_POOL_MIN`, `DATABASE_POOL_ACQUIRE_MS`, `DATABASE_POOL_IDLE_MS`: optional Sequelize pool tuning.
+- `DATABASE_SLOW_QUERY_MS`: logs queries slower than this threshold, defaulting to `250` milliseconds.
+- `DATABASE_EXPLAIN_ANALYZE`: opt-in profiler for read queries issued by every exercised endpoint. It reruns qualifying reads with `EXPLAIN (ANALYZE, BUFFERS, SETTINGS, WAL, FORMAT JSON)`, so use it against staging or a production-like snapshot rather than normal production traffic.
+- `DATABASE_EXPLAIN_MIN_MS`: only profile reads whose first execution took at least this many milliseconds. Use `0` to inspect every read query shape.
+- `DATABASE_EXPLAIN_ONCE`: profiles each normalized query shape once per API process by default; set to `false` only for repeated measurements.
+- `DATABASE_EXPLAIN_OUTPUT`: use `summary` for compact scan/buffer/sort diagnostics or `json` for the full PostgreSQL plan.
+- `DATABASE_EXPLAIN_ALLOW_PRODUCTION`: explicit second opt-in required when `NODE_ENV=production`.
 - `WEB_SESSION_SECRET`: session signing secret.
 - `WEB_USERS` or `WEB_USERNAME` / `WEB_PASSWORD`: first-run admin seed users, created only when `web_users` is empty.
 - `AWS_REGION`: AWS region for S3 and SQS, defaults to `us-east-1`.

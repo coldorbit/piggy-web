@@ -41,6 +41,7 @@ import {
   ensureCollaborationIndexes,
   ensureConsumptionTransactionSpenderColumns,
   ensureDuplicateKeyColumn,
+  ensureEndpointQueryIndexes,
   ensureForwardedMailboxMessageColumns,
   ensureForwardedMailboxMessageIndexes,
   ensureHiddenJobColumns,
@@ -138,6 +139,7 @@ export async function ensureWebModels() {
       await ensureInterviewIndexes();
       await ensureAssessmentIndexes();
       await ensureMarketplaceIndexes();
+      await ensureEndpointQueryIndexes();
       await ensureWorkspaceIndexes();
       await ensureUserWorkspaceMembershipIndexes();
     })().catch((error) => {

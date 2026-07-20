@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+import { col, fn, Op, where } from 'sequelize';
 import { getLearningArticleModel, getLearningCompanyModel } from '../../../../db.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
 import { clean } from '../../../utils/index.js';
@@ -6,19 +6,28 @@ import { isAdminRole } from '../../../utils/roles.js';
 
 export async function listLearningCompaniesForUser(user) {
   const companies = await getLearningCompanyModel().findAll({ order: [['name', 'ASC']] });
-  const articleWhere = isAdminRole(user) ? { category: 'companies' } : { category: 'companies', status: 'published' };
-  const articles = await getLearningArticleModel().findAll({ attributes: ['companyId'], where: articleWhere, raw: true });
-  const articleCounts = articles.reduce((counts, article) => {
-    const id = String(article.companyId || '');
-    if (id) counts.set(id, (counts.get(id) || 0) + 1);
-    return counts;
-  }, new Map());
+  const articleWhere = {
+    category: 'companies',
+    companyId: { [Op.not]: null },
+    ...(isAdminRole(user) ? {} : { status: 'published' }),
+  };
+  const articles = await getLearningArticleModel().findAll({
+    attributes: ['companyId', [fn('COUNT', col('id')), 'articleCount']],
+    where: articleWhere,
+    group: ['companyId'],
+    raw: true,
+  });
+  const articleCounts = new Map(
+    articles.map((article) => [String(article.companyId), Number(article.articleCount || 0)]),
+  );
   return companies.map((company) => publicLearningCompany(company, articleCounts.get(String(company.id)) || 0));
 }
 
 export async function createLearningCompany({ body, user }) {
   const attrs = learningCompanyAttributesFromBody(body);
-  const existing = await getLearningCompanyModel().findOne({ where: { [Op.or]: [{ slug: attrs.slug }, { name: { [Op.iLike]: attrs.name } }] } });
+  const existing = await getLearningCompanyModel().findOne({
+    where: { [Op.or]: [{ slug: attrs.slug }, caseInsensitiveCompanyName(attrs.name)] },
+  });
   if (existing) throw new InputError('A company with that name already exists');
   const company = await getLearningCompanyModel().create({ ...attrs, createdByUserId: user?.id || null });
   return publicLearningCompany(company, 0);
@@ -28,7 +37,9 @@ export async function updateLearningCompany({ id, body }) {
   const company = await getLearningCompanyModel().findByPk(id);
   if (!company) throw new NotFoundError('Learning company not found');
   const attrs = learningCompanyAttributesFromBody(body, company);
-  const duplicate = await getLearningCompanyModel().findOne({ where: { id: { [Op.ne]: id }, name: { [Op.iLike]: attrs.name } } });
+  const duplicate = await getLearningCompanyModel().findOne({
+    where: { id: { [Op.ne]: id }, [Op.and]: [caseInsensitiveCompanyName(attrs.name)] },
+  });
   if (duplicate) throw new InputError('A company with that name already exists');
   await company.update(attrs);
   await getLearningArticleModel().update(
@@ -89,4 +100,8 @@ function httpUrl(value, label) {
     throw new InputError(`${label} must use a valid HTTP or HTTPS URL`);
   }
   return text;
+}
+
+function caseInsensitiveCompanyName(value) {
+  return where(fn('lower', col('name')), clean(value).toLowerCase());
 }

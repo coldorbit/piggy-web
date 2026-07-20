@@ -1,6 +1,8 @@
 import { Sequelize } from 'sequelize';
+import { createExplainAnalyzeProfiler } from './queryProfiler.js';
 
 let sequelize;
+let queryProfiler;
 const DEFAULT_SLOW_QUERY_MS = 250;
 
 export function getSequelize() {
@@ -10,7 +12,7 @@ export function getSequelize() {
     sequelize = new Sequelize(databaseUrl, {
       dialect: 'postgres',
       benchmark: true,
-      logging: logSlowQuery,
+      logging: logQuery,
       timezone: '+00:00',
       dialectOptions: databaseDialectOptions(),
       hooks: {
@@ -23,9 +25,22 @@ export function getSequelize() {
         idle: numberEnv('DATABASE_POOL_IDLE_MS', 10000),
       },
     });
+    queryProfiler = createExplainAnalyzeProfiler({
+      getSequelize: () => sequelize,
+      enabled: explainAnalyzeEnabled(),
+      minimumDurationMs: nonNegativeNumberEnv('DATABASE_EXPLAIN_MIN_MS', 0),
+      explainOnce: booleanEnv('DATABASE_EXPLAIN_ONCE', true),
+      maxQueueSize: numberEnv('DATABASE_EXPLAIN_QUEUE_MAX', 100),
+      output: String(process.env.DATABASE_EXPLAIN_OUTPUT || 'summary').toLowerCase(),
+    });
   }
 
   return sequelize;
+}
+
+function logQuery(sql, durationMs) {
+  logSlowQuery(sql, durationMs);
+  queryProfiler?.capture(sql, durationMs);
 }
 
 function logSlowQuery(sql, durationMs) {
@@ -74,11 +89,23 @@ function databaseDialectOptions() {
   return options;
 }
 
-function booleanEnv(name) {
-  return ['1', 'true', 'yes', 'on'].includes(String(process.env[name] || '').toLowerCase());
+function booleanEnv(name, fallback = false) {
+  const value = process.env[name];
+  if (value === undefined || value === null || value === '') return fallback;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
 }
 
 function numberEnv(name, fallback) {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function nonNegativeNumberEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function explainAnalyzeEnabled() {
+  if (!booleanEnv('DATABASE_EXPLAIN_ANALYZE')) return false;
+  return process.env.NODE_ENV !== 'production' || booleanEnv('DATABASE_EXPLAIN_ALLOW_PRODUCTION');
 }

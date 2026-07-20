@@ -336,6 +336,47 @@ export async function ensureForwardedMailboxMessageIndexes() {
   `);
 }
 
+export const ENDPOINT_QUERY_INDEX_STATEMENTS = Object.freeze([
+  `CREATE INDEX IF NOT EXISTS web_users_login_username_ci_idx
+   ON web_users ((lower(username)))`,
+  `CREATE INDEX IF NOT EXISTS web_users_workspace_role_username_idx
+   ON web_users (workspace_id, role, username)`,
+  `CREATE INDEX IF NOT EXISTS bid_profiles_user_status_updated_idx
+   ON bid_profiles (user_id, profile_status, updated_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS assessments_open_profile_expires_idx
+   ON assessments (profile_id, expires_at ASC)
+   WHERE completed_at IS NULL AND expires_at IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS tailored_resumes_user_created_idx
+   ON tailored_resumes (user_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS tailored_resumes_ready_profile_activity_idx
+   ON tailored_resumes (profile_id, ready_at DESC NULLS LAST, updated_at DESC)
+   WHERE status = 'ready' AND file_path IS NOT NULL AND downloaded_at IS NULL`,
+  `CREATE INDEX IF NOT EXISTS consumption_transactions_occurred_id_idx
+   ON consumption_transactions (occurred_at DESC, id DESC)`,
+  `CREATE INDEX IF NOT EXISTS faqs_listing_idx
+   ON faqs (status, published_at DESC NULLS LAST, updated_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS learning_articles_listing_idx
+   ON learning_articles (status, featured DESC, published_at DESC NULLS LAST, updated_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS learning_articles_company_count_idx
+   ON learning_articles (category, status, company_id)
+   WHERE company_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS learning_companies_name_ci_idx
+   ON learning_companies ((lower(name)))`,
+  `CREATE INDEX IF NOT EXISTS marketplace_participants_updated_idx
+   ON marketplace_participants (updated_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS marketplace_interviews_owner_updated_idx
+   ON marketplace_interview_opportunities (owner_user_id, updated_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS marketplace_callers_owner_updated_idx
+   ON marketplace_caller_profiles (owner_user_id, updated_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS marketplace_matches_schedule_updated_idx
+   ON marketplace_matches (scheduled_at ASC NULLS LAST, updated_at DESC)`,
+]);
+
+export async function ensureEndpointQueryIndexes() {
+  const sequelize = getSequelize();
+  for (const sql of ENDPOINT_QUERY_INDEX_STATEMENTS) await sequelize.query(sql);
+}
+
 export async function ensureInterviewFailureFeedbackColumns() {
   const queryInterface = getSequelize().getQueryInterface();
   const tableName = 'interviews';

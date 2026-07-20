@@ -101,6 +101,12 @@ export function getTailoredResumeModel() {
       underscored: true,
       createdAt: 'createdAt',
       updatedAt: 'updatedAt',
+      defaultScope: {
+        attributes: { exclude: ['cvData'] },
+      },
+      scopes: {
+        withCvData: {},
+      },
       indexes: [
         { fields: ['profile_id'] },
         { fields: ['status'] },

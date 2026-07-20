@@ -32,6 +32,7 @@ export async function listLearningArticlesForUser(user, query = {}) {
     ];
   }
   const rows = await getLearningArticleModel().findAll({
+    attributes: { exclude: ['excalidrawData', 'mermaidScript'] },
     where,
     include: [{ model: getLearningCompanyModel(), as: 'company', required: false }],
     order: [['featured', 'DESC'], ['status', 'ASC'], ['publishedAt', 'DESC'], ['updatedAt', 'DESC']],
