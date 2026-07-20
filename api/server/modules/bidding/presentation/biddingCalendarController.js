@@ -425,14 +425,12 @@ export function calendarApplicationActor(user, jobBidId) {
 
 export function calendarApplicationClassification(role) {
   if (BIDDER_ROLES.includes(role)) return 'bidder';
-  if (role === 'finance_manager') return 'finance_manager';
-  if (role === 'user') return 'user';
+  if (role === 'finance_manager' || role === 'user') return 'user';
   return 'other';
 }
 
 function calendarApplicationClassificationLabel(classification) {
   if (classification === 'bidder') return 'Bidder';
-  if (classification === 'finance_manager') return 'Finance manager';
   if (classification === 'user') return 'User';
   return 'Applicant';
 }

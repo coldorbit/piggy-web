@@ -1,4 +1,5 @@
 import HeadsetMicIcon from '@mui/icons-material/HeadsetMic';
+import LabelIcon from '@mui/icons-material/Label';
 import PersonIcon from '@mui/icons-material/Person';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import {
@@ -34,18 +35,29 @@ const SECTIONS = {
     icon: <WorkspacesIcon fontSize="small" />,
     color: { main: '#5F5F5F', dark: '#334155', soft: '#F1F5F9' },
   },
+  classifications: {
+    label: 'Classification',
+    empty: 'No classified meetings in this view.',
+    icon: <LabelIcon fontSize="small" />,
+    color: { main: '#7C3AED', dark: '#5B21B6', soft: '#EDE9FE' },
+  },
 };
 
 export default function CalendarScheduleLens({
   callerGroups = [],
   checkedCallerIds = [],
+  checkedClassificationIds = [],
   checkedProfileIds = [],
   checkedUserIds = [],
+  classificationGroups = [],
   profileGroups = [],
   userGroups = [],
   onCallerChange,
   onCallerSelectAll,
   onCallerSelectNone,
+  onClassificationChange,
+  onClassificationSelectAll,
+  onClassificationSelectNone,
   onProfileChange,
   onProfileSelectAll,
   onProfileSelectNone,
@@ -77,15 +89,27 @@ export default function CalendarScheduleLens({
         onSelectAll: onProfileSelectAll,
         onSelectNone: onProfileSelectNone,
       },
+      classifications: {
+        rows: classificationGroups,
+        checkedIds: checkedClassificationIds,
+        onChange: onClassificationChange,
+        onSelectAll: onClassificationSelectAll,
+        onSelectNone: onClassificationSelectNone,
+      },
     }),
     [
       callerGroups,
       checkedCallerIds,
+      checkedClassificationIds,
       checkedProfileIds,
       checkedUserIds,
+      classificationGroups,
       onCallerChange,
       onCallerSelectAll,
       onCallerSelectNone,
+      onClassificationChange,
+      onClassificationSelectAll,
+      onClassificationSelectNone,
       onProfileChange,
       onProfileSelectAll,
       onProfileSelectNone,

@@ -29,6 +29,12 @@ const UNKNOWN_OWNER_ID = '__unknown_owner__';
 const USER_COLOR = { main: '#0067C0', dark: '#004E8C', soft: 'rgba(0, 103, 192, 0.16)' };
 const CALLER_COLOR = { main: '#C77700', dark: '#92400E', soft: '#FEF3C7' };
 const UNASSIGNED_COLOR = { main: '#94A3B8', dark: '#475569', soft: '#F1F5F9' };
+const CLASSIFICATION_COLORS = {
+  bidder: { main: '#7C3AED', dark: '#5B21B6', soft: '#EDE9FE' },
+  user: USER_COLOR,
+  manual: UNASSIGNED_COLOR,
+  other: { main: '#D97706', dark: '#92400E', soft: '#FEF3C7' },
+};
 const CALENDAR_STALE_TIME = 60_000;
 
 export default function CalendarPage({ currentUser }) {
@@ -38,6 +44,7 @@ export default function CalendarPage({ currentUser }) {
   const [checkedProfileIds, setCheckedProfileIds] = useState([]);
   const [checkedUserIds, setCheckedUserIds] = useState([]);
   const [checkedCallerIds, setCheckedCallerIds] = useState([]);
+  const [checkedClassificationIds, setCheckedClassificationIds] = useState([]);
   const [calendarActionError, setCalendarActionError] = useState('');
   const queryClient = useQueryClient();
   const { setSearch: setHeaderSearch } = useHeaderSearch();
@@ -146,6 +153,10 @@ export default function CalendarPage({ currentUser }) {
     () => callerScheduleGroups(profileFilteredEvents),
     [profileFilteredEvents],
   );
+  const classificationGroups = useMemo(
+    () => classificationScheduleGroups(profileFilteredEvents),
+    [profileFilteredEvents],
+  );
 
   useEffect(() => {
     setCheckedProfileIds((currentIds) => syncCheckedIds(currentIds, profileGroupIds));
@@ -159,14 +170,20 @@ export default function CalendarPage({ currentUser }) {
     setCheckedCallerIds((currentIds) => syncCheckedIds(currentIds, callerGroups.map((group) => group.id)));
   }, [callerGroups]);
 
+  useEffect(() => {
+    setCheckedClassificationIds((currentIds) => syncCheckedIds(currentIds, classificationGroups.map((group) => group.id)));
+  }, [classificationGroups]);
+
   const events = useMemo(
     () => filterEventsByScheduleLens(profileFilteredEvents, {
       callerGroups,
       checkedCallerIds,
+      checkedClassificationIds,
       checkedUserIds,
+      classificationGroups,
       userGroups,
     }),
-    [callerGroups, checkedCallerIds, checkedUserIds, profileFilteredEvents, userGroups],
+    [callerGroups, checkedCallerIds, checkedClassificationIds, checkedUserIds, classificationGroups, profileFilteredEvents, userGroups],
   );
   const loading = calendarLoading || calendarFetching;
   const pageError = calendarActionError || calendarError?.message || workspaceError?.message || '';
@@ -202,6 +219,10 @@ export default function CalendarPage({ currentUser }) {
 
   function toggleCaller(callerId, checked) {
     setCheckedCallerIds((currentIds) => toggleCheckedId(currentIds, callerId, checked, callerGroups.map((group) => group.id)));
+  }
+
+  function toggleClassification(classificationId, checked) {
+    setCheckedClassificationIds((currentIds) => toggleCheckedId(currentIds, classificationId, checked, classificationGroups.map((group) => group.id)));
   }
 
   function moveCalendarEvent(event, startsAt) {
@@ -299,13 +320,18 @@ export default function CalendarPage({ currentUser }) {
         <CalendarScheduleLens
           callerGroups={callerGroups}
           checkedCallerIds={checkedCallerIds}
+          checkedClassificationIds={checkedClassificationIds}
           checkedProfileIds={checkedProfileIds}
           checkedUserIds={checkedUserIds}
+          classificationGroups={classificationGroups}
           profileGroups={profileGroups}
           userGroups={userGroups}
           onCallerChange={toggleCaller}
           onCallerSelectAll={() => setCheckedCallerIds(callerGroups.map((group) => group.id))}
           onCallerSelectNone={() => setCheckedCallerIds([])}
+          onClassificationChange={toggleClassification}
+          onClassificationSelectAll={() => setCheckedClassificationIds(classificationGroups.map((group) => group.id))}
+          onClassificationSelectNone={() => setCheckedClassificationIds([])}
           onProfileChange={toggleProfile}
           onProfileSelectAll={() => setCheckedProfileIds(profileGroupIds)}
           onProfileSelectNone={() => setCheckedProfileIds([])}
@@ -419,11 +445,26 @@ function callerScheduleGroups(events) {
   return [...groups.values()].sort(scheduleGroupSort);
 }
 
-function filterEventsByScheduleLens(events, { callerGroups, checkedCallerIds, checkedUserIds, userGroups }) {
+function classificationScheduleGroups(events) {
+  const groups = new Map();
+  events.forEach((event) => addEventToGroup(groups, classificationGroupBase(event), event));
+  return [...groups.values()].sort(scheduleGroupSort);
+}
+
+function filterEventsByScheduleLens(events, {
+  callerGroups,
+  checkedCallerIds,
+  checkedClassificationIds,
+  checkedUserIds,
+  classificationGroups,
+  userGroups,
+}) {
   const userGroupIds = new Set(userGroups.map((group) => String(group.id)));
   const callerGroupIds = new Set(callerGroups.map((group) => String(group.id)));
+  const classificationGroupIds = new Set(classificationGroups.map((group) => String(group.id)));
   const checkedUserIdSet = new Set(checkedUserIds.map(String));
   const checkedCallerIdSet = new Set(checkedCallerIds.map(String));
+  const checkedClassificationIdSet = new Set(checkedClassificationIds.map(String));
 
   return events.filter((event) => {
     const ownerGroup = ownerGroupBase(event);
@@ -432,6 +473,9 @@ function filterEventsByScheduleLens(events, { callerGroups, checkedCallerIds, ch
 
     const callerId = String(callerGroupBase(event).id);
     if (callerGroupIds.has(callerId) && !checkedCallerIdSet.has(callerId)) return false;
+
+    const classificationId = String(classificationGroupBase(event).id);
+    if (classificationGroupIds.has(classificationId) && !checkedClassificationIdSet.has(classificationId)) return false;
     return true;
   });
 }
@@ -553,6 +597,18 @@ function calendarRangeForDays(days) {
   return {
     from: fromDefaultTimezoneDatetimeLocal(`${firstDay}T00:00`),
     to: fromDefaultTimezoneDatetimeLocal(`${dayAfterLast}T00:00`),
+  };
+}
+
+function classificationGroupBase(event) {
+  const applicationActor = event.job?.bid?.applicationActor || null;
+  const classification = applicationActor?.classification || 'manual';
+  return {
+    id: classification,
+    label: applicationActor?.label || 'Manual',
+    color: CLASSIFICATION_COLORS[classification] || CLASSIFICATION_COLORS.other,
+    count: 0,
+    nextAt: null,
   };
 }
 

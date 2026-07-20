@@ -936,7 +936,7 @@ function durationLabel(durationMinutes = 60) {
 }
 
 function compactEventLabel(event) {
-  return [event.profile?.name || 'Profile', event.company || 'Unknown company', event.job?.bid?.applicationActor?.label].filter(Boolean).join(' · ');
+  return [event.profile?.name || 'Profile', event.company || 'Unknown company'].join(' · ');
 }
 
 export function canDeleteCalendarCall(user, event) {
