@@ -114,18 +114,26 @@ export async function listCalendarInterviews(req, res, next) {
         ? getWebUserModel().findAll({ where: { role: 'caller', ...userWorkspaceWhere }, order: [['username', 'ASC']] })
         : [],
     ]);
-    const applicationUserIds = applicationBids.map((bid) => String(bid.userId)).filter(Boolean);
-    const calendarUserIds = [...new Set([...ownerUserIds, ...applicationUserIds])];
-    const calendarUsers = calendarUserIds.length
-      ? await getWebUserModel().findAll({
-        where: { id: { [Op.in]: calendarUserIds }, ...workspaceFilterForUser(user) },
-        order: [['username', 'ASC']],
-      })
-      : [];
-    const ownerUsersById = new Map(calendarUsers.map((owner) => [String(owner.id), owner]));
+    const applicationUserIds = [...new Set(applicationBids.map((bid) => bid.userId).filter(Boolean).map(String))];
+    const [ownerUsers, applicationUsers] = await Promise.all([
+      ownerUserIds.length
+        ? getWebUserModel().findAll({
+          where: { id: { [Op.in]: ownerUserIds }, ...workspaceFilterForUser(user) },
+          order: [['username', 'ASC']],
+        })
+        : [],
+      applicationUserIds.length
+        ? getWebUserModel().findAll({
+          where: { id: { [Op.in]: applicationUserIds } },
+          attributes: ['id', 'username', 'role'],
+        })
+        : [],
+    ]);
+    const ownerUsersById = new Map(ownerUsers.map((owner) => [String(owner.id), owner]));
+    const applicationUsersById = new Map(applicationUsers.map((applicationUser) => [String(applicationUser.id), applicationUser]));
     const applicationActorsByJobBidId = new Map(applicationBids.map((bid) => [
       String(bid.id),
-      ownerUsersById.get(String(bid.userId)) || null,
+      applicationUsersById.get(String(bid.userId)) || null,
     ]));
     const callerUsersForDisplay = user.role === 'caller' && !callerUsers.some((caller) => String(caller.id) === String(user.id))
       ? [...callerUsers, user]
@@ -425,14 +433,12 @@ export function calendarApplicationActor(user, jobBidId) {
 
 export function calendarApplicationClassification(role) {
   if (BIDDER_ROLES.includes(role)) return 'bidder';
-  if (role === 'finance_manager' || role === 'user') return 'user';
-  return 'other';
+  return 'user';
 }
 
 function calendarApplicationClassificationLabel(classification) {
   if (classification === 'bidder') return 'Bidder';
-  if (classification === 'user') return 'User';
-  return 'Applicant';
+  return 'User';
 }
 
 export async function tailoredResumesForCalendarEvents(interviews = []) {

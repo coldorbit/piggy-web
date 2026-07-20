@@ -74,12 +74,15 @@ describe('calendar range query', () => {
 });
 
 describe('calendar application classification', () => {
-  it('classifies bidder roles separately while grouping users and finance managers', () => {
+  it('classifies linked applications as bidder or user from the bid owner role', () => {
     assert.equal(calendarApplicationClassification(ROLES.editableBidder), 'bidder');
     assert.equal(calendarApplicationClassification(ROLES.readonlyBidder), 'bidder');
     assert.equal(calendarApplicationClassification(ROLES.user), 'user');
     assert.equal(calendarApplicationClassification(ROLES.financeManager), 'user');
+    assert.equal(calendarApplicationClassification(ROLES.internal), 'user');
+    assert.equal(calendarApplicationClassification(ROLES.admin), 'user');
     assert.equal(calendarApplicationActor({ role: ROLES.financeManager }, 42).label, 'User');
+    assert.equal(calendarApplicationActor(null, 42).label, 'User');
   });
 
   it('formats the actor for application-backed interviews only', () => {
