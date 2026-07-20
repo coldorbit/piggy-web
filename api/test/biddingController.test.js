@@ -19,9 +19,13 @@ import {
   normalizeCompany,
   interviewStatusFromAttrs,
   interviewOccurrenceLogFromSnapshot,
+  interviewCallJobBidId,
+  interviewJobLinkValues,
+  linkedBidInterviewValues,
   shouldRegisterInitialInterviewCall,
   shouldRegisterInterviewCallForStage,
   shouldRegisterInterviewCallForStageChange,
+  unlinkedBidInterviewValues,
 } from '../server/modules/bidding/presentation/biddingController.js';
 import { ROLES } from '../server/utils/roles.js';
 
@@ -418,6 +422,51 @@ describe('canDeleteInterviewCall', () => {
 
     assert.equal(canDeleteInterviewCall({ id: 99, role: ROLES.admin }, call, interview), false);
     assert.equal(canDeleteInterviewCall({ id: 99, role: ROLES.user }, call, interview), false);
+  });
+});
+
+describe('interview call job relinking', () => {
+  it('validates the replacement application id', () => {
+    assert.equal(interviewCallJobBidId({}), null);
+    assert.equal(interviewCallJobBidId({ jobBidId: '42' }), 42);
+    assert.throws(() => interviewCallJobBidId({ jobBidId: 'job' }), /valid linked application/);
+  });
+
+  it('moves interview metadata and state between linked applications', () => {
+    const now = new Date('2026-07-20T12:00:00.000Z');
+    assert.deepEqual(
+      interviewJobLinkValues({ id: 42, jobId: 30 }, {
+        title: 'Platform Engineer',
+        company: 'Acme',
+        location: 'Remote',
+        url: 'https://example.com/jobs/30',
+      }),
+      {
+        jobId: 30,
+        jobBidId: 42,
+        title: 'Platform Engineer',
+        company: 'Acme',
+        location: 'Remote',
+        jobUrl: 'https://example.com/jobs/30',
+      },
+    );
+    assert.deepEqual(unlinkedBidInterviewValues(now), {
+      callerUserId: null,
+      status: 'submitted',
+      interviewStage: null,
+      interviewNextAt: null,
+      interviewNotes: null,
+      updatedAt: now,
+    });
+    assert.deepEqual(linkedBidInterviewValues(interviewRow(), now), {
+      callerUserId: null,
+      status: 'interviewing',
+      interviewStage: 'screening',
+      interviewNextAt: new Date('2026-06-20T17:00:00.000Z'),
+      interviewDurationMinutes: 60,
+      interviewNotes: null,
+      updatedAt: now,
+    });
   });
 });
 

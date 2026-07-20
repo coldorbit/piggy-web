@@ -403,7 +403,7 @@ export default function InterviewsPage({ currentUser }) {
     );
   }
 
-  function submitManualCall(event) {
+  function submitManualCall(event, linkedApplicationJob = null) {
     event.preventDefault();
     if (!selectedJob?.bid?.parentInterviewId) return;
     setError('');
@@ -415,6 +415,7 @@ export default function InterviewsPage({ currentUser }) {
       durationMinutes: manualCall.durationMinutes,
       meetingLink: manualCall.meetingLink,
       notes: manualCall.notes,
+      ...(linkedApplicationJob?.bid?.id ? { jobBidId: linkedApplicationJob.bid.id } : {}),
       ...(String(manualCall.callerUserId || '') !== defaultCallerUserId ? { callerUserId: manualCall.callerUserId } : {}),
     };
     const existingCallId = manualCall.id || callForStage(selectedJob, manualCall.interviewStage)?.id || '';

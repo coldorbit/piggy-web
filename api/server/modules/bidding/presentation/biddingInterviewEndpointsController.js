@@ -78,6 +78,7 @@ import {
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
 const DAILY_BID_GOAL_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
+const LINKABLE_INTERVIEW_BID_STATUSES = new Set(DAILY_BID_GOAL_STATUSES);
 const BATCH_LIMIT = 100;
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -274,6 +275,11 @@ export async function updateInterviewCall(req, res, next) {
       await interviewWriteProfileForUser(user, interview.profileId, 'Interview not found');
     }
 
+    const requestedJobBidId = interviewCallJobBidId(req.body);
+    const relinkTarget = requestedJobBidId && String(requestedJobBidId) !== String(interview.jobBidId || '')
+      ? await interviewCallRelinkTarget(interview, requestedJobBidId)
+      : null;
+
     const attrs = manualInterviewCallAttributes({
       ...req.body,
       interviewStage: call.interviewStage || interview.interviewStage || 'todo',
@@ -287,33 +293,38 @@ export async function updateInterviewCall(req, res, next) {
     const metadata = attrs.callerUserIdProvided
       ? { ...(call.metadata || {}), callerUserIdManuallyAssigned: true }
       : call.metadata || {};
-    await call.update({
-      callerUserId,
-      scheduledAt: attrs.scheduledAt,
-      durationMinutes,
-      meetingLink: attrs.meetingLink || null,
-      notes: attrs.notes || null,
-      metadata,
-      updatedAt: now,
-    });
-
-    if (syncCurrentSchedule) {
-      await interview.update({
-        interviewNextAt: attrs.scheduledAt,
-        interviewDurationMinutes: durationMinutes,
+    const currentBid = interview.jobBidId ? await getJobBidModel().findByPk(interview.jobBidId) : null;
+    await getSequelize().transaction(async (transaction) => {
+      await call.update({
+        callerUserId,
+        scheduledAt: attrs.scheduledAt,
+        durationMinutes,
+        meetingLink: attrs.meetingLink || null,
+        notes: attrs.notes || null,
+        metadata,
         updatedAt: now,
-      });
-      if (interview.jobBidId) {
-        const bid = await getJobBidModel().findByPk(interview.jobBidId);
-        if (bid) {
-          await bid.update({
-            interviewNextAt: attrs.scheduledAt,
-            interviewDurationMinutes: durationMinutes,
-            updatedAt: now,
-          });
-        }
+      }, { transaction });
+
+      const interviewUpdates = {
+        ...(syncCurrentSchedule
+          ? { interviewNextAt: attrs.scheduledAt, interviewDurationMinutes: durationMinutes }
+          : {}),
+        ...(relinkTarget ? interviewJobLinkValues(relinkTarget.bid, relinkTarget.job) : {}),
+        updatedAt: now,
+      };
+      if (syncCurrentSchedule || relinkTarget) await interview.update(interviewUpdates, { transaction });
+
+      if (relinkTarget) {
+        if (currentBid) await currentBid.update(unlinkedBidInterviewValues(now), { transaction });
+        await relinkTarget.bid.update(linkedBidInterviewValues(interview, now), { transaction });
+      } else if (syncCurrentSchedule && currentBid) {
+        await currentBid.update({
+          interviewNextAt: attrs.scheduledAt,
+          interviewDurationMinutes: durationMinutes,
+          updatedAt: now,
+        }, { transaction });
       }
-    }
+    });
 
     res.json({ call: formatInterviewCall(call) });
   } catch (error) {
@@ -366,6 +377,61 @@ export function canDeleteInterviewCall(user, call, interview = null, profile = n
   return String(call?.userId || '') === userId
     || String(interview?.userId || '') === userId
     || String(profile?.userId || '') === userId;
+}
+
+export function interviewCallJobBidId(body = {}) {
+  if (!Object.prototype.hasOwnProperty.call(body, 'jobBidId')) return null;
+  const jobBidId = Number(clean(body.jobBidId));
+  if (!Number.isSafeInteger(jobBidId) || jobBidId <= 0) throw new InputError('Choose a valid linked application');
+  return jobBidId;
+}
+
+async function interviewCallRelinkTarget(interview, jobBidId) {
+  const bid = await getJobBidModel().findByPk(jobBidId);
+  if (!bid || String(bid.profileId) !== String(interview.profileId) || !LINKABLE_INTERVIEW_BID_STATUSES.has(bid.status)) {
+    throw new InputError('Choose an application from this profile');
+  }
+  const linkedInterview = await getInterviewModel().findOne({ where: { jobBidId } });
+  if (linkedInterview && String(linkedInterview.id) !== String(interview.id)) {
+    throw new InputError('That application is already linked to another interview');
+  }
+  const job = await getScrapedJobModel().findByPk(bid.jobId);
+  if (!job) throw new NotFoundError('Linked job not found');
+  return { bid, job };
+}
+
+export function interviewJobLinkValues(bid, job) {
+  return {
+    jobId: bid.jobId,
+    jobBidId: bid.id,
+    title: job.title || 'Untitled role',
+    company: job.company || 'Unknown company',
+    location: job.location || null,
+    jobUrl: job.url || null,
+  };
+}
+
+export function unlinkedBidInterviewValues(now = new Date()) {
+  return {
+    callerUserId: null,
+    status: 'submitted',
+    interviewStage: null,
+    interviewNextAt: null,
+    interviewNotes: null,
+    updatedAt: now,
+  };
+}
+
+export function linkedBidInterviewValues(interview, now = new Date()) {
+  return {
+    callerUserId: interview.callerUserId || null,
+    status: bidStatusFromInterviewStatus(interview.status),
+    interviewStage: interview.interviewStage,
+    interviewNextAt: interview.interviewNextAt,
+    interviewDurationMinutes: interview.interviewDurationMinutes || 60,
+    interviewNotes: interview.interviewNotes || null,
+    updatedAt: now,
+  };
 }
 
 export async function ensureCallerUser(callerUserId) {

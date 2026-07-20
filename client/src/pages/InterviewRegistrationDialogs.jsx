@@ -92,6 +92,31 @@ export function InterviewRegistrationDialogs({
   updatingBid,
   updatingInterviewCall,
 }) {
+  const [callApplicationSearch, setCallApplicationSearch] = useState('');
+  const [callApplicationJob, setCallApplicationJob] = useState(null);
+  const callApplicationFilters = useMemo(() => ({
+    bidTab: BID_TABS.done,
+    since: 'all',
+    search: callApplicationSearch,
+    searchScope: 'title_company',
+    limit: 75,
+  }), [callApplicationSearch]);
+  const { data: callApplicationData, isLoading: callApplicationLoading } = useBidJobs(
+    isManualCallDialogOpen && manualCall.id ? activeProfile?.id : '',
+    callApplicationFilters,
+    { includeTabCounts: false },
+  );
+  const callApplicationOptions = useMemo(
+    () => (callApplicationData?.jobs || []).filter((job) => job?.bid?.id && DONE_STATUSES.has(job.bid.status)),
+    [callApplicationData?.jobs],
+  );
+
+  useEffect(() => {
+    if (isManualCallDialogOpen) return;
+    setCallApplicationSearch('');
+    setCallApplicationJob(null);
+  }, [isManualCallDialogOpen]);
+
   return (
     <>
       <Dialog open={isManualDialogOpen} onClose={closeManualDialog} fullWidth maxWidth="sm">
@@ -293,8 +318,8 @@ export function InterviewRegistrationDialogs({
         </form>
       </Dialog>
       <Dialog open={isManualCallDialogOpen} onClose={closeManualCallDialog} fullWidth maxWidth="sm">
-        <form onSubmit={submitManualCall}>
-          <DialogTitle>Register call</DialogTitle>
+        <form onSubmit={(event) => submitManualCall(event, callApplicationJob)}>
+          <DialogTitle>{manualCall.id ? 'Edit call' : 'Register call'}</DialogTitle>
           <DialogContent sx={{ display: 'grid', gap: 1.5, pt: 2 }}>
             {selectedJob ? (
               <Paper variant="outlined" sx={{ p: 1.25, display: 'grid', gap: 0.35, bgcolor: 'rgba(246, 248, 251, 0.86)' }}>
@@ -305,6 +330,43 @@ export function InterviewRegistrationDialogs({
                   {[selectedJob.company, activeProfile?.name].filter(Boolean).join(' · ') || 'Interview'}
                 </Typography>
               </Paper>
+            ) : null}
+            {manualCall.id ? (
+              <Autocomplete
+                clearOnBlur={false}
+                filterOptions={(options) => options}
+                getOptionLabel={applicationOptionLabel}
+                isOptionEqualToValue={(option, value) => String(option?.bid?.id || '') === String(value?.bid?.id || '')}
+                loading={callApplicationLoading}
+                noOptionsText={callApplicationSearch ? 'No matching applications found' : 'No other applications'}
+                options={callApplicationOptions}
+                value={callApplicationJob}
+                inputValue={callApplicationSearch}
+                onChange={(_event, option) => {
+                  setCallApplicationJob(option);
+                  if (option) setCallApplicationSearch(applicationOptionLabel(option));
+                }}
+                onInputChange={(_event, value, reason) => {
+                  setCallApplicationSearch(value);
+                  if (reason === 'clear' || reason === 'input') setCallApplicationJob(null);
+                }}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} sx={{ display: 'grid', gap: 0.25 }}>
+                    <Typography variant="body2" fontWeight={600}>{option.title || 'Untitled role'}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {[option.company, statusLabel(option.bid?.status)].filter(Boolean).join(' · ')}
+                    </Typography>
+                  </Box>
+                )}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Change linked application"
+                    placeholder="Search by job title or company"
+                    helperText="Optional: choose another application for this interview"
+                  />
+                )}
+              />
             ) : null}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
               <TextField
