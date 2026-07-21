@@ -16,7 +16,9 @@ export function useForwardedMailboxSummary(queryOptions = {}) {
 export function useForwardedMailboxMessages(queryOptions = {}) {
   return useInfiniteQuery({
     queryKey: ['bid', 'mailbox', 'messages'],
-    queryFn: ({ pageParam = 0 }) => api(`/api/bid/mailbox/messages?limit=10&offset=${pageParam}`),
+    queryFn: ({ pageParam = 0 }) => api(pageParam === 0
+      ? '/api/bid/mailbox/bootstrap?limit=10&offset=0'
+      : `/api/bid/mailbox/messages?limit=10&offset=${pageParam}&includeStats=false`),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage?.pagination?.hasMore ? lastPage.pagination.nextOffset : undefined,
     staleTime: 15_000,
@@ -27,7 +29,7 @@ export function useForwardedMailboxMessages(queryOptions = {}) {
 export function useForwardedProfileMessages(profileId, queryOptions = {}) {
   return useInfiniteQuery({
     queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages'],
-    queryFn: ({ pageParam = 0 }) => api(`/api/bid/profiles/${profileId}/mailbox/messages?limit=10&offset=${pageParam}`),
+    queryFn: ({ pageParam = 0 }) => api(`/api/bid/profiles/${profileId}/mailbox/messages?limit=10&offset=${pageParam}&includeStats=false`),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage?.pagination?.hasMore ? lastPage.pagination.nextOffset : undefined,
     enabled: Boolean(profileId),
@@ -56,7 +58,11 @@ export function useMarkProfileMailboxMessageRead() {
       const previousSummaryData = queryClient.getQueryData(summaryQueryKey);
       const previousNotificationsData = queryClient.getQueryData(notificationsQueryKey);
       queryClient.setQueryData(queryKey, (data) => updateMailboxMessageReadState(data, messageId, { isRead: true }));
-      queryClient.setQueryData(aggregateQueryKey, (data) => updateMailboxMessageReadState(data, messageId, { isRead: true }));
+      queryClient.setQueryData(aggregateQueryKey, (data) => updateMailboxBootstrapSummary(
+        updateMailboxMessageReadState(data, messageId, { isRead: true }),
+        profileId,
+        { wasUnread },
+      ));
       queryClient.setQueryData(summaryQueryKey, (data) => updateMailboxSummaryReadState(data, profileId, { wasUnread }));
       queryClient.setQueryData(notificationsQueryKey, (data) => updateMailboxNotificationReadState(data, messageId, { decrementMissing: true, wasUnread }));
       return { aggregateQueryKey, notificationsQueryKey, previousAggregateData, previousData, previousNotificationsData, previousSummaryData, queryKey, summaryQueryKey };
@@ -126,6 +132,17 @@ function updateMailboxSummaryReadState(currentData, profileId, { wasUnread = tru
       ? { ...profile, unreadTotal: Math.max(Number(profile.unreadTotal || 0) - 1, 0), stats: decrementMailboxStatsUnread(profile.stats) }
       : profile),
   };
+}
+
+function updateMailboxBootstrapSummary(currentData, profileId, { wasUnread = true } = {}) {
+  if (!currentData?.pages?.length || !wasUnread) return currentData;
+  let changed = false;
+  const pages = currentData.pages.map((page) => {
+    if (!page?.summary) return page;
+    changed = true;
+    return { ...page, summary: updateMailboxSummaryReadState(page.summary, profileId, { wasUnread }) };
+  });
+  return changed ? { ...currentData, pages } : currentData;
 }
 
 function decrementMailboxStatsUnread(stats) {

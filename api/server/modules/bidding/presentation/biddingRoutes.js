@@ -62,6 +62,7 @@ import {
   updateProfileStory,
 } from './profileIntelligenceController.js';
 import {
+  getForwardingMailboxBootstrap,
   getForwardingMailboxStatus,
   getForwardingMailboxSummary,
   listForwardingMailboxMessages,
@@ -96,6 +97,7 @@ export function registerBidRoutes(app) {
   app.patch('/api/bid/profiles/:id/stories/:storyId', requireProfileHubAccess, updateProfileStory);
   app.delete('/api/bid/profiles/:id/stories/:storyId', requireProfileHubAccess, deleteProfileStory);
   app.patch('/api/bid/profiles/:id/prep-plan', requireProfileHubAccess, updateProfilePrepPlan);
+  app.get('/api/bid/mailbox/bootstrap', requireInboxAccess, getForwardingMailboxBootstrap);
   app.get('/api/bid/mailbox/status', requireInboxAccess, getForwardingMailboxStatus);
   app.get('/api/bid/mailbox/summary', requireInboxAccess, getForwardingMailboxSummary);
   app.get('/api/bid/mailbox/notifications', requireInboxAccess, listForwardingMailboxNotifications);

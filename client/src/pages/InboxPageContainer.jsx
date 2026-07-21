@@ -29,8 +29,7 @@ import { useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import { useBidProfiles, useForwardedMailboxMessages, useForwardedMailboxSummary, useForwardedProfileMessages, useForwardingMailboxStatus, useMarkProfileMailboxMessageRead } from '../lib/api.js';
-import { isAdminRole } from '../lib/roles.js';
+import { useForwardedMailboxMessages, useForwardedProfileMessages, useMarkProfileMailboxMessageRead } from '../lib/api.js';
 
 const INBOX_MESSAGE_ACCENT = { main: '#0067C0', soft: '#E0ECFF', dark: '#005A9E' };
 const DECLINED_ACCENT = { main: '#E11D48', soft: '#FFF1F2', dark: '#BE123C' };
@@ -51,7 +50,7 @@ import { MailboxSidebar } from './InboxNavigation.jsx';
 import { MessageListPane } from './InboxMessages.jsx';
 import { ReadingPane, dedupeMessagesById, filterMessages, filterMessagesByGroup, mailboxGroupLabel, mailboxGroupTotal, mailboxStatsFromPages, mailboxStatsFromSummary, normalizedMailboxGroup, profileHasMailboxMatcher, profileMailboxAddress } from './InboxReadingPane.jsx';
 
-export default function InboxPage({ currentUser }) {
+export default function InboxPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [activeMailboxGroup, setActiveMailboxGroup] = useState(() => normalizedMailboxGroup(searchParams.get('group')));
@@ -61,40 +60,7 @@ export default function InboxPage({ currentUser }) {
   const searchParamsString = searchParams.toString();
   const isSyncingFromSearchParams = useRef(false);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
-  const {
-    data: profiles = [],
-    isLoading: profilesLoading,
-    error: profilesError,
-  } = useBidProfiles(isAdminRole(currentUser) ? { scope: 'manage' } : {});
-  const inboxProfiles = useMemo(
-    () => profiles
-      .filter((profile) => ['active', 'closed', 'legacy'].includes(profile.profileStatus || 'active'))
-      .filter(profileHasMailboxMatcher),
-    [profiles],
-  );
   const isAggregateInbox = !activeProfileId;
-  const activeProfile = useMemo(
-    () => (activeProfileId ? inboxProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || null : null),
-    [activeProfileId, inboxProfiles],
-  );
-  const activeColor = activeProfile
-    ? PROFILE_COLORS[activeProfile.colorScheme || 'green'] || PROFILE_COLORS.green
-    : INBOX_MESSAGE_ACCENT;
-  const {
-    data: mailboxStatus,
-    isLoading: statusLoading,
-    error: statusError,
-  } = useForwardingMailboxStatus();
-  const mailboxDataReady = !statusLoading && !statusError;
-  const configured = !statusError;
-  const mailboxEmail = mailboxStatus?.email || 'Stored mailbox';
-  const {
-    data: mailboxSummary,
-  } = useForwardedMailboxSummary({
-    enabled: mailboxDataReady,
-  });
-  const canFetchAggregateMessages = Boolean(isAggregateInbox && mailboxDataReady);
-  const canFetchProfileMessages = Boolean(!isAggregateInbox && activeProfile?.id && mailboxDataReady);
   const {
     data: aggregateInboxData,
     fetchNextPage: fetchNextAggregatePage,
@@ -103,9 +69,31 @@ export default function InboxPage({ currentUser }) {
     isFetchingNextPage: isFetchingNextAggregatePage,
     error: aggregateMessagesError,
     refetch: refetchAggregateMessages,
-  } = useForwardedMailboxMessages({
-    enabled: canFetchAggregateMessages,
-  });
+  } = useForwardedMailboxMessages();
+  const mailboxBootstrap = aggregateInboxData?.pages?.[0] || null;
+  const profiles = mailboxBootstrap?.profiles || [];
+  const profilesLoading = aggregateMessagesLoading && !aggregateInboxData;
+  const profilesError = aggregateMessagesError;
+  const inboxProfiles = useMemo(
+    () => profiles
+      .filter((profile) => ['active', 'closed', 'legacy'].includes(profile.profileStatus || 'active'))
+      .filter(profileHasMailboxMatcher),
+    [profiles],
+  );
+  const activeProfile = useMemo(
+    () => (activeProfileId ? inboxProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || null : null),
+    [activeProfileId, inboxProfiles],
+  );
+  const activeColor = activeProfile
+    ? PROFILE_COLORS[activeProfile.colorScheme || 'green'] || PROFILE_COLORS.green
+    : INBOX_MESSAGE_ACCENT;
+  const mailboxStatus = mailboxBootstrap?.mailbox;
+  const mailboxSummary = mailboxBootstrap?.summary;
+  const statusLoading = profilesLoading;
+  const statusError = aggregateMessagesError;
+  const configured = !statusError;
+  const mailboxEmail = mailboxStatus?.email || 'Stored mailbox';
+  const canFetchProfileMessages = Boolean(!isAggregateInbox && activeProfileId);
   const {
     data: profileInboxData,
     fetchNextPage: fetchNextProfilePage,
@@ -114,7 +102,7 @@ export default function InboxPage({ currentUser }) {
     isFetchingNextPage: isFetchingNextProfilePage,
     error: profileMessagesError,
     refetch: refetchProfileMessages,
-  } = useForwardedProfileMessages(activeProfile?.id, {
+  } = useForwardedProfileMessages(activeProfileId, {
     enabled: canFetchProfileMessages,
   });
   const markMessageRead = useMarkProfileMailboxMessageRead();
@@ -156,7 +144,7 @@ export default function InboxPage({ currentUser }) {
     [filteredMessages, selectedMessageId],
   );
   const pageError = profilesError?.message || statusError?.message || (configured ? messagesError?.message : '') || '';
-  const isLoadingMessages = statusLoading || (messagesLoading && !inboxData);
+  const isLoadingMessages = profilesLoading || (messagesLoading && !inboxData);
   const totalMessages = configured ? stableMailboxStats.total : 0;
   const unreadCount = configured ? stableMailboxStats.unreadTotal : 0;
   const stableUnreadCount = configured ? Math.max(Number(mailboxSummary?.stats?.unreadTotal ?? mailboxSummary?.unreadTotal ?? 0), 0) : 0;

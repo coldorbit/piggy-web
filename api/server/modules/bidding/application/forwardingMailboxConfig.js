@@ -25,7 +25,7 @@ const APPLIED_STATUSES = new Set(['submitted', 'interviewing', 'won', 'lost']);
 let mailboxApplicationSyncTimer = null;
 let mailboxApplicationSyncRunning = false;
 
-import { classifyForwardedMessage, classifyMailboxMessageIntent, emptyMailboxStats, formatStoredMailboxMessage, formatStoredMailboxNotificationMessage, mailboxNotificationProfilesForUser, mailboxProfileForStoredRow, mailboxProfileForUser, mailboxProfilesMessageWhere, mailboxStatsByProfile, mailboxStatsForWhere, profileMailboxMessageConditions, storedForwardedMailboxMessagePageForProfiles, storedForwardedProfileMessagePage, storedMailboxProfileInclude, upsertForwardedMailboxMessage } from './forwardingMailboxFormatting.js';
+import { classifyForwardedMessage, classifyMailboxMessageIntent, emptyMailboxStats, formatMailboxProfile, formatStoredMailboxMessage, formatStoredMailboxNotificationMessage, mailboxNotificationProfilesForUser, mailboxProfileForStoredRow, mailboxProfileForUser, mailboxProfilesMessageWhere, mailboxStatsByProfile, mailboxStatsForWhere, profileMailboxMessageConditions, storedForwardedMailboxMessagePageForProfiles, storedForwardedProfileMessagePage, storedMailboxProfileInclude, upsertForwardedMailboxMessage } from './forwardingMailboxFormatting.js';
 import { applicationResultForMailboxMessage, booleanOption, emptyMailboxApplicationSyncStats, fetchRecentMailboxMessages, integerOption, markImapMessageRefRead, normalizedMessageLimit, notificationMessageLimit, runForwardingMailboxApplicationSync, storedMailboxMessageOrder } from './forwardingMailboxPersistence.js';
 import { assertForwardingMailboxConfigured, mailboxMessageRefFromId, mailboxPort, mailboxSecure, profileMessagePage } from './forwardingMailboxImap.js';
 
@@ -141,13 +141,16 @@ export async function mailboxProfileForRequest(req, profileId) {
   return { user, profile: await mailboxProfileForUser(user, profileId) };
 }
 
-export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
+export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0, includeStats = true } = {}) {
   const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
   const page = await storedForwardedProfileMessagePage(profile, {
     limit: messageLimit,
     offset: messageOffset,
+    includeStats,
   });
-  const nextOffset = Math.min(messageOffset + page.messages.length, page.total);
+  const nextOffset = page.total === null
+    ? messageOffset + page.messages.length
+    : Math.min(messageOffset + page.messages.length, page.total);
 
   return {
     mailbox: forwardingMailboxStatus(),
@@ -198,15 +201,18 @@ export async function markForwardedProfileMessageRead(profile, { messageId } = {
   throw new NotFoundError('Message not found');
 }
 
-export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
+export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0, includeStats = true } = {}) {
   const user = await currentDbUser(req);
   const profiles = await mailboxNotificationProfilesForUser(user);
   const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
   const page = await storedForwardedMailboxMessagePageForProfiles(profiles, {
     limit: messageLimit,
     offset: messageOffset,
+    includeStats,
   });
-  const nextOffset = Math.min(messageOffset + page.messages.length, page.total);
+  const nextOffset = page.total === null
+    ? messageOffset + page.messages.length
+    : Math.min(messageOffset + page.messages.length, page.total);
 
   return {
     mailbox: forwardingMailboxStatus(),
@@ -217,7 +223,45 @@ export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_
       total: page.total,
       unreadTotal: page.unreadTotal,
       nextOffset,
-      hasMore: nextOffset < page.total,
+      hasMore: page.total === null ? page.hasMore : nextOffset < page.total,
+    },
+  };
+}
+
+export async function getForwardedMailboxBootstrap(req, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
+  const user = await currentDbUser(req);
+  const profiles = await mailboxNotificationProfilesForUser(user);
+  const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
+  const [page, profileStatsById] = await Promise.all([
+    storedForwardedMailboxMessagePageForProfiles(profiles, {
+      limit: messageLimit,
+      offset: messageOffset,
+    }),
+    mailboxStatsByProfile(profiles),
+  ]);
+  const nextOffset = Math.min(messageOffset + page.messages.length, page.total);
+  const stats = page.stats || emptyMailboxStats();
+
+  return {
+    mailbox: forwardingMailboxStatus(),
+    profiles: profiles.map(formatMailboxProfile),
+    summary: {
+      unreadTotal: stats.unreadTotal,
+      stats,
+      profiles: profiles.map((profile) => ({
+        id: profile.id,
+        unreadTotal: profileStatsById.get(String(profile.id))?.unreadTotal || 0,
+        stats: profileStatsById.get(String(profile.id)) || emptyMailboxStats(),
+      })),
+    },
+    messages: page.messages,
+    pagination: {
+      limit: messageLimit,
+      offset: messageOffset,
+      total: page.total,
+      unreadTotal: page.unreadTotal,
+      nextOffset,
+      hasMore: page.total === null ? page.hasMore : nextOffset < page.total,
     },
   };
 }

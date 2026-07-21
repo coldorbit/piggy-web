@@ -6,6 +6,7 @@ import {
   classifyForwardedMessage,
   calendarEventFromAttachments,
   forwardingMailboxApplicationSyncConfig,
+  formatMailboxProfile,
   formatMailboxMessage,
   formatMailboxNotificationMessage,
   formatStoredMailboxMessage,
@@ -17,6 +18,29 @@ import {
 } from '../server/modules/bidding/application/forwardingMailboxService.js';
 
 describe('forwarding mailbox helpers', () => {
+  it('formats only the profile fields required by the inbox bootstrap response', () => {
+    assert.deepEqual(formatMailboxProfile({
+      id: '9',
+      userId: '4',
+      workspaceId: '2',
+      name: 'Maya Patel',
+      email: 'maya@example.com',
+      forwardingEmail: 'service+maya@co-bounce.com',
+      colorScheme: 'violet',
+      profileStatus: 'active',
+      resumeText: 'large field that must not be returned',
+    }), {
+      id: '9',
+      userId: '4',
+      workspaceId: '2',
+      name: 'Maya Patel',
+      email: 'maya@example.com',
+      forwardingEmail: 'service+maya@co-bounce.com',
+      colorScheme: 'violet',
+      profileStatus: 'active',
+    });
+  });
+
   it('parses address lists from mailparser output', () => {
     assert.deepEqual(parseAddressList({
       value: [

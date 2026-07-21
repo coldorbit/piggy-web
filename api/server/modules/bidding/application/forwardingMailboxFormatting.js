@@ -12,7 +12,7 @@ import {
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, isAdminRole } from '../../../utils/roles.js';
-import { currentDbUser, profilesManagedByUser, profilesVisibleToUser } from './profilesService.js';
+import { currentDbUser, workspaceProfileWhereForUser } from './profilesService.js';
 
 const DEFAULT_PROFILE_MESSAGE_LIMIT = 10;
 const DEFAULT_NOTIFICATION_MESSAGE_LIMIT = 25;
@@ -22,6 +22,24 @@ const MIN_MAILBOX_SYNC_INTERVAL_MS = 30 * 1000;
 const MAX_MESSAGE_FETCH = 200;
 const SKIPPED_MAILBOX_SPECIAL_USE = new Set(['\\All', '\\Drafts', '\\Junk', '\\Sent', '\\Trash']);
 const APPLIED_STATUSES = new Set(['submitted', 'interviewing', 'won', 'lost']);
+const MAILBOX_PROFILE_ATTRIBUTES = ['id', 'userId', 'workspaceId', 'name', 'email', 'forwardingEmail', 'colorScheme', 'profileStatus'];
+const MAILBOX_MESSAGE_LIST_ATTRIBUTES = [
+  'messageId',
+  'mailboxPath',
+  'profileId',
+  'matchValue',
+  'matchSource',
+  'subject',
+  'fromName',
+  'fromAddress',
+  'receivedAt',
+  'bodyPreview',
+  'bodyHtml',
+  'isRead',
+  'classification',
+  'application',
+  'calendarEvent',
+];
 let mailboxApplicationSyncTimer = null;
 let mailboxApplicationSyncRunning = false;
 
@@ -224,13 +242,51 @@ export async function mailboxProfileForUser(user, profileId) {
 
 export async function mailboxNotificationProfilesForUser(user) {
   if (CALLER_BLOCKED_ROLES.includes(user?.role)) throw new InputError('This role cannot read profile inboxes');
+  const BidProfile = getBidProfileModel();
   const profiles = isAdminRole(user)
-    ? await profilesManagedByUser(user)
-    : await profilesVisibleToUser(user);
+    ? await BidProfile.findAll({
+        attributes: MAILBOX_PROFILE_ATTRIBUTES,
+        where: workspaceProfileWhereForUser(user),
+        order: [['createdAt', 'ASC']],
+      })
+    : await mailboxProfilesVisibleToUser(user);
 
   return profiles
     .filter((profile) => ['active', 'closed', 'legacy'].includes(profile?.profileStatus || 'active'))
     .filter((profile) => profileMailboxMatchers(profile).length);
+}
+
+async function mailboxProfilesVisibleToUser(user) {
+  const BidProfile = getBidProfileModel();
+  const ProfileShareRequest = getProfileShareRequestModel();
+  const workspaceScope = workspaceProfileWhereForUser(user) || {};
+  const [ownedProfiles, acceptedShares] = await Promise.all([
+    BidProfile.findAll({
+      attributes: MAILBOX_PROFILE_ATTRIBUTES,
+      where: { userId: user.id, ...workspaceScope },
+      order: [['createdAt', 'ASC']],
+    }),
+    ProfileShareRequest.findAll({
+      attributes: ['profileId'],
+      where: { recipientUserId: user.id, status: 'accepted' },
+      include: [{ model: BidProfile, as: 'profile', required: true, attributes: MAILBOX_PROFILE_ATTRIBUTES }],
+      order: [['updatedAt', 'ASC']],
+    }),
+  ]);
+  return [...ownedProfiles, ...acceptedShares.map((share) => share.profile)];
+}
+
+export function formatMailboxProfile(profile) {
+  return {
+    id: rowValue(profile, 'id'),
+    userId: rowValue(profile, 'userId'),
+    workspaceId: rowValue(profile, 'workspaceId') || null,
+    name: rowValue(profile, 'name') || '',
+    email: rowValue(profile, 'email') || null,
+    forwardingEmail: rowValue(profile, 'forwardingEmail') || null,
+    colorScheme: rowValue(profile, 'colorScheme') || 'green',
+    profileStatus: rowValue(profile, 'profileStatus') || 'active',
+  };
 }
 
 export async function ensureUserCanReadMailboxProfile(user, profile) {
@@ -247,12 +303,12 @@ export async function ensureUserCanReadMailboxProfile(user, profile) {
   throw new NotFoundError('Profile not found');
 }
 
-export async function storedForwardedProfileMessagePage(profile, { limit, offset }) {
+export async function storedForwardedProfileMessagePage(profile, { limit, offset, includeStats = true }) {
   const where = profileMailboxMessageWhere(profile);
-  return storedForwardedMailboxMessagePage(where, { limit, offset, profiles: [profile] });
+  return storedForwardedMailboxMessagePage(where, { limit, offset, profiles: [profile], includeStats });
 }
 
-export async function storedForwardedMailboxMessagePageForProfiles(profiles, { limit, offset }) {
+export async function storedForwardedMailboxMessagePageForProfiles(profiles, { limit, offset, includeStats = true }) {
   const where = mailboxProfilesMessageWhere(profiles);
   if (!where) {
     return {
@@ -261,7 +317,7 @@ export async function storedForwardedMailboxMessagePageForProfiles(profiles, { l
       unreadTotal: 0,
     };
   }
-  return storedForwardedMailboxMessagePage(where, { limit, offset, profiles });
+  return storedForwardedMailboxMessagePage(where, { limit, offset, profiles, includeStats });
 }
 
 export async function unreadMailboxCountsByProfile(profiles) {
@@ -499,22 +555,27 @@ export function mailboxProfileForStoredRow(row, profiles) {
   return null;
 }
 
-export async function storedForwardedMailboxMessagePage(where, { limit, offset, profiles = [] }) {
-  const [messages, stats] = await Promise.all([
-    getForwardedMailboxMessageModel().findAll({
-      where,
-      include: [storedMailboxProfileInclude()],
-      limit,
-      offset,
-      order: storedMailboxMessageOrder(),
-    }),
-    mailboxStatsForWhere(where),
-  ]);
+export async function storedForwardedMailboxMessagePage(where, { limit, offset, profiles = [], includeStats = true }) {
+  const messageQuery = getForwardedMailboxMessageModel().findAll({
+    attributes: MAILBOX_MESSAGE_LIST_ATTRIBUTES,
+    where,
+    include: [storedMailboxProfileInclude()],
+    limit: includeStats ? limit : limit + 1,
+    offset,
+    order: storedMailboxMessageOrder(),
+  });
+  const [messageRows, stats] = includeStats
+    ? await Promise.all([messageQuery, mailboxStatsForWhere(where)])
+    : [await messageQuery, null];
+  const hasMore = !includeStats && messageRows.length > limit;
+  const messages = hasMore ? messageRows.slice(0, limit) : messageRows;
 
   return {
     messages: messages.map((row) => formatStoredMailboxMessage(row, mailboxProfileForStoredRow(row, profiles))),
-    total: stats.total,
-    unreadTotal: stats.unreadTotal,
+    stats,
+    total: stats?.total ?? null,
+    unreadTotal: stats?.unreadTotal ?? null,
+    hasMore,
   };
 }
 
