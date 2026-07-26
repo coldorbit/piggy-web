@@ -1,5 +1,6 @@
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
+import { normalizeJobCategory } from './jobClassification.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],
@@ -14,7 +15,6 @@ const JOB_CSV_COLUMNS = {
 };
 
 const REQUIRED_JOB_CSV_FIELDS = ['url', 'title', 'company'];
-const VALID_JOB_CATEGORIES = new Set(['software', 'data', 'ai_ml']);
 const JOB_TITLE_ACRONYMS = new Set(['AI', 'API', 'BI', 'CIO', 'CISO', 'CRM', 'CTO', 'DBA', 'ERP', 'ETL', 'IT', 'ML', 'QA', 'SRE', 'UI', 'UX']);
 
 export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, timeZone } = {}) {
@@ -389,15 +389,6 @@ function categoryFromCsvValue(value, rowNumber, errors) {
   if (category) return category;
   errors.push(`Row ${rowNumber}: invalid category`);
   return 'software';
-}
-
-export function normalizeJobCategory(value) {
-  const normalized = clean(value).toLowerCase().replace(/[\s-]+/g, '_');
-  if (!normalized || normalized === 'all') return '';
-  if (VALID_JOB_CATEGORIES.has(normalized)) return normalized;
-  if (['ai', 'ml', 'aiml', 'ai/ml', 'ai_ml'].includes(normalized)) return 'ai_ml';
-  if (normalized.includes('data')) return 'data';
-  return '';
 }
 
 export function validJobUrl(value) {

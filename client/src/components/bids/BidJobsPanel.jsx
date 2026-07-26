@@ -402,13 +402,14 @@ function tabLabel(tab) {
 
 function jobsInfoCsv(jobs) {
   return csvFromRows(
-    ['jobLink', 'title', 'company', 'location', 'category', 'source', 'postedAt', 'scrapedAt', 'manualJob', 'bidStatus', 'resumeStatus', 'listingText'],
+    ['jobLink', 'title', 'company', 'location', 'category', 'aiMlArea', 'source', 'postedAt', 'scrapedAt', 'manualJob', 'bidStatus', 'resumeStatus', 'listingText'],
     jobs.map((job) => ({
       jobLink: job.url || '',
       title: job.title || '',
       company: job.company || '',
       location: job.location || '',
       category: job.category || '',
+      aiMlArea: job.aiMlArea || '',
       source: job.source || '',
       postedAt: job.postedAt || '',
       scrapedAt: job.scrapedAt || '',

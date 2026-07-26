@@ -3,17 +3,18 @@ import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
 import { ROLES, isAdminRole } from '../../../utils/roles.js';
 import { addLocalDays, localDateRange, localPresetRange, normalizeTimeZone } from '../../../utils/localTime.js';
-import { normalizeCompanyName, normalizeJobCategory } from './jobImportService.js';
+import { AI_ML_ROLE_CATEGORIES, normalizeAiMlArea, normalizeJobCategory } from './jobClassification.js';
+import { normalizeCompanyName } from './jobImportService.js';
 export {
   buildJobDuplicateKey,
   canonicalJobUrl,
   capitalizeJobTitle,
   jobsFromCsv,
   normalizeCompanyName,
-  normalizeJobCategory,
   planCsvJobImport,
   validJobUrl,
 } from './jobImportService.js';
+export { normalizeAiMlArea, normalizeJobCategory } from './jobClassification.js';
 const PUBLIC_JOB_ID_PREFIX = 'J';
 const PUBLIC_JOB_ID_LENGTH = 8;
 const PUBLIC_JOB_ID_BODY_LENGTH = PUBLIC_JOB_ID_LENGTH - PUBLIC_JOB_ID_PREFIX.length;
@@ -93,6 +94,7 @@ export function buildJobQuery(query, { timeZone } = {}) {
   const where = {};
   const search = clean(query.search);
   const roleFamily = clean(query.roleFamily || 'all');
+  const aiMlArea = clean(query.aiMlArea || 'all');
   const source = normalizeJobSource(query.source);
   const locationRegion = clean(query.locationRegion || 'all');
   const since = normalizeDatePreset(clean(query.since || 'all'));
@@ -106,6 +108,7 @@ export function buildJobQuery(query, { timeZone } = {}) {
 
   if (source && source !== 'all') appendAndCondition(where, sourceCondition(source));
   applyRoleFamilyFilter(where, roleFamily);
+  applyAiMlAreaFilter(where, aiMlArea);
   applyExperienceLevelFilter(where);
   if (spam === 'spam') where.isSpam = true;
   if (spam === 'not_spam') where.isSpam = false;
@@ -152,7 +155,16 @@ export function jobDateFiltersForUser(query = {}, user) {
 
 function applyRoleFamilyFilter(where, roleFamily) {
   const category = normalizeJobCategory(roleFamily);
+  if (category === 'ai_ml') {
+    where.category = { [Op.in]: ['ai_ml', ...AI_ML_ROLE_CATEGORIES] };
+    return;
+  }
   if (category) where.category = category;
+}
+
+function applyAiMlAreaFilter(where, aiMlArea) {
+  const area = normalizeAiMlArea(aiMlArea);
+  if (area) where.aiMlArea = area;
 }
 
 function applyExperienceLevelFilter(where) {
@@ -308,6 +320,7 @@ export function formatJob(row, { includeRawJob = true } = {}) {
     normalizedCompany: clean(row.normalizedCompany) || normalizeCompanyName(row.company),
     location: clean(row.location),
     category: row.category,
+    aiMlArea: row.aiMlArea || null,
     url: row.url,
     duplicateKey: row.duplicateKey,
     source: clean(row.source),

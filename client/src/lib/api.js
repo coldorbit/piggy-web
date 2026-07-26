@@ -24,6 +24,7 @@ export * from './api/marketplaceApi.js';
 export * from './api/profileAdminApi.js';
 import { api, authUrl } from './authApi.js';
 import { updateCachedCalendarBidQueries, updateCachedCalendarCallQueries } from './api/calendarCache.js';
+import { matchesAiMlArea, matchesJobRole } from './jobClassification.js';
 import { jobRegion } from './jobRegion.js';
 import { millisecondsUntilNextLocalDayStart } from './timezone.js';
 
@@ -612,7 +613,8 @@ function matchesBidJobFilters(job, filters = {}) {
   }
   if (!matchesVisibility(job, filters.visibility)) return false;
   if (!matchesSpam(job, filters.spam)) return false;
-  if (!matchesRoleFamily(job, filters.roleFamily)) return false;
+  if (!matchesJobRole(job, filters.roleFamily)) return false;
+  if (!matchesAiMlArea(job, filters.aiMlArea)) return false;
   if (!matchesSource(job, filters.source)) return false;
   if (!matchesLocationRegion(job, filters.locationRegion)) return false;
   if (!matchesOrigin(job, filters.origin)) return false;
@@ -625,10 +627,6 @@ function matchesSpam(job, spam = 'all') {
   if (spam === 'not_spam') return job.isSpam === false;
   if (spam === 'unreviewed') return job.isSpam === null;
   return true;
-}
-
-function matchesRoleFamily(job, roleFamily = 'all') {
-  return !roleFamily || roleFamily === 'all' || job.category === roleFamily;
 }
 
 function matchesSource(job, source = 'all') {

@@ -14,6 +14,7 @@ import {
   TextField,
   Tooltip,
 } from '@mui/material';
+import { AI_ML_AREA_OPTIONS, JOB_ROLE_OPTIONS } from '../../lib/jobClassification.js';
 import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
 
 export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
@@ -47,10 +48,17 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
       <FormControl size="small">
         <InputLabel>Role</InputLabel>
         <Select label="Role" value={filters.roleFamily || 'all'} onChange={(event) => onFilterChange('roleFamily', event.target.value)}>
-          <MenuItem value="all">All roles</MenuItem>
-          <MenuItem value="software">Software engineering</MenuItem>
-          <MenuItem value="data">Data engineering</MenuItem>
-          <MenuItem value="ai_ml">AI/ML</MenuItem>
+          {JOB_ROLE_OPTIONS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl size="small">
+        <InputLabel>AI/ML area</InputLabel>
+        <Select label="AI/ML area" value={filters.aiMlArea || 'all'} onChange={(event) => onFilterChange('aiMlArea', event.target.value)}>
+          {AI_ML_AREA_OPTIONS.map((option) => (
+            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+          ))}
         </Select>
       </FormControl>
       <FormControl size="small">
@@ -214,8 +222,8 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
         : {
             xs: '1fr',
             lg: showAppliedProfileFilter && appliedProfiles.length
-              ? `145px 145px 145px 130px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`
-              : `155px 150px 145px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`,
+              ? `145px 175px 145px 145px 130px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`
+              : `155px 175px 150px 145px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`,
           },
     gap: variant === 'panel' ? 1.25 : 1,
     alignItems: variant === 'panel' ? 'stretch' : 'center',

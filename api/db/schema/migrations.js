@@ -591,6 +591,11 @@ export async function ensureBidPageIndexes() {
     ON scraped_jobs (category, scraped_at DESC, id DESC)
   `);
   await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS scraped_jobs_ai_ml_area_scraped_at_idx
+    ON scraped_jobs (ai_ml_area, scraped_at DESC, id DESC)
+    WHERE ai_ml_area IS NOT NULL
+  `);
+  await sequelize.query(`
     CREATE INDEX IF NOT EXISTS scraped_jobs_spam_scraped_at_idx
     ON scraped_jobs (is_spam, scraped_at DESC, id DESC)
   `);
@@ -807,6 +812,19 @@ export async function ensureDuplicateKeyColumn() {
 
   await addMissingColumns(queryInterface, tableName, table, {
     duplicate_key: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+  });
+}
+
+export async function ensureScrapedJobClassificationColumns() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'scraped_jobs';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    ai_ml_area: {
       type: DataTypes.TEXT,
       allowNull: true,
     },

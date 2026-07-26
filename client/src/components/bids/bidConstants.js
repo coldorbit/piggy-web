@@ -5,6 +5,7 @@ export const EMPTY_BID = {
 export const DEFAULT_BID_FILTERS = {
   search: '',
   roleFamily: 'all',
+  aiMlArea: 'all',
   source: 'all',
   locationRegion: 'all',
   appliedProfileId: 'all',

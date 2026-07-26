@@ -23,9 +23,30 @@ describe('job query filters', () => {
   it('normalizes friendly roleFamily values before comparing category', () => {
     assert.equal(normalizeJobCategory('AI/ML'), 'ai_ml');
     assert.equal(normalizeJobCategory('data engineering'), 'data');
+    assert.equal(normalizeJobCategory('machine learning engineer'), 'ml_engineer');
+    assert.equal(normalizeJobCategory('data scientist'), 'data_scientist');
 
     const query = buildJobQuery({ roleFamily: 'AI/ML', since: 'all', visibility: 'all' });
-    assert.equal(query.where.category, 'ai_ml');
+    assert.deepEqual(query.where.category[Op.in], [
+      'ai_ml',
+      'ml_engineer',
+      'data_scientist',
+      'applied_scientist',
+      'research_scientist',
+      'other_ai_ml',
+    ]);
+  });
+
+  it('filters individual AI/ML roles and description-derived areas', () => {
+    const query = buildJobQuery({
+      roleFamily: 'applied_scientist',
+      aiMlArea: 'recommendation_systems',
+      since: 'all',
+      visibility: 'all',
+    });
+
+    assert.equal(query.where.category, 'applied_scientist');
+    assert.equal(query.where.aiMlArea, 'recommendation_systems');
   });
 
   it('applies inclusive custom date ranges by local day', () => {

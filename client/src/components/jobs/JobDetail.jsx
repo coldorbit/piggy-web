@@ -205,7 +205,8 @@ export default function JobDetail({
       >
         <DetailField label="Posted" value={formatDateTime(job.postedAt)} />
         <DetailField label="Scraped" value={formatDateTime(job.scrapedAt)} />
-        <DetailField label="Category" value={job.category || 'Not set'} />
+        <DetailField label="Role category" value={classificationLabel(job.category)} />
+        {job.aiMlArea ? <DetailField label="AI/ML area" value={classificationLabel(job.aiMlArea)} /> : null}
         <DetailField label="Spam Review" value={spamStatusLabel(job)} />
         <DetailField label="Visibility" value={job.isHidden ? 'Hidden' : 'Visible'} />
       </Box>
@@ -281,6 +282,14 @@ export default function JobDetail({
       </Box>
     </Paper>
   );
+}
+
+function classificationLabel(value) {
+  if (!value) return 'Not set';
+  return String(value)
+    .split('_')
+    .map((word) => word === 'ml' || word === 'ai' || word === 'nlp' ? word.toUpperCase() : `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(' ');
 }
 
 const detailActionButtonSx = {

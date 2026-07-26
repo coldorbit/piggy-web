@@ -22,7 +22,7 @@ import { copyJobDescription } from '../lib/jobDescription.js';
 import { readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 import { ROLES, isAdminRole } from '../lib/roles.js';
 
-const JOB_FILTER_KEYS = ['search', 'roleFamily', 'source', 'locationRegion', 'since', 'dateFrom', 'dateTo', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
+const JOB_FILTER_KEYS = ['search', 'roleFamily', 'aiMlArea', 'source', 'locationRegion', 'since', 'dateFrom', 'dateTo', 'spam', 'visibility', 'origin', 'sort', 'page', 'limit'];
 const JOB_FILTERS_STORAGE_KEY = 'applypilot.jobs.filters.v2';
 const PASTED_JOB_HEADERS = ['title', 'company', 'url', 'location', 'category', 'postedAt', 'source', 'sourceUrl', 'listingText'];
 const MAX_CSV_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -31,6 +31,7 @@ const MAX_CSV_UPLOAD_LABEL = '10 MB';
 const DEFAULT_FILTERS = {
   search: '',
   roleFamily: 'all',
+  aiMlArea: 'all',
   source: 'all',
   locationRegion: 'all',
   since: 'all',

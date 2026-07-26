@@ -46,6 +46,10 @@ export function getScrapedJobModel() {
       },
       location: DataTypes.TEXT,
       category: DataTypes.TEXT,
+      aiMlArea: {
+        type: DataTypes.TEXT,
+        field: 'ai_ml_area',
+      },
       postedAt: {
         type: DataTypes.DATE,
         field: 'posted_at',

@@ -52,6 +52,7 @@ import {
   ensureJobBidProfileScopedUniqueness,
   ensureMarketplaceIndexes,
   ensureProfileShareIndexes,
+  ensureScrapedJobClassificationColumns,
   ensureScrapedJobNormalizationColumns,
   ensureScrapedJobPublicIdColumn,
   ensureSpamReviewColumns,
@@ -127,6 +128,7 @@ export async function ensureWebModels() {
       await removeDeprecatedBidProfileColumns();
       await ensureDuplicateKeyColumn();
       await ensureScrapedJobNormalizationColumns();
+      await ensureScrapedJobClassificationColumns();
       await ensureSpamReviewColumns();
       await ensureHiddenJobColumns();
       await ensureScrapedJobPublicIdColumn();

@@ -5,6 +5,7 @@ import { mergeKnownFilters, readPersistedFilters } from '../../lib/persistedFilt
 export const BID_FILTER_KEYS = [
   'search',
   'roleFamily',
+  'aiMlArea',
   'source',
   'locationRegion',
   'appliedProfileId',
