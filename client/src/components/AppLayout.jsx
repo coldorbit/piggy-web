@@ -481,8 +481,8 @@ export default function AppLayout({ user }) {
               justifyContent: 'space-between',
               gap: { xs: 0.75, sm: 1.5 },
               px: { xs: 1.25, sm: 2 },
-              py: { xs: headerSearch.isVisible ? 0.75 : 0, sm: 0 },
-              flexWrap: { xs: 'wrap', sm: 'nowrap' },
+              py: { xs: headerSearch.isVisible ? 0.75 : 0, lg: 0 },
+              flexWrap: { xs: 'wrap', lg: 'nowrap' },
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0, order: 1 }}>
@@ -504,8 +504,8 @@ export default function AppLayout({ user }) {
                 </Tooltip>
               ) : null}
               <Box
-                minWidth={0}
                 sx={{
+                  minWidth: 0,
                   borderLeft: { xs: 0, sm: 2 },
                   borderColor: '#0067C0',
                   pl: { xs: 0, sm: 1.25 },
@@ -521,14 +521,14 @@ export default function AppLayout({ user }) {
             </Box>
             {headerSearch.isVisible ? (
               <TextField
-                aria-label="Search jobs"
+                aria-label={headerSearch.placeholder || 'Search'}
                 placeholder={headerSearch.placeholder}
                 size="small"
                 value={headerSearch.value}
                 onChange={(event) => headerSearch.onChange(event.target.value)}
                 sx={{
-                  order: { xs: 3, sm: 2 },
-                  width: { xs: '100%', sm: 260, md: 340, lg: 440 },
+                  order: { xs: 3, lg: 2 },
+                  width: { xs: '100%', lg: 440 },
                   flexShrink: 1,
                 }}
                 slotProps={{
@@ -542,7 +542,7 @@ export default function AppLayout({ user }) {
                 }}
               />
             ) : null}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, order: { xs: 2, sm: 3 } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexShrink: 0, order: { xs: 2, lg: 3 } }}>
               {isLearningArticleRoute && isAdminRole(user) ? (
                 <Tooltip title="Edit article">
                   <IconButton
@@ -896,7 +896,7 @@ function NavItem({ alwaysHighlighted = false, badgeContent = 0, collapsed = fals
           </MuiBadge>
         ) : icon}
       </ListItemIcon>
-      {!collapsed ? <ListItemText primary={label} primaryTypographyProps={{ fontWeight: 600, fontSize: nested ? 12 : 14 }} /> : null}
+      {!collapsed ? <ListItemText primary={label} slotProps={{ primary: { sx: { fontWeight: 600, fontSize: nested ? 12 : 14 } } }} /> : null}
     </ListItemButton>
   );
 
