@@ -1,6 +1,9 @@
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BusinessIcon from '@mui/icons-material/Business';
+import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import EditIcon from '@mui/icons-material/Edit';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
@@ -190,9 +193,25 @@ export default function LearningHubPage({ currentUser }) {
         </Box>
       ) : null}
       {!isLoading && visibleArticles.length ? (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: 1.25 }}>
-          {visibleArticles.map((article) => <LearningArticleCard key={article.id} article={article} canManage={canManage} returnTo={returnTo} onOpen={() => openArticle(article)} />)}
-        </Box>
+        <Paper variant="outlined" sx={{ overflow: 'hidden', boxShadow: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' } }}>
+            {visibleArticles.map((article, index) => (
+              <LearningArticleListItem
+                key={article.id}
+                article={article}
+                canManage={canManage}
+                index={index}
+                returnTo={returnTo}
+                onOpen={() => openArticle(article)}
+              />
+            ))}
+          </Box>
+          <Box sx={{ px: 2, py: 1.1, borderTop: 1, borderColor: 'divider', bgcolor: 'rgba(0, 0, 0, 0.018)' }}>
+            <Typography variant="caption" color="text.secondary">
+              Showing 1–{visibleArticles.length.toLocaleString()} of {visibleArticles.length.toLocaleString()} {visibleArticles.length === 1 ? 'article' : 'articles'}
+            </Typography>
+          </Box>
+        </Paper>
       ) : null}
       <LearningCompanyDialog company={companyEditor.company} open={companyEditor.open} onClose={() => setCompanyEditor({ open: false, company: null })} onSaved={companySaved} />
     </Box>
@@ -232,26 +251,137 @@ function websiteHost(value) {
   try { return new URL(value).hostname.replace(/^www\./i, ''); } catch { return 'Company website'; }
 }
 
-function LearningArticleCard({ article, canManage, returnTo, onOpen }) {
+function LearningArticleListItem({ article, canManage, index, returnTo, onOpen }) {
   const category = CATEGORIES.find((item) => item.id === article.category) || CATEGORIES[0];
   const Icon = category.icon;
   const context = article.category === 'geography' ? [article.city, article.region, article.countryCode].filter(Boolean).join(', ') : humanize(article.difficulty);
+  const sourceCount = (article.sourceLinks || []).length;
+  const status = article.status || 'published';
+
   return (
-    <Card variant="outlined" sx={{ borderTop: `3px solid ${category.color}`, boxShadow: 1, display: 'flex', flexDirection: 'column' }}>
-      <CardActionArea onClick={onOpen} sx={{ flex: 1, alignItems: 'stretch' }}>
-        <CardContent sx={{ display: 'grid', gap: 1.1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
-            <Stack direction="row" spacing={0.75} alignItems="center" minWidth={0}><Icon sx={{ color: category.color }} fontSize="small" /><Typography variant="caption" color="text.secondary" fontWeight={600}>{article.category === 'companies' ? 'Company article' : category.label}</Typography></Stack>
-            <Stack direction="row" spacing={0.5}>{article.featured ? <StarIcon sx={{ color: '#C77700', fontSize: 19 }} /> : null}{canManage ? <Chip label={article.status} color={article.status === 'published' ? 'success' : 'default'} /> : null}</Stack>
+    <Box
+      component="article"
+      sx={{
+        minWidth: 0,
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'minmax(0, 1fr) 132px' },
+        borderTop: { xs: index === 0 ? 0 : 1, lg: index < 2 ? 0 : 1 },
+        borderLeft: { xs: 0, lg: index % 2 ? 1 : 0 },
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+      }}
+    >
+      <CardActionArea
+        onClick={onOpen}
+        sx={{
+          minWidth: 0,
+          p: { xs: 1.5, md: 2 },
+          display: 'grid',
+          gridTemplateColumns: { xs: '44px minmax(0, 1fr)', md: '56px minmax(0, 1fr)' },
+          gap: { xs: 1.25, md: 1.5 },
+          alignItems: 'start',
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: 44, md: 56 },
+            height: { xs: 44, md: 56 },
+            borderRadius: 2,
+            display: 'grid',
+            placeItems: 'center',
+            bgcolor: category.color,
+            color: '#fff',
+            boxShadow: `0 6px 16px ${category.soft}`,
+          }}
+        >
+          <Icon />
+        </Box>
+        <Stack spacing={1.05} minWidth={0}>
+          <Stack direction="row" spacing={0.75} alignItems="center" minWidth={0}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+              {article.category === 'companies' ? 'Company article' : category.label}
+            </Typography>
+            {article.featured ? <StarIcon sx={{ color: '#C77700', fontSize: 18 }} aria-label="Featured article" /> : null}
+          </Stack>
+          <Box>
+            <Typography
+              component="h3"
+              sx={{
+                m: 0,
+                fontSize: { xs: 16, md: 18 },
+                lineHeight: 1.28,
+                fontWeight: 700,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              <Box component="span" sx={{ background: `linear-gradient(transparent 62%, ${category.soft} 62%)` }}>
+                {article.title}
+              </Box>
+            </Typography>
+            {context ? <Typography variant="caption" color="text.secondary">{context}</Typography> : null}
           </Box>
-          <Box><Typography fontWeight={700}>{article.title}</Typography>{context ? <Typography variant="caption" color="text.secondary">{context}</Typography> : null}</Box>
-          <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{article.summary}</Typography>
-          <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">{(article.tags || []).slice(0, 5).map((tag) => <Chip key={tag} label={tag} variant="outlined" />)}</Stack>
-          <Typography variant="caption" color="text.secondary">Updated {formatDate(article.updatedAt)} · {(article.sourceLinks || []).length} sources</Typography>
-        </CardContent>
+          <Box sx={{ px: 1.15, py: 1, borderRadius: 1, borderLeft: `3px solid ${category.color}`, bgcolor: category.soft }}>
+            <Typography
+              variant="body2"
+              color="text.primary"
+              sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.5 }}
+            >
+              {article.summary}
+            </Typography>
+          </Box>
+          {(article.tags || []).length ? (
+            <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+              {(article.tags || []).slice(0, 4).map((tag) => (
+                <Chip key={tag} label={tag} sx={{ bgcolor: category.soft, color: category.color, fontWeight: 600 }} />
+              ))}
+            </Stack>
+          ) : null}
+        </Stack>
       </CardActionArea>
-      {canManage ? <Box sx={{ borderTop: 1, borderColor: 'divider', px: 1, py: 0.5 }}><IconButton component={RouterLink} to={`/learning/${article.id}/edit`} state={{ learningReturnTo: returnTo }} aria-label={`Edit ${article.title}`}><EditIcon /></IconButton></Box> : null}
-    </Card>
+      <Box
+        sx={{
+          px: 1.25,
+          py: 1.5,
+          borderTop: { xs: 1, sm: 0 },
+          borderLeft: { xs: 0, sm: 1 },
+          borderColor: 'divider',
+          bgcolor: 'rgba(0, 0, 0, 0.018)',
+          display: 'flex',
+          flexDirection: { xs: 'row', sm: 'column' },
+          flexWrap: 'wrap',
+          gap: 1,
+          alignItems: { xs: 'center', sm: 'stretch' },
+        }}
+      >
+        <ArticleMeta icon={<CalendarTodayOutlinedIcon />} label="Updated" value={formatDate(article.updatedAt)} />
+        <ArticleMeta icon={<DescriptionOutlinedIcon />} label="Sources" value={sourceCount.toLocaleString()} />
+        <ArticleMeta icon={<CheckCircleOutlineIcon />} label="Status" value={humanize(status)} color={status === 'published' ? 'success.main' : 'text.secondary'} />
+        {canManage ? (
+          <Button
+            component={RouterLink}
+            to={`/learning/${article.id}/edit`}
+            state={{ learningReturnTo: returnTo }}
+            startIcon={<EditIcon />}
+            size="small"
+            sx={{ mt: { xs: 0, sm: 'auto' }, alignSelf: { xs: 'center', sm: 'flex-start' } }}
+          >
+            Edit
+          </Button>
+        ) : null}
+      </Box>
+    </Box>
+  );
+}
+
+function ArticleMeta({ color = 'text.secondary', icon, label, value }) {
+  return (
+    <Stack direction="row" spacing={0.65} alignItems="flex-start">
+      <Box sx={{ color, display: 'grid', placeItems: 'center', mt: '2px', '& svg': { fontSize: 16 } }}>{icon}</Box>
+      <Box minWidth={0}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>{label}</Typography>
+        <Typography variant="caption" color={color} fontWeight={600} sx={{ display: 'block', lineHeight: 1.35 }}>{value}</Typography>
+      </Box>
+    </Stack>
   );
 }
 
