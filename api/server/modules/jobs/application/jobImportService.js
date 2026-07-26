@@ -53,6 +53,7 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
     const titleValue = capitalizeJobTitle(title) || 'Untitled Role';
     const companyValue = csvValue(raw, 'company') || null;
     const normalizedCompany = normalizeCompanyName(companyValue);
+    const normalizedTitle = normalizeJobIdentityText(titleValue);
 
     jobs.push({
       url,
@@ -67,6 +68,7 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
       title: titleValue,
       company: companyValue,
       normalizedCompany,
+      normalizedTitle,
       location: csvValue(raw, 'location') || null,
       category,
       postedAt,
@@ -227,7 +229,7 @@ export function normalizeCompanyName(value) {
     .trim();
 }
 
-function normalizeJobIdentityText(value) {
+export function normalizeJobIdentityText(value) {
   return clean(value)
     .toLowerCase()
     .normalize('NFKD')

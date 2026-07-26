@@ -29,6 +29,7 @@ import { syncForwardingMailboxApplications } from './forwardingMailboxConfig.js'
 import { classifyMailboxMessageIntent } from './forwardingMailboxFormatting.js';
 import { dedupeMessages, fetchRecentMailboxMessagesFromPath, normalizedMatchingText, readableMailboxPaths, searchableMessageText } from './forwardingMailboxClassification.js';
 import { compareMessagesByReceivedAtDesc, mailboxClient } from './forwardingMailboxImap.js';
+import { jobIdentityCandidatesFromConfirmationMessage, matchingJobDateWindow } from './forwardingMailboxJobIdentity.js';
 
 export function storedMailboxMessageOrder() {
   return [
@@ -78,7 +79,7 @@ export async function applicationResultForMailboxMessage(message, profile) {
 }
 
 export async function markMatchedJobAppliedFromMessage(message, profile) {
-  const match = await matchingJobFromConfirmationMessage(message);
+  const match = await matchingJobFromConfirmationMessage(message, profile);
   if (!match.job) {
     return {
       status: match.status,
@@ -227,32 +228,124 @@ export function integerOption(value, { defaultValue, min = Number.MIN_SAFE_INTEG
   return Math.min(Math.max(parsed, min), max);
 }
 
-export async function matchingJobFromConfirmationMessage(message) {
+export async function matchingJobFromConfirmationMessage(message, profile = null) {
   const messageText = normalizedMatchingText(searchableMessageText(message));
   if (!messageText) return { status: 'job_not_found', reason: 'No readable confirmation text' };
 
-  const rows = await getSequelize().query(
+  const identities = jobIdentityCandidatesFromConfirmationMessage(message);
+  let rows = identities.length ? await jobsMatchingExtractedIdentities(identities) : [];
+  if (!rows.length && profile?.id) rows = await profileJobsContainedInMessage(profile.id, messageText);
+  if (!rows.length) rows = await recentJobsContainedInMessage(message, messageText);
+  return matchingJobResult(rows);
+}
+
+async function jobsMatchingExtractedIdentities(identities) {
+  const bind = {};
+  const clauses = identities.map((identity, index) => {
+    bind[`company${index}`] = identity.company;
+    bind[`title${index}`] = identity.title;
+    return `
+      (
+        md5(normalized_company) = md5(app_normalize_job_company($company${index}))
+        AND md5(normalized_title) = md5(app_normalize_job_identity($title${index}))
+        AND normalized_company = app_normalize_job_company($company${index})
+        AND normalized_title = app_normalize_job_identity($title${index})
+      )
+    `;
+  });
+
+  return getSequelize().query(
     `
-    SELECT id, title, company, scraped_at
+    SELECT id, title, company, normalized_company, normalized_title, scraped_at
     FROM scraped_jobs
-    WHERE NULLIF(btrim(title), '') IS NOT NULL
-      AND NULLIF(btrim(company), '') IS NOT NULL
-      AND position(lower(regexp_replace(btrim(company), '\\s+', ' ', 'g')) in lower(:messageText)) > 0
-      AND position(lower(regexp_replace(btrim(title), '\\s+', ' ', 'g')) in lower(:messageText)) > 0
+    WHERE normalized_company IS NOT NULL
+      AND normalized_title IS NOT NULL
+      AND (${clauses.join('\nOR ')})
     ORDER BY length(title) DESC, scraped_at DESC NULLS LAST, id DESC
     LIMIT 10
     `,
     {
-      replacements: { messageText },
+      bind,
       type: QueryTypes.SELECT,
     },
   );
+}
 
+async function profileJobsContainedInMessage(profileId, messageText) {
+  return getSequelize().query(
+    `
+    WITH input AS (
+      SELECT app_normalize_job_identity($messageText) AS message_text
+    )
+    SELECT
+      scraped_jobs.id,
+      scraped_jobs.title,
+      scraped_jobs.company,
+      scraped_jobs.normalized_company,
+      scraped_jobs.normalized_title,
+      scraped_jobs.scraped_at
+    FROM job_bids
+    JOIN scraped_jobs ON scraped_jobs.id = job_bids.job_id
+    CROSS JOIN input
+    WHERE job_bids.profile_id = $profileId
+      AND scraped_jobs.normalized_company IS NOT NULL
+      AND scraped_jobs.normalized_title IS NOT NULL
+      AND position(scraped_jobs.normalized_company in input.message_text) > 0
+      AND position(scraped_jobs.normalized_title in input.message_text) > 0
+    ORDER BY length(scraped_jobs.title) DESC, scraped_jobs.scraped_at DESC NULLS LAST, scraped_jobs.id DESC
+    LIMIT 10
+    `,
+    {
+      bind: { messageText, profileId },
+      type: QueryTypes.SELECT,
+    },
+  );
+}
+
+async function recentJobsContainedInMessage(message, messageText) {
+  const { cutoff, ceiling } = matchingJobDateWindow(message);
+  return getSequelize().query(
+    `
+    WITH input AS (
+      SELECT app_normalize_job_identity($messageText) AS message_text
+    ),
+    recent_jobs AS MATERIALIZED (
+      SELECT id, title, company, normalized_company, normalized_title, scraped_at
+      FROM scraped_jobs
+      WHERE scraped_at >= $cutoff
+        AND scraped_at <= $ceiling
+        AND normalized_company IS NOT NULL
+        AND normalized_title IS NOT NULL
+      ORDER BY scraped_at DESC, id DESC
+      LIMIT 25000
+    )
+    SELECT
+      recent_jobs.id,
+      recent_jobs.title,
+      recent_jobs.company,
+      recent_jobs.normalized_company,
+      recent_jobs.normalized_title,
+      recent_jobs.scraped_at
+    FROM recent_jobs
+    CROSS JOIN input
+    WHERE position(recent_jobs.normalized_company in input.message_text) > 0
+      AND position(recent_jobs.normalized_title in input.message_text) > 0
+    ORDER BY length(recent_jobs.title) DESC, recent_jobs.scraped_at DESC NULLS LAST, recent_jobs.id DESC
+    LIMIT 10
+    `,
+    {
+      bind: { messageText, cutoff, ceiling },
+      type: QueryTypes.SELECT,
+    },
+  );
+}
+
+function matchingJobResult(rows) {
   if (!rows.length) return { status: 'job_not_found', reason: 'No matching job found' };
 
   const rowsByKey = new Map();
   for (const row of rows) {
-    const key = `${normalizedMatchingText(row.company)}::${normalizedMatchingText(row.title)}`;
+    const key = `${row.normalized_company || normalizedMatchingText(row.company)}::${row.normalized_title || normalizedMatchingText(row.title)}`;
     if (!rowsByKey.has(key)) rowsByKey.set(key, []);
     rowsByKey.get(key).push(row);
   }

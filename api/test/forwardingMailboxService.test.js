@@ -10,6 +10,8 @@ import {
   formatMailboxMessage,
   formatMailboxNotificationMessage,
   formatStoredMailboxMessage,
+  jobIdentityCandidatesFromConfirmationMessage,
+  matchingJobDateWindow,
   parseIcsCalendarEvent,
   parseAddressList,
   profileMailboxMessageWhere,
@@ -18,6 +20,37 @@ import {
 } from '../server/modules/bidding/application/forwardingMailboxService.js';
 
 describe('forwarding mailbox helpers', () => {
+  it('extracts an indexed company and title identity from Workable confirmations', () => {
+    const candidates = jobIdentityCandidatesFromConfirmationMessage({
+      subject: 'Thanks for applying to Valsoft Corporation',
+      bodyText: '[Valsoft Corporation] Your application for the AI Engineering Manager job was submitted successfully.',
+    });
+
+    assert.deepEqual(candidates, [
+      { company: 'Valsoft Corporation', title: 'AI Engineering Manager' },
+    ]);
+  });
+
+  it('extracts title variants without treating role text as a company', () => {
+    const candidates = jobIdentityCandidatesFromConfirmationMessage({
+      subject: 'Application received',
+      bodyText: [
+        'Thank you for applying to the Senior Data Engineer role.',
+        'You applied for Senior Data Engineer at Example Labs.',
+      ].join('\n'),
+    });
+
+    assert.deepEqual(candidates, [
+      { company: 'Example Labs', title: 'Senior Data Engineer' },
+    ]);
+  });
+
+  it('bounds fallback matching around the message receipt date', () => {
+    const window = matchingJobDateWindow({ receivedAt: '2026-07-26T12:00:00Z' });
+    assert.equal(window.cutoff.toISOString(), '2026-01-27T12:00:00.000Z');
+    assert.equal(window.ceiling.toISOString(), '2026-08-02T12:00:00.000Z');
+  });
+
   it('formats only the profile fields required by the inbox bootstrap response', () => {
     assert.deepEqual(formatMailboxProfile({
       id: '9',

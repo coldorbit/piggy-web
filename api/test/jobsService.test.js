@@ -317,6 +317,7 @@ describe('manual CSV job imports', () => {
 
     assert.equal(normalizeCompanyName('Acme, Inc.'), 'acme');
     assert.equal(job.normalizedCompany, 'acme');
+    assert.equal(job.normalizedTitle, 'software engineer');
     assert.equal(job.duplicateKey, 'job::acme::software engineer::unknown location');
   });
 

@@ -2,6 +2,8 @@ import { DataTypes, QueryTypes } from 'sequelize';
 import { getSequelize } from '../connection.js';
 import { addMissingColumns, removeExistingColumns } from '../utils.js';
 
+export { ensureScrapedJobNormalizationColumns } from './jobNormalization.js';
+
 export async function runOnceSchemaMigration(name, migrate) {
   const sequelize = getSequelize();
   await sequelize.query(`
@@ -552,6 +554,20 @@ export async function ensureBidPageIndexes() {
   await ensureMd5TextIndex('scraped_jobs_normalized_company_idx', 'scraped_jobs', 'normalized_company', {
     where: 'normalized_company IS NOT NULL',
   });
+  await ensureMd5TextIndex('scraped_jobs_normalized_title_idx', 'scraped_jobs', 'normalized_title', {
+    where: 'normalized_title IS NOT NULL',
+  });
+  await sequelize.query(`
+    CREATE INDEX IF NOT EXISTS scraped_jobs_normalized_identity_idx
+    ON scraped_jobs (
+      md5(normalized_company),
+      md5(normalized_title),
+      scraped_at DESC,
+      id DESC
+    )
+    WHERE normalized_company IS NOT NULL
+      AND normalized_title IS NOT NULL
+  `);
   await sequelize.query('DROP INDEX IF EXISTS scraped_jobs_normalized_company_btree_idx');
   await sequelize.query(`
     CREATE INDEX IF NOT EXISTS scraped_jobs_category_idx
@@ -795,71 +811,6 @@ export async function ensureDuplicateKeyColumn() {
       allowNull: true,
     },
   });
-}
-
-export async function ensureScrapedJobNormalizationColumns() {
-  const queryInterface = getSequelize().getQueryInterface();
-  const tableName = 'scraped_jobs';
-  const table = await queryInterface.describeTable(tableName);
-
-  await addMissingColumns(queryInterface, tableName, table, {
-    normalized_company: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-  });
-
-  await queryInterface.sequelize.query(`
-    UPDATE scraped_jobs
-    SET normalized_company = NULLIF(btrim(
-      regexp_replace(
-        regexp_replace(
-          lower(btrim(coalesce(company, ''))),
-          '\\m(incorporated|inc|llc|ltd|limited|corp|corporation|company|co)\\M\\.?$',
-          '',
-          'gi'
-        ),
-        '[^a-z0-9]+',
-        ' ',
-        'g'
-      )),
-      ''
-    )
-    WHERE normalized_company IS NULL
-      OR normalized_company = ''
-  `);
-
-  await queryInterface.sequelize.query(`
-    UPDATE scraped_jobs
-    SET duplicate_key = CASE
-      WHEN NULLIF(regexp_replace(lower(btrim(coalesce(company, ''))), '[^a-z0-9]+', ' ', 'g'), '') IS NOT NULL
-       AND NULLIF(regexp_replace(lower(btrim(coalesce(title, ''))), '[^a-z0-9]+', ' ', 'g'), '') IS NOT NULL
-      THEN concat_ws(
-        '::',
-        'job',
-        NULLIF(
-          btrim(regexp_replace(
-            regexp_replace(
-              lower(btrim(coalesce(company, ''))),
-              '\\m(incorporated|inc|llc|ltd|limited|corp|corporation|company|co)\\M\\.?$',
-              '',
-              'gi'
-            ),
-            '[^a-z0-9]+',
-            ' ',
-            'g'
-          )),
-          ''
-        ),
-        NULLIF(regexp_replace(lower(btrim(coalesce(title, ''))), '[^a-z0-9]+', ' ', 'g'), ''),
-        COALESCE(NULLIF(regexp_replace(lower(btrim(coalesce(location, ''))), '[^a-z0-9]+', ' ', 'g'), ''), 'unknown location')
-      )
-      ELSE concat('url::', lower(btrim(coalesce(url, ''))))
-    END
-    WHERE duplicate_key IS NULL
-      OR duplicate_key = ''
-      OR duplicate_key = url
-  `);
 }
 
 export async function ensureSpamReviewColumns() {

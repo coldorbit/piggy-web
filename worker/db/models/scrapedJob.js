@@ -28,6 +28,10 @@ export function getScrapedJobModel() {
         type: DataTypes.TEXT,
         field: 'normalized_company',
       },
+      normalizedTitle: {
+        type: DataTypes.TEXT,
+        field: 'normalized_title',
+      },
       location: DataTypes.TEXT,
       listingText: {
         type: DataTypes.TEXT,
