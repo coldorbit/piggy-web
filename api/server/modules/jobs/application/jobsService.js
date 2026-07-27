@@ -14,7 +14,7 @@ export {
   planCsvJobImport,
   validJobUrl,
 } from './jobImportService.js';
-export { normalizeAiMlArea, normalizeJobCategory } from './jobClassification.js';
+export { classifyJob, inferAiMlArea, inferJobCategory, normalizeAiMlArea, normalizeJobCategory } from './jobClassification.js';
 const PUBLIC_JOB_ID_PREFIX = 'J';
 const PUBLIC_JOB_ID_LENGTH = 8;
 const PUBLIC_JOB_ID_BODY_LENGTH = PUBLIC_JOB_ID_LENGTH - PUBLIC_JOB_ID_PREFIX.length;

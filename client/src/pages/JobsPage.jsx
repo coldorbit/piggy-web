@@ -501,6 +501,7 @@ function ImportCsvResultAlert({ result }) {
         <Typography variant="body2">
           {Number(result?.successfulImports ?? result?.imported ?? 0).toLocaleString()} imported from{' '}
           {Number(result?.totalRows || 0).toLocaleString()} rows. {Number(result?.skipped || 0).toLocaleString()} skipped.
+          {Number(result?.classified || 0) ? ` ${Number(result.classified).toLocaleString()} classified by AI/ML area.` : ''}
           {duplicateCount ? ` ${duplicateCount.toLocaleString()} duplicate link${duplicateCount === 1 ? '' : 's'} found.` : ''}
         </Typography>
         {duplicateCount ? (

@@ -1,6 +1,6 @@
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
-import { normalizeJobCategory } from './jobClassification.js';
+import { classifyJob, normalizeAiMlArea, normalizeJobCategory } from './jobClassification.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],
@@ -8,6 +8,7 @@ const JOB_CSV_COLUMNS = {
   company: ['company', 'company_name', 'company name'],
   location: ['location'],
   category: ['category', 'role_family', 'role family', 'rolefamily'],
+  aiMlArea: ['ai_ml_area', 'ai ml area', 'ai/ml area', 'aimlarea', 'ml_area', 'ml area'],
   postedAt: ['postedat', 'posted_at', 'posted at', 'posted', 'date'],
   source: ['source'],
   sourceUrl: ['sourceurl', 'source_url', 'source url'],
@@ -45,8 +46,11 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
     }
 
     const rawCategory = csvValue(raw, 'category');
-    const category = categoryFromCsvValue(rawCategory, rowNumber, errors);
+    const rawAiMlArea = csvValue(raw, 'aiMlArea');
+    const providedCategory = categoryFromCsvValue(rawCategory, rowNumber, errors);
+    const providedAiMlArea = aiMlAreaFromCsvValue(rawAiMlArea, rowNumber, errors);
     const hasImportCategory = Boolean(clean(rawCategory));
+    const hasImportAiMlArea = Boolean(clean(rawAiMlArea));
     const postedAt = dateFromCsvValue(csvValue(raw, 'postedAt'), rowNumber, errors) || importedAt;
     const listingText = csvValue(raw, 'listingText');
     const manualSource = manualImportSource(raw, url);
@@ -54,6 +58,12 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
     const companyValue = csvValue(raw, 'company') || null;
     const normalizedCompany = normalizeCompanyName(companyValue);
     const normalizedTitle = normalizeJobIdentityText(titleValue);
+    const classification = classifyJob({
+      title: titleValue,
+      listingText,
+      category: providedCategory,
+      aiMlArea: providedAiMlArea,
+    });
 
     jobs.push({
       url,
@@ -70,7 +80,8 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
       normalizedCompany,
       normalizedTitle,
       location: csvValue(raw, 'location') || null,
-      category,
+      category: classification.category,
+      aiMlArea: classification.aiMlArea,
       postedAt,
       scrapedAt,
       listingText: listingText || null,
@@ -82,8 +93,11 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
         importType: 'manual',
         isManualImport: true,
         importCategoryProvided: hasImportCategory,
-        roleFamily: category,
-        category,
+        importAiMlAreaProvided: hasImportAiMlArea,
+        classificationSource: 'manual_import_parser',
+        roleFamily: classification.category,
+        category: classification.category,
+        aiMlArea: classification.aiMlArea,
       },
       isHidden: false,
       firstSeenAt: importedAt,
@@ -113,8 +127,10 @@ export function planCsvJobImport(rows, existingRows = []) {
   const duplicateCsvRows = [];
   const duplicateExistingRows = [];
   const categoryUpdates = [];
+  const aiMlAreaUpdates = [];
   const locationUpdates = [];
   const categoryUpdateTargets = new Set();
+  const aiMlAreaUpdateTargets = new Set();
   const locationUpdateTargets = new Set();
   const insertRows = rows.filter((row) => {
     const rowNumber = row.rawJob?.importRowNumber || null;
@@ -141,6 +157,17 @@ export function planCsvJobImport(rows, existingRows = []) {
       ) {
         categoryUpdates.push({ ...updateTarget, category: row.category });
         categoryUpdateTargets.add(updateTarget.key);
+      }
+      if (
+        !aiMlAreaUpdateTargets.has(updateTarget.key) &&
+        shouldUpdateExistingJobAiMlArea({
+          currentAiMlArea: existingJob?.aiMlArea,
+          importedAiMlArea: row.aiMlArea,
+          explicitlyProvided: row.rawJob?.importAiMlAreaProvided,
+        })
+      ) {
+        aiMlAreaUpdates.push({ ...updateTarget, aiMlArea: row.aiMlArea });
+        aiMlAreaUpdateTargets.add(updateTarget.key);
       }
       if (!locationUpdateTargets.has(updateTarget.key) && clean(row.location) && clean(row.location) !== clean(existingJob?.location)) {
         locationUpdates.push({ ...updateTarget, location: row.location });
@@ -173,6 +200,7 @@ export function planCsvJobImport(rows, existingRows = []) {
     duplicateCsvRows,
     duplicateExistingRows,
     categoryUpdates,
+    aiMlAreaUpdates,
     locationUpdates,
   };
 }
@@ -198,6 +226,11 @@ function shouldUpdateExistingJobCategory({ currentCategory, importedCategory }) 
   if (!importedCategory || importedCategory === currentCategory) return false;
   if (importedCategory === 'software' && currentCategory && currentCategory !== 'software') return false;
   return true;
+}
+
+function shouldUpdateExistingJobAiMlArea({ currentAiMlArea, importedAiMlArea, explicitlyProvided }) {
+  if (!importedAiMlArea || importedAiMlArea === currentAiMlArea) return false;
+  return explicitlyProvided || !clean(currentAiMlArea);
 }
 
 function manualRawJob(raw) {
@@ -385,10 +418,18 @@ function normalizeHeader(value) {
 
 function categoryFromCsvValue(value, rowNumber, errors) {
   const category = normalizeJobCategory(value);
-  if (!clean(value)) return 'software';
+  if (!clean(value)) return '';
   if (category) return category;
   errors.push(`Row ${rowNumber}: invalid category`);
-  return 'software';
+  return '';
+}
+
+function aiMlAreaFromCsvValue(value, rowNumber, errors) {
+  const area = normalizeAiMlArea(value);
+  if (!clean(value)) return '';
+  if (area) return area;
+  errors.push(`Row ${rowNumber}: invalid aiMlArea`);
+  return '';
 }
 
 export function validJobUrl(value) {

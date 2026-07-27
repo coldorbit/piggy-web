@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
-import { buildJobDuplicateKey, buildJobQuery, canImportJobs, capitalizeJobTitle, groupedJobsFromRows, jobDateFiltersForUser, jobSummaryAttributes, jobsFromCsv, mergedJobSourceOptions, normalizeCompanyName, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
+import { buildJobDuplicateKey, buildJobQuery, canImportJobs, capitalizeJobTitle, classifyJob, groupedJobsFromRows, jobDateFiltersForUser, jobSummaryAttributes, jobsFromCsv, mergedJobSourceOptions, normalizeCompanyName, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
 import { addLocalDays, localDayStart } from '../server/utils/localTime.js';
 
 describe('job query filters', () => {
@@ -359,6 +359,83 @@ describe('manual CSV job imports', () => {
     assert.equal(job.title, 'Senior AI/ML Software Engineer');
   });
 
+  it('classifies parsed AI/ML jobs by role and area before import', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,listingText',
+        'https://example.com/jobs/genai-1,Machine Learning Engineer,Acme,"Build retrieval-augmented generation systems using large language models."',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(job.category, 'ml_engineer');
+    assert.equal(job.aiMlArea, 'generative_ai');
+    assert.equal(job.rawJob.category, 'ml_engineer');
+    assert.equal(job.rawJob.aiMlArea, 'generative_ai');
+    assert.equal(job.rawJob.classificationSource, 'manual_import_parser');
+  });
+
+  it('derives AI/ML area from the parsed description for a generic job title', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,listingText',
+        'https://example.com/jobs/speech-1,Senior Software Engineer,Acme,"Develop automatic speech recognition and text-to-speech models."',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(job.category, 'software');
+    assert.equal(job.aiMlArea, 'speech_audio_ml');
+  });
+
+  it('uses other AI/ML when an AI role has no more specific area signal', () => {
+    const classification = classifyJob({
+      title: 'Staff Software Engineer, AI',
+      listingText: 'Build and operate machine learning products.',
+    });
+
+    assert.deepEqual(classification, {
+      category: 'other_ai_ml',
+      aiMlArea: 'other_ai_ml',
+    });
+    assert.deepEqual(classifyJob({ title: 'Prompt Engineer' }), {
+      category: 'other_ai_ml',
+      aiMlArea: 'generative_ai',
+    });
+    assert.equal(classifyJob({ title: 'Machine Learning (ML) Engineer' }).category, 'ml_engineer');
+    assert.equal(classifyJob({
+      title: 'AI Engineer, LLM Ingestion',
+      listingText: 'The broader platform also supports OCR and object detection workloads.',
+    }).aiMlArea, 'generative_ai');
+  });
+
+  it('does not add an AI/ML area to an unrelated software job', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,listingText',
+        'https://example.com/jobs/backend-1,Backend Engineer,Acme,"Build reliable billing APIs and PostgreSQL services."',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(job.category, 'software');
+    assert.equal(job.aiMlArea, null);
+  });
+
+  it('accepts an explicit AI/ML area and keeps it ahead of inferred signals', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,ai_ml_area,listingText',
+        'https://example.com/jobs/vision-1,Applied Scientist,Acme,computer_vision,"Work with language models and image segmentation."',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    assert.equal(job.category, 'applied_scientist');
+    assert.equal(job.aiMlArea, 'computer_vision');
+    assert.equal(job.rawJob.importAiMlAreaProvided, true);
+  });
+
   it('uses the import time as the scraped date for manually imported jobs', () => {
     const importedAt = new Date('2026-06-16T14:00:00.000Z');
     const [job] = jobsFromCsv(
@@ -484,6 +561,54 @@ describe('manual CSV job imports', () => {
     assert.deepEqual(plan.locationUpdates, [{ url: 'https://example.com/jobs/existing-location', key: 'url:https://example.com/jobs/existing-location', location: 'Canada' }]);
   });
 
+  it('fills a missing AI/ML area on an existing matching job', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,listingText',
+        'https://example.com/jobs/existing-area,Senior Software Engineer,Acme,"Build computer vision object detection systems."',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    const plan = planCsvJobImport([job], [
+      {
+        url: 'https://example.com/jobs/existing-area',
+        title: 'Senior Software Engineer',
+        company: 'Acme',
+        category: 'software',
+        aiMlArea: null,
+      },
+    ]);
+
+    assert.deepEqual(plan.aiMlAreaUpdates, [{
+      url: 'https://example.com/jobs/existing-area',
+      key: 'url:https://example.com/jobs/existing-area',
+      aiMlArea: 'computer_vision',
+    }]);
+  });
+
+  it('does not overwrite an existing AI/ML area with an inferred classification', () => {
+    const [job] = jobsFromCsv(
+      [
+        'url,title,company,listingText',
+        'https://example.com/jobs/existing-classified,Senior Software Engineer,Acme,"Build computer vision object detection systems."',
+      ].join('\n'),
+      { importedBy: 'test-user' },
+    );
+
+    const plan = planCsvJobImport([job], [
+      {
+        url: 'https://example.com/jobs/existing-classified',
+        title: 'Senior Software Engineer',
+        company: 'Acme',
+        category: 'software',
+        aiMlArea: 'multimodal_ml',
+      },
+    ]);
+
+    assert.deepEqual(plan.aiMlAreaUpdates, []);
+  });
+
   it('deduplicates CSV imports against existing normalized job fingerprints', () => {
     const [job] = jobsFromCsv(
       [
@@ -548,7 +673,7 @@ describe('manual CSV job imports', () => {
     assert.deepEqual(plan.categoryUpdates, [{ id: 456, key: 'id:456', category: 'data' }]);
   });
 
-  it('does not update existing categories when the CSV category is blank', () => {
+  it('infers a blank CSV category without overwriting an existing category', () => {
     const [job] = jobsFromCsv(
       [
         'url,title,company,category',
@@ -566,7 +691,8 @@ describe('manual CSV job imports', () => {
       },
     ]);
 
-    assert.equal(job.category, 'software');
+    assert.equal(job.category, 'ml_engineer');
+    assert.equal(job.aiMlArea, 'other_ai_ml');
     assert.equal(plan.insertRows.length, 0);
     assert.equal(plan.duplicateExistingRows.length, 1);
     assert.deepEqual(plan.categoryUpdates, []);

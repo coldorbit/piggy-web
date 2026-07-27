@@ -292,7 +292,14 @@ export async function importJobsCsv(req, res, next) {
     });
     const ScrapedJob = getScrapedJobModel();
     const sequelize = getSequelize();
-    const { insertRows, duplicateCsvRows, duplicateExistingRows, categoryUpdates, locationUpdates } = await sequelize.transaction(async (transaction) => {
+    const {
+      insertRows,
+      duplicateCsvRows,
+      duplicateExistingRows,
+      categoryUpdates,
+      aiMlAreaUpdates,
+      locationUpdates,
+    } = await sequelize.transaction(async (transaction) => {
       const existingRows = await existingImportedJobRows(sequelize, rows, { transaction });
       const plan = planCsvJobImport(rows, existingRows);
 
@@ -300,6 +307,7 @@ export async function importJobsCsv(req, res, next) {
       await Promise.all(
         [
           ...plan.categoryUpdates.map((update) => ({ ...update, values: { category: update.category } })),
+          ...plan.aiMlAreaUpdates.map((update) => ({ ...update, values: { aiMlArea: update.aiMlArea } })),
           ...plan.locationUpdates.map((update) => ({ ...update, values: { location: update.location } })),
         ].map((update) =>
           ScrapedJob.update(update.values, {
@@ -317,8 +325,10 @@ export async function importJobsCsv(req, res, next) {
       totalRows: rows.length,
       imported: insertRows.length,
       successfulImports: insertRows.length,
-      updated: categoryUpdates.length + locationUpdates.length,
+      classified: insertRows.filter((row) => row.aiMlArea).length,
+      updated: categoryUpdates.length + aiMlAreaUpdates.length + locationUpdates.length,
       updatedCategories: categoryUpdates.length,
+      updatedAiMlAreas: aiMlAreaUpdates.length,
       updatedLocations: locationUpdates.length,
       skipped: rows.length - insertRows.length,
       duplicateCount,
@@ -339,6 +349,8 @@ export async function importJobsCsv(req, res, next) {
         company: row.company,
         url: row.url,
         source: row.source,
+        category: row.category,
+        aiMlArea: row.aiMlArea,
       })),
     });
   } catch (error) {
@@ -487,7 +499,7 @@ async function existingImportedJobRows(sequelize, rows, { transaction } = {}) {
 
   return sequelize.query(
     `
-      SELECT id, url, duplicate_key AS "duplicateKey", title, company, category, location
+      SELECT id, url, duplicate_key AS "duplicateKey", title, company, category, ai_ml_area AS "aiMlArea", location
       FROM scraped_jobs
       WHERE (
           :hasUrls = true
