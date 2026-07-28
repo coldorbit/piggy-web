@@ -51,7 +51,7 @@ const JOB_ROLE_RULES = [
     patterns: [
       /\bresearch scientist\b/,
       /\b(?:ai|machine learning|deep learning) researcher\b/,
-      /\bresearch engineer\b/,
+      /\b(?:ai|machine learning|deep learning|computer vision|nlp) research engineer\b/,
     ],
   },
   { category: 'data_scientist', patterns: [/\bdata scientist\b/, /\bdecision scientist\b/] },
@@ -225,13 +225,18 @@ export function normalizeAiMlArea(value) {
 
 export function classifyJob({ title, listingText, category, aiMlArea } = {}) {
   const normalizedCategory = normalizeJobCategory(category) || inferJobCategory(title);
-  const normalizedArea = normalizeAiMlArea(aiMlArea)
-    || inferAiMlArea({ title, listingText, category: normalizedCategory });
+  const normalizedArea = isAiMlJobCategory(normalizedCategory)
+    ? normalizeAiMlArea(aiMlArea) || inferAiMlArea({ title, listingText, category: normalizedCategory })
+    : '';
 
   return {
     category: normalizedCategory || 'software',
     aiMlArea: normalizedArea || null,
   };
+}
+
+export function isAiMlJobCategory(value) {
+  return AI_ML_ROLE_CATEGORY_SET.has(normalizeJobCategory(value));
 }
 
 export function inferJobCategory(title) {
@@ -244,6 +249,9 @@ export function inferJobCategory(title) {
 }
 
 export function inferAiMlArea({ title, listingText, category } = {}) {
+  const roleCategory = normalizeJobCategory(category) || inferJobCategory(title);
+  if (!isAiMlJobCategory(roleCategory)) return '';
+
   const titleText = classificationText(title);
   const titleRule = AI_ML_AREA_RULES.find((rule) => matchesAny(titleText, rule.patterns));
   if (titleRule) return titleRule.area;
@@ -252,7 +260,7 @@ export function inferAiMlArea({ title, listingText, category } = {}) {
   const matchedRule = AI_ML_AREA_RULES.find((rule) => matchesAny(listingTextValue, rule.patterns));
   if (matchedRule) return matchedRule.area;
   if (
-    AI_ML_ROLE_CATEGORY_SET.has(normalizeJobCategory(category))
+    isAiMlJobCategory(roleCategory)
     || matchesAny(`${titleText} ${listingTextValue}`, GENERAL_AI_ML_PATTERNS)
   ) {
     return 'other_ai_ml';

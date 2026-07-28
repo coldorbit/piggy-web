@@ -3,6 +3,7 @@ import { getSequelize } from '../connection.js';
 import { addMissingColumns, removeExistingColumns } from '../utils.js';
 
 export { ensureScrapedJobNormalizationColumns } from './jobNormalization.js';
+export { ensureScrapedJobClassificationColumns } from './jobClassification.js';
 
 export async function runOnceSchemaMigration(name, migrate) {
   const sequelize = getSequelize();
@@ -812,19 +813,6 @@ export async function ensureDuplicateKeyColumn() {
 
   await addMissingColumns(queryInterface, tableName, table, {
     duplicate_key: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-  });
-}
-
-export async function ensureScrapedJobClassificationColumns() {
-  const queryInterface = getSequelize().getQueryInterface();
-  const tableName = 'scraped_jobs';
-  const table = await queryInterface.describeTable(tableName);
-
-  await addMissingColumns(queryInterface, tableName, table, {
-    ai_ml_area: {
       type: DataTypes.TEXT,
       allowNull: true,
     },

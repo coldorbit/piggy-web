@@ -49,6 +49,24 @@ describe('job query filters', () => {
     assert.equal(query.where.aiMlArea, 'recommendation_systems');
   });
 
+  it('limits AI/ML area filters to AI/ML role categories', () => {
+    const query = buildJobQuery({
+      aiMlArea: 'generative_ai',
+      since: 'all',
+      visibility: 'all',
+    });
+
+    assert.deepEqual(query.where.category[Op.in], [
+      'ai_ml',
+      'ml_engineer',
+      'data_scientist',
+      'applied_scientist',
+      'research_scientist',
+      'other_ai_ml',
+    ]);
+    assert.equal(query.where.aiMlArea, 'generative_ai');
+  });
+
   it('applies inclusive custom date ranges by local day', () => {
     const query = buildJobQuery({
       since: 'custom',
@@ -375,7 +393,7 @@ describe('manual CSV job imports', () => {
     assert.equal(job.rawJob.classificationSource, 'manual_import_parser');
   });
 
-  it('derives AI/ML area from the parsed description for a generic job title', () => {
+  it('does not classify a generic software role as AI/ML from description keywords alone', () => {
     const [job] = jobsFromCsv(
       [
         'url,title,company,listingText',
@@ -385,7 +403,7 @@ describe('manual CSV job imports', () => {
     );
 
     assert.equal(job.category, 'software');
-    assert.equal(job.aiMlArea, 'speech_audio_ml');
+    assert.equal(job.aiMlArea, null);
   });
 
   it('uses other AI/ML when an AI role has no more specific area signal', () => {
@@ -420,6 +438,31 @@ describe('manual CSV job imports', () => {
 
     assert.equal(job.category, 'software');
     assert.equal(job.aiMlArea, null);
+  });
+
+  it('ignores an explicit AI/ML area on a non-AI/ML role', () => {
+    assert.deepEqual(classifyJob({
+      title: 'Backend Engineer',
+      category: 'software',
+      aiMlArea: 'generative_ai',
+      listingText: 'Build APIs for an AI product.',
+    }), {
+      category: 'software',
+      aiMlArea: null,
+    });
+  });
+
+  it('does not treat an unqualified research engineer as an AI/ML role', () => {
+    assert.deepEqual(classifyJob({
+      title: 'Research Engineer',
+      listingText: 'Research distributed storage and database performance.',
+    }), {
+      category: 'software',
+      aiMlArea: null,
+    });
+    assert.equal(classifyJob({
+      title: 'Machine Learning Research Engineer',
+    }).category, 'research_scientist');
   });
 
   it('accepts an explicit AI/ML area and keeps it ahead of inferred signals', () => {
@@ -561,7 +604,7 @@ describe('manual CSV job imports', () => {
     assert.deepEqual(plan.locationUpdates, [{ url: 'https://example.com/jobs/existing-location', key: 'url:https://example.com/jobs/existing-location', location: 'Canada' }]);
   });
 
-  it('fills a missing AI/ML area on an existing matching job', () => {
+  it('does not fill an AI/ML area on an existing non-AI/ML job', () => {
     const [job] = jobsFromCsv(
       [
         'url,title,company,listingText',
@@ -580,11 +623,7 @@ describe('manual CSV job imports', () => {
       },
     ]);
 
-    assert.deepEqual(plan.aiMlAreaUpdates, [{
-      url: 'https://example.com/jobs/existing-area',
-      key: 'url:https://example.com/jobs/existing-area',
-      aiMlArea: 'computer_vision',
-    }]);
+    assert.deepEqual(plan.aiMlAreaUpdates, []);
   });
 
   it('does not overwrite an existing AI/ML area with an inferred classification', () => {

@@ -36,12 +36,18 @@ export const AI_ML_AREA_OPTIONS = [
 
 const AI_ML_ROLE_CATEGORY_SET = new Set(['ai_ml', ...AI_ML_ROLE_CATEGORIES]);
 
+export function isAiMlJobCategory(category) {
+  return AI_ML_ROLE_CATEGORY_SET.has(category);
+}
+
 export function matchesJobRole(job, roleFamily = 'all') {
   if (!roleFamily || roleFamily === 'all') return true;
-  if (roleFamily === 'ai_ml') return AI_ML_ROLE_CATEGORY_SET.has(job?.category);
+  if (roleFamily === 'ai_ml') return isAiMlJobCategory(job?.category);
   return job?.category === roleFamily;
 }
 
 export function matchesAiMlArea(job, aiMlArea = 'all') {
-  return !aiMlArea || aiMlArea === 'all' || job?.aiMlArea === aiMlArea;
+  return !aiMlArea
+    || aiMlArea === 'all'
+    || (isAiMlJobCategory(job?.category) && job?.aiMlArea === aiMlArea);
 }

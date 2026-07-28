@@ -24,3 +24,10 @@ test('individual role and AI/ML area filters remain exact', () => {
   assert.equal(matchesAiMlArea(job, 'generative_ai'), true);
   assert.equal(matchesAiMlArea(job, 'computer_vision'), false);
 });
+
+test('AI/ML area filters reject non-AI roles with stale area values', () => {
+  assert.equal(matchesAiMlArea({
+    category: 'software',
+    aiMlArea: 'generative_ai',
+  }, 'generative_ai'), false);
+});
