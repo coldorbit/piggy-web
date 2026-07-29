@@ -158,7 +158,7 @@ async function generateResumeJson({ jobDescription, profileResume }) {
   }
 }
 
-function buildResumePrompt(jobDescription, profileResume) {
+export function buildResumePrompt(jobDescription, profileResume) {
   let inferNote = '';
   let promptBody;
 
@@ -186,6 +186,9 @@ Hard truthfulness rules:
 - Preserve every provided company and work experience position/title exactly as written. Do not change "Developer" into "Senior Developer", "Lead", "Architect", "Manager", or any other title unless that exact title is present in the profile.
 - Every work_experience entry must show a visible "position". If a role/title is provided in the profile, copy it exactly. If no role/title is provided, use "Role not provided" and do not invent a title.
 - Treat each work_experience position/title as the strongest constraint on that entry's bullets. The bullets must sound like work performed by someone with that exact title, in that role's actual domain and seniority.
+- Treat the projects and project descriptions provided for a work experience as the factual source for that experience's achievement bullets. Every bullet must be traceable to the description of the project that contains it.
+- Never create a work-experience bullet from the target job description alone. The target job may guide emphasis and wording only when the corresponding project description supports the claim.
+- Keep every project under the employer and position where it was performed. Never move a project, responsibility, technology, achievement, or metric from one work experience to another.
 - Do not attach JD keywords to a work_experience entry when they conflict with that entry's actual title or profile evidence. For example, do not write frontend UI/component bullets under "Senior Machine Learning Engineer" unless the profile explicitly says that role included frontend work.
 - If the target job is in a different discipline from a previous role, bridge only through credible transferable work such as APIs, platform integration, data pipelines, model serving, reliability, observability, collaboration, or user-impact framing that fits the actual title. Otherwise keep the JD keyword in Summary or Skills, not in that work_experience entry.
 - When a role title implies a specialty such as Machine Learning, Data Engineering, Frontend, Backend, DevOps, Security, Product, or Management, bullets must primarily reflect that specialty unless the profile explicitly provides cross-functional evidence.
@@ -216,16 +219,21 @@ Instructions:
 - If only a minimal profile is provided, infer accomplishment framing, metrics, and technologies that fit the provided companies and explicitly provided roles. Do not infer previous roles/titles, and do not infer a different functional discipline than the provided title.
 - Produce work_experience entries for each company in the profile.
 - Never modify existing role titles/positions for companies in the profile; preserve provided titles exactly when available.
+- Every work_experience entry must contain a "projects" array with one or more project objects. Each project object must contain "name", "description", and "bullets".
+- Preserve explicitly provided project names and descriptions. When the profile describes role-specific work without a formal project name, use a concise descriptive project-area label derived from that work; do not invent a branded, confidential, or proper-name initiative.
+- A project's "description" must summarize only source material associated with that employer and position. It may emphasize JD-relevant aspects, but it must not add unsupported scope, ownership, technologies, users, customers, or outcomes.
+- Put every achievement bullet inside its supporting project's "bullets" array. Do not output a top-level "bullets" array on a work_experience entry.
+- Before finalizing each project, verify every bullet against that project's description. Rewrite or remove any bullet whose action, technology, scope, metric, or outcome is not supported by the description.
 - Use achievement bullets of 20-30 words each.
-- Use 9-11 bullets for the latest work_experience entry. Use 6-8 bullets for every other work_experience entry.
+- Use 9-11 project bullets in total across the latest work_experience entry. Use 6-8 project bullets in total across every other work_experience entry.
 - Each work_experience entry may mention 2-3 key technical stacks or platforms only when they are aligned with both that entry's actual title/scope and the JD, and historically valid for that role. Put them naturally in bullets; avoid dumping every tool into every role.
 - The latest work_experience bullets should build the strongest truthful bridge between the JD's technical expertise/stacks and the latest role's actual title and scope. Prefer wording that highlights common engineering concerns, product-adjacent impact, customer/user workflows, platform quality, reliability, performance, data, integrations, collaboration, and delivery discipline only when those are plausible from the profile, the position title, and the JD.
 - Previous work_experience entries should be lightly tailored only where the profile clearly supports the skill or responsibility. Do not move new JD-specific work into older roles.
 - Before finalizing, perform a title-bullet consistency check for every work_experience entry: if a human reviewer would ask "why is a Senior Machine Learning Engineer doing frontend-only work?" or a similar title/scope mismatch, rewrite the bullet to fit the actual title or remove that claim.
 - For each work_experience entry, set "headquarters_location" to the company's headquarters location only when it is provided in the profile or available from verified public/company context. Format US headquarters as "City, ST" using the two-letter state abbreviation, such as "San Francisco, CA" or "New York, NY". Do not include the country. If unavailable, use the provided work location in "location" and leave "headquarters_location" blank.
 - For each work_experience entry, set "work_mode" to exactly one of "Remote", "Onsite", or "Hybrid" based on explicit profile/resume evidence. If the profile does not say, infer cautiously from the work location and job context; default to "Remote" only when remote work is clearly implied, otherwise use "Onsite".
-- For each work_experience entry, provide exactly 2 "projects" only when they are explicitly named in the profile or can be supported by verified public/company context such as a product, platform, or program area. If exact project names cannot be verified, use concise project-area names grounded in the profile and company context, not invented confidential initiatives.
-- Do not rely on standalone "Projects:" lines for visible resume content. When project names matter, weave them naturally into achievement bullets so ATS parsers see normal work-experience bullet content after the date line.
+- For each work_experience entry, include all materially described projects, up to 3. If the source does not separate the role into projects, create one descriptive project-area object grounded entirely in that role's provided responsibilities and achievements.
+- Do not repeat a project name mechanically in every bullet. The renderer will place each project's name and description directly above its supporting bullets.
 - Use metrics sparingly and only when plausible. Prefer concrete counts, scale, scope, latency, throughput, team size, systems, users, data volume, or time saved over percentage claims.
 - Do not overload work_experience bullets with percentages. Use at most one percentage-style metric per role unless the profile explicitly provides more, because unverifiable percentage claims can look fabricated.
 - Summary must be exactly 4 lines and 65 to 70 words.
@@ -252,8 +260,13 @@ Instructions:
       "work_mode": "",
       "start_date": "",
       "end_date": "",
-      "projects": ["", ""],
-      "bullets": ["", ""]
+      "projects": [
+        {
+          "name": "",
+          "description": "",
+          "bullets": ["", ""]
+        }
+      ]
     }
   ],
   "education": [
@@ -300,6 +313,7 @@ async function generateDocxAndUpload({ generatedResume, profile }) {
   } catch (error) {
     throw new InputError(`Generated resume was not valid JSON: ${error.message}`);
   }
+  validateGeneratedWorkExperienceProjects(data);
 
   const { s3Key, filename } = buildResumeS3Key(profile, data, '.docx');
   const docxBuffer = await renderResumeDocx(data, profile || {});
@@ -330,18 +344,18 @@ async function renderResumeDocx(data, profile) {
   addSection(children, 'Work Experience', template);
   for (const exp of workExperienceEntries(data)) {
     const period = workExperienceDateRange(exp);
+    const projects = workExperienceProjects(exp);
 
     addText(children, workExperienceTitle(exp), { bold: true, before: template.experienceBefore, after: 30 }, template);
     addWorkExperienceCompanyLine(children, exp, template);
     addText(children, period, { size: template.metaSize, after: 60 }, template);
-    for (const bullet of workExperienceBullets(exp)) {
-      children.push(
-        new Paragraph({
-          bullet: { level: 0 },
-          spacing: { after: template.bulletAfter },
-          children: [new TextRun({ text: String(bullet || ''), size: template.metaSize })],
-        }),
-      );
+    if (projects.some((project) => project.structured)) {
+      for (const project of projects) {
+        addProjectHeading(children, project, template);
+        for (const bullet of project.bullets) addBullet(children, bullet, template);
+      }
+    } else {
+      for (const bullet of workExperienceBullets(exp)) addBullet(children, bullet, template);
     }
     addSpacer(children, template.experienceAfter);
   }
@@ -411,6 +425,30 @@ function addWorkExperienceCompanyLine(children, exp, template) {
     new Paragraph({
       spacing: { after: 25 },
       children: [new TextRun({ text: companyLine, bold: true, size: template.metaSize })],
+    }),
+  );
+}
+
+function addProjectHeading(children, project, template) {
+  const name = project.name || 'Project';
+  const description = project.description ? ` - ${project.description}` : '';
+  children.push(
+    new Paragraph({
+      spacing: { before: 40, after: 35 },
+      children: [
+        new TextRun({ text: `Project: ${name}`, bold: true, size: template.metaSize }),
+        new TextRun({ text: description, italics: true, size: template.metaSize }),
+      ],
+    }),
+  );
+}
+
+function addBullet(children, bullet, template) {
+  children.push(
+    new Paragraph({
+      bullet: { level: 0 },
+      spacing: { after: template.bulletAfter },
+      children: [new TextRun({ text: String(bullet || ''), size: template.metaSize })],
     }),
   );
 }
@@ -499,20 +537,85 @@ function workExperienceDateRange(exp) {
     .join(' – ');
 }
 
-function projectNames(exp) {
+export function workExperienceProjects(exp) {
   const values = Array.isArray(exp.projects) ? exp.projects : Array.isArray(exp.project_names) ? exp.project_names : [];
   return values
-    .map((project) => String(project || '').trim())
-    .filter(Boolean)
-    .slice(0, 2);
+    .map(normalizedProject)
+    .filter((project) => project.name || project.description || project.bullets.length)
+    .slice(0, 3);
+}
+
+export function validateGeneratedWorkExperienceProjects(data) {
+  for (const [experienceIndex, experience] of workExperienceEntries(data).entries()) {
+    const projects = Array.isArray(experience.projects) ? experience.projects : [];
+    const roleLabel = String(experience.company || experience.position || `#${experienceIndex + 1}`).trim();
+
+    if (!projects.length || projects.some((project) => !project || typeof project !== 'object' || Array.isArray(project))) {
+      throw new InputError(`Generated work experience ${roleLabel} must contain structured projects`);
+    }
+    if (Array.isArray(experience.bullets) && experience.bullets.length) {
+      throw new InputError(`Generated work experience ${roleLabel} must keep bullets inside projects`);
+    }
+
+    for (const [projectIndex, project] of projects.entries()) {
+      const name = String(project.name || '').trim();
+      const description = String(project.description || '').trim();
+      const bullets = Array.isArray(project.bullets)
+        ? project.bullets.map((bullet) => String(bullet || '').trim()).filter(Boolean)
+        : [];
+      if (!name || !description || !bullets.length) {
+        throw new InputError(`Generated project #${projectIndex + 1} for ${roleLabel} requires a name, description, and bullets`);
+      }
+    }
+  }
+}
+
+function normalizedProject(project) {
+  if (typeof project === 'string') {
+    return {
+      name: project.trim(),
+      description: '',
+      bullets: [],
+      structured: false,
+    };
+  }
+
+  if (!project || typeof project !== 'object') {
+    return { name: '', description: '', bullets: [], structured: false };
+  }
+
+  return {
+    name: String(project.name || project.title || project.project_name || '').trim(),
+    description: String(project.description || project.project_description || project.summary || '').trim(),
+    bullets: Array.isArray(project.bullets)
+      ? project.bullets.map((bullet) => String(bullet || '').trim()).filter(Boolean)
+      : [],
+    structured: true,
+  };
+}
+
+function projectNames(exp) {
+  return workExperienceProjects(exp)
+    .map((project) => project.name)
+    .filter(Boolean);
+}
+
+function roleBullets(exp) {
+  return Array.isArray(exp.bullets)
+    ? exp.bullets.map((bullet) => String(bullet || '').trim()).filter(Boolean)
+    : [];
 }
 
 export function workExperienceBullets(exp) {
-  const bullets = Array.isArray(exp.bullets) ? exp.bullets : [];
+  const projects = workExperienceProjects(exp);
+  if (projects.some((project) => project.structured)) {
+    return projects.flatMap((project) => project.bullets);
+  }
+
   const projectBullet = workExperienceProjectBullet(exp);
   return [
     projectBullet,
-    ...bullets,
+    ...roleBullets(exp),
   ].filter(Boolean);
 }
 
@@ -581,12 +684,23 @@ export function renderedResumeTextParts(data, profile) {
   ];
 
   for (const exp of workExperienceEntries(data)) {
+    const projects = workExperienceProjects(exp);
     parts.push(
       workExperienceTitle(exp),
       workExperienceCompanyLine(exp),
       workExperienceDateRange(exp),
-      ...workExperienceBullets(exp),
     );
+    if (projects.some((project) => project.structured)) {
+      for (const project of projects) {
+        parts.push(
+          `Project: ${project.name || 'Project'}`,
+          project.description,
+          ...project.bullets,
+        );
+      }
+    } else {
+      parts.push(...workExperienceBullets(exp));
+    }
   }
 
   parts.push('Education');

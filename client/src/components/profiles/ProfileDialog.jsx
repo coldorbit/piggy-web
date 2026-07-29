@@ -221,6 +221,7 @@ export default function ProfileDialog({ canCreateDraft = false, canEditDailyBidG
               minRows={6}
               value={form.resumeText}
               onChange={(event) => onChange((current) => ({ ...current, resumeText: event.target.value }))}
+              helperText="For stronger tailoring, list each project's name and description under the work experience where it was performed."
               sx={{ gridColumn: { xs: 'auto', md: 'span 2' } }}
             />
           </Box>
