@@ -7,6 +7,7 @@ import {
   deleteUser,
   deleteWorkspace,
   getDashboard,
+  getWorkspaceInboxSettings,
   listConsumption,
   listUsers,
   listWorkspaceOptions,
@@ -14,6 +15,7 @@ import {
   updateConsumption,
   updateUser,
   updateWorkspace,
+  updateWorkspaceInboxSettings,
 } from './adminController.js';
 
 export function registerAdminRoutes(app) {
@@ -28,7 +30,9 @@ export function registerAdminRoutes(app) {
   app.delete('/api/admin/users/:id', requireAdmin, deleteUser);
   app.get('/api/admin/workspace-options', requireAdmin, listWorkspaceOptions);
   app.get('/api/admin/workspaces', requireAdmin, listWorkspaces);
+  app.get('/api/admin/workspaces/:id/inbox-settings', requireSuperadmin, getWorkspaceInboxSettings);
   app.post('/api/admin/workspaces', requireSuperadmin, createWorkspace);
+  app.patch('/api/admin/workspaces/:id/inbox-settings', requireSuperadmin, updateWorkspaceInboxSettings);
   app.patch('/api/admin/workspaces/:id', requireSuperadmin, updateWorkspace);
   app.delete('/api/admin/workspaces/:id', requireSuperadmin, deleteWorkspace);
 }

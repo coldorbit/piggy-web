@@ -26,6 +26,31 @@ export function useWorkspaceOptions(queryOptions = {}) {
   });
 }
 
+export function useAdminWorkspaceInboxSettings(workspaceId, queryOptions = {}) {
+  return useQuery({
+    queryKey: ['admin', 'workspaces', workspaceId, 'inbox-settings'],
+    queryFn: () => api(`/api/admin/workspaces/${workspaceId}/inbox-settings`).then((data) => data.settings),
+    enabled: Boolean(workspaceId),
+    ...queryOptions,
+  });
+}
+
+export function useUpdateAdminWorkspaceInboxSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workspaceId, profileIds }) =>
+      api(`/api/admin/workspaces/${workspaceId}/inbox-settings`, {
+        method: 'PATCH',
+        body: JSON.stringify({ profileIds }),
+      }).then((data) => data.settings),
+    onSuccess: (settings, { workspaceId }) => {
+      queryClient.setQueryData(['admin', 'workspaces', workspaceId, 'inbox-settings'], settings);
+      queryClient.invalidateQueries({ queryKey: ['bid', 'mailbox'] });
+      queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
+    },
+  });
+}
+
 export function useCreateWorkspace() {
   const queryClient = useQueryClient();
   return useMutation({

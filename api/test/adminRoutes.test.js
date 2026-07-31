@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { requireAdmin } from '../server/middleware/authMiddleware.js';
+import { requireAdmin, requireSuperadmin } from '../server/middleware/authMiddleware.js';
 import { registerAdminRoutes } from '../server/modules/admin/presentation/adminRoutes.js';
 
 describe('admin routes', () => {
   it('protects the lightweight workspace selector endpoint with admin access', () => {
     const routes = captureRoutes(registerAdminRoutes);
     assert.equal(routes.get.get('/api/admin/workspace-options')[0], requireAdmin);
+  });
+
+  it('reserves workspace inbox settings for superadmins', () => {
+    const routes = captureRoutes(registerAdminRoutes);
+    assert.equal(routes.get.get('/api/admin/workspaces/:id/inbox-settings')[0], requireSuperadmin);
+    assert.equal(routes.patch.get('/api/admin/workspaces/:id/inbox-settings')[0], requireSuperadmin);
   });
 });
 

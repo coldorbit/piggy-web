@@ -23,6 +23,12 @@ export function getWorkspaceModel() {
         allowNull: false,
         unique: true,
       },
+      inboxProfileIds: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        defaultValue: null,
+        field: 'inbox_profile_ids',
+      },
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,

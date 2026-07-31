@@ -5,6 +5,7 @@ export {
   useAdminConsumption,
   useAdminDashboard,
   useAdminUsers,
+  useAdminWorkspaceInboxSettings,
   useAdminWorkspaces,
   useWorkspaceOptions,
   useCreateConsumptionRecord,
@@ -13,6 +14,7 @@ export {
   useDeleteWorkspace,
   useUpdateWorkspace,
   useUpdateConsumptionRecord,
+  useUpdateAdminWorkspaceInboxSettings,
 } from './api/adminApi.js';
 export * from './api/contentApi.js';
 export * from './api/calendarApi.js';

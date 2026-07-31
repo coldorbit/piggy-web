@@ -2,6 +2,7 @@ const routeModules = {
   adminUsers: () => import('../pages/AdminUsersPage.jsx'),
   adminConsumption: () => import('../pages/AdminConsumptionPage.jsx'),
   adminDashboard: () => import('../pages/AdminDashboardPage.jsx'),
+  adminSettings: () => import('../pages/AdminSettingsPage.jsx'),
   adminWorkspaces: () => import('../pages/AdminWorkspacesPage.jsx'),
   appLayout: () => import('../components/AppLayout.jsx'),
   assessments: () => import('../pages/AssessmentsPage.jsx'),
@@ -36,6 +37,7 @@ function routeLoaderForPath(value) {
   if (pathname.startsWith('/admin/dashboard')) return routeModules.adminDashboard;
   if (pathname.startsWith('/admin/consumption')) return routeModules.adminConsumption;
   if (pathname.startsWith('/admin/users')) return routeModules.adminUsers;
+  if (pathname.startsWith('/admin/settings')) return routeModules.adminSettings;
   if (pathname.startsWith('/admin/workspaces')) return routeModules.adminWorkspaces;
   if (pathname.startsWith('/tailoring-requests')) return routeModules.tailoringRequests;
   if (pathname.startsWith('/assessments')) return routeModules.assessments;

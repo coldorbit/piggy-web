@@ -18,6 +18,7 @@ import {
   profileMailboxMessageWhere,
   profileMailboxMatchers,
   storedMailboxMessageAttributes,
+  workspaceAllowsInboxProfile,
 } from '../server/modules/bidding/application/forwardingMailboxService.js';
 
 describe('forwarding mailbox helpers', () => {
@@ -37,6 +38,13 @@ describe('forwarding mailbox helpers', () => {
       nextOffset: 20,
       hasMore: true,
     });
+  });
+
+  it('applies saved inbox selections by workspace while defaulting to all profiles', () => {
+    assert.equal(workspaceAllowsInboxProfile({ inboxProfileIds: null }, { id: 8 }), true);
+    assert.equal(workspaceAllowsInboxProfile({ inboxProfileIds: ['8'] }, { id: 8 }), true);
+    assert.equal(workspaceAllowsInboxProfile({ inboxProfileIds: ['9'] }, { id: 8 }), false);
+    assert.equal(workspaceAllowsInboxProfile({ inboxProfileIds: [] }, { id: 8 }), false);
   });
 
   it('extracts an indexed company and title identity from Workable confirmations', () => {

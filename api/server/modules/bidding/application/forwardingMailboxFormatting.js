@@ -8,6 +8,7 @@ import {
   getJobBidModel,
   getProfileShareRequestModel,
   getSequelize,
+  getWorkspaceModel,
 } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
@@ -206,6 +207,35 @@ export function profileMailboxMatchers(profile) {
     .filter((matcher, index, matchers) => matcher.value && matchers.findIndex((row) => row.value === matcher.value) === index);
 }
 
+export function workspaceAllowsInboxProfile(workspace, profile) {
+  const configuredProfileIds = workspace?.inboxProfileIds;
+  if (configuredProfileIds === null || configuredProfileIds === undefined) return true;
+  return Array.isArray(configuredProfileIds)
+    && configuredProfileIds.some((profileId) => String(profileId) === String(rowValue(profile, 'id')));
+}
+
+export async function filterProfilesByWorkspaceInboxSettings(profiles) {
+  const workspaceIds = [...new Set(
+    profiles
+      .map((profile) => rowValue(profile, 'workspaceId'))
+      .filter((workspaceId) => workspaceId !== null && workspaceId !== undefined)
+      .map(String),
+  )];
+  if (!workspaceIds.length) return profiles;
+
+  const workspaces = await getWorkspaceModel().findAll({
+    attributes: ['id', 'inboxProfileIds'],
+    where: { id: { [Op.in]: workspaceIds } },
+  });
+  const workspacesById = new Map(workspaces.map((workspace) => [String(workspace.id), workspace]));
+
+  return profiles.filter((profile) => {
+    const workspaceId = rowValue(profile, 'workspaceId');
+    if (workspaceId === null || workspaceId === undefined) return true;
+    return workspaceAllowsInboxProfile(workspacesById.get(String(workspaceId)), profile);
+  });
+}
+
 export function messageEmailAddresses(message) {
   return [
     message.from?.address,
@@ -237,6 +267,9 @@ export async function mailboxProfileForUser(user, profileId) {
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
   await ensureUserCanReadMailboxProfile(user, profile);
+  if (!(await filterProfilesByWorkspaceInboxSettings([profile])).length) {
+    throw new NotFoundError('Profile not found');
+  }
   return profile;
 }
 
@@ -251,9 +284,10 @@ export async function mailboxNotificationProfilesForUser(user) {
       })
     : await mailboxProfilesVisibleToUser(user);
 
-  return profiles
+  const eligibleProfiles = profiles
     .filter((profile) => ['active', 'closed', 'legacy'].includes(profile?.profileStatus || 'active'))
     .filter((profile) => profileMailboxMatchers(profile).length);
+  return filterProfilesByWorkspaceInboxSettings(eligibleProfiles);
 }
 
 async function mailboxProfilesVisibleToUser(user) {

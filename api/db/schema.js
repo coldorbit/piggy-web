@@ -65,6 +65,7 @@ import {
   ensureWebUserProfileHubAccessColumn,
   ensureWebUserSessionColumns,
   ensureWebUserTimezoneColumn,
+  ensureWorkspaceInboxProfileIdsColumn,
   removeDeprecatedBidProfileColumns,
   runOnceSchemaMigration,
 } from './schema/migrations.js';
@@ -77,6 +78,7 @@ export async function ensureWebModels() {
     initializationPromise = (async () => {
       await getScrapedJobModel().sync();
       await getWorkspaceModel().sync();
+      await ensureWorkspaceInboxProfileIdsColumn();
       await getWebUserModel().sync();
       setupWebAssociations();
       await getUserWorkspaceMembershipModel().sync();

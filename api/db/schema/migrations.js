@@ -219,6 +219,16 @@ export async function ensureWebUserProfileHubAccessColumn() {
   `);
 }
 
+export async function ensureWorkspaceInboxProfileIdsColumn() {
+  const queryInterface = getSequelize().getQueryInterface();
+  const tableName = 'workspaces';
+  const table = await queryInterface.describeTable(tableName);
+
+  await addMissingColumns(queryInterface, tableName, table, {
+    inbox_profile_ids: { type: DataTypes.JSONB, allowNull: true },
+  });
+}
+
 export async function ensureWebUserTimezoneColumn() {
   const queryInterface = getSequelize().getQueryInterface();
   const tableName = 'web_users';

@@ -2,7 +2,15 @@ import { fn, col, Op } from 'sequelize';
 import { getBidProfileModel, getUserWorkspaceMembershipModel, getWebUserModel, getWorkspaceModel } from '../../../../db.js';
 import { InputError, handleInputError } from '../../../utils/errors.js';
 import { assignedWorkspaceIds, isSuperadmin } from '../../../utils/roles.js';
-import { formatWorkspace, workspaceAttributesFromBody } from '../application/workspacesService.js';
+import {
+  formatWorkspace,
+  formatWorkspaceInboxSettings,
+  workspaceAttributesFromBody,
+  workspaceInboxProfileIdsFromBody,
+} from '../application/workspacesService.js';
+
+const INBOX_PROFILE_ATTRIBUTES = ['id', 'name', 'email', 'forwardingEmail', 'profileStatus'];
+const INBOX_PROFILE_STATUSES = ['active', 'closed', 'legacy'];
 
 export async function listWorkspaces(_req, res, next) {
   try {
@@ -96,6 +104,43 @@ export async function updateWorkspace(req, res, next) {
   }
 }
 
+export async function getWorkspaceInboxSettings(req, res, next) {
+  try {
+    const workspace = await getWorkspaceModel().findByPk(req.params.id);
+    if (!workspace) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+
+    const profiles = await workspaceInboxProfiles(workspace.id);
+    res.json({ settings: formatWorkspaceInboxSettings(workspace, profiles) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateWorkspaceInboxSettings(req, res, next) {
+  try {
+    const workspace = await getWorkspaceModel().findByPk(req.params.id);
+    if (!workspace) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+
+    const profileIds = workspaceInboxProfileIdsFromBody(req.body);
+    const profiles = await workspaceInboxProfiles(workspace.id);
+    const availableProfileIds = new Set(profiles.map((profile) => String(profile.id)));
+    if (profileIds?.some((profileId) => !availableProfileIds.has(String(profileId)))) {
+      throw new InputError('Selected inbox emails must belong to this workspace');
+    }
+
+    await workspace.update({ inboxProfileIds: profileIds });
+    res.json({ settings: formatWorkspaceInboxSettings(workspace, profiles) });
+  } catch (error) {
+    handleWorkspaceError(error, res, next);
+  }
+}
+
 export async function deleteWorkspace(req, res, next) {
   try {
     const Workspace = getWorkspaceModel();
@@ -121,6 +166,19 @@ export async function deleteWorkspace(req, res, next) {
   } catch (error) {
     handleWorkspaceError(error, res, next);
   }
+}
+
+async function workspaceInboxProfiles(workspaceId) {
+  const profiles = await getBidProfileModel().findAll({
+    attributes: INBOX_PROFILE_ATTRIBUTES,
+    where: {
+      workspaceId,
+      profileStatus: { [Op.in]: INBOX_PROFILE_STATUSES },
+    },
+    order: [['name', 'ASC'], ['id', 'ASC']],
+  });
+  return profiles.filter((profile) =>
+    String(profile.forwardingEmail || '').trim() || String(profile.email || '').trim());
 }
 
 function workspaceUsageCounts(workspaceId) {

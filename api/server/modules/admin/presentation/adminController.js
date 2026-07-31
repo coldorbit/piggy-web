@@ -14,7 +14,9 @@ export {
 export {
   createWorkspace,
   deleteWorkspace,
+  getWorkspaceInboxSettings,
   listWorkspaceOptions,
   listWorkspaces,
   updateWorkspace,
+  updateWorkspaceInboxSettings,
 } from './workspacesController.js';

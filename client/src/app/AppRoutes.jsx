@@ -23,6 +23,7 @@ import { loadRouteModule } from './routeModules.js';
 const AdminUsersPage = lazy(loadRouteModule.adminUsers);
 const AdminConsumptionPage = lazy(loadRouteModule.adminConsumption);
 const AdminDashboardPage = lazy(loadRouteModule.adminDashboard);
+const AdminSettingsPage = lazy(loadRouteModule.adminSettings);
 const AdminWorkspacesPage = lazy(loadRouteModule.adminWorkspaces);
 const AppLayout = lazy(loadRouteModule.appLayout);
 const AssessmentsPage = lazy(loadRouteModule.assessments);
@@ -247,6 +248,14 @@ export function AuthenticatedRoutes({ user }) {
           element={
             <RequireSuperadmin user={user}>
               <AdminWorkspacesPage currentUser={user} />
+            </RequireSuperadmin>
+          }
+        />
+        <Route
+          path="/admin/settings"
+          element={
+            <RequireSuperadmin user={user}>
+              <AdminSettingsPage />
             </RequireSuperadmin>
           }
         />
