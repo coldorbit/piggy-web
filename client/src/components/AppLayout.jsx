@@ -193,6 +193,7 @@ export default function AppLayout({ user }) {
     enabled: canViewInbox,
     onOpenMessage: handleOpenMailboxNotification,
     user,
+    workspaceId: activeWorkspaceId,
   });
 
   async function handleLogout() {

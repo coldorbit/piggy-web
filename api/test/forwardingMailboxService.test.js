@@ -12,6 +12,7 @@ import {
   formatMailboxNotificationMessage,
   formatStoredMailboxMessage,
   jobIdentityCandidatesFromConfirmationMessage,
+  mailboxWorkspaceScopeForUser,
   matchingJobDateWindow,
   parseIcsCalendarEvent,
   parseAddressList,
@@ -45,6 +46,26 @@ describe('forwarding mailbox helpers', () => {
     assert.equal(workspaceAllowsInboxProfile({ inboxProfileIds: ['8'] }, { id: 8 }), true);
     assert.equal(workspaceAllowsInboxProfile({ inboxProfileIds: ['9'] }, { id: 8 }), false);
     assert.equal(workspaceAllowsInboxProfile({ inboxProfileIds: [] }, { id: 8 }), false);
+  });
+
+  it('validates mailbox workspace scope against the global workspace selection', () => {
+    assert.deepEqual(
+      mailboxWorkspaceScopeForUser({ role: 'superadmin' }, '12'),
+      { workspaceId: '12' },
+    );
+    assert.equal(mailboxWorkspaceScopeForUser({ role: 'superadmin' }, 'all'), null);
+    assert.deepEqual(
+      mailboxWorkspaceScopeForUser({ role: 'admin', workspaceId: 7 }, '7'),
+      { workspaceId: '7' },
+    );
+    assert.throws(
+      () => mailboxWorkspaceScopeForUser({ role: 'admin', workspaceId: 7 }, '8'),
+      /not available/,
+    );
+    assert.throws(
+      () => mailboxWorkspaceScopeForUser({ role: 'admin', workspaceId: 7 }, 'all'),
+      /not available/,
+    );
   });
 
   it('extracts an indexed company and title identity from Workable confirmations', () => {

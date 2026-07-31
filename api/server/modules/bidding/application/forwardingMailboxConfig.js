@@ -136,9 +136,9 @@ export async function syncForwardingMailboxApplications({ messageLimit = DEFAULT
   return stats;
 }
 
-export async function mailboxProfileForRequest(req, profileId) {
+export async function mailboxProfileForRequest(req, profileId, options = {}) {
   const user = await currentDbUser(req);
-  return { user, profile: await mailboxProfileForUser(user, profileId) };
+  return { user, profile: await mailboxProfileForUser(user, profileId, options) };
 }
 
 export function forwardingMailboxPagination(page, { limit, offset }) {
@@ -209,9 +209,9 @@ export async function markForwardedProfileMessageRead(profile, { messageId } = {
   throw new NotFoundError('Message not found');
 }
 
-export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0, includeStats = true } = {}) {
+export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0, includeStats = true, workspaceId } = {}) {
   const user = await currentDbUser(req);
-  const profiles = await mailboxNotificationProfilesForUser(user);
+  const profiles = await mailboxNotificationProfilesForUser(user, { workspaceId });
   const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
   const page = await storedForwardedMailboxMessagePageForProfiles(profiles, {
     limit: messageLimit,
@@ -229,9 +229,9 @@ export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_
   };
 }
 
-export async function getForwardedMailboxBootstrap(req, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0 } = {}) {
+export async function getForwardedMailboxBootstrap(req, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0, workspaceId } = {}) {
   const user = await currentDbUser(req);
-  const profiles = await mailboxNotificationProfilesForUser(user);
+  const profiles = await mailboxNotificationProfilesForUser(user, { workspaceId });
   const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
   const [page, profileStatsById] = await Promise.all([
     storedForwardedMailboxMessagePageForProfiles(profiles, {
@@ -267,9 +267,9 @@ export async function getForwardedMailboxBootstrap(req, { limit = DEFAULT_PROFIL
   };
 }
 
-export async function listForwardedMailboxSummary(req) {
+export async function listForwardedMailboxSummary(req, { workspaceId } = {}) {
   const user = await currentDbUser(req);
-  const profiles = await mailboxNotificationProfilesForUser(user);
+  const profiles = await mailboxNotificationProfilesForUser(user, { workspaceId });
   const aggregateWhere = mailboxProfilesMessageWhere(profiles);
   const [aggregateStats, profileStatsById] = await Promise.all([
     aggregateWhere ? mailboxStatsForWhere(aggregateWhere) : emptyMailboxStats(),
@@ -288,9 +288,9 @@ export async function listForwardedMailboxSummary(req) {
   };
 }
 
-export async function listForwardedMailboxNotificationMessages(req, { limit = DEFAULT_NOTIFICATION_MESSAGE_LIMIT } = {}) {
+export async function listForwardedMailboxNotificationMessages(req, { limit = DEFAULT_NOTIFICATION_MESSAGE_LIMIT, workspaceId } = {}) {
   const user = await currentDbUser(req);
-  const profiles = await mailboxNotificationProfilesForUser(user);
+  const profiles = await mailboxNotificationProfilesForUser(user, { workspaceId });
   if (!profiles.length) {
     return {
       mailbox: forwardingMailboxStatus(),

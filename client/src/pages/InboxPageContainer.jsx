@@ -28,6 +28,7 @@ import { AutoSizer, List as VirtualizedList } from 'react-virtualized';
 import { useSearchParams } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState.jsx';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
+import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { useForwardedMailboxMessages, useForwardedProfileMessages, useMarkProfileMailboxMessageRead } from '../lib/api.js';
 
@@ -60,6 +61,8 @@ export default function InboxPage() {
   const searchParamsString = searchParams.toString();
   const isSyncingFromSearchParams = useRef(false);
   const { setSearch: setHeaderSearch } = useHeaderSearch();
+  const { activeWorkspaceId } = useWorkspaceFilter();
+  const previousWorkspaceIdRef = useRef(activeWorkspaceId);
   const isAggregateInbox = !activeProfileId;
   const {
     data: aggregateInboxData,
@@ -69,7 +72,7 @@ export default function InboxPage() {
     isFetchingNextPage: isFetchingNextAggregatePage,
     error: aggregateMessagesError,
     refetch: refetchAggregateMessages,
-  } = useForwardedMailboxMessages();
+  } = useForwardedMailboxMessages({ workspaceId: activeWorkspaceId });
   const mailboxBootstrap = aggregateInboxData?.pages?.[0] || null;
   const profiles = mailboxBootstrap?.profiles || [];
   const profilesLoading = aggregateMessagesLoading && !aggregateInboxData;
@@ -93,7 +96,7 @@ export default function InboxPage() {
   const statusError = aggregateMessagesError;
   const configured = !statusError;
   const mailboxEmail = mailboxStatus?.email || 'Stored mailbox';
-  const canFetchProfileMessages = Boolean(!isAggregateInbox && activeProfileId);
+  const canFetchProfileMessages = Boolean(!isAggregateInbox && activeProfile?.id);
   const {
     data: profileInboxData,
     fetchNextPage: fetchNextProfilePage,
@@ -104,6 +107,7 @@ export default function InboxPage() {
     refetch: refetchProfileMessages,
   } = useForwardedProfileMessages(activeProfileId, {
     enabled: canFetchProfileMessages,
+    workspaceId: activeWorkspaceId,
   });
   const markMessageRead = useMarkProfileMailboxMessageRead();
   const inboxData = isAggregateInbox ? aggregateInboxData : profileInboxData;
@@ -166,6 +170,14 @@ export default function InboxPage() {
   const emptyMessagesDetail = isAggregateInbox
     ? 'Stored messages across all profile emails will appear here.'
     : 'Stored messages for this profile email will appear here.';
+
+  useEffect(() => {
+    if (String(previousWorkspaceIdRef.current) === String(activeWorkspaceId)) return;
+    previousWorkspaceIdRef.current = activeWorkspaceId;
+    setActiveProfileId('');
+    setShouldPersistSelectedMessage(false);
+    setSelectedMessageId('');
+  }, [activeWorkspaceId]);
 
   useEffect(() => {
     if (!activeProfileId || profilesLoading) return;

@@ -7,7 +7,7 @@ const ENABLED_STORAGE_PREFIX = 'applypilot-mailbox-notifications-enabled:';
 const SEEN_STORAGE_PREFIX = 'applypilot-mailbox-notifications-seen:';
 const MAX_SEEN_MESSAGE_IDS = 250;
 
-export function useMailboxNotifications({ enabled = true, onOpenMessage, user } = {}) {
+export function useMailboxNotifications({ enabled = true, onOpenMessage, user, workspaceId } = {}) {
   const queryClient = useQueryClient();
   const storageUserKey = useMemo(() => String(user?.id || user?.username || 'current'), [user?.id, user?.username]);
   const enabledStorageKey = useMemo(() => `${ENABLED_STORAGE_PREFIX}${storageUserKey}`, [storageUserKey]);
@@ -27,6 +27,7 @@ export function useMailboxNotifications({ enabled = true, onOpenMessage, user } 
     refetchInterval: canFetchMailboxMessages ? MAILBOX_NOTIFICATION_POLL_MS : false,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    workspaceId,
   });
   const messages = useMemo(() => notificationQuery.data?.messages || [], [notificationQuery.data]);
   const unreadCount = Math.max(Number(notificationQuery.data?.unreadTotal || 0), 0);

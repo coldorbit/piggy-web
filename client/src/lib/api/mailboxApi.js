@@ -5,20 +5,38 @@ export function useForwardingMailboxStatus(queryOptions = {}) {
   return useQuery({ queryKey: ['bid', 'mailbox', 'status'], queryFn: () => api('/api/bid/mailbox/status'), staleTime: 30_000, ...queryOptions });
 }
 
-export function useMailboxNotificationMessages(queryOptions = {}) {
-  return useQuery({ queryKey: ['bid', 'mailbox', 'notifications'], queryFn: () => api('/api/bid/mailbox/notifications?limit=25'), staleTime: 0, retry: false, ...queryOptions });
+export function useMailboxNotificationMessages({ workspaceId, ...queryOptions } = {}) {
+  return useQuery({
+    queryKey: ['bid', 'mailbox', 'notifications', mailboxWorkspaceKey(workspaceId)],
+    queryFn: () => api(mailboxUrl('/api/bid/mailbox/notifications', { limit: 25, workspaceId })),
+    staleTime: 0,
+    retry: false,
+    ...queryOptions,
+  });
 }
 
-export function useForwardedMailboxSummary(queryOptions = {}) {
-  return useQuery({ queryKey: ['bid', 'mailbox', 'summary'], queryFn: () => api('/api/bid/mailbox/summary'), staleTime: 15_000, placeholderData: keepPreviousData, retry: false, ...queryOptions });
+export function useForwardedMailboxSummary({ workspaceId, ...queryOptions } = {}) {
+  return useQuery({
+    queryKey: ['bid', 'mailbox', 'summary', mailboxWorkspaceKey(workspaceId)],
+    queryFn: () => api(mailboxUrl('/api/bid/mailbox/summary', { workspaceId })),
+    staleTime: 15_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+    ...queryOptions,
+  });
 }
 
-export function useForwardedMailboxMessages(queryOptions = {}) {
+export function useForwardedMailboxMessages({ workspaceId, ...queryOptions } = {}) {
   return useInfiniteQuery({
-    queryKey: ['bid', 'mailbox', 'messages'],
+    queryKey: ['bid', 'mailbox', 'messages', mailboxWorkspaceKey(workspaceId)],
     queryFn: ({ pageParam = 0 }) => api(pageParam === 0
-      ? '/api/bid/mailbox/bootstrap?limit=10&offset=0'
-      : `/api/bid/mailbox/messages?limit=10&offset=${pageParam}&includeStats=false`),
+      ? mailboxUrl('/api/bid/mailbox/bootstrap', { limit: 10, offset: 0, workspaceId })
+      : mailboxUrl('/api/bid/mailbox/messages', {
+          includeStats: false,
+          limit: 10,
+          offset: pageParam,
+          workspaceId,
+        })),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage?.pagination?.hasMore ? lastPage.pagination.nextOffset : undefined,
     staleTime: 15_000,
@@ -26,16 +44,35 @@ export function useForwardedMailboxMessages(queryOptions = {}) {
   });
 }
 
-export function useForwardedProfileMessages(profileId, queryOptions = {}) {
+export function useForwardedProfileMessages(profileId, { workspaceId, ...queryOptions } = {}) {
   return useInfiniteQuery({
-    queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages'],
-    queryFn: ({ pageParam = 0 }) => api(`/api/bid/profiles/${profileId}/mailbox/messages?limit=10&offset=${pageParam}&includeStats=false`),
+    queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages', mailboxWorkspaceKey(workspaceId)],
+    queryFn: ({ pageParam = 0 }) => api(mailboxUrl(`/api/bid/profiles/${profileId}/mailbox/messages`, {
+      includeStats: false,
+      limit: 10,
+      offset: pageParam,
+      workspaceId,
+    })),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage?.pagination?.hasMore ? lastPage.pagination.nextOffset : undefined,
     enabled: Boolean(profileId),
     staleTime: 15_000,
     ...queryOptions,
   });
+}
+
+function mailboxWorkspaceKey(workspaceId) {
+  return String(workspaceId || 'all');
+}
+
+function mailboxUrl(path, params = {}) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '' || (key === 'workspaceId' && value === 'all')) continue;
+    query.set(key, String(value));
+  }
+  const queryString = query.toString();
+  return `${path}${queryString ? `?${queryString}` : ''}`;
 }
 
 export function useMarkProfileMailboxMessageRead() {
@@ -53,30 +90,30 @@ export function useMarkProfileMailboxMessageRead() {
         queryClient.cancelQueries({ queryKey: summaryQueryKey }),
         queryClient.cancelQueries({ queryKey: notificationsQueryKey }),
       ]);
-      const previousData = queryClient.getQueryData(queryKey);
-      const previousAggregateData = queryClient.getQueryData(aggregateQueryKey);
-      const previousSummaryData = queryClient.getQueryData(summaryQueryKey);
-      const previousNotificationsData = queryClient.getQueryData(notificationsQueryKey);
-      queryClient.setQueryData(queryKey, (data) => updateMailboxMessageReadState(data, messageId, { isRead: true }));
-      queryClient.setQueryData(aggregateQueryKey, (data) => updateMailboxBootstrapSummary(
+      const previousData = queryClient.getQueriesData({ queryKey });
+      const previousAggregateData = queryClient.getQueriesData({ queryKey: aggregateQueryKey });
+      const previousSummaryData = queryClient.getQueriesData({ queryKey: summaryQueryKey });
+      const previousNotificationsData = queryClient.getQueriesData({ queryKey: notificationsQueryKey });
+      queryClient.setQueriesData({ queryKey }, (data) => updateMailboxMessageReadState(data, messageId, { isRead: true }));
+      queryClient.setQueriesData({ queryKey: aggregateQueryKey }, (data) => updateMailboxBootstrapSummary(
         updateMailboxMessageReadState(data, messageId, { isRead: true }),
         profileId,
         { wasUnread },
       ));
-      queryClient.setQueryData(summaryQueryKey, (data) => updateMailboxSummaryReadState(data, profileId, { wasUnread }));
-      queryClient.setQueryData(notificationsQueryKey, (data) => updateMailboxNotificationReadState(data, messageId, { decrementMissing: true, wasUnread }));
+      queryClient.setQueriesData({ queryKey: summaryQueryKey }, (data) => updateMailboxSummaryReadState(data, profileId, { wasUnread }));
+      queryClient.setQueriesData({ queryKey: notificationsQueryKey }, (data) => updateMailboxNotificationReadState(data, messageId, { decrementMissing: true, wasUnread }));
       return { aggregateQueryKey, notificationsQueryKey, previousAggregateData, previousData, previousNotificationsData, previousSummaryData, queryKey, summaryQueryKey };
     },
     onError: (_error, _variables, context) => {
-      if (context?.aggregateQueryKey) queryClient.setQueryData(context.aggregateQueryKey, context.previousAggregateData);
-      if (context?.queryKey) queryClient.setQueryData(context.queryKey, context.previousData);
-      if (context?.notificationsQueryKey) queryClient.setQueryData(context.notificationsQueryKey, context.previousNotificationsData);
-      if (context?.summaryQueryKey) queryClient.setQueryData(context.summaryQueryKey, context.previousSummaryData);
+      restoreQueries(queryClient, context?.previousAggregateData);
+      restoreQueries(queryClient, context?.previousData);
+      restoreQueries(queryClient, context?.previousNotificationsData);
+      restoreQueries(queryClient, context?.previousSummaryData);
     },
     onSuccess: (message, { profileId, messageId }) => {
-      queryClient.setQueryData(['bid', 'profiles', profileId, 'mailbox', 'messages'], (data) => updateMailboxMessageReadState(data, messageId, message));
-      queryClient.setQueryData(['bid', 'mailbox', 'notifications'], (data) => updateMailboxNotificationReadState(data, messageId));
-      queryClient.setQueryData(['bid', 'mailbox', 'messages'], (data) => updateMailboxMessageReadState(data, messageId, message));
+      queryClient.setQueriesData({ queryKey: ['bid', 'profiles', profileId, 'mailbox', 'messages'] }, (data) => updateMailboxMessageReadState(data, messageId, message));
+      queryClient.setQueriesData({ queryKey: ['bid', 'mailbox', 'notifications'] }, (data) => updateMailboxNotificationReadState(data, messageId));
+      queryClient.setQueriesData({ queryKey: ['bid', 'mailbox', 'messages'] }, (data) => updateMailboxMessageReadState(data, messageId, message));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['bid', 'mailbox', 'messages'] });
@@ -84,6 +121,10 @@ export function useMarkProfileMailboxMessageRead() {
       queryClient.invalidateQueries({ queryKey: ['bid', 'mailbox', 'summary'] });
     },
   });
+}
+
+function restoreQueries(queryClient, queries = []) {
+  for (const [queryKey, data] of queries || []) queryClient.setQueryData(queryKey, data);
 }
 
 function updateMailboxMessageReadState(currentData, messageId, updates = {}) {

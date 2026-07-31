@@ -12,8 +12,8 @@ import {
 } from '../../../../db.js';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
-import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, isAdminRole } from '../../../utils/roles.js';
-import { currentDbUser, workspaceProfileWhereForUser } from './profilesService.js';
+import { BIDDER_ROLES, CALLER_BLOCKED_ROLES, isAdminRole, isSuperadmin } from '../../../utils/roles.js';
+import { canUserAccessWorkspace, currentDbUser, workspaceProfileWhereForUser } from './profilesService.js';
 
 const DEFAULT_PROFILE_MESSAGE_LIMIT = 10;
 const DEFAULT_NOTIFICATION_MESSAGE_LIMIT = 25;
@@ -258,7 +258,25 @@ export function parseAddressList(value) {
     .filter((address) => address.address);
 }
 
-export async function mailboxProfileForUser(user, profileId) {
+export function mailboxWorkspaceScopeForUser(user, requestedWorkspaceId) {
+  const value = clean(requestedWorkspaceId);
+  if (!value) return null;
+  if (value === 'all') {
+    if (!isSuperadmin(user)) throw new InputError('All workspaces is not available for this user');
+    return null;
+  }
+
+  const workspaceId = value === 'unassigned' ? null : value;
+  if (workspaceId !== null && !/^\d+$/.test(workspaceId)) {
+    throw new InputError('Workspace is invalid');
+  }
+  if (!canUserAccessWorkspace(user, workspaceId)) {
+    throw new InputError('Workspace is not available for this user');
+  }
+  return { workspaceId };
+}
+
+export async function mailboxProfileForUser(user, profileId, { workspaceId } = {}) {
   if (BIDDER_ROLES.includes(user?.role)) throw new InputError('Bidders cannot read profile inboxes');
 
   const id = clean(profileId);
@@ -267,24 +285,32 @@ export async function mailboxProfileForUser(user, profileId) {
   const profile = await getBidProfileModel().findByPk(id);
   if (!profile) throw new NotFoundError('Profile not found');
   await ensureUserCanReadMailboxProfile(user, profile);
+  const workspaceScope = mailboxWorkspaceScopeForUser(user, workspaceId);
+  if (workspaceScope && String(profile.workspaceId ?? '') !== String(workspaceScope.workspaceId ?? '')) {
+    throw new NotFoundError('Profile not found');
+  }
   if (!(await filterProfilesByWorkspaceInboxSettings([profile])).length) {
     throw new NotFoundError('Profile not found');
   }
   return profile;
 }
 
-export async function mailboxNotificationProfilesForUser(user) {
+export async function mailboxNotificationProfilesForUser(user, { workspaceId } = {}) {
   if (CALLER_BLOCKED_ROLES.includes(user?.role)) throw new InputError('This role cannot read profile inboxes');
   const BidProfile = getBidProfileModel();
+  const workspaceScope = mailboxWorkspaceScopeForUser(user, workspaceId);
   const profiles = isAdminRole(user)
     ? await BidProfile.findAll({
         attributes: MAILBOX_PROFILE_ATTRIBUTES,
-        where: workspaceProfileWhereForUser(user),
+        where: workspaceScope || workspaceProfileWhereForUser(user),
         order: [['createdAt', 'ASC']],
       })
     : await mailboxProfilesVisibleToUser(user);
 
-  const eligibleProfiles = profiles
+  const scopedProfiles = workspaceScope
+    ? profiles.filter((profile) => String(profile.workspaceId ?? '') === String(workspaceScope.workspaceId ?? ''))
+    : profiles;
+  const eligibleProfiles = scopedProfiles
     .filter((profile) => ['active', 'closed', 'legacy'].includes(profile?.profileStatus || 'active'))
     .filter((profile) => profileMailboxMatchers(profile).length);
   return filterProfilesByWorkspaceInboxSettings(eligibleProfiles);
