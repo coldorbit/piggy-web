@@ -141,6 +141,21 @@ export async function mailboxProfileForRequest(req, profileId) {
   return { user, profile: await mailboxProfileForUser(user, profileId) };
 }
 
+export function forwardingMailboxPagination(page, { limit, offset }) {
+  const nextOffset = page.total === null
+    ? offset + page.messages.length
+    : Math.min(offset + page.messages.length, page.total);
+
+  return {
+    limit,
+    offset,
+    total: page.total,
+    unreadTotal: page.unreadTotal,
+    nextOffset,
+    hasMore: page.total === null ? page.hasMore : nextOffset < page.total,
+  };
+}
+
 export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PROFILE_MESSAGE_LIMIT, offset = 0, includeStats = true } = {}) {
   const { limit: messageLimit, offset: messageOffset } = profileMessagePage(limit, offset);
   const page = await storedForwardedProfileMessagePage(profile, {
@@ -148,21 +163,14 @@ export async function listForwardedProfileMessages(profile, { limit = DEFAULT_PR
     offset: messageOffset,
     includeStats,
   });
-  const nextOffset = page.total === null
-    ? messageOffset + page.messages.length
-    : Math.min(messageOffset + page.messages.length, page.total);
 
   return {
     mailbox: forwardingMailboxStatus(),
     messages: page.messages,
-    pagination: {
+    pagination: forwardingMailboxPagination(page, {
       limit: messageLimit,
       offset: messageOffset,
-      total: page.total,
-      unreadTotal: page.unreadTotal,
-      nextOffset,
-      hasMore: nextOffset < page.total,
-    },
+    }),
   };
 }
 
@@ -210,21 +218,14 @@ export async function listForwardedInboxMessages(req, { limit = DEFAULT_PROFILE_
     offset: messageOffset,
     includeStats,
   });
-  const nextOffset = page.total === null
-    ? messageOffset + page.messages.length
-    : Math.min(messageOffset + page.messages.length, page.total);
 
   return {
     mailbox: forwardingMailboxStatus(),
     messages: page.messages,
-    pagination: {
+    pagination: forwardingMailboxPagination(page, {
       limit: messageLimit,
       offset: messageOffset,
-      total: page.total,
-      unreadTotal: page.unreadTotal,
-      nextOffset,
-      hasMore: page.total === null ? page.hasMore : nextOffset < page.total,
-    },
+    }),
   };
 }
 

@@ -6,6 +6,7 @@ import {
   classifyForwardedMessage,
   calendarEventFromAttachments,
   forwardingMailboxApplicationSyncConfig,
+  forwardingMailboxPagination,
   formatMailboxProfile,
   formatMailboxMessage,
   formatMailboxNotificationMessage,
@@ -20,6 +21,24 @@ import {
 } from '../server/modules/bidding/application/forwardingMailboxService.js';
 
 describe('forwarding mailbox helpers', () => {
+  it('uses the look-ahead result to paginate mailbox pages without totals', () => {
+    const page = {
+      messages: Array.from({ length: 10 }, (_, index) => ({ id: index + 1 })),
+      total: null,
+      unreadTotal: null,
+      hasMore: true,
+    };
+
+    assert.deepEqual(forwardingMailboxPagination(page, { limit: 10, offset: 10 }), {
+      limit: 10,
+      offset: 10,
+      total: null,
+      unreadTotal: null,
+      nextOffset: 20,
+      hasMore: true,
+    });
+  });
+
   it('extracts an indexed company and title identity from Workable confirmations', () => {
     const candidates = jobIdentityCandidatesFromConfirmationMessage({
       subject: 'Thanks for applying to Valsoft Corporation',
