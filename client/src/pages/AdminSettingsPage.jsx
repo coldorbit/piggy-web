@@ -11,36 +11,36 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
-  MenuItem,
   Paper,
   Stack,
-  TextField,
   Typography,
+  TextField,
 } from '@mui/material';
+import { ALL_WORKSPACES, UNASSIGNED_WORKSPACE, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
+import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import {
-  useAdminWorkspaces,
   useAdminWorkspaceInboxSettings,
   useUpdateAdminWorkspaceInboxSettings,
 } from '../lib/api.js';
 
 export default function AdminSettingsPage() {
-  const [workspaceId, setWorkspaceId] = useState('');
   const [selectedProfileIds, setSelectedProfileIds] = useState([]);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const { data: workspaces = [], isLoading: workspacesLoading, error: workspacesError } = useAdminWorkspaces();
+  const {
+    activeWorkspaceId,
+    workspaceError,
+    workspaces,
+    workspacesLoading,
+  } = useWorkspaceFilter();
+  const hasWorkspaceSelection = ![ALL_WORKSPACES, UNASSIGNED_WORKSPACE].includes(String(activeWorkspaceId));
+  const workspaceId = hasWorkspaceSelection ? String(activeWorkspaceId) : '';
   const {
     data: settings,
     isLoading: settingsLoading,
     error: settingsError,
   } = useAdminWorkspaceInboxSettings(workspaceId);
   const { mutate: updateSettings, isPending } = useUpdateAdminWorkspaceInboxSettings();
-
-  useEffect(() => {
-    if (!workspaces.length) return;
-    if (workspaces.some((workspace) => String(workspace.id) === String(workspaceId))) return;
-    setWorkspaceId(String(workspaces[0].id));
-  }, [workspaceId, workspaces]);
 
   useEffect(() => {
     if (!settings) return;
@@ -57,7 +57,7 @@ export default function AdminSettingsPage() {
   const isDirty = settings
     ? !sameProfileSelection(selectedProfileIds, settings.selectedProfileIds)
     : false;
-  const pageError = error || settingsError?.message || workspacesError?.message || '';
+  const pageError = error || settingsError?.message || workspaceError?.message || '';
 
   function saveProfileIds(profileIds, successMessage) {
     if (!workspaceId) return;
@@ -84,10 +84,11 @@ export default function AdminSettingsPage() {
         variant="outlined"
         sx={{
           p: 1.5,
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) minmax(240px, 340px)' },
+          display: 'flex',
           gap: 1.5,
           alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
           boxShadow: 2,
           background: 'linear-gradient(135deg, rgba(255,255,255,0.96), rgba(239,246,255,0.92))',
           borderColor: 'rgba(37, 99, 235, 0.18)',
@@ -115,20 +116,12 @@ export default function AdminSettingsPage() {
             </Typography>
           </Box>
         </Stack>
-        <TextField
-          select
-          fullWidth
-          label="Workspace"
-          value={workspaceId}
-          disabled={workspacesLoading || isPending}
-          onChange={(event) => setWorkspaceId(event.target.value)}
-        >
-          {workspaces.map((workspace) => (
-            <MenuItem key={workspace.id} value={String(workspace.id)}>
-              {workspace.name}
-            </MenuItem>
-          ))}
-        </TextField>
+        <Chip
+          label={hasWorkspaceSelection ? workspaceLabel(workspaces, activeWorkspaceId) : 'Select a workspace above'}
+          color={hasWorkspaceSelection ? 'primary' : 'default'}
+          variant="outlined"
+          sx={{ fontWeight: 600 }}
+        />
       </Paper>
 
       <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, display: 'grid', gap: 1.5, boxShadow: 1 }}>
@@ -144,13 +137,19 @@ export default function AdminSettingsPage() {
           </Box>
         </Stack>
 
-        {settingsLoading || workspacesLoading ? (
+        {!hasWorkspaceSelection && !workspacesLoading ? (
+          <Alert severity="info">
+            Choose a specific workspace from the global workspace dropdown to configure its visible Inbox emails.
+          </Alert>
+        ) : null}
+
+        {hasWorkspaceSelection && (settingsLoading || workspacesLoading) ? (
           <Box sx={{ minHeight: 120, display: 'grid', placeItems: 'center' }}>
             <CircularProgress size={28} />
           </Box>
         ) : null}
 
-        {!settingsLoading && settings && profiles.length ? (
+        {hasWorkspaceSelection && !settingsLoading && settings && profiles.length ? (
           <>
             <Autocomplete
               multiple
@@ -221,7 +220,7 @@ export default function AdminSettingsPage() {
           </>
         ) : null}
 
-        {!settingsLoading && settings && !profiles.length ? (
+        {hasWorkspaceSelection && !settingsLoading && settings && !profiles.length ? (
           <Alert severity="info">
             This workspace has no active, closed, or legacy profiles with an email address.
           </Alert>
