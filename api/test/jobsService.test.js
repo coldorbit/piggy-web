@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
-import { buildJobDuplicateKey, buildJobQuery, canImportJobs, capitalizeJobTitle, classifyJob, groupedJobsFromRows, jobDateFiltersForUser, jobSummaryAttributes, jobsFromCsv, mergedJobSourceOptions, normalizeCompanyName, normalizeJobCategory, paginateGroupedJobs, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
+import { buildJobDuplicateKey, buildJobQuery, canImportJobs, capitalizeJobTitle, classifyJob, groupedJobsFromRows, jobDateFiltersForUser, jobSummaryAttributes, jobsFromCsv, mergedJobSourceOptions, normalizeCompanyName, normalizeJobCategory, paginateGroupedJobs, parseJobSearchTerms, planCsvJobImport, publicJobIdFromId } from '../server/modules/jobs/application/jobsService.js';
 import { addLocalDays, localDayStart } from '../server/utils/localTime.js';
 
 describe('job query filters', () => {
@@ -121,25 +121,20 @@ describe('job query filters', () => {
     assert.ok(query.where[Op.or].some((condition) => condition.publicJobId?.[Op.iLike] === '%J000001A%'));
   });
 
-  it('limits interview application searches to title and company', () => {
+  it('uses OR terms and preserves quoted phrases in job searches', () => {
+    assert.deepEqual(parseJobSearchTerms('computer vision "machine learning"'), ['computer', 'vision', 'machine learning']);
+
     const query = buildJobQuery({
-      search: 'Senior Engineer · Acme',
+      search: 'computer vision "machine learning"',
       searchScope: 'title_company',
       since: 'all',
       visibility: 'all',
     });
-    const termConditions = query.where[Op.and].filter((condition) =>
-      condition[Op.or]?.some((field) => Object.prototype.hasOwnProperty.call(field, 'company')));
 
-    assert.equal(query.where[Op.or], undefined);
-    assert.deepEqual(
-      termConditions.map((condition) => condition[Op.or].map((field) => Object.keys(field))),
-      [[['title'], ['company']], [['title'], ['company']], [['title'], ['company']]],
-    );
-    assert.deepEqual(
-      termConditions.map((condition) => condition[Op.or][0].title[Op.iLike]),
-      ['%Senior%', '%Engineer%', '%Acme%'],
-    );
+    assert.equal(query.where[Op.or].length, 6);
+    assert.deepEqual(query.where[Op.or].map((condition) => Object.values(condition)[0][Op.iLike]), [
+      '%computer%', '%computer%', '%vision%', '%vision%', '%machine learning%', '%machine learning%',
+    ]);
   });
 
   it('normalizes source filters before comparing scraped job sources', () => {

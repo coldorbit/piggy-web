@@ -31,7 +31,7 @@ import {
   shouldSetInterviewAtForStatus,
   tailoredResumesForJobs,
 } from '../application/biddingService.js';
-import { buildJobQuery, formatJob, jobDateFiltersForUser, jobSourceLabel, normalizeJobSource } from '../../jobs/application/jobsService.js';
+import { buildJobQuery, formatJob, jobDateFiltersForUser, jobSourceLabel, normalizeJobSource, parseJobSearchTerms } from '../../jobs/application/jobsService.js';
 import {
   accessibleProfile,
   accessibleAppliedProfile,
@@ -231,18 +231,22 @@ export async function listInterviewJobs(req, res, { user, profile }) {
   const WebUser = getWebUserModel();
   const { limit, offset } = paginationFromQuery(req.query);
   const search = clean(req.query.search).toLowerCase();
+  const searchTerms = parseJobSearchTerms(search);
   const where = {
     profileId: profile.id,
     ...(user.role === 'caller' ? { callerUserId: user.id } : {}),
     ...(search
       ? {
-          [Op.or]: [
-            { title: { [Op.iLike]: `%${search}%` } },
-            { company: { [Op.iLike]: `%${search}%` } },
-            { location: { [Op.iLike]: `%${search}%` } },
-            { jobUrl: { [Op.iLike]: `%${search}%` } },
-            { interviewNotes: { [Op.iLike]: `%${search}%` } },
-          ],
+          [Op.or]: searchTerms.flatMap((term) => {
+            const pattern = `%${term}%`;
+            return [
+              { title: { [Op.iLike]: pattern } },
+              { company: { [Op.iLike]: pattern } },
+              { location: { [Op.iLike]: pattern } },
+              { jobUrl: { [Op.iLike]: pattern } },
+              { interviewNotes: { [Op.iLike]: pattern } },
+            ];
+          }),
         }
       : {}),
   };

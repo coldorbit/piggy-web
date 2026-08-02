@@ -656,11 +656,18 @@ function matchesAppliedProfile(job, appliedProfileId = 'all') {
 }
 
 function matchesSearch(job, search = '') {
-  const pattern = String(search || '').trim().toLowerCase();
-  if (!pattern) return true;
-  return [job.title, job.company, job.location, job.listingText]
+  const terms = jobSearchTerms(search);
+  if (!terms.length) return true;
+  const values = [job.title, job.company, job.location, job.listingText]
     .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(pattern));
+    .map((value) => String(value).toLowerCase());
+  return terms.some((term) => values.some((value) => value.includes(term)));
+}
+
+function jobSearchTerms(search = '') {
+  return [...String(search || '').trim().toLowerCase().matchAll(/"([^"]+)"|(\S+)/g)]
+    .map((match) => String(match[1] ?? match[2]).replace(/^"|"$/g, '').trim())
+    .filter(Boolean);
 }
 
 function updateBidTabCounts(tabCounts, tabDelta) {

@@ -118,26 +118,11 @@ export function buildJobQuery(query, { timeZone } = {}) {
   applyLocationRegionFilter(where, locationRegion);
   applyDateFilter(where, { since, dateFrom: query.dateFrom, dateTo: query.dateTo, timeZone: localTimeZone });
   if (search) {
-    if (clean(query.searchScope) === 'title_company') {
-      search.split(/[\s·|]+/).filter(Boolean).forEach((term) => {
-        const pattern = `%${term}%`;
-        appendAndCondition(where, {
-          [Op.or]: [
-            { title: { [Op.iLike]: pattern } },
-            { company: { [Op.iLike]: pattern } },
-          ],
-        });
-      });
-    } else {
-      const pattern = `%${search}%`;
-      where[Op.or] = [
-        { publicJobId: { [Op.iLike]: pattern } },
-        { title: { [Op.iLike]: pattern } },
-        { company: { [Op.iLike]: pattern } },
-        { location: { [Op.iLike]: pattern } },
-        { listingText: { [Op.iLike]: pattern } },
-      ];
-    }
+    const terms = parseJobSearchTerms(search);
+    const fields = clean(query.searchScope) === 'title_company'
+      ? ['title', 'company']
+      : ['publicJobId', 'title', 'company', 'location', 'listingText'];
+    where[Op.or] = searchConditions(terms, fields);
   }
 
   return {
@@ -146,6 +131,24 @@ export function buildJobQuery(query, { timeZone } = {}) {
     limit,
     offset,
   };
+}
+
+export function parseJobSearchTerms(value) {
+  const terms = [];
+  const pattern = /"([^"]+)"|(\S+)/g;
+  let match;
+  while ((match = pattern.exec(clean(value))) !== null) {
+    const term = clean(match[1] ?? match[2]).replace(/^"|"$/g, '');
+    if (term) terms.push(term);
+  }
+  return terms;
+}
+
+function searchConditions(terms, fields) {
+  return terms.flatMap((term) => {
+    const pattern = `%${term}%`;
+    return fields.map((field) => ({ [field]: { [Op.iLike]: pattern } }));
+  });
 }
 
 export function jobDateFiltersForUser(query = {}, user) {
