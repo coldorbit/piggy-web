@@ -281,6 +281,7 @@ export default function ProfileCard({
 
 function ProfileProgress({ progress = {} }) {
   const tailored = Number(progress.tailored || 0);
+  const manualTailors = Number(progress.manualTailors || 0);
   const bids = Number(progress.bids || 0);
   const done = Number(progress.done || 0);
   const planned = Number(progress.planned || 0);
@@ -292,6 +293,7 @@ function ProfileProgress({ progress = {} }) {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, minWidth: 0 }}>
       <Stack direction="row" spacing={0.75} useFlexGap sx={chipListSx}>
         <Chip label={`${tailored.toLocaleString()} tailored`} size="small" variant="outlined" sx={profileChipSx} />
+        <Chip label={`${manualTailors.toLocaleString()} manual tailors`} size="small" variant="outlined" sx={profileChipSx} />
         <Chip label={`${bids.toLocaleString()} bids`} size="small" variant="outlined" sx={profileChipSx} />
         <Chip label={`${done.toLocaleString()} done`} size="small" variant="outlined" sx={profileChipSx} />
         {planned ? <Chip label={`${planned.toLocaleString()} planned`} size="small" variant="outlined" sx={profileChipSx} /> : null}

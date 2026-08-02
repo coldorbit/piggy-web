@@ -164,6 +164,7 @@ export function formatProfile(row) {
     ownerUsername: row.user?.username || row.get?.('ownerUsername') || null,
     progress: row.get?.('progress') || {
       tailored: 0,
+      manualTailors: 0,
       bids: 0,
       planned: 0,
       done: 0,
@@ -236,6 +237,13 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
       attributes: [
         'profileId',
         [getSequelize().fn('COUNT', getSequelize().fn('DISTINCT', getSequelize().col('job_url'))), 'tailored'],
+        [
+          getSequelize().fn(
+            'SUM',
+            getSequelize().literal("CASE WHEN request_type = 'manual' THEN 1 ELSE 0 END"),
+          ),
+          'manualTailors',
+        ],
       ],
       where: {
         profileId: profileIds,
@@ -298,6 +306,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
       profileId,
       {
         tailored: 0,
+        manualTailors: 0,
         bids: 0,
         planned: 0,
         done: 0,
@@ -339,6 +348,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
     const progress = progressByProfileId.get(String(row.profileId));
     if (!progress) continue;
     progress.tailored = Number(row.tailored || 0);
+    progress.manualTailors = Number(row.manualTailors || 0);
   }
 
   for (const row of interviewRows) {
