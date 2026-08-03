@@ -78,6 +78,7 @@ import {
 const ACTIVE_TAILORED_RESUME_STATUSES = ['requested', 'processing', 'ready', 'dead_letter'];
 const TAILORED_REQUEST_STATUSES = ['requested', 'processing', 'ready', 'dead_letter', 'cancelled', 'invalid'];
 const DAILY_BID_GOAL_STATUSES = ['submitted', 'needs_follow_up', 'stale', 'blocked', 'interviewing', 'won', 'lost'];
+const PENDING_APPLICATION_STATUSES = new Set(['planned', 'queued', 'tailoring', 'ready']);
 const BATCH_LIMIT = 100;
 const SAME_COMPANY_TAILORING_WINDOW_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -233,23 +234,28 @@ export async function createManualTailoredResume(req, res, next) {
     const profile = await accessibleProfile(req, req.body?.profileId);
     if (!ensureProfileTailoringEligible(profile, res)) return;
     const attrs = manualTailoringAttributesFromBody(req.body);
+    const sequelize = getSequelize();
     const TailoredResume = getTailoredResumeModel();
-    const tailoredResume = await TailoredResume.create({
-      userId: user.id,
-      profileId: profile.id,
-      jobUrl: attrs.jobUrl,
-      requestType: 'manual',
-      manualCompany: attrs.company,
-      manualRole: attrs.role,
-      manualJobDescription: attrs.jobDescription,
-      status: 'requested',
-      filePath: null,
-      readyAt: null,
-      attempts: 0,
-      maxAttempts: 3,
-      lastError: null,
-      deadLetterAt: null,
-      downloadedAt: null,
+    const tailoredResume = await sequelize.transaction(async (transaction) => {
+      const request = await TailoredResume.create({
+        userId: user.id,
+        profileId: profile.id,
+        jobUrl: attrs.jobUrl,
+        requestType: 'manual',
+        manualCompany: attrs.company,
+        manualRole: attrs.role,
+        manualJobDescription: attrs.jobDescription,
+        status: 'requested',
+        filePath: null,
+        readyAt: null,
+        attempts: 0,
+        maxAttempts: 3,
+        lastError: null,
+        deadLetterAt: null,
+        downloadedAt: null,
+      }, { transaction });
+      await recordManualTailoringApplication({ attrs, profileId: profile.id, transaction, userId: user.id });
+      return request;
     });
     await enqueueTailoredResumeRequest({ tailoredResumeId: tailoredResume.id });
 
@@ -304,6 +310,53 @@ export function manualTailoringAttributesFromBody(body = {}) {
   if (!jobDescription) throw new InputError('Job description content is required');
 
   return { company, role, jobUrl, jobDescription };
+}
+
+async function recordManualTailoringApplication({ attrs, profileId, transaction, userId }) {
+  const now = new Date();
+  const ScrapedJob = getScrapedJobModel();
+  const JobBid = getJobBidModel();
+  let job = await ScrapedJob.findOne({ where: { url: attrs.jobUrl }, order: [['updatedAt', 'DESC']], transaction });
+
+  if (!job) {
+    job = await ScrapedJob.create({
+      url: attrs.jobUrl,
+      source: 'Manual',
+      sourceUrl: null,
+      title: attrs.role,
+      company: attrs.company,
+      location: null,
+      postedAt: null,
+      scrapedAt: now,
+      listingText: attrs.jobDescription,
+      rawJob: {
+        importType: 'manual_tailoring',
+        isManualImport: true,
+        importedBy: userId,
+        importedAt: now.toISOString(),
+      },
+      isHidden: false,
+      firstSeenAt: now,
+      updatedAt: now,
+    }, { transaction });
+  }
+
+  const existingBid = await JobBid.findOne({ where: { profileId, jobId: job.id }, transaction });
+  if (!existingBid) {
+    await JobBid.create({
+      userId,
+      profileId,
+      jobId: job.id,
+      status: 'submitted',
+      bidAt: now,
+      updatedAt: now,
+    }, { transaction });
+    return;
+  }
+
+  if (PENDING_APPLICATION_STATUSES.has(existingBid.status)) {
+    await existingBid.update({ status: 'submitted', userId, bidAt: now, updatedAt: now }, { transaction });
+  }
 }
 
 export function tailoredResumeRequestAttrs({ userId, profileId, jobUrl }) {
