@@ -982,21 +982,14 @@ export function useStopTailoredResume() {
     },
   });
 }
-
 export function useTailoredResumeEvents(profileId) {
   const queryClient = useQueryClient();
-
   useEffect(() => {
     if (!profileId) return undefined;
-
     const params = new URLSearchParams({ profileId: String(profileId) });
     const source = new EventSource(authUrl(`/api/bid/tailored-resume-events?${params}`), { withCredentials: true });
-    const refetchBidJobs = () => {
-      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs', profileId] });
-    };
-
+    const refetchBidJobs = () => queryClient.invalidateQueries({ queryKey: ['bid', 'jobs', profileId] });
     source.addEventListener('tailored-resume', refetchBidJobs);
-
     return () => {
       source.removeEventListener('tailored-resume', refetchBidJobs);
       source.close();

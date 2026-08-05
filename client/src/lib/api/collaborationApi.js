@@ -66,6 +66,7 @@ export function useCreateManualTailoredResume() {
   return useMutation({
     mutationFn: (tailoringData) => api('/api/bid/tailored-resumes/manual', { method: 'POST', body: JSON.stringify(tailoringData) }).then((data) => data.tailoredResume),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bid', 'jobs'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'tailoring-requests'] });
       queryClient.invalidateQueries({ queryKey: ['bid', 'profiles'] });
     },

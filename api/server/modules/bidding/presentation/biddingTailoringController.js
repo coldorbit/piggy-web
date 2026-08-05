@@ -312,10 +312,15 @@ export function manualTailoringAttributesFromBody(body = {}) {
   return { company, role, jobUrl, jobDescription };
 }
 
-async function recordManualTailoringApplication({ attrs, profileId, transaction, userId }) {
-  const now = new Date();
-  const ScrapedJob = getScrapedJobModel();
-  const JobBid = getJobBidModel();
+export async function recordManualTailoringApplication({
+  attrs,
+  profileId,
+  transaction,
+  userId,
+  now = new Date(),
+  ScrapedJob = getScrapedJobModel(),
+  JobBid = getJobBidModel(),
+}) {
   let job = await ScrapedJob.findOne({ where: { url: attrs.jobUrl }, order: [['updatedAt', 'DESC']], transaction });
 
   if (!job) {
