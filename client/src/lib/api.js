@@ -82,6 +82,7 @@ export function useBidJobs(profileId, filters = {}, options = {}) {
     queryFn: () => api(`/api/bid/jobs?${params}`),
     enabled: Boolean(profileId),
     placeholderData: keepPreviousData,
+    refetchOnMount: 'always',
     staleTime: 15_000,
     refetchInterval: localDayRolloverRefetchInterval,
   });
@@ -97,6 +98,7 @@ export function useBidJobCounts(profileId, filters = {}, queryOptions = {}) {
     queryFn: () => api(`/api/bid/job-counts?${params}`),
     ...queryOptions,
     enabled: Boolean(profileId) && queryOptions.enabled !== false,
+    refetchOnMount: 'always',
     staleTime: 15_000,
     placeholderData: keepPreviousData,
   });

@@ -3,10 +3,10 @@ import { Op } from 'sequelize';
 import {
   ensureWebModels,
   getTailoredResumeModel,
-  repositories,
 } from '../../../../db.js';
 import { ENV } from '../../../../env.js';
 import { formatTailoredResume } from './biddingService.js';
+import { accessibleProfile, currentDbUser } from './profilesService.js';
 
 const MAX_SQS_DELAY_SECONDS = 15 * 60;
 const EVENT_POLL_INTERVAL_MS = 5000;
@@ -31,20 +31,25 @@ export async function enqueueTailoredResumeRequest({ tailoredResumeId, delaySeco
 
 export async function subscribeTailoredResumeEvents(req, res, next) {
   let userId;
+  let profileId;
   try {
     await ensureWebModels();
-    const user = await repositories.findUserByUsername(req.user.username);
+    const user = await currentDbUser(req);
     if (!user) {
       res.status(401).json({ error: 'Authentication required' });
       return;
     }
     userId = user.id;
+    const requestedProfileId = req.query.profileId ? String(req.query.profileId) : '';
+    if (requestedProfileId) {
+      const profile = await accessibleProfile(req, requestedProfileId);
+      profileId = String(profile.id);
+    }
   } catch (error) {
     next(error);
     return;
   }
 
-  const profileId = req.query.profileId ? String(req.query.profileId) : '';
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',
@@ -90,14 +95,17 @@ export async function subscribeTailoredResumeEvents(req, res, next) {
 
 async function recentTailoredResumeUpdates({ userId, profileId, lastSeenAt }) {
   return getTailoredResumeModel().findAll({
-    where: {
-      userId,
-      updatedAt: { [Op.gt]: lastSeenAt },
-      ...(profileId ? { profileId } : {}),
-    },
+    where: tailoredResumeEventWhere({ userId, profileId, lastSeenAt }),
     order: [['updatedAt', 'ASC']],
     limit: 50,
   });
+}
+
+export function tailoredResumeEventWhere({ userId, profileId, lastSeenAt }) {
+  return {
+    ...(profileId ? { profileId } : { userId }),
+    updatedAt: { [Op.gt]: lastSeenAt },
+  };
 }
 
 function getSqsClient() {
