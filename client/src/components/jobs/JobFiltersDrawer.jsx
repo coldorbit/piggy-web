@@ -5,7 +5,7 @@ import JobFiltersToolbar from './JobFiltersToolbar.jsx';
 
 const FILTER_DRAWER_WIDTH = { xs: '100%', sm: 240, md: 285, lg: 323 };
 
-export default function JobFiltersDrawer({ ariaLabel = 'Job filters', filters, isOpen, meta, onClose, onFilterChange, onOpen, onRefresh }) {
+export default function JobFiltersDrawer({ allowRecommendedSort = false, ariaLabel = 'Job filters', filters, isOpen, meta, onClose, onFilterChange, onOpen, onRefresh }) {
   return (
     <>
       <Button
@@ -86,6 +86,7 @@ export default function JobFiltersDrawer({ ariaLabel = 'Job filters', filters, i
           </Stack>
           <Box sx={{ width: '100%', px: { xs: 2, sm: 2.5 } }}>
             <JobFiltersToolbar
+              allowRecommendedSort={allowRecommendedSort}
               ariaLabel={ariaLabel}
               filters={filters}
               meta={meta}

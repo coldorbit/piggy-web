@@ -34,6 +34,7 @@ import {
   listCollaborationEvents,
   listBidJobs,
   listBidJobCounts,
+  recordRankingImpressions,
   listProfileShareRequests,
   listProfileShareRecipients,
   listTailoringRequests,
@@ -117,6 +118,7 @@ export function registerBidRoutes(app) {
   app.get('/api/bid/calendar.ics', requireInterviewAccess, exportCalendarIcs);
   app.get('/api/bid/jobs', requireBidJobsAccess, listBidJobs);
   app.get('/api/bid/job-counts', requireBidJobsAccess, listBidJobCounts);
+  app.post('/api/bid/ranking-impressions', requireBidJobsAccess, recordRankingImpressions);
   app.get('/api/bid/tailoring-requests', requireBidWorkspaceAccess, listTailoringRequests);
   app.get('/api/bid/tailored-resumes/download', requireBidOrInterviewAccess, downloadTailoredResumesZip);
   app.get('/api/bid/tailored-resumes/:id/download', requireBidOrInterviewAccess, downloadTailoredResume);

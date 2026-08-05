@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../authApi.js';
 
 export function fetchJobDetail(jobId) {
@@ -13,5 +13,14 @@ export function useJobDetail(jobId, queryOptions = {}) {
     enabled: Boolean(id),
     staleTime: 5 * 60_000,
     ...queryOptions,
+  });
+}
+
+export function useRecordRankingImpressions() {
+  return useMutation({
+    mutationFn: (payload) => api('/api/bid/ranking-impressions', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   });
 }

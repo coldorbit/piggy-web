@@ -278,6 +278,7 @@ function BidJobCard({
                 }}
               >
                 <JobIdBadge job={job} sx={{ height: 24 }} />
+                {job.match ? <MatchScoreChip match={job.match} /> : null}
                 {job.isManual ? (
                   <Chip
                     label="Manual"
@@ -618,6 +619,31 @@ function sameCompanyBidNoticeText(value) {
   const days = Number(value.daysSincePrior || 0);
   const age = `${days} day${days === 1 ? '' : 's'} ago`;
   return `This profile already bid on that company ${age}.`;
+}
+
+function MatchScoreChip({ match }) {
+  const percent = Number(match.percent || Math.round(Number(match.score || 0) * 100));
+  const reasons = Array.isArray(match.reasons) ? match.reasons.filter(Boolean) : [];
+  const color = percent >= 65
+    ? { background: '#dcfce7', foreground: '#166534' }
+    : percent >= 40
+      ? { background: '#fef3c7', foreground: '#92400e' }
+      : { background: '#f1f5f9', foreground: '#475569' };
+  return (
+    <Tooltip title={reasons.join(' | ') || 'Profile-specific MVP ranking'}>
+      <Chip
+        icon={<AutoAwesomeIcon />}
+        label={`MVP fit ${percent}/100`}
+        size="small"
+        sx={{
+          bgcolor: color.background,
+          color: color.foreground,
+          fontWeight: 700,
+          '& .MuiChip-icon': { color: color.foreground },
+        }}
+      />
+    </Tooltip>
+  );
 }
 
 function appliedByChipLabel(bid, currentUser) {

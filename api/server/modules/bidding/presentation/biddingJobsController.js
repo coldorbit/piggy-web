@@ -6,7 +6,10 @@ import {
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
+  getJobProfileScoreModel,
   getProfileShareRequestModel,
+  getProfileIntelligenceModel,
+  getRankingImpressionModel,
   getScrapedJobModel,
   getSequelize,
   getTailoredResumeModel,
@@ -14,6 +17,7 @@ import {
   repositories,
 } from '../../../../db.js';
 import { Readable } from 'node:stream';
+import { randomUUID } from 'node:crypto';
 import { Op, QueryTypes } from 'sequelize';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../../../env.js';
@@ -30,7 +34,12 @@ import {
   shouldSetInterviewAtForStatus,
   tailoredResumesForJobs,
 } from '../application/biddingService.js';
-import { buildJobQuery, formatJob, jobDateFiltersForUser, jobSourceLabel, jobSummaryAttributes, normalizeJobSource } from '../../jobs/application/jobsService.js';
+import { buildJobQuery, formatJob, jobDateFiltersForUser, jobRankingAttributes, jobSourceLabel, jobSummaryAttributes, normalizeJobSource } from '../../jobs/application/jobsService.js';
+import {
+  JOB_PROFILE_RANKING_CANDIDATE_LIMIT,
+  JOB_PROFILE_RANKING_MODEL_VERSION,
+  rankJobsForProfile,
+} from '../application/jobProfileRankingService.js';
 import {
   accessibleProfile,
   accessibleAppliedProfile,
@@ -107,6 +116,7 @@ export async function listBidJobs(req, res, next) {
     const WebUser = getWebUserModel();
     const sequelize = getSequelize();
     const activeBidDateRange = bidDateRangeForTab(query, bidTab, user);
+    const recommendedRanking = clean(query.sort) === 'recommended';
     const { where, order: jobOrder, limit, offset } = buildJobQuery({
       ...jobQueryForBidTab(query, bidTab),
       workspaceId: profile.workspaceId,
@@ -130,18 +140,19 @@ export async function listBidJobs(req, res, next) {
       : Promise.resolve({ todo: 0, tailored: 0, done: 0, badWork: 0 });
 
     const [
-      rows,
+      candidateRows,
       tabCounts,
       interviewsCount,
       bidUsers,
       callerUsers,
+      profileIntelligence,
     ] = await Promise.all([
       ScrapedJob.findAll({
-        attributes: jobSummaryAttributes(),
+        attributes: recommendedRanking ? jobRankingAttributes() : jobSummaryAttributes(),
         where: activeTabQuery.where,
         order: activeTabQuery.order || jobOrder,
-        limit,
-        offset,
+        limit: recommendedRanking ? JOB_PROFILE_RANKING_CANDIDATE_LIMIT : limit,
+        offset: recommendedRanking ? 0 : offset,
         subQuery: false,
         include: activeTabQuery.include,
       }),
@@ -154,8 +165,35 @@ export async function listBidJobs(req, res, next) {
             order: [['username', 'ASC']],
           })
         : Promise.resolve([]),
+      recommendedRanking
+        ? getProfileIntelligenceModel().findOne({ where: { profileId: profile.id } })
+        : Promise.resolve(null),
     ]);
     const { todo: todoCount, tailored: tailoredCount, done: doneCount, badWork: badWorkCount } = tabCounts;
+    const activeTabCount = bidTab === 'tailored'
+      ? tailoredCount
+      : bidTab === 'done'
+        ? doneCount
+        : bidTab === 'bad_work'
+          ? badWorkCount
+          : todoCount;
+
+    let rows = candidateRows;
+    let matchByJobId = new Map();
+    let ranking = null;
+    if (recommendedRanking) {
+      const rankedCandidates = rankJobsForProfile({ profile, intelligence: profileIntelligence, jobs: candidateRows });
+      await persistJobProfileScores(profile.id, rankedCandidates);
+      rows = rankedCandidates.slice(offset, offset + limit).map((entry) => entry.job);
+      matchByJobId = new Map(rankedCandidates.map((entry) => [String(entry.job.id), entry.match]));
+      ranking = {
+        requestId: randomUUID(),
+        modelVersion: JOB_PROFILE_RANKING_MODEL_VERSION,
+        candidateCount: rankedCandidates.length,
+        truncated: activeTabCount > rankedCandidates.length
+          || (!includeTabCounts && candidateRows.length >= JOB_PROFILE_RANKING_CANDIDATE_LIMIT),
+      };
+    }
 
     const [tailoredResumesByUrl, sameCompanyBidById] = await Promise.all([
       tailoredResumesForJobs({ TailoredResume, jobs: rows, profileId: profile.id }),
@@ -169,16 +207,9 @@ export async function listBidJobs(req, res, next) {
       bid: job.bids?.[0] ? formatBidWithUser(job.bids[0], bidUsersById, callerUsersById) : null,
       tailoredResume: tailoredResumesByUrl.get(job.url) || null,
       sameCompanyBid: sameCompanyBidById.get(String(job.id)) || null,
+      match: matchByJobId.get(String(job.id)) || null,
     }));
     const tabJobs = shouldGroupBidTab(bidTab) ? groupedBidJobs(formattedJobs) : formattedJobs;
-    const activeTabCount = bidTab === 'tailored'
-      ? tailoredCount
-      : bidTab === 'done'
-        ? doneCount
-        : bidTab === 'bad_work'
-          ? badWorkCount
-          : todoCount;
-
     res.json({
       jobs: tabJobs,
       bidUsers,
@@ -190,7 +221,7 @@ export async function listBidJobs(req, res, next) {
         dailyBidGoal: Number(user.dailyBidGoal || 0) || null,
       },
       profile: formatBidProfile(profile),
-      total: activeTabCount,
+      total: recommendedRanking ? candidateRows.length : activeTabCount,
       tabCounts: {
         todo: todoCount,
         tailored: tailoredCount,
@@ -200,10 +231,85 @@ export async function listBidJobs(req, res, next) {
       },
       limit,
       offset,
+      ranking,
     });
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+export async function recordRankingImpressions(req, res, next) {
+  try {
+    await ensureWebModels();
+    const user = await currentDbUser(req);
+    const profile = await accessibleProfile(req, req.body?.profileId);
+    const requestId = clean(req.body?.requestId);
+    const modelVersion = clean(req.body?.modelVersion);
+    const impressions = normalizedRankingImpressions(req.body?.impressions);
+    if (!requestId || requestId.length > 100) throw new InputError('requestId is required');
+    if (!modelVersion || modelVersion.length > 100) throw new InputError('modelVersion is required');
+
+    const jobIds = [...new Set(impressions.map((impression) => impression.jobId))];
+    const validJobs = await getScrapedJobModel().findAll({ attributes: ['id'], where: { id: { [Op.in]: jobIds } }, raw: true });
+    const validJobIds = new Set(validJobs.map((job) => String(job.id)));
+    const rows = impressions
+      .filter((impression) => validJobIds.has(String(impression.jobId)))
+      .map((impression) => ({
+        requestId,
+        userId: user.id,
+        profileId: profile.id,
+        jobId: impression.jobId,
+        modelVersion,
+        score: impression.score,
+        displayRank: impression.displayRank,
+        surface: 'bid_jobs',
+        shownAt: new Date(),
+      }));
+    await getRankingImpressionModel().bulkCreate(rows, { ignoreDuplicates: true });
+    res.status(201).json({ recorded: rows.length });
+  } catch (error) {
+    handleInputError(error, res, next);
+  }
+}
+
+async function persistJobProfileScores(profileId, rankedCandidates) {
+  if (!rankedCandidates.length) return;
+  const records = rankedCandidates.map(({ job, match }) => ({
+    profileId,
+    jobId: job.id,
+    modelVersion: match.modelVersion,
+    score: match.score,
+    components: match.components,
+    reasons: match.reasons,
+    profileFingerprint: match.profileFingerprint,
+    jobFingerprint: match.jobFingerprint,
+    scoredAt: new Date(match.scoredAt),
+  }));
+  await getJobProfileScoreModel().bulkCreate(records, {
+    updateOnDuplicate: [
+      'score',
+      'components',
+      'reasons',
+      'profileFingerprint',
+      'jobFingerprint',
+      'scoredAt',
+      'updatedAt',
+    ],
+  });
+}
+
+function normalizedRankingImpressions(value) {
+  if (!Array.isArray(value) || !value.length) throw new InputError('impressions must include at least one job');
+  if (value.length > 100) throw new InputError('impressions cannot include more than 100 jobs');
+  return value.map((impression, index) => {
+    const jobId = Number(impression?.jobId);
+    const score = Number(impression?.score);
+    const displayRank = Number(impression?.displayRank || index + 1);
+    if (!Number.isInteger(jobId) || jobId <= 0) throw new InputError('Each impression requires a valid jobId');
+    if (!Number.isFinite(score) || score < 0 || score > 1) throw new InputError('Each impression requires a score from 0 to 1');
+    if (!Number.isInteger(displayRank) || displayRank <= 0) throw new InputError('Each impression requires a positive displayRank');
+    return { jobId, score, displayRank };
+  });
 }
 
 export async function listBidJobCounts(req, res, next) {

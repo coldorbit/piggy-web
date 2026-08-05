@@ -13,6 +13,7 @@ import {
   getInterviewLogModel,
   getInterviewModel,
   getJobBidModel,
+  getJobProfileScoreModel,
   getLearningArticleModel,
   getLearningCompanyModel,
   getMarketplaceCallerProfileModel,
@@ -24,6 +25,7 @@ import {
   getProfileLearningReviewModel,
   getProfilePrepPlanModel,
   getProfileStoryModel,
+  getRankingImpressionModel,
   getScrapedJobModel,
   getTailoredResumeModel,
   getTeamConsumptionModel,
@@ -97,6 +99,8 @@ export async function ensureWebModels() {
       await getAssessmentModel().sync();
       await ensureAssessmentColumns();
       await getJobBidModel().sync();
+      await getJobProfileScoreModel().sync();
+      await getRankingImpressionModel().sync();
       await getInterviewModel().sync();
       await getInterviewCallModel().sync();
       await getInterviewLogModel().sync();

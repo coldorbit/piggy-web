@@ -26,6 +26,7 @@ import {
   useJobsMeta,
   useMarkJobHidden,
   useRequestTailoredResume,
+  useRecordRankingImpressions,
   useStopTailoredResume,
   useTailoredResumeEvents,
   useUpdateLinkedInExternalUrl,
@@ -146,9 +147,27 @@ export default function BidPage({ currentUser }) {
   const { mutate: markHidden } = useMarkJobHidden();
   const { mutate: updateLinkedInExternalUrl, isPending: updatingLinkedInExternalUrl } = useUpdateLinkedInExternalUrl();
   const { mutate: requestTailoredResume } = useRequestTailoredResume();
+  const { mutate: recordRankingImpressions } = useRecordRankingImpressions();
   const { mutate: bulkRequestTailoredResumes, isPending: bulkRequestingTailoredResumes } = useBulkRequestTailoredResumes();
   const { mutate: stopTailoredResume, isPending: stoppingTailoredResume } = useStopTailoredResume();
   useTailoredResumeEvents(activeProfile?.id);
+  useEffect(() => {
+    const ranking = bidJobsData?.ranking;
+    const rankedJobs = bidJobsData?.jobs || [];
+    if (!ranking?.requestId || !activeProfile?.id || !rankedJobs.length) return;
+    recordRankingImpressions({
+      requestId: ranking.requestId,
+      profileId: activeProfile.id,
+      modelVersion: ranking.modelVersion,
+      impressions: rankedJobs
+        .filter((job) => job.match)
+        .map((job, index) => ({
+          jobId: job.id,
+          score: job.match.score,
+          displayRank: Number(bidJobsData.offset || 0) + index + 1,
+        })),
+    });
+  }, [activeProfile?.id, bidJobsData?.ranking?.requestId, recordRankingImpressions]);
   const dateFilteredProfile = bidJobsData?.profile;
   const profilesForDisplay = useMemo(
     () =>
@@ -459,7 +478,7 @@ export default function BidPage({ currentUser }) {
   const jobs = bidJobsData?.jobs || [];
   const visibleJobs = jobs.filter((job) => isJobVisibleForTab(job, activeBidTab, draftFor(job), { isStaticProfile: Boolean(activeProfile?.isStatic) }));
   const tabCounts = bidJobCounts || bidJobsData?.tabCounts || { todo: 0, tailored: 0, done: 0, badWork: 0, interviews: 0 };
-  const total = activeBidTab === BID_TABS.tailored
+  const tabTotal = activeBidTab === BID_TABS.tailored
     ? tabCounts.tailored
     : activeBidTab === BID_TABS.done
       ? tabCounts.done
@@ -468,6 +487,9 @@ export default function BidPage({ currentUser }) {
         : activeBidTab === BID_TABS.interviews
           ? tabCounts.interviews
           : tabCounts.todo;
+  const total = filters.sort === 'recommended' && bidJobsData?.ranking
+    ? bidJobsData.ranking.candidateCount
+    : tabTotal;
   const currentBidUser = useMemo(
     () => ({ ...(currentUser || {}), ...(bidJobsData?.currentUser || {}) }),
     [bidJobsData?.currentUser, currentUser],

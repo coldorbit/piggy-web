@@ -17,7 +17,7 @@ import {
 import { AI_ML_AREA_OPTIONS, JOB_ROLE_OPTIONS } from '../../lib/jobClassification.js';
 import { jobSourceImageUrl } from '../../lib/jobSourceImage.js';
 
-export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
+export default function JobFiltersToolbar({ allowRecommendedSort = false, filters, meta, onFilterChange, onRefresh, variant = 'paper', ariaLabel = 'Job filters' }) {
   const appliedProfiles = meta?.appliedProfiles || [];
   const sourceOptions = meta?.sources || [];
   const showAppliedProfileFilter = Boolean(meta?.showAppliedProfileFilter);
@@ -184,6 +184,7 @@ export default function JobFiltersToolbar({ filters, meta, onFilterChange, onRef
       <FormControl size="small">
         <InputLabel>Sort</InputLabel>
         <Select label="Sort" value={filters.sort} onChange={(event) => onFilterChange('sort', event.target.value)}>
+          {allowRecommendedSort ? <MenuItem value="recommended">Recommended for profile</MenuItem> : null}
           <MenuItem value="scraped_desc">Newest scraped</MenuItem>
           <MenuItem value="posted_desc">Newest posted</MenuItem>
           <MenuItem value="title_asc">Title A-Z</MenuItem>

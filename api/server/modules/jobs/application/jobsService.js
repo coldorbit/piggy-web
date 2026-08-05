@@ -376,6 +376,11 @@ export function jobSummaryAttributes() {
   };
 }
 
+export function jobRankingAttributes() {
+  const attributes = jobSummaryAttributes();
+  return { ...attributes, exclude: ['rawJob'] };
+}
+
 export function publicJobIdFromId(value) {
   const existingValue = clean(value).toUpperCase();
   if (/^[A-Z0-9]{8}$/.test(existingValue)) return existingValue;
