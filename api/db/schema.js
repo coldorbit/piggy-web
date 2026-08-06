@@ -53,6 +53,7 @@ import {
   ensureJobBidInterviewColumns,
   ensureJobBidProfileScopedUniqueness,
   ensureMarketplaceIndexes,
+  migrateManualTailoringBidsToTailored,
   ensureProfileShareIndexes,
   ensureScrapedJobClassificationColumns,
   ensureScrapedJobAttributeColumns,
@@ -124,6 +125,7 @@ export async function ensureWebModels() {
       await ensureInterviewFailureFeedbackColumns();
       await ensureTailoredResumeStatusColumns();
       await ensureTailoredResumeManualColumns();
+      await runOnceSchemaMigration('20260806-manual-tailoring-bids-to-tailored', migrateManualTailoringBidsToTailored);
       await ensureTailoredResumeCvDataColumn();
       await ensureConsumptionTransactionSpenderColumns();
       await ensureWebUserEmailColumn();

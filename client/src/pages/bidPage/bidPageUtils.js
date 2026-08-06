@@ -146,13 +146,14 @@ export function isJobVisibleForTab(job, activeTab, draft, { isStaticProfile = fa
   const interviewing = INTERVIEW_STATUSES.has(draft.status);
   const reviewBlocked = REVIEW_STATUSES.has(draft.status);
   const hasTailoredRequest = hasTailoredResumeActivity(job);
+  const manualTailoring = job?.isManualTailoring && hasTailoredRequest;
   const staticReady = isStaticProfile && draft.status === 'ready';
 
   if (activeTab === BID_TABS.interviews) return interviewing;
   if (activeTab === BID_TABS.tailored) return (hasTailoredRequest || staticReady) && !done && !reviewBlocked;
   if (activeTab === BID_TABS.done) return done;
   if (activeTab === BID_TABS.badWork) return reviewBlocked;
-  return !done && !interviewing && !reviewBlocked && !staticReady;
+  return !done && !interviewing && !reviewBlocked && !staticReady && !manualTailoring;
 }
 
 function profileBadge(profile) {

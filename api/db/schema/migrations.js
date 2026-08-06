@@ -5,6 +5,7 @@ import { addMissingColumns, removeExistingColumns } from '../utils.js';
 export { ensureScrapedJobNormalizationColumns } from './jobNormalization.js';
 export { ensureScrapedJobClassificationColumns } from './jobClassification.js';
 export { ensureScrapedJobAttributeColumns } from './jobAttributes.js';
+export { migrateManualTailoringBidsToTailored } from './manualTailoring.js';
 
 export async function runOnceSchemaMigration(name, migrate) {
   const sequelize = getSequelize();

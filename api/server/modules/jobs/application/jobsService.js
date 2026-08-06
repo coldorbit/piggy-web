@@ -353,6 +353,7 @@ export function formatJob(row, { includeRawJob = true } = {}) {
     applyMode: applyMode(row.source, rawJob),
     companyLogoUrl: companyLogoUrl(rawJob),
     isManual: rawJob.importType === 'manual' || rawJob.isManualImport === true,
+    isManualTailoring: rawJob.importType === 'manual_tailoring',
     isSpam: row.isSpam,
     spamReviewedAt: row.spamReviewedAt,
     isHidden: row.isHidden,

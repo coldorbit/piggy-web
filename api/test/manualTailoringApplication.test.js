@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { recordManualTailoringApplication } from '../server/modules/bidding/presentation/biddingTailoringController.js';
 
-test('creates a manual job and submitted application for the selected profile', async () => {
+test('creates a manual job and tailoring application for the selected profile', async () => {
   const now = new Date('2026-08-05T14:30:00.000Z');
   const transaction = { id: 'manual-tailoring-transaction' };
   const createdJobs = [];
@@ -47,7 +47,7 @@ test('creates a manual job and submitted application for the selected profile', 
       userId: 9,
       profileId: 17,
       jobId: 41,
-      status: 'submitted',
+      status: 'tailoring',
       bidAt: now,
       updatedAt: now,
     },
@@ -92,10 +92,10 @@ test('reuses an existing job while associating it only with the selected profile
   assert.deepEqual(bidLookups[0].where, { profileId: 29, jobId: 73 });
   assert.equal(createdBids[0].profileId, 29);
   assert.equal(createdBids[0].jobId, 73);
-  assert.equal(createdBids[0].status, 'submitted');
+  assert.equal(createdBids[0].status, 'tailoring');
 });
 
-test('moves an existing pending profile application to the Done status', async () => {
+test('moves an existing pending profile application to the Tailored status', async () => {
   const now = new Date('2026-08-05T15:00:00.000Z');
   const updates = [];
   const existingBid = {
@@ -123,7 +123,7 @@ test('moves an existing pending profile application to the Done status', async (
   });
 
   assert.deepEqual(updates, [{
-    attributes: { status: 'submitted', userId: 11, bidAt: now, updatedAt: now },
+    attributes: { status: 'tailoring', userId: 11, updatedAt: now },
     options: { transaction },
   }]);
 });

@@ -362,7 +362,7 @@ export async function recordManualTailoringApplication({
       userId,
       profileId,
       jobId: job.id,
-      status: 'submitted',
+      status: 'tailoring',
       bidAt: now,
       updatedAt: now,
     }, { transaction });
@@ -370,7 +370,7 @@ export async function recordManualTailoringApplication({
   }
 
   if (PENDING_APPLICATION_STATUSES.has(existingBid.status)) {
-    await existingBid.update({ status: 'submitted', userId, bidAt: now, updatedAt: now }, { transaction });
+    await existingBid.update({ status: 'tailoring', userId, updatedAt: now }, { transaction });
   }
 }
 

@@ -51,7 +51,7 @@ describe('bidAttributesFromBody', () => {
 });
 
 describe('buildBidTabQuery', () => {
-  it('keeps tailored resume jobs on the todo tab until they are done', () => {
+  it('keeps ordinary open jobs on todo while excluding active manual tailoring jobs', () => {
     const query = buildBidTabQuery({
       where: { source: 'linkedin' },
       tab: 'todo',
@@ -64,7 +64,15 @@ describe('buildBidTabQuery', () => {
     assert.equal(query.include[0].where.profileId, 42);
     assert.equal(query.order, null);
     assert.deepEqual(query.where.source, 'linkedin');
-    assert.equal(literalsFor(query).some((sql) => sql.includes('tailored_resumes')), false);
+    assert.equal(
+      literalsFor(query).some(
+        (sql) =>
+          sql.includes("importType', '') = 'manual_tailoring'")
+          && sql.includes('tailored_resumes')
+          && sql.includes("profile_id = '42'"),
+      ),
+      true,
+    );
     assertHasPlannedBidClause(query);
   });
 

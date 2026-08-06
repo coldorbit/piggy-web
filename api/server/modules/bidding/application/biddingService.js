@@ -80,6 +80,7 @@ export function buildBidTabQuery({ where, tab, profileId, appliedProfileId = '',
   } else if (!isDoneTab && !isBadWorkTab && !isInterviewsTab) {
     tabWhere[Op.and] = [
       ...(Array.isArray(tabWhere[Op.and]) ? tabWhere[Op.and] : []),
+      Sequelize.literal(manualTailoringTodoExclusionSql({ profileId, sequelize })),
       {
         [Op.or]: [{ '$bids.id$': { [Op.is]: null } }, { '$bids.status$': { [Op.in]: isStaticProfile ? STATIC_TODO_BID_STATUSES : OPEN_BID_STATUSES } }],
       },
@@ -118,6 +119,13 @@ function tailoredResumeExistsSql({ profileId, sequelize }) {
       AND tailored_resume.job_url = "ScrapedJob"."url"
       AND tailored_resume.status IN (${activeTailoredResumeStatusesSql(sequelize)})
       AND tailored_resume.profile_id = ${escapedProfileId}
+  )`;
+}
+
+function manualTailoringTodoExclusionSql({ profileId, sequelize }) {
+  return `NOT (
+    COALESCE("ScrapedJob".raw_job->>'importType', '') = 'manual_tailoring'
+    AND ${tailoredResumeExistsSql({ profileId, sequelize })}
   )`;
 }
 

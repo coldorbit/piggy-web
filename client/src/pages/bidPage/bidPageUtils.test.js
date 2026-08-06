@@ -59,6 +59,31 @@ describe('isAppliedProfileFilterValid', () => {
 });
 
 describe('isJobVisibleForTab', () => {
+  it('routes manual tailoring jobs exclusively to tailored until applied', () => {
+    const job = {
+      isManualTailoring: true,
+      tailoredResume: { status: 'requested' },
+      bid: { status: 'tailoring' },
+    };
+    const draft = { status: 'tailoring' };
+
+    assert.equal(isJobVisibleForTab(job, BID_TABS.todo, draft), false);
+    assert.equal(isJobVisibleForTab(job, BID_TABS.tailored, draft), true);
+    assert.equal(isJobVisibleForTab(job, BID_TABS.done, draft), false);
+  });
+
+  it('routes an applied manual tailoring job to done', () => {
+    const job = {
+      isManualTailoring: true,
+      tailoredResume: { status: 'ready' },
+      bid: { status: 'submitted' },
+    };
+    const draft = { status: 'submitted' };
+
+    assert.equal(isJobVisibleForTab(job, BID_TABS.tailored, draft), false);
+    assert.equal(isJobVisibleForTab(job, BID_TABS.done, draft), true);
+  });
+
   it('routes static ready bids to tailored instead of todo', () => {
     const job = { bid: { status: 'ready' } };
     const draft = { status: 'ready' };
