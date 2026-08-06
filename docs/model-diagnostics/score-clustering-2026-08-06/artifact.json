@@ -1,0 +1,194 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "Why MVP Fit Scores Cluster Near 50",
+    "description": "Technical diagnosis of score concentration in baseline-keyword-v1.",
+    "generatedAt": "2026-08-06T16:00:00.000Z",
+    "charts": [
+      {
+        "id": "example-contribution",
+        "title": "Illustrative score contribution by component",
+        "subtitle": "Formula example totaling 49.25 points; not live score data",
+        "type": "bar",
+        "dataset": "example_contributions",
+        "encodings": {
+          "x": {
+            "field": "component",
+            "type": "nominal",
+            "label": "Component"
+          },
+          "y": {
+            "field": "points",
+            "type": "quantitative",
+            "format": "number",
+            "label": "Score points",
+            "unit": "points"
+          }
+        },
+        "valueFormat": "number",
+        "unit": "points",
+        "layout": "full",
+        "sourceId": "theoretical-example",
+        "maxRows": 6
+      }
+    ],
+    "sources": [
+      {
+        "id": "ranking-scorer",
+        "label": "Job-profile ranking scorer",
+        "path": "api/server/modules/bidding/application/jobProfileRankingService.js"
+      },
+      {
+        "id": "ranking-doc",
+        "label": "Job-profile ranking MVP documentation",
+        "path": "docs/job-profile-ranking-mvp.md"
+      },
+      {
+        "id": "theoretical-example",
+        "label": "Deterministic contribution example derived from the scorer",
+        "path": "api/server/modules/bidding/application/jobProfileRankingService.js",
+        "query": {
+          "engine": "PostgreSQL-compatible VALUES expression",
+          "description": "Reproducible formula example; these are not observed production scores.",
+          "sql": "SELECT *\nFROM (VALUES\n  ('Title alignment', 20.0, 1.0, 0.20, 'illustrative'),\n  ('Freshness', 10.0, 1.0, 0.10, 'illustrative'),\n  ('Skills overlap', 6.75, 0.15, 0.45, 'illustrative'),\n  ('Specialization', 5.0, 0.5, 0.10, 'neutral fallback'),\n  ('Seniority', 5.0, 0.5, 0.10, 'neutral fallback'),\n  ('Work mode', 2.5, 0.5, 0.05, 'neutral fallback')\n) AS example(component, points, component_value, weight, evidence);",
+          "language": "sql",
+          "metric_definitions": ["points equals component_value multiplied by component weight multiplied by 100"]
+        }
+      },
+      {
+        "id": "score-table",
+        "label": "Stored job-profile scores",
+        "query": {
+          "engine": "PostgreSQL",
+          "description": "Distribution and component summary for the active baseline model. The connection attempt timed out, so no query results are represented in this report.",
+          "sql": "SELECT\n  model_version,\n  COUNT(*) AS score_count,\n  AVG(score) AS avg_score,\n  STDDEV_POP(score) AS score_stddev,\n  PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY score) AS p10,\n  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) AS median,\n  PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY score) AS p90\nFROM job_profile_scores\nGROUP BY model_version\nORDER BY model_version;",
+          "language": "sql",
+          "tables_used": ["public.job_profile_scores"],
+          "filters": ["No time filter", "Grouped by model_version"],
+          "metric_definitions": ["score is the stored raw weighted ranking score from 0 to 1; displayed MVP fit equals round(score * 100)" ]
+        }
+      }
+    ],
+    "blocks": [
+      {
+        "id": "title",
+        "type": "markdown",
+        "layout": "full",
+        "body": "# Why MVP Fit Scores Cluster Near 50"
+      },
+      {
+        "id": "technical-summary",
+        "type": "markdown",
+        "layout": "full",
+        "body": "## Technical summary\n\nThe repeated scores near 50 are probably a property of the scoring formula, not evidence that most jobs are medium-quality matches. The displayed value is an uncalibrated weighted similarity score, yet the UI makes it look like a percentage. Neutral defaults, near-uniform freshness, and set-based token overlap compress many jobs into the same middle band.\n\nThe correct immediate action is to stop interpreting 50 as a probability, expose component diagnostics, and replace neutral values for missing evidence with weight renormalization. Live distribution statistics remain unverified because the database connection from this workspace timed out."
+      },
+      {
+        "id": "formula-finding",
+        "type": "markdown",
+        "layout": "full",
+        "sourceId": "ranking-scorer",
+        "body": "## The formula naturally produces scores near 50\n\nThe model weights skills at 45%, title at 20%, specialization at 10%, seniority at 10%, work mode at 5%, and freshness at 10%. When specialization, seniority, or work-mode evidence is missing, several component functions return 0.5 instead of marking the component unavailable.\n\nA typical example is enough to reproduce the cluster: perfect title alignment contributes 0.20; skill cosine of 0.15 contributes 0.0675; neutral specialization, seniority, and work mode contribute 0.125; and a fresh listing contributes 0.10. The total is 0.4925, displayed as 49/100. This is deterministic formula behavior, not learned confidence."
+      },
+      {
+        "id": "formula-chart",
+        "type": "chart",
+        "layout": "full",
+        "chartId": "example-contribution",
+        "sourceId": "ranking-scorer"
+      },
+      {
+        "id": "compression-finding",
+        "type": "markdown",
+        "layout": "full",
+        "sourceId": "ranking-scorer",
+        "body": "## Three mechanisms compress job separation\n\n**Missing evidence earns points.** Neutral 0.5 defaults create a common score floor even when the profile contains no usable preference or specialization signal.\n\n**Freshness varies little inside the candidate pool.** The system ranks the newest eligible jobs, so most candidates receive similar freshness values.\n\n**Token overlap is not rarity-aware.** The skills component uses cosine similarity between sets of tokens. Generic terms count like distinctive skills, and long resumes and descriptions tend to produce similarly small overlap ratios. The model has no inverse-document-frequency weighting, synonym handling, or semantic similarity."
+      },
+      {
+        "id": "definitions",
+        "type": "markdown",
+        "layout": "full",
+        "sourceId": "ranking-doc",
+        "body": "## What the current metric means\n\nThe unit of analysis is one profile-job pair scored by `baseline-keyword-v1`. The API evaluates up to the 500 newest eligible jobs after existing Bid filters. The displayed `MVP fit` value is `round(raw score x 100)`. It is intended only to order jobs for one profile; it is not an interview probability, application-success probability, percentile, or score that is comparable across profiles."
+      },
+      {
+        "id": "methodology",
+        "type": "markdown",
+        "layout": "full",
+        "body": "## Diagnostic method\n\nThis diagnosis traces each component, fallback, weight, and display transformation in the scorer and tests whether the reported clustering is mechanically plausible. It is: a worked profile-job example produces approximately 49 without requiring a particularly strong overall match.\n\nA read-only PostgreSQL query was prepared to measure count, mean, standard deviation, percentiles, histogram buckets, component averages, component variation, and per-profile spread. The connection attempt timed out, so no live values are claimed here."
+      },
+      {
+        "id": "limitations",
+        "type": "markdown",
+        "layout": "full",
+        "body": "## What remains unverified\n\nThe live score histogram, affected profile count, component missingness, and per-profile spread could not be measured from this workspace. The user's observation of scores around 50 establishes the symptom but not its exact prevalence. A data defect - such as missing profile intelligence or repeated job descriptions - could amplify the formula problem and must be checked once database access is available."
+      },
+      {
+        "id": "recommendations",
+        "type": "markdown",
+        "layout": "full",
+        "sourceId": "ranking-scorer",
+        "body": "## Recommended correction sequence\n\n1. Rename the UI value to `Match score` and state that it is relative, not a probability.\n2. Store `null` for unavailable components and renormalize weights across components with actual evidence.\n3. Remove freshness from the displayed match score; retain it only as a tie-breaker or small ordering feature.\n4. Replace raw set cosine with TF-IDF/BM25 or BGE embedding similarity.\n5. Display component evidence and profile-data completeness during internal testing.\n6. Evaluate ranking with per-profile NDCG@10 and Recall@20 before choosing thresholds or colors.\n7. Calibrate a probability only after enough matured application and interview outcomes exist."
+      },
+      {
+        "id": "further-questions",
+        "type": "markdown",
+        "layout": "full",
+        "body": "## Questions the live data must answer\n\n- What are the median, p10, p90, and standard deviation for each profile?\n- Which component contributes most to variance, and which components are nearly constant?\n- What share of profiles lacks target titles, specializations, target level, or work-mode preference?\n- Do top-ranked jobs produce higher application and interview rates than lower-ranked displayed jobs?\n- Does score quality differ materially by job category, source, or profile seniority?"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-06T16:00:00.000Z",
+    "status": "ready",
+    "datasets": {
+      "example_contributions": [
+        { "component": "Title alignment", "points": 20, "component_value": 1, "weight": 0.2, "evidence": "illustrative" },
+        { "component": "Freshness", "points": 10, "component_value": 1, "weight": 0.1, "evidence": "illustrative" },
+        { "component": "Skills overlap", "points": 6.75, "component_value": 0.15, "weight": 0.45, "evidence": "illustrative" },
+        { "component": "Specialization", "points": 5, "component_value": 0.5, "weight": 0.1, "evidence": "neutral fallback" },
+        { "component": "Seniority", "points": 5, "component_value": 0.5, "weight": 0.1, "evidence": "neutral fallback" },
+        { "component": "Work mode", "points": 2.5, "component_value": 0.5, "weight": 0.05, "evidence": "neutral fallback" }
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "ranking-scorer",
+      "label": "Job-profile ranking scorer",
+      "path": "api/server/modules/bidding/application/jobProfileRankingService.js"
+    },
+    {
+      "id": "ranking-doc",
+      "label": "Job-profile ranking MVP documentation",
+      "path": "docs/job-profile-ranking-mvp.md"
+    },
+    {
+      "id": "theoretical-example",
+      "label": "Deterministic contribution example derived from the scorer",
+      "path": "api/server/modules/bidding/application/jobProfileRankingService.js",
+      "query": {
+        "engine": "PostgreSQL-compatible VALUES expression",
+        "description": "Reproducible formula example; these are not observed production scores.",
+        "sql": "SELECT *\nFROM (VALUES\n  ('Title alignment', 20.0, 1.0, 0.20, 'illustrative'),\n  ('Freshness', 10.0, 1.0, 0.10, 'illustrative'),\n  ('Skills overlap', 6.75, 0.15, 0.45, 'illustrative'),\n  ('Specialization', 5.0, 0.5, 0.10, 'neutral fallback'),\n  ('Seniority', 5.0, 0.5, 0.10, 'neutral fallback'),\n  ('Work mode', 2.5, 0.5, 0.05, 'neutral fallback')\n) AS example(component, points, component_value, weight, evidence);",
+        "language": "sql",
+        "metric_definitions": ["points equals component_value multiplied by component weight multiplied by 100"]
+      }
+    },
+    {
+      "id": "score-table",
+      "label": "Stored job-profile scores",
+      "query": {
+        "engine": "PostgreSQL",
+        "description": "Distribution and component summary for the active baseline model. The connection attempt timed out, so no query results are represented in this report.",
+        "sql": "SELECT\n  model_version,\n  COUNT(*) AS score_count,\n  AVG(score) AS avg_score,\n  STDDEV_POP(score) AS score_stddev,\n  PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY score) AS p10,\n  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) AS median,\n  PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY score) AS p90\nFROM job_profile_scores\nGROUP BY model_version\nORDER BY model_version;",
+        "language": "sql",
+        "tables_used": ["public.job_profile_scores"],
+        "filters": ["No time filter", "Grouped by model_version"],
+        "metric_definitions": ["score is the stored raw weighted ranking score from 0 to 1; displayed MVP fit equals round(score * 100)" ]
+      }
+    }
+  ]
+}
