@@ -55,6 +55,7 @@ import {
   ensureMarketplaceIndexes,
   ensureProfileShareIndexes,
   ensureScrapedJobClassificationColumns,
+  ensureScrapedJobAttributeColumns,
   ensureScrapedJobNormalizationColumns,
   ensureScrapedJobPublicIdColumn,
   ensureSpamReviewColumns,
@@ -135,6 +136,7 @@ export async function ensureWebModels() {
       await ensureDuplicateKeyColumn();
       await ensureScrapedJobNormalizationColumns();
       await ensureScrapedJobClassificationColumns();
+      await ensureScrapedJobAttributeColumns();
       await ensureSpamReviewColumns();
       await ensureHiddenJobColumns();
       await ensureScrapedJobPublicIdColumn();

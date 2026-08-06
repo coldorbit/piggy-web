@@ -9,7 +9,8 @@
     "dev": "WEB_PORT=${WEB_PORT:-4000} node server.js",
     "start": "NODE_ENV=production WEB_PORT=${WEB_PORT:-4000} node server.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "check": "find . -path ./node_modules -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check"
+    "check": "find . -path ./node_modules -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check",
+    "ranking:recalculate": "node scripts/recalculateJobProfileScores.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1054.0",

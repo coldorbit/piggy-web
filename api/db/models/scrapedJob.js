@@ -50,6 +50,11 @@ export function getScrapedJobModel() {
         type: DataTypes.TEXT,
         field: 'ai_ml_area',
       },
+      seniority: DataTypes.TEXT,
+      workMode: {
+        type: DataTypes.TEXT,
+        field: 'work_mode',
+      },
       postedAt: {
         type: DataTypes.DATE,
         field: 'posted_at',

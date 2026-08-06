@@ -1,6 +1,7 @@
 import { clean } from '../../../utils/index.js';
 import { InputError } from '../../../utils/errors.js';
 import { classifyJob, normalizeAiMlArea, normalizeJobCategory } from './jobClassification.js';
+import { classifyJobAttributes, normalizeJobSeniority, normalizeJobWorkMode } from './jobAttributes.js';
 
 const JOB_CSV_COLUMNS = {
   url: ['url', 'job_url', 'job url', 'link', 'job_link', 'job link'],
@@ -9,6 +10,8 @@ const JOB_CSV_COLUMNS = {
   location: ['location'],
   category: ['category', 'role_family', 'role family', 'rolefamily'],
   aiMlArea: ['ai_ml_area', 'ai ml area', 'ai/ml area', 'aimlarea', 'ml_area', 'ml area'],
+  seniority: ['seniority', 'seniority_level', 'seniority level', 'experience_level', 'experience level'],
+  workMode: ['work_mode', 'work mode', 'workplace_type', 'workplace type', 'workplace'],
   postedAt: ['postedat', 'posted_at', 'posted at', 'posted', 'date'],
   source: ['source'],
   sourceUrl: ['sourceurl', 'source_url', 'source url'],
@@ -64,6 +67,14 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
       category: providedCategory,
       aiMlArea: providedAiMlArea,
     });
+    const attributes = classifyJobAttributes({
+      title: titleValue,
+      location: csvValue(raw, 'location'),
+      listingText,
+      seniority: normalizeJobSeniority(csvValue(raw, 'seniority')),
+      workMode: normalizeJobWorkMode(csvValue(raw, 'workMode')),
+      rawJob: raw,
+    });
 
     jobs.push({
       url,
@@ -82,6 +93,8 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
       location: csvValue(raw, 'location') || null,
       category: classification.category,
       aiMlArea: classification.aiMlArea,
+      seniority: attributes.seniority,
+      workMode: attributes.workMode,
       postedAt,
       scrapedAt,
       listingText: listingText || null,
@@ -98,6 +111,8 @@ export function jobsFromCsv(csvText, { importedBy, importedAt: importedAtValue, 
         roleFamily: classification.category,
         category: classification.category,
         aiMlArea: classification.aiMlArea,
+        seniority: attributes.seniority,
+        workMode: attributes.workMode,
       },
       isHidden: false,
       firstSeenAt: importedAt,

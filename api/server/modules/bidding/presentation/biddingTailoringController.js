@@ -30,7 +30,7 @@ import {
   shouldSetInterviewAtForStatus,
   tailoredResumesForJobs,
 } from '../application/biddingService.js';
-import { buildJobQuery, formatJob, jobDateFiltersForUser, jobSourceLabel, normalizeJobSource } from '../../jobs/application/jobsService.js';
+import { buildJobQuery, classifyJob, classifyJobAttributes, formatJob, jobDateFiltersForUser, jobSourceLabel, normalizeJobSource } from '../../jobs/application/jobsService.js';
 import {
   accessibleProfile,
   accessibleAppliedProfile,
@@ -324,6 +324,8 @@ export async function recordManualTailoringApplication({
   let job = await ScrapedJob.findOne({ where: { url: attrs.jobUrl }, order: [['updatedAt', 'DESC']], transaction });
 
   if (!job) {
+    const classification = classifyJob({ title: attrs.role, listingText: attrs.jobDescription });
+    const jobAttributes = classifyJobAttributes({ title: attrs.role, listingText: attrs.jobDescription });
     job = await ScrapedJob.create({
       url: attrs.jobUrl,
       source: 'Manual',
@@ -331,6 +333,10 @@ export async function recordManualTailoringApplication({
       title: attrs.role,
       company: attrs.company,
       location: null,
+      category: classification.category,
+      aiMlArea: classification.aiMlArea,
+      seniority: jobAttributes.seniority,
+      workMode: jobAttributes.workMode,
       postedAt: null,
       scrapedAt: now,
       listingText: attrs.jobDescription,
@@ -339,6 +345,10 @@ export async function recordManualTailoringApplication({
         isManualImport: true,
         importedBy: userId,
         importedAt: now.toISOString(),
+        category: classification.category,
+        aiMlArea: classification.aiMlArea,
+        seniority: jobAttributes.seniority,
+        workMode: jobAttributes.workMode,
       },
       isHidden: false,
       firstSeenAt: now,

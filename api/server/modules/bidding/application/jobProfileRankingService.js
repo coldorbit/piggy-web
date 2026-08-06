@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-export const JOB_PROFILE_RANKING_MODEL_VERSION = 'baseline-keyword-v1';
+export const JOB_PROFILE_RANKING_MODEL_VERSION = 'baseline-keyword-v2';
 export const JOB_PROFILE_RANKING_CANDIDATE_LIMIT = 500;
 
 const COMPONENT_WEIGHTS = {
@@ -60,7 +60,7 @@ export function buildProfileContext(profile = {}, intelligence = null) {
 }
 
 export function scoreJobForProfile({ profileContext, job = {}, now = new Date() }) {
-  const jobDocument = [job.title, job.category, job.aiMlArea, job.location, job.listingText].filter(Boolean).join('\n');
+  const jobDocument = [job.title, job.category, job.aiMlArea, job.seniority, job.workMode, job.location, job.listingText].filter(Boolean).join('\n');
   const jobTokens = rankingTokens(jobDocument);
   const titleTokens = rankingTokens(job.title);
   const components = {
@@ -70,8 +70,8 @@ export function scoreJobForProfile({ profileContext, job = {}, now = new Date() 
       titleTokens,
     ),
     specialization: specializationScore(profileContext, job),
-    seniority: seniorityScore(profileContext, job.title),
-    workMode: workModeScore(profileContext.remotePreference, `${job.location || ''} ${job.listingText || ''}`),
+    seniority: seniorityScore(profileContext, job.seniority, job.title),
+    workMode: workModeScore(profileContext.remotePreference, job.workMode, `${job.location || ''} ${job.listingText || ''}`),
     freshness: freshnessScore(job.postedAt || job.scrapedAt, now),
   };
   const score = weightedScore(components);
@@ -142,8 +142,8 @@ function specializationScore(profileContext, job) {
   return tokenCoverage(specializationTokens, jobTokens);
 }
 
-function seniorityScore(profileContext, jobTitle) {
-  const jobLevel = seniorityLevel(jobTitle, 2);
+function seniorityScore(profileContext, jobSeniority, jobTitle) {
+  const jobLevel = seniorityLevel(jobSeniority, 0) || seniorityLevel(jobTitle, 2);
   const profileLevel = seniorityLevel(profileContext.targetLevel, 0) || seniorityFromYears(profileContext.yearsOfExperience);
   if (!jobLevel || !profileLevel) return 0.5;
   const difference = Math.abs(jobLevel - profileLevel);
@@ -154,6 +154,20 @@ function seniorityScore(profileContext, jobTitle) {
 
 function seniorityLevel(value, fallback = 2) {
   const text = String(value || '').toLowerCase();
+  const normalizedLevels = {
+    intern: 1,
+    entry_level: 1,
+    junior: 1,
+    mid_level: 2,
+    senior: 3,
+    lead: 3,
+    staff: 4,
+    principal: 4,
+    manager: 4,
+    director: 5,
+    executive: 6,
+  };
+  if (normalizedLevels[text]) return normalizedLevels[text];
   return SENIORITY_LEVELS.find((entry) => entry.patterns.some((pattern) => pattern.test(text)))?.level || fallback;
 }
 
@@ -165,14 +179,23 @@ function seniorityFromYears(years) {
   return 4;
 }
 
-function workModeScore(preference, jobText) {
+function workModeScore(preference, jobWorkMode, jobText) {
   if (!preference) return 0.5;
+  const mode = String(jobWorkMode || '').trim().toLowerCase();
   const normalizedJob = String(jobText || '').toLowerCase();
   const wantsRemote = preference.includes('remote');
-  const jobIsRemote = /\bremote\b/.test(normalizedJob);
-  const jobIsOnsite = /\b(on[- ]?site|in office)\b/.test(normalizedJob);
+  const wantsHybrid = preference.includes('hybrid');
+  const wantsOnsite = /on[- ]?site|in office/.test(preference);
+  const jobIsRemote = mode === 'remote' || (mode !== 'onsite' && /\bremote\b/.test(normalizedJob));
+  const jobIsHybrid = mode === 'hybrid' || (mode === '' && /\bhybrid\b/.test(normalizedJob));
+  const jobIsOnsite = mode === 'onsite' || (mode !== 'remote' && /\b(on[- ]?site|in office)\b/.test(normalizedJob));
   if (wantsRemote && jobIsRemote) return 1;
   if (wantsRemote && jobIsOnsite) return 0;
+  if (wantsRemote && jobIsHybrid) return 0.6;
+  if (wantsHybrid && jobIsHybrid) return 1;
+  if (wantsHybrid && (jobIsRemote || jobIsOnsite)) return 0.6;
+  if (wantsOnsite && jobIsOnsite) return 1;
+  if (wantsOnsite && jobIsRemote) return 0;
   return 0.5;
 }
 

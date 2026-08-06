@@ -68,6 +68,26 @@ test('uses years of experience when no target level is available', () => {
   assert.match(match.jobFingerprint, /^[a-f0-9]{64}$/);
 });
 
+test('uses normalized job attributes ahead of free-text guesses', () => {
+  const profileContext = buildProfileContext(profile, intelligence);
+  const match = scoreJobForProfile({
+    profileContext,
+    now,
+    job: {
+      id: 5,
+      title: 'Machine Learning Engineer',
+      seniority: 'senior',
+      workMode: 'onsite',
+      location: 'Remote-friendly company in Boston',
+      listingText: 'Python machine learning role with remote-work benefits.',
+      postedAt: '2026-08-05T12:00:00.000Z',
+    },
+  });
+
+  assert.equal(match.components.seniority, 1);
+  assert.equal(match.components.workMode, 0);
+});
+
 test('does not present an unconfigured profile as a strong match', () => {
   const profileContext = buildProfileContext({}, null);
   const match = scoreJobForProfile({

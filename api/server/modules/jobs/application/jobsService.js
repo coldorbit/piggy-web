@@ -15,6 +15,7 @@ export {
   validJobUrl,
 } from './jobImportService.js';
 export { classifyJob, inferAiMlArea, inferJobCategory, isAiMlJobCategory, normalizeAiMlArea, normalizeJobCategory } from './jobClassification.js';
+export { classifyJobAttributes, inferJobSeniority, inferJobWorkMode, normalizeJobSeniority, normalizeJobWorkMode } from './jobAttributes.js';
 const PUBLIC_JOB_ID_PREFIX = 'J';
 const PUBLIC_JOB_ID_LENGTH = 8;
 const PUBLIC_JOB_ID_BODY_LENGTH = PUBLIC_JOB_ID_LENGTH - PUBLIC_JOB_ID_PREFIX.length;
@@ -339,6 +340,8 @@ export function formatJob(row, { includeRawJob = true } = {}) {
     location: clean(row.location),
     category: row.category,
     aiMlArea: row.aiMlArea || null,
+    seniority: row.seniority || 'unknown',
+    workMode: row.workMode || 'unknown',
     url: row.url,
     duplicateKey: row.duplicateKey,
     source: clean(row.source),
