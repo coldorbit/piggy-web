@@ -131,6 +131,10 @@ export function canShareProfileWithUser(actor, recipient, workspaceId) {
   return isSuperadmin(actor) || canUserAccessWorkspace(recipient, workspaceId);
 }
 
+export function canMarkProfileExternal(actor, profile) {
+  return isSuperadmin(actor) || (Boolean(actor?.id) && String(actor.id) === String(profile?.userId));
+}
+
 export function formatProfile(row) {
   return {
     id: row.id,
@@ -146,6 +150,7 @@ export function formatProfile(row) {
     resumeText: row.resumeText,
     resumeTemplate: row.resumeTemplate || 'classic',
     isStatic: Boolean(row.isStatic),
+    isExternal: Boolean(row.isExternal),
     hasStaticResume: Boolean(row.staticResumeFilename),
     staticResumeFilename: row.staticResumeFilename || null,
     staticResumeContentType: row.staticResumeContentType || null,
@@ -618,8 +623,10 @@ const ALLOWED_PROFILE_COLORS = new Set(['green', 'blue', 'violet', 'amber', 'ros
 
 export function profileAttributesFromBody(body, {
   canSetDailyBidGoal = false,
+  canSetExternal = false,
   canSetFeatured = false,
   currentDailyBidGoal = DEFAULT_PROFILE_DAILY_BID_GOAL,
+  currentIsExternal = false,
   currentIsFeatured = false,
 } = {}) {
   const name = clean(body?.name);
@@ -640,6 +647,9 @@ export function profileAttributesFromBody(body, {
   const isFeatured = canSetFeatured
     ? booleanFromBody(body?.isFeatured ?? currentIsFeatured)
     : Boolean(currentIsFeatured);
+  const isExternal = canSetExternal
+    ? booleanFromBody(body?.isExternal ?? currentIsExternal)
+    : Boolean(currentIsExternal);
 
   const attrs = {
     name,
@@ -652,6 +662,7 @@ export function profileAttributesFromBody(body, {
     resumeText: clean(body?.resumeText) || null,
     resumeTemplate,
     isStatic,
+    isExternal,
     colorScheme,
     profileBadge,
     isFeatured,

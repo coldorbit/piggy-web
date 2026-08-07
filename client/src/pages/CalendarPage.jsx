@@ -486,6 +486,7 @@ function profileGroupBase(profile = {}) {
     id: String(profile.id || ''),
     label: profile.name || 'Profile',
     color,
+    isExternal: Boolean(profile.isExternal),
     count: 0,
     nextAt: null,
   };

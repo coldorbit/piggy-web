@@ -25,7 +25,7 @@ import {
   forwardingAliasForProfileName,
 } from './profileConstants.js';
 
-export default function ProfileDialog({ canCreateDraft = false, canEditDailyBidGoal = false, canSetFeatured = false, form, isOpen, isSaving, mode = 'create', onChange, onClose, onSubmit }) {
+export default function ProfileDialog({ canCreateDraft = false, canEditDailyBidGoal = false, canSetExternal = false, canSetFeatured = false, form, isOpen, isSaving, mode = 'create', onChange, onClose, onSubmit }) {
   async function handleStaticResumeChange(event) {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -213,6 +213,20 @@ export default function ProfileDialog({ canCreateDraft = false, canEditDailyBidG
                   label="Featured profile"
                 />
                 <FormHelperText>Featured profiles appear before other profiles.</FormHelperText>
+              </Box>
+            ) : null}
+            {canSetExternal ? (
+              <Box>
+                <FormControlLabel
+                  control={(
+                    <Switch
+                      checked={Boolean(form.isExternal)}
+                      onChange={(event) => onChange((current) => ({ ...current, isExternal: event.target.checked }))}
+                    />
+                  )}
+                  label="External profile"
+                />
+                <FormHelperText>Marks interviews and calls for this profile as external across the calendar.</FormHelperText>
               </Box>
             ) : null}
             <TextField

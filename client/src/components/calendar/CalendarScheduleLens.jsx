@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Chip,
   LinearProgress,
   Paper,
   ToggleButton,
@@ -267,6 +268,14 @@ function ScheduleLensRow({ checked, maxCount, row, sectionColor, onChange }) {
             <Typography variant="body2" fontWeight={600} noWrap>
               {row.label}
             </Typography>
+            {row.isExternal ? (
+              <Chip
+                label="External"
+                size="small"
+                variant="outlined"
+                sx={{ height: 19, borderColor: '#7C3AED', bgcolor: '#F5F3FF', color: '#5B21B6', fontSize: '0.65rem', fontWeight: 600 }}
+              />
+            ) : null}
           </Box>
           <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 0.75 }}>
             <LinearProgress

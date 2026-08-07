@@ -56,6 +56,12 @@ export function getBidProfileModel() {
         defaultValue: false,
         field: 'is_static',
       },
+      isExternal: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: 'is_external',
+      },
       staticResumeData: {
         type: DataTypes.BLOB('long'),
         field: 'static_resume_data',

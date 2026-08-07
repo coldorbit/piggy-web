@@ -9,6 +9,7 @@ export const EMPTY_PROFILE = {
   resumeText: '',
   resumeTemplate: 'classic',
   isStatic: false,
+  isExternal: false,
   staticResumeFilename: '',
   staticResumeUpload: null,
   colorScheme: 'blue',

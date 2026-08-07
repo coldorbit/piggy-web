@@ -39,7 +39,7 @@ const DISPLAY_WEEKDAYS = WEEKDAY_LABELS.slice(1, 6);
 const HOURS = Array.from({ length: 24 }, (_item, hour) => hour);
 const HOUR_HEIGHT = 64;
 const GOOGLE_CALENDAR_BORDER = '#DADCE0';
-const GOOGLE_CALENDAR_MUTED = '#5F6368';
+const GOOGLE_CALENDAR_MUTED = '#5F6368', EXTERNAL_PROFILE_BORDER = '#7C3AED';
 
 export default function CalendarGrid({
   callerUsers = [],
@@ -383,7 +383,7 @@ function WeekDayColumn({ day, column, draggedEventId, events, now, selectedEvent
 }
 
 function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, onDragStart, onEventClick }) {
-  const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
+  const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green, isExternal = Boolean(event.profile?.isExternal);
   const top = eventTop(event.startsAt);
   const height = eventHeight(event.durationMinutes);
   const isCompact = height < 44;
@@ -406,9 +406,10 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
           width,
           minHeight: 0,
           boxSizing: 'border-box',
-          border: `1px solid ${GOOGLE_CALENDAR_BORDER}`,
+          border: `${isExternal ? 2 : 1}px ${isExternal ? 'dashed' : 'solid'} ${isExternal ? EXTERNAL_PROFILE_BORDER : GOOGLE_CALENDAR_BORDER}`,
           borderLeft: `${isSelected ? 5 : 3}px solid ${color.main}`,
           bgcolor: isSelected ? color.main : color.soft,
+          backgroundImage: isExternal && !isSelected ? 'repeating-linear-gradient(135deg, transparent 0, transparent 7px, rgba(124, 58, 237, 0.08) 7px, rgba(124, 58, 237, 0.08) 10px)' : 'none',
           color: isSelected ? '#FFFFFF' : color.dark,
           borderRadius: '4px',
           px: 0.75,
@@ -567,7 +568,7 @@ function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEven
 }
 
 function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, onEventClick }) {
-  const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green;
+  const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green, isExternal = Boolean(event.profile?.isExternal);
   return (
     <Box
       component="button"
@@ -580,9 +581,10 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
       sx={{
           minWidth: 0,
           boxSizing: 'border-box',
-          border: `1px solid ${GOOGLE_CALENDAR_BORDER}`,
+          border: `${isExternal ? 2 : 1}px ${isExternal ? 'dashed' : 'solid'} ${isExternal ? EXTERNAL_PROFILE_BORDER : GOOGLE_CALENDAR_BORDER}`,
           borderLeft: `${isSelected ? 5 : 3}px solid ${color.main}`,
           bgcolor: isSelected ? color.main : color.soft,
+          backgroundImage: isExternal && !isSelected ? 'repeating-linear-gradient(135deg, transparent 0, transparent 7px, rgba(124, 58, 237, 0.08) 7px, rgba(124, 58, 237, 0.08) 10px)' : 'none',
           color: isSelected ? '#FFFFFF' : color.dark,
           borderRadius: '4px',
           px: 0.75,
@@ -667,6 +669,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
               {event.hasConflict ? (
                 <Chip label="Schedule conflict" color="error" size="small" sx={{ justifySelf: 'start', borderRadius: 1, fontWeight: 600 }} />
               ) : null}
+              {event.profile?.isExternal ? <Chip label="External profile" size="small" variant="outlined" sx={{ justifySelf: 'start', borderColor: EXTERNAL_PROFILE_BORDER, bgcolor: '#F5F3FF', color: '#5B21B6', borderRadius: 1, fontWeight: 600 }} /> : null}
             </Box>
           </DialogTitle>
           <DialogContent
@@ -936,7 +939,7 @@ function durationLabel(durationMinutes = 60) {
 }
 
 function compactEventLabel(event) {
-  return [event.profile?.name || 'Profile', event.company || 'Unknown company'].join(' · ');
+  return [event.profile?.name || 'Profile', event.company || 'Unknown company', event.profile?.isExternal ? 'External' : null].filter(Boolean).join(' · ');
 }
 
 export function canDeleteCalendarCall(user, event) {

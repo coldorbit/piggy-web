@@ -1,4 +1,4 @@
-import { Box, Button, Checkbox, Paper, Typography } from '@mui/material';
+import { Box, Button, Checkbox, Chip, Paper, Typography } from '@mui/material';
 
 export default function CalendarProfileLegend({ checkedProfileIds, profiles, onChange, onSelectAll, onSelectNone }) {
   const checkedSet = new Set(checkedProfileIds.map(String));
@@ -76,6 +76,9 @@ export default function CalendarProfileLegend({ checkedProfileIds, profiles, onC
                     <Typography variant="body2" fontWeight={600} noWrap>
                       {profile.name}
                     </Typography>
+                    {profile.isExternal ? (
+                      <Chip label="External" size="small" variant="outlined" sx={{ mt: 0.25, height: 19, borderColor: '#7C3AED', bgcolor: '#F5F3FF', color: '#5B21B6', fontSize: '0.65rem', fontWeight: 600 }} />
+                    ) : null}
                   </Box>
                 </Box>
               </Box>

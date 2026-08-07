@@ -147,6 +147,9 @@ export default function ProfileCard({
             {profile.isFeatured ? (
               <Chip icon={<StarIcon />} label="Featured" size="small" sx={{ ...profileChipSx, bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />
             ) : null}
+            {profile.isExternal ? (
+              <Chip label="External" size="small" variant="outlined" sx={{ ...profileChipSx, borderColor: '#7c3aed', bgcolor: '#f5f3ff', color: '#5b21b6', fontWeight: 600 }} />
+            ) : null}
             <Chip
               label={isLegacy ? 'Legacy' : isDraft ? 'Draft' : isClosed ? 'Closed' : 'Active'}
               size="small"

@@ -142,6 +142,7 @@ export default function ProfilesPage({ currentUser }) {
       resumeText: profile.resumeText || '',
       resumeTemplate: profile.resumeTemplate || 'classic',
       isStatic: Boolean(profile.isStatic),
+      isExternal: Boolean(profile.isExternal),
       staticResumeFilename: profile.staticResumeFilename || '',
       staticResumeUpload: null,
       colorScheme: profile.colorScheme || 'green',
@@ -327,10 +328,8 @@ export default function ProfilesPage({ currentUser }) {
       && userCanAccessWorkspace(user, superadminView ? ownerWorkspaceId : ownerProfile?.workspaceId),
   );
   const pageError = error || loadError?.message || sharesError?.message || recipientsError?.message || workspaceError?.message || '';
-  const canManageProfiles = !BIDDER_ROLES.includes(currentUser?.role);
-  const canUpdateProfileStatus = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
-  const canRestoreProfiles = isAdminRole(currentUser);
-  const canManageLegacyProfiles = isSuperadmin(currentUser);
+  const canManageProfiles = !BIDDER_ROLES.includes(currentUser?.role), canUpdateProfileStatus = PRIVILEGED_USER_ROLES.includes(currentUser?.role);
+  const canRestoreProfiles = isAdminRole(currentUser), canManageLegacyProfiles = isSuperadmin(currentUser);
   const highlightedProfileId = searchParams.get('profileId') || '';
   const workspaceProfiles = useMemo(
     () => (workspaceLensEnabled ? filterRowsByWorkspace(profilesWithWorkspace, activeWorkspaceId) : profilesWithWorkspace),
@@ -342,7 +341,7 @@ export default function ProfilesPage({ currentUser }) {
     () => workspaceProfiles.filter((profile) => normalizedProfileStatus(profile.profileStatus) === activeStatusSection.status),
     [activeStatusSection.status, workspaceProfiles],
   );
-
+  const editingProfile = profiles.find((profile) => String(profile.id) === String(editingProfileId)), canSetExternal = dialogMode === 'create' || superadminView || String(editingProfile?.userId || '') === String(currentUser?.id || '');
   useEffect(() => {
     if (!highlightedProfileId || isLoading) return;
     const element = document.getElementById(`profile-card-${highlightedProfileId}`);
@@ -511,7 +510,7 @@ export default function ProfilesPage({ currentUser }) {
         </Box>
       </Box>
 
-      <ProfileDialog canCreateDraft canSetFeatured={superadminView}
+      <ProfileDialog canCreateDraft canSetExternal={canSetExternal} canSetFeatured={superadminView}
         canEditDailyBidGoal={isAdminRole(currentUser)}
         form={form}
         isOpen={Boolean(dialogMode)}
@@ -909,6 +908,7 @@ function ProfileReadOnlyDialogContent({ assignableUsers, profile, onClose }) {
             <ReadOnlyField label="Color" value={profile.colorScheme} />
             <ReadOnlyField label="Status" value={profile.profileStatus || 'active'} />
             <ReadOnlyField label="Profile type" value={profile.isStatic ? 'Static' : 'Tailored'} />
+            <ReadOnlyField label="Source" value={profile.isExternal ? 'External' : 'Internal'} />
           </Box>
 
           <Divider />

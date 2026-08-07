@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { Op } from 'sequelize';
 import {
   appliedFilterProfileWhere,
+  canMarkProfileExternal,
   canShareProfileWithUser,
   currentDbUser,
   formatProfile,
@@ -74,6 +75,14 @@ describe('profile workspace helpers', () => {
     assert.equal(canShareProfileWithUser({ role: ROLES.admin, workspaceId: 7 }, recipient, 8), true);
   });
 
+  it('allows only the profile owner or a superadmin to mark a profile external', () => {
+    const profile = { userId: 12 };
+
+    assert.equal(canMarkProfileExternal({ id: 12, role: ROLES.user }, profile), true);
+    assert.equal(canMarkProfileExternal({ id: 13, role: ROLES.admin }, profile), false);
+    assert.equal(canMarkProfileExternal({ id: 13, role: ROLES.superadmin }, profile), true);
+  });
+
   it('builds exact workspace filters for non-superadmins', () => {
     assert.deepEqual(workspaceProfileWhereForUser({ role: ROLES.admin, workspaceId: 7 }), { workspaceId: 7 });
     assert.deepEqual(workspaceProfileWhereForUser({ role: ROLES.user, workspaceId: null }), { workspaceId: null });
@@ -112,6 +121,12 @@ describe('profile status helpers', () => {
     });
 
     assert.equal(profile.hasStaticResume, true);
+  });
+
+  it('formats the external profile marker', () => {
+    const profile = formatProfile({ id: 1, isExternal: true, get: () => null });
+
+    assert.equal(profile.isExternal, true);
   });
 
   it('accepts a profile daily bid goal', () => {
@@ -218,6 +233,20 @@ describe('profile status helpers', () => {
   it('preserves featured status when the actor cannot change it', () => {
     assert.equal(
       profileAttributesFromBody({ name: 'Featured', isFeatured: false }, { currentIsFeatured: true }).isFeatured,
+      true,
+    );
+  });
+
+  it('allows an authorized actor to mark a profile as external', () => {
+    assert.equal(
+      profileAttributesFromBody({ name: 'External', isExternal: true }, { canSetExternal: true }).isExternal,
+      true,
+    );
+  });
+
+  it('preserves external status when the actor cannot change it', () => {
+    assert.equal(
+      profileAttributesFromBody({ name: 'External', isExternal: false }, { currentIsExternal: true }).isExternal,
       true,
     );
   });

@@ -51,6 +51,7 @@ import {
   isDraftProfile,
   isProfileInUserWorkspace,
   canUserAccessWorkspace,
+  canMarkProfileExternal,
   workspaceProfileWhereForUser,
 } from '../application/profilesService.js';
 import { enqueueTailoredResumeRequest } from '../application/tailoringQueueService.js';
@@ -92,6 +93,7 @@ export async function createProfile(req, res, next) {
     const user = await currentDbUser(req);
     const attrs = profileAttributesFromBody(req.body, {
       canSetDailyBidGoal: isAdminRole(req.user),
+      canSetExternal: true,
       canSetFeatured: isSuperadmin(req.user),
     });
     const profileStatus = initialProfileStatusFromBody(req.body);
@@ -112,10 +114,13 @@ export async function updateProfile(req, res, next) {
     await ensureWebModels();
     if (!canManageProfiles(req, res)) return;
     const profile = await manageableProfile(req, req.params.id);
+    const user = await currentDbUser(req);
     await profile.update(profileAttributesFromBody(req.body, {
       canSetDailyBidGoal: isAdminRole(req.user),
+      canSetExternal: canMarkProfileExternal(user, profile),
       canSetFeatured: isSuperadmin(req.user),
       currentDailyBidGoal: profile.dailyBidGoal,
+      currentIsExternal: profile.isExternal,
       currentIsFeatured: profile.isFeatured,
     }));
     res.json({ profile: formatProfile(profile) });
