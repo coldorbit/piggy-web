@@ -15,8 +15,8 @@ services:
       WEB_PASSWORD: ${WEB_PASSWORD}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
-      AWS_SQS_ENDPOINT: ${AWS_SQS_ENDPOINT:-}
-      TAILORING_QUEUE_URL: ${TAILORING_QUEUE_URL:-}
+      RABBITMQ_URL: ${RABBITMQ_DOCKER_URL:-amqp://applypilot:change-me@rabbitmq:5672}
+      TAILORING_QUEUE_NAME: ${TAILORING_QUEUE_NAME:-applypilot.tailoring}
       MAILBOX_EMAIL: ${MAILBOX_EMAIL:-service@co-bounce.com}
       MAILBOX_PASSWORD: ${MAILBOX_PASSWORD:-}
       MAILBOX_IMAP_HOST: ${MAILBOX_IMAP_HOST:-mail.privateemail.com}
@@ -25,6 +25,9 @@ services:
     ports:
       - 0.0.0.0:${API_PORT:-4000}:4000
     init: true
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
   worker:
     build:
@@ -38,14 +41,33 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
-      AWS_SQS_ENDPOINT: ${AWS_SQS_ENDPOINT:-}
-      TAILORING_QUEUE_URL: ${TAILORING_QUEUE_URL:-}
+      RABBITMQ_URL: ${RABBITMQ_DOCKER_URL:-amqp://applypilot:change-me@rabbitmq:5672}
+      TAILORING_QUEUE_NAME: ${TAILORING_QUEUE_NAME:-applypilot.tailoring}
       TAILORING_CONCURRENCY: ${TAILORING_CONCURRENCY:-4}
       TAILORING_MAX_ATTEMPTS: ${TAILORING_MAX_ATTEMPTS:-3}
-      TAILORING_VISIBILITY_TIMEOUT_SECONDS: ${TAILORING_VISIBILITY_TIMEOUT_SECONDS:-600}
+      TAILORING_STALE_PROCESSING_SECONDS: ${TAILORING_STALE_PROCESSING_SECONDS:-600}
     depends_on:
-      - api
+      api:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     init: true
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-applypilot}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-change-me}
+    ports:
+      - 127.0.0.1:${RABBITMQ_PORT:-5672}:5672
+      - 127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
 
   client:
     build:
@@ -57,3 +79,6 @@ services:
     depends_on:
       - api
     init: true
+
+volumes:
+  rabbitmq_data:

@@ -8,7 +8,7 @@ This repository deploys the API with GitHub Actions:
 ## AWS Targets
 
 - API: Docker image pushed to GitHub Container Registry, then restarted on an EC2 host.
-- Tailoring worker: build `worker/Dockerfile` and run it on a separate EC2 host with the same database and SQS queue.
+- Tailoring worker: build `worker/Dockerfile` and run it on a separate EC2 host with access to the same database and RabbitMQ broker.
 
 ## EC2 API Env File
 
@@ -37,9 +37,9 @@ Optional:
 - `WEB_USERNAME` and `WEB_PASSWORD`: first-run admin seed credentials.
 - `WEB_USERS`: comma-separated seed users, such as `admin@example.com:password:admin`.
 - `AWS_REGION`
-- `AWS_SQS_ENDPOINT`
 - `AWS_S3_BUCKET`
-- `TAILORING_QUEUE_URL`
+- `RABBITMQ_URL`: AMQP URL for a broker reachable from both API and worker hosts.
+- `TAILORING_QUEUE_NAME`, defaults to `applypilot.tailoring`.
 
 ## EC2 Worker Env File
 
@@ -49,7 +49,7 @@ Required:
 
 - `NODE_ENV=production`
 - `DATABASE_URL`: same production database used by the API.
-- `TAILORING_QUEUE_URL`: same SQS queue where the API publishes tailoring requests.
+- `RABBITMQ_URL`: same RabbitMQ broker used by the API publisher.
 - `OPENAI_API_KEY`
 - `AWS_REGION`
 - `AWS_S3_BUCKET`
@@ -61,10 +61,10 @@ Optional:
 - `DATABASE_CONNECT_TIMEOUT_MS`, defaults to `10000`
 - `OPENAI_TIMEOUT_SECONDS`, defaults to `300`
 - `OPENAI_MODEL`, defaults to `gpt-5-mini`
-- `AWS_SQS_ENDPOINT`
+- `TAILORING_QUEUE_NAME`, defaults to `applypilot.tailoring`.
 - `TAILORING_CONCURRENCY`, defaults to `4`
 - `TAILORING_MAX_ATTEMPTS`, defaults to `3`
-- `TAILORING_VISIBILITY_TIMEOUT_SECONDS`, defaults to `600`
+- `TAILORING_STALE_PROCESSING_SECONDS`, defaults to `600`
 
 ## Repository Variables
 
@@ -103,11 +103,11 @@ Worker optional:
 
 ## EC2 Prerequisites
 
-Install Docker on each EC2 instance. The deploy workflows log Docker into GHCR during the restart step so each host can pull the image built by GitHub Actions.
+Install Docker on each EC2 instance. The deploy workflows log Docker into GHCR during the restart step so each host can pull the image built by GitHub Actions. Provision RabbitMQ separately (for example, Amazon MQ for RabbitMQ or a self-managed cluster) and allow AMQP traffic from both the API and worker security groups.
 
 The workflow expects the API env file to already exist on EC2 and runs the API container on `API_HOST_PORT`.
 
-The worker workflow expects `WORKER_ENV_FILE` to already exist on every worker EC2. Each worker runs the same container image and consumes from the same SQS queue. Add or remove worker capacity by changing the `WORKER_EC2_HOSTS` JSON array and rerunning the workflow.
+The worker workflow expects `WORKER_ENV_FILE` to already exist on every worker EC2. Each worker runs the same container image and consumes from the same durable RabbitMQ queue. Add or remove worker capacity by changing the `WORKER_EC2_HOSTS` JSON array and rerunning the workflow.
 
 For RDS, use the RDS endpoint hostname in `DATABASE_URL` and enable SSL:
 

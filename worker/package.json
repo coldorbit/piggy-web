@@ -2,7 +2,7 @@
   "name": "applypilot-tailoring-worker",
   "version": "1.0.0",
   "private": true,
-  "description": "SQS worker for ApplyPilot tailored resume generation.",
+  "description": "RabbitMQ worker for ApplyPilot tailored resume generation.",
   "type": "module",
   "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882",
   "scripts": {
@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1054.0",
-    "@aws-sdk/client-sqs": "^3.1054.0",
+    "amqplib": "^0.10.8",
     "docx": "^9.7.1",
     "dotenv": "^16.4.7",
     "openai": "^5.5.1",

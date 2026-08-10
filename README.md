@@ -3,8 +3,8 @@
 ApplyPilot is split into two dedicated apps:
 
 - `client/`: React + Vite browser app.
-- `api/`: Express API, database layer, SQS publisher, and resume download endpoints.
-- `worker/`: SQS consumer for tailored resume generation.
+- `api/`: Express API, database layer, RabbitMQ publisher, and resume download endpoints.
+- `worker/`: RabbitMQ consumer for tailored resume generation.
 
 Each directory has its own `package.json`, Dockerfile, README, and `.env.example`, so either app can be moved into a separate repository.
 
@@ -55,7 +55,8 @@ WEB_PASSWORD=change-me
 
 AWS_REGION=us-east-1
 AWS_S3_BUCKET=your-private-resume-bucket
-TAILORING_QUEUE_URL=
+RABBITMQ_URL=amqp://applypilot:change-me@localhost:5672
+TAILORING_QUEUE_NAME=applypilot.tailoring
 
 MAILBOX_EMAIL=service@co-bounce.com
 MAILBOX_PASSWORD=
@@ -99,7 +100,7 @@ docker compose up --build
 The compose file runs `api`, `worker`, and `client` as separate services.
 It also starts a local Postgres service using `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from `.env`.
 
-Tailored resume generation runs in the separate SQS worker using OpenAI, and resume downloads use private S3 through the API. Set `TAILORING_QUEUE_URL` and `AWS_S3_BUCKET` for both API and worker. Set `OPENAI_API_KEY` only on the worker host. Set `AWS_SQS_ENDPOINT` too when using LocalStack or another SQS-compatible local endpoint.
+Tailored resume generation runs in the separate RabbitMQ worker using OpenAI, and resume downloads use private S3 through the API. Set `RABBITMQ_URL`, `TAILORING_QUEUE_NAME`, and `AWS_S3_BUCKET` for both API and worker. Set `OPENAI_API_KEY` only on the worker host. Docker Compose starts RabbitMQ locally, including its management UI on `http://localhost:15672` by default.
 
 ## Split Repository Notes
 

@@ -2,7 +2,7 @@
 
 Dedicated Express API for ApplyPilot.
 
-The API publishes tailored resume requests to SQS. The actual OpenAI/DOCX generation runs in the separate `worker/` app.
+The API publishes tailored resume requests to RabbitMQ. The actual OpenAI/DOCX generation runs in the separate `worker/` app.
 
 ## Setup
 
@@ -41,7 +41,8 @@ WEB_PASSWORD=change-me
 
 AWS_REGION=us-east-1
 AWS_S3_BUCKET=your-private-resume-bucket
-TAILORING_QUEUE_URL=
+RABBITMQ_URL=amqp://applypilot:change-me@localhost:5672
+TAILORING_QUEUE_NAME=applypilot.tailoring
 
 MAILBOX_EMAIL=service@co-bounce.com
 MAILBOX_PASSWORD=
@@ -75,10 +76,10 @@ When mailbox sync is enabled, the API also scans recent forwarded email in the b
 - `DATABASE_EXPLAIN_ALLOW_PRODUCTION`: explicit second opt-in required when `NODE_ENV=production`.
 - `WEB_SESSION_SECRET`: session signing secret.
 - `WEB_USERS` or `WEB_USERNAME` / `WEB_PASSWORD`: first-run admin seed users, created only when `web_users` is empty.
-- `AWS_REGION`: AWS region for S3 and SQS, defaults to `us-east-1`.
+- `AWS_REGION`: AWS region for S3, defaults to `us-east-1`.
 - `AWS_S3_BUCKET`: private S3 bucket used to download generated tailored resumes. `tailored_resumes.file_path` should contain the object key inside this bucket, not a public URL.
-- `AWS_SQS_ENDPOINT`: optional SQS-compatible endpoint, such as LocalStack.
-- `TAILORING_QUEUE_URL`: SQS queue URL where the API publishes tailored resume generation requests.
+- `RABBITMQ_URL`: AMQP connection URL for the RabbitMQ broker.
+- `TAILORING_QUEUE_NAME`: durable queue used for tailored resume requests, defaults to `applypilot.tailoring`.
 - `MAILBOX_EMAIL`: central mailbox that receives forwarded profile email, for example `service@co-bounce.com`.
 - `MAILBOX_PASSWORD`: password for the central mailbox.
 - `MAILBOX_IMAP_HOST`: IMAP server, defaults to Namecheap Private Email's `mail.privateemail.com`.

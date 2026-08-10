@@ -11,9 +11,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.1054.0
         version: 3.1055.0
-      '@aws-sdk/client-sqs':
-        specifier: ^3.1054.0
-        version: 3.1054.0
+      amqplib:
+        specifier: ^0.10.8
+        version: 0.10.9
       compression:
         specifier: ^1.8.1
         version: 1.8.1
@@ -63,10 +63,6 @@ packages:
 
   '@aws-sdk/client-s3@3.1055.0':
     resolution: {integrity: sha512-FxVwuw86c2Mw4p+0tOtoE+1sDTk+eOBZD/NwwK+wwx1gHkdO/EYSv231O9A1YM8HPjUrI0vZ/hP/szckBxHW0A==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/client-sqs@3.1054.0':
-    resolution: {integrity: sha512-IWdqcOOpYSNbOcDTsICqaJvCehu2JNP3ZtMzVeb38IH7LcxVrzIUFO8m3OCbUvqVm/Uj78IgiXthvVEPQhdn2w==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.974.14':
@@ -127,10 +123,6 @@ packages:
 
   '@aws-sdk/middleware-sdk-s3@3.972.43':
     resolution: {integrity: sha512-CBmixMY36JdAdt9ALgm7yVlvOXGUCHt9Z2kn5p9XVO5StO6HCH+cayV7YYV1CDLsXvVyebaXgBmif9wHoxCeNA==}
-    engines: {node: '>=20.0.0'}
-
-  '@aws-sdk/middleware-sdk-sqs@3.972.25':
-    resolution: {integrity: sha512-xn/GUO23lRdeyDsOUvUpgzOMTKlHt0U4F2L0vCqUzyunKILoWuxspi36hfP7GinIrnIcudI4zLFD5+7fiIP3SA==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/middleware-ssec@3.972.11':
@@ -231,6 +223,10 @@ packages:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
     engines: {node: '>= 0.6'}
 
+  amqplib@0.10.9:
+    resolution: {integrity: sha512-jwSftI4QjS3mizvnSnOrPGYiUnm1vI2OP1iXeOUz5pb74Ua0nbf6nPyyTzuiCLEE3fMpaJORXh2K/TQ08H5xGA==}
+    engines: {node: '>=10'}
+
   atomic-sleep@1.0.0:
     resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
     engines: {node: '>=8.0.0'}
@@ -241,6 +237,9 @@ packages:
 
   bowser@2.14.1:
     resolution: {integrity: sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg==}
+
+  buffer-more-ints@1.0.0:
+    resolution: {integrity: sha512-EMetuGFz5SLsT0QTnXzINh4Ksr+oo4i+UGTXEshiGCQWnsgSs7ZhJ8fzlwQ+OzEMs0MpDAMr1hxnblp5a4vcHg==}
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -632,6 +631,9 @@ packages:
     resolution: {integrity: sha512-Rzq0KEyX/w/tEybncDgdkZrJgVUsUMk3xjh3t5bv3S1HTAtg+uOYt72+ZfwiQwKdysThkTBdL/rTi6HDmX9Ddw==}
     engines: {node: '>=0.6'}
 
+  querystringify@2.2.0:
+    resolution: {integrity: sha512-FIqgj2EUvTa7R50u0rGsyTftzjYmv/a3hO345bZNrqabNqjtgiDMgmo4mkUjd+nzU5oF3dClKqFIPUKybUyqoQ==}
+
   quick-format-unescaped@4.0.4:
     resolution: {integrity: sha512-tYC1Q1hgyRuHgloV/YXs2w15unPVh8qfu/qCTfhTYamaw7fyhumKa2yGpdSo87vY32rIclj+4fWYQXUMs9EHvg==}
 
@@ -649,6 +651,9 @@ packages:
 
   real-require@1.0.0:
     resolution: {integrity: sha512-P4nbQYQfePJxRSmY+v/KINxVucm4NF3p3s7pJveMTtom52FR4YGltUQLB8idDXwDDWW+eYrWDFbuzUnjoWHF7g==}
+
+  requires-port@1.0.0:
+    resolution: {integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==}
 
   retry-as-promised@7.1.1:
     resolution: {integrity: sha512-hMD7odLOt3LkTjcif8aRZqi/hybjpLNgSk5oF5FCowfCjok6LukpN2bDX7R5wDmbgBQFn7YoBxSagmtXHaJYJw==}
@@ -793,6 +798,9 @@ packages:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
 
+  url-parse@1.5.10:
+    resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
+
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
     deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
@@ -883,20 +891,6 @@ snapshots:
       '@aws-sdk/middleware-sdk-s3': 3.972.43
       '@aws-sdk/middleware-ssec': 3.972.11
       '@aws-sdk/signature-v4-multi-region': 3.996.29
-      '@aws-sdk/types': 3.973.9
-      '@smithy/core': 3.24.4
-      '@smithy/fetch-http-handler': 5.4.4
-      '@smithy/node-http-handler': 4.7.4
-      '@smithy/types': 4.14.2
-      tslib: 2.8.1
-
-  '@aws-sdk/client-sqs@3.1054.0':
-    dependencies:
-      '@aws-crypto/sha256-browser': 5.2.0
-      '@aws-crypto/sha256-js': 5.2.0
-      '@aws-sdk/core': 3.974.14
-      '@aws-sdk/credential-provider-node': 3.972.45
-      '@aws-sdk/middleware-sdk-sqs': 3.972.25
       '@aws-sdk/types': 3.973.9
       '@smithy/core': 3.24.4
       '@smithy/fetch-http-handler': 5.4.4
@@ -1046,13 +1040,6 @@ snapshots:
       '@smithy/types': 4.14.2
       tslib: 2.8.1
 
-  '@aws-sdk/middleware-sdk-sqs@3.972.25':
-    dependencies:
-      '@aws-sdk/types': 3.973.9
-      '@smithy/core': 3.24.4
-      '@smithy/types': 4.14.2
-      tslib: 2.8.1
-
   '@aws-sdk/middleware-ssec@3.972.11':
     dependencies:
       '@aws-sdk/types': 3.973.9
@@ -1186,6 +1173,11 @@ snapshots:
       mime-types: 3.0.2
       negotiator: 1.0.0
 
+  amqplib@0.10.9:
+    dependencies:
+      buffer-more-ints: 1.0.0
+      url-parse: 1.5.10
+
   atomic-sleep@1.0.0: {}
 
   body-parser@2.2.2:
@@ -1203,6 +1195,8 @@ snapshots:
       - supports-color
 
   bowser@2.14.1: {}
+
+  buffer-more-ints@1.0.0: {}
 
   bytes@3.1.2: {}
 
@@ -1608,6 +1602,8 @@ snapshots:
     dependencies:
       side-channel: 1.1.0
 
+  querystringify@2.2.0: {}
+
   quick-format-unescaped@4.0.4: {}
 
   range-parser@1.2.1: {}
@@ -1622,6 +1618,8 @@ snapshots:
   real-require@0.2.0: {}
 
   real-require@1.0.0: {}
+
+  requires-port@1.0.0: {}
 
   retry-as-promised@7.1.1: {}
 
@@ -1767,6 +1765,11 @@ snapshots:
   undici-types@7.24.6: {}
 
   unpipe@1.0.0: {}
+
+  url-parse@1.5.10:
+    dependencies:
+      querystringify: 2.2.0
+      requires-port: 1.0.0
 
   uuid@8.3.2: {}
 

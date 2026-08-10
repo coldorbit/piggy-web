@@ -7,8 +7,7 @@ const workerDir = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: process.env.WORKER_ENV_FILE || join(workerDir, 'worker.env') });
 dotenv.config({ path: join(workerDir, '.env') });
 
-validateOptionalUrl('AWS_SQS_ENDPOINT', process.env.AWS_SQS_ENDPOINT);
-validateRequiredUrl('TAILORING_QUEUE_URL', process.env.TAILORING_QUEUE_URL);
+validateRequiredRabbitMqUrl('RABBITMQ_URL', process.env.RABBITMQ_URL);
 
 export const ENV = {
   NODE_ENV: process.env.NODE_ENV || 'development',
@@ -18,8 +17,8 @@ export const ENV = {
   OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-5-mini',
   AWS_REGION: process.env.AWS_REGION || 'us-east-1',
   AWS_S3_BUCKET: process.env.AWS_S3_BUCKET,
-  AWS_SQS_ENDPOINT: process.env.AWS_SQS_ENDPOINT,
-  TAILORING_QUEUE_URL: process.env.TAILORING_QUEUE_URL,
+  RABBITMQ_URL: process.env.RABBITMQ_URL,
+  TAILORING_QUEUE_NAME: process.env.TAILORING_QUEUE_NAME || 'applypilot.tailoring',
 };
 
 function validateRequiredUrl(name, value) {
@@ -27,6 +26,14 @@ function validateRequiredUrl(name, value) {
     throw new Error(`${name} is required for the tailoring worker`);
   }
   validateOptionalUrl(name, value);
+}
+
+function validateRequiredRabbitMqUrl(name, value) {
+  validateRequiredUrl(name, value);
+  const protocol = new URL(value).protocol;
+  if (!['amqp:', 'amqps:'].includes(protocol)) {
+    throw new Error(`${name} must use the amqp or amqps protocol`);
+  }
 }
 
 function validateOptionalUrl(name, value) {

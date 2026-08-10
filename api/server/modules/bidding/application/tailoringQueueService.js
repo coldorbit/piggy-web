@@ -1,4 +1,6 @@
-import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs';
+import amqp from 'amqplib';
+import { randomUUID } from 'node:crypto';
+import { once } from 'node:events';
 import { Op } from 'sequelize';
 import {
   ensureWebModels,
@@ -8,25 +10,100 @@ import { ENV } from '../../../../env.js';
 import { formatTailoredResume } from './biddingService.js';
 import { accessibleProfile, currentDbUser } from './profilesService.js';
 
-const MAX_SQS_DELAY_SECONDS = 15 * 60;
+const MAX_RETRY_DELAY_SECONDS = 15 * 60;
 const EVENT_POLL_INTERVAL_MS = 5000;
-let sqsClient;
+let rabbitMqPublisher;
 
 export async function enqueueTailoredResumeRequest({ tailoredResumeId, delaySeconds = 0 }) {
-  if (!ENV.TAILORING_QUEUE_URL) {
-    throw new Error('TAILORING_QUEUE_URL is required to enqueue tailored resume requests');
+  if (!ENV.RABBITMQ_URL) {
+    throw new Error('RABBITMQ_URL is required to enqueue tailored resume requests');
   }
 
-  await getSqsClient().send(
-    new SendMessageCommand({
-      QueueUrl: ENV.TAILORING_QUEUE_URL,
-      DelaySeconds: clampDelaySeconds(delaySeconds),
-      MessageBody: JSON.stringify({
+  rabbitMqPublisher ||= createRabbitMqPublisher({
+    url: ENV.RABBITMQ_URL,
+    queueName: ENV.TAILORING_QUEUE_NAME,
+  });
+  await rabbitMqPublisher.publish({ tailoredResumeId, delaySeconds });
+}
+
+export function createRabbitMqPublisher({ url, queueName, connect = amqp.connect }) {
+  let connection;
+  let channel;
+  let channelPromise;
+
+  async function getChannel() {
+    if (channel) return channel;
+    if (channelPromise) return channelPromise;
+
+    channelPromise = (async () => {
+      const nextConnection = await connect(url);
+      const nextChannel = await nextConnection.createConfirmChannel();
+      await nextChannel.assertQueue(queueName, { durable: true });
+
+      connection = nextConnection;
+      channel = nextChannel;
+      nextConnection.on?.('error', () => {});
+      nextChannel.on?.('error', () => {});
+      nextConnection.once?.('close', () => {
+        if (connection === nextConnection) {
+          connection = undefined;
+          channel = undefined;
+          channelPromise = undefined;
+        }
+      });
+      return nextChannel;
+    })();
+
+    try {
+      return await channelPromise;
+    } catch (error) {
+      channelPromise = undefined;
+      throw error;
+    }
+  }
+
+  async function publish({ tailoredResumeId, delaySeconds = 0 }) {
+    const activeChannel = await getChannel();
+    try {
+      const delay = clampDelaySeconds(delaySeconds);
+      const destination = delay
+        ? await assertRetryQueue(activeChannel, queueName, delay)
+        : queueName;
+      const body = Buffer.from(JSON.stringify({
         type: 'tailored-resume-requested',
         tailoredResumeId: String(tailoredResumeId),
-      }),
-    }),
-  );
+      }));
+      const writable = activeChannel.sendToQueue(destination, body, {
+        persistent: true,
+        contentType: 'application/json',
+        messageId: randomUUID(),
+        type: 'tailored-resume-requested',
+      });
+
+      if (!writable) await once(activeChannel, 'drain');
+      await activeChannel.waitForConfirms();
+    } catch (error) {
+      channel = undefined;
+      channelPromise = undefined;
+      const failedConnection = connection;
+      connection = undefined;
+      if (activeChannel?.close) await activeChannel.close().catch(() => {});
+      if (failedConnection?.close) await failedConnection.close().catch(() => {});
+      throw error;
+    }
+  }
+
+  async function close() {
+    const activeChannel = channel;
+    const activeConnection = connection;
+    channel = undefined;
+    connection = undefined;
+    channelPromise = undefined;
+    if (activeChannel?.close) await activeChannel.close().catch(() => {});
+    if (activeConnection?.close) await activeConnection.close().catch(() => {});
+  }
+
+  return { publish, close };
 }
 
 export async function subscribeTailoredResumeEvents(req, res, next) {
@@ -108,17 +185,23 @@ export function tailoredResumeEventWhere({ userId, profileId, lastSeenAt }) {
   };
 }
 
-function getSqsClient() {
-  if (sqsClient) return sqsClient;
-  sqsClient = new SQSClient({
-    region: ENV.AWS_REGION,
-    endpoint: ENV.AWS_SQS_ENDPOINT || undefined,
+async function assertRetryQueue(channel, queueName, delaySeconds) {
+  const delayMilliseconds = delaySeconds * 1000;
+  const retryQueueName = `${queueName}.retry.${delaySeconds}s`;
+  await channel.assertQueue(retryQueueName, {
+    durable: true,
+    arguments: {
+      'x-message-ttl': delayMilliseconds,
+      'x-dead-letter-exchange': '',
+      'x-dead-letter-routing-key': queueName,
+      'x-expires': Math.max(delayMilliseconds * 2, 60 * 60 * 1000),
+    },
   });
-  return sqsClient;
+  return retryQueueName;
 }
 
 function clampDelaySeconds(value) {
-  return Math.max(0, Math.min(Number(value) || 0, MAX_SQS_DELAY_SECONDS));
+  return Math.max(0, Math.min(Math.ceil(Number(value) || 0), MAX_RETRY_DELAY_SECONDS));
 }
 
 function maxDate(left, right) {

@@ -1,7 +1,6 @@
 import 'dotenv/config';
 
-validateOptionalUrl('AWS_SQS_ENDPOINT', process.env.AWS_SQS_ENDPOINT);
-validateOptionalUrl('TAILORING_QUEUE_URL', process.env.TAILORING_QUEUE_URL);
+validateOptionalRabbitMqUrl('RABBITMQ_URL', process.env.RABBITMQ_URL);
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || 'dev-only-change-me';
@@ -24,8 +23,8 @@ export const ENV = {
   OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-5-mini',
   AWS_REGION: process.env.AWS_REGION || 'us-east-1',
   AWS_S3_BUCKET: process.env.AWS_S3_BUCKET,
-  AWS_SQS_ENDPOINT: process.env.AWS_SQS_ENDPOINT,
-  TAILORING_QUEUE_URL: process.env.TAILORING_QUEUE_URL,
+  RABBITMQ_URL: process.env.RABBITMQ_URL,
+  TAILORING_QUEUE_NAME: process.env.TAILORING_QUEUE_NAME || 'applypilot.tailoring',
   MAILBOX_EMAIL: process.env.MAILBOX_EMAIL,
   MAILBOX_PASSWORD: process.env.MAILBOX_PASSWORD,
   MAILBOX_IMAP_HOST: process.env.MAILBOX_IMAP_HOST || 'mail.privateemail.com',
@@ -50,5 +49,14 @@ function validateOptionalUrl(name, value) {
     new URL(value);
   } catch {
     throw new Error(`${name} must be a valid URL`);
+  }
+}
+
+function validateOptionalRabbitMqUrl(name, value) {
+  if (!value) return;
+  validateOptionalUrl(name, value);
+  const protocol = new URL(value).protocol;
+  if (!['amqp:', 'amqps:'].includes(protocol)) {
+    throw new Error(`${name} must use the amqp or amqps protocol`);
   }
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-process.env.TAILORING_QUEUE_URL ||= 'https://sqs.us-east-1.amazonaws.com/123456789012/applypilot-tailoring';
+process.env.RABBITMQ_URL ||= 'amqp://rabbitmq.test';
 
 const {
   buildResumePrompt,

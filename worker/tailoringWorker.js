@@ -5,24 +5,21 @@ import {
   getScrapedJobModel,
   getTailoredResumeModel,
 } from './db.js';
-import { ENV } from './env.js';
 import {
   MAX_ATTEMPTS,
+  STALE_PROCESSING_SECONDS,
   TAILORING_CONCURRENCY,
-  VISIBILITY_TIMEOUT_SECONDS,
 } from './tailoring/queueConfig.js';
-import {
-  deleteQueueMessage,
-  enqueueTailoredResumeRequest,
-  receiveTailoringMessages,
-} from './tailoring/sqsQueue.js';
+import { createRabbitMqQueue } from './tailoring/rabbitMqQueue.js';
 import { generateTailoredResume } from './tailoringGeneratorService.js';
 
+const RETRY_STALE_CLAIM = Symbol('retry-stale-claim');
+const INFRASTRUCTURE_RETRY_SECONDS = 5;
 let shuttingDown = false;
-
-if (!ENV.TAILORING_QUEUE_URL) {
-  throw new Error('TAILORING_QUEUE_URL is required to run the tailoring worker');
-}
+let resolveShutdown;
+const shutdownRequested = new Promise((resolve) => {
+  resolveShutdown = resolve;
+});
 
 process.on('SIGINT', requestShutdown);
 process.on('SIGTERM', requestShutdown);
@@ -31,66 +28,72 @@ await initializeWorkerModels();
 await runTailoringQueueWorker();
 
 async function runTailoringQueueWorker() {
-  console.log(`Tailoring SQS worker started with concurrency ${TAILORING_CONCURRENCY}.`);
+  console.log(`Tailoring RabbitMQ worker started with concurrency ${TAILORING_CONCURRENCY}.`);
   const inFlightMessages = new Set();
 
   while (!shuttingDown) {
+    let queue;
     try {
-      while (inFlightMessages.size >= TAILORING_CONCURRENCY && !shuttingDown) {
-        await waitForInFlightMessage(inFlightMessages);
-      }
-      if (shuttingDown) break;
-
-      const messageCapacity = TAILORING_CONCURRENCY - inFlightMessages.size;
-      const response = await receiveTailoringMessages(messageCapacity);
-
-      for (const message of response.Messages || []) {
+      queue = await createRabbitMqQueue();
+      await queue.consume((message) => {
+        if (!message) return;
         let messageTask;
-        messageTask = processQueueMessage(message)
-          .catch((error) => {
-            console.error('Tailoring SQS message failed:', {
-              messageId: message.MessageId || 'unknown',
+        messageTask = processQueueMessage(queue, message)
+          .catch(async (error) => {
+            console.error('Tailoring RabbitMQ message failed:', {
+              messageId: message.properties?.messageId || 'unknown',
               error,
             });
+            await retryFailedQueueMessage(queue, message);
           })
           .finally(() => {
             inFlightMessages.delete(messageTask);
           });
         inFlightMessages.add(messageTask);
+      }, { prefetch: TAILORING_CONCURRENCY });
+
+      await Promise.race([queue.waitForClose(), shutdownRequested]);
+      if (!shuttingDown) {
+        console.warn('Tailoring RabbitMQ connection closed; reconnecting.');
       }
     } catch (error) {
-      console.error('Tailoring SQS worker failed:', error);
-      await sleep(5000);
+      console.error('Tailoring RabbitMQ worker failed:', error);
+    } finally {
+      if (shuttingDown) {
+        if (queue) await queue.cancel().catch(() => {});
+      }
+      await Promise.allSettled(inFlightMessages);
+      if (queue) await queue.close().catch(() => {});
     }
+
+    if (!shuttingDown) await sleep(5000);
   }
-
-  await Promise.allSettled(inFlightMessages);
 }
 
-async function waitForInFlightMessage(inFlightMessages) {
-  if (!inFlightMessages.size) return;
-  await Promise.race(inFlightMessages);
-}
-
-async function processQueueMessage(message) {
-  const receiptHandle = message.ReceiptHandle;
-  if (!receiptHandle) return;
-
-  const tailoredResumeId = parseTailoredResumeId(message.Body);
+async function processQueueMessage(queue, message) {
+  const tailoredResumeId = parseTailoredResumeId(message.content?.toString('utf8'));
   if (!tailoredResumeId) {
-    console.warn('Deleting invalid tailored resume SQS message:', message.MessageId || 'unknown');
-    await deleteQueueMessage(receiptHandle);
+    console.warn('Acknowledging invalid tailored resume RabbitMQ message:', message.properties?.messageId || 'unknown');
+    queue.ack(message);
     return;
   }
 
   const tailoredResume = await claimTailoringJob(tailoredResumeId);
+  if (tailoredResume === RETRY_STALE_CLAIM) {
+    await queue.publish({
+      tailoredResumeId,
+      delaySeconds: Math.min(STALE_PROCESSING_SECONDS, 60),
+    });
+    queue.ack(message);
+    return;
+  }
   if (!tailoredResume) {
-    await deleteQueueMessage(receiptHandle);
+    queue.ack(message);
     return;
   }
 
-  await processTailoredResume(tailoredResume);
-  await deleteQueueMessage(receiptHandle);
+  await processTailoredResume(queue, tailoredResume);
+  queue.ack(message);
 }
 
 async function claimTailoringJob(tailoredResumeId) {
@@ -100,7 +103,10 @@ async function claimTailoringJob(tailoredResumeId) {
   if (['ready', 'dead_letter', 'invalid', 'cancelled'].includes(tailoredResume.status)) return null;
 
   const attempts = Number(tailoredResume.attempts || 0);
-  const staleProcessingBefore = new Date(Date.now() - VISIBILITY_TIMEOUT_SECONDS * 1000);
+  const staleProcessingBefore = new Date(Date.now() - STALE_PROCESSING_SECONDS * 1000);
+  if (tailoredResume.status === 'processing' && tailoredResume.updatedAt > staleProcessingBefore) {
+    return RETRY_STALE_CLAIM;
+  }
   const [claimedCount] = await TailoredResume.update(
     {
       status: 'processing',
@@ -122,13 +128,13 @@ async function claimTailoringJob(tailoredResumeId) {
     },
   );
 
-  if (!claimedCount) return null;
+  if (!claimedCount) return RETRY_STALE_CLAIM;
   await tailoredResume.reload();
 
   return tailoredResume;
 }
 
-async function processTailoredResume(tailoredResume) {
+async function processTailoredResume(queue, tailoredResume) {
   try {
     const [storedJob, profile] = await Promise.all([
       tailoredResume.requestType === 'manual' ? Promise.resolve(null) : getScrapedJobModel().findOne({ where: { url: tailoredResume.jobUrl } }),
@@ -160,7 +166,7 @@ async function processTailoredResume(tailoredResume) {
       deadLetterAt: null,
     });
   } catch (error) {
-    await failTailoredResume(tailoredResume, error);
+    await failTailoredResume(queue, tailoredResume, error);
   }
 }
 
@@ -178,7 +184,7 @@ function manualJobFromTailoredResume(tailoredResume) {
   };
 }
 
-async function failTailoredResume(tailoredResume, error) {
+async function failTailoredResume(queue, tailoredResume, error) {
   await tailoredResume.reload();
   if (tailoredResume.status === 'cancelled') return;
 
@@ -198,7 +204,7 @@ async function failTailoredResume(tailoredResume, error) {
 
   if (retryAt) {
     const delaySeconds = Math.ceil((retryAt.getTime() - Date.now()) / 1000);
-    await enqueueTailoredResumeRequest({ tailoredResumeId: tailoredResume.id, delaySeconds });
+    await queue.publish({ tailoredResumeId: tailoredResume.id, delaySeconds });
   }
 }
 
@@ -225,5 +231,27 @@ function sleep(ms) {
 function requestShutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
+  resolveShutdown();
   console.log('Tailoring worker shutdown requested; waiting for in-flight messages.');
+}
+
+async function retryFailedQueueMessage(queue, message) {
+  const tailoredResumeId = parseTailoredResumeId(message.content?.toString('utf8'));
+  try {
+    if (!tailoredResumeId) {
+      queue.ack(message);
+      return;
+    }
+    await queue.publish({
+      tailoredResumeId,
+      delaySeconds: INFRASTRUCTURE_RETRY_SECONDS,
+    });
+    queue.ack(message);
+  } catch {
+    try {
+      queue.nack(message, true);
+    } catch {
+      // A closed connection automatically requeues unacknowledged deliveries.
+    }
+  }
 }
