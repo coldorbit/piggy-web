@@ -56,10 +56,6 @@ app.use(express.json({ limit: '15mb' }));
 
 registerApiRoutes(app);
 
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
-});
-
 app.use((error, _req, res, _next) => {
   console.error(error);
   const status = Number(error.status || error.statusCode || 500);

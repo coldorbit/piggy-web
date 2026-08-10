@@ -4,6 +4,8 @@ Dedicated Express API for ApplyPilot.
 
 The API publishes tailored resume requests to RabbitMQ. The actual OpenAI/DOCX generation runs in the separate `worker/` app.
 
+An unauthenticated liveness endpoint is available at `GET /api/health`. It returns HTTP 200 with `{ "ok": true, "status": "healthy", "service": "applypilot-api" }` and is used by the container health check.
+
 ## Setup
 
 ```bash

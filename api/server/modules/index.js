@@ -3,11 +3,13 @@ import { registerAssessmentRoutes } from './assessments/presentation/assessments
 import { registerAuthRoutes } from './auth/presentation/authRoutes.js';
 import { registerBidRoutes } from './bidding/presentation/biddingRoutes.js';
 import { registerFaqRoutes } from './faqs/presentation/faqsRoutes.js';
+import { registerHealthRoutes } from './health/presentation/healthRoutes.js';
 import { registerJobRoutes } from './jobs/presentation/jobsRoutes.js';
 import { registerLearningRoutes } from './learning/presentation/learningRoutes.js';
 import { registerMarketplaceRoutes } from './marketplace/presentation/marketplaceRoutes.js';
 
 export function registerApiRoutes(app) {
+  registerHealthRoutes(app);
   registerAuthRoutes(app);
   registerAdminRoutes(app);
   registerAssessmentRoutes(app);
