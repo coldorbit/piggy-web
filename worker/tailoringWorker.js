@@ -159,7 +159,7 @@ async function processTailoredResume(queue, tailoredResume) {
 
     await tailoredResume.update({
       status: 'ready',
-      filePath: tailorResult.s3Key,
+      filePath: tailorResult.r2Key,
       cvData: tailorResult.cvData,
       readyAt: new Date(),
       lastError: null,

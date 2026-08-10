@@ -36,8 +36,11 @@ Optional:
 - `DATABASE_CONNECT_TIMEOUT_MS`, defaults to `10000`
 - `WEB_USERNAME` and `WEB_PASSWORD`: first-run admin seed credentials.
 - `WEB_USERS`: comma-separated seed users, such as `admin@example.com:password:admin`.
-- `AWS_REGION`
-- `AWS_S3_BUCKET`
+- `R2_ENDPOINT`
+- `R2_REGION`, defaults to `auto`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET`
 - `RABBITMQ_URL`: AMQP URL for a broker reachable from both API and worker hosts.
 - `TAILORING_QUEUE_NAME`, defaults to `applypilot.tailoring`.
 
@@ -51,8 +54,11 @@ Required:
 - `DATABASE_URL`: same production database used by the API.
 - `RABBITMQ_URL`: same RabbitMQ broker used by the API publisher.
 - `OPENAI_API_KEY`
-- `AWS_REGION`
-- `AWS_S3_BUCKET`
+- `R2_ENDPOINT`
+- `R2_REGION`, defaults to `auto`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET`
 
 Optional:
 

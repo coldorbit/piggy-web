@@ -15,7 +15,6 @@ import {
 } from '../../../../db.js';
 import { Readable } from 'node:stream';
 import { col, fn, Op, QueryTypes, where as sequelizeWhere } from 'sequelize';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../../../env.js';
 import { hashPassword, publicUser } from '../../../../auth.js';
 import {

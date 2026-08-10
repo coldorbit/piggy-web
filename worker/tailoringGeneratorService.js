@@ -1,4 +1,4 @@
-import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import {
   AlignmentType,
   Document,
@@ -11,6 +11,7 @@ import {
 import OpenAI from 'openai';
 import { ENV } from './env.js';
 import { InputError } from './errors.js';
+import { createR2Client, missingR2Configuration } from './storage/r2Client.js';
 
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const US_STATE_ABBREVIATIONS = new Map([
@@ -102,14 +103,15 @@ const RESUME_TEMPLATES = {
 };
 
 let openaiClient;
-let s3Client;
+let r2Client;
 
 export async function generateTailoredResume({ job, profile }) {
   if (!ENV.OPENAI_API_KEY) {
     throw new InputError('OPENAI_API_KEY is required to generate tailored resumes');
   }
-  if (!ENV.AWS_S3_BUCKET) {
-    throw new InputError('AWS_S3_BUCKET is required to store tailored resumes');
+  const missingStorageConfig = missingR2Configuration(ENV);
+  if (missingStorageConfig.length) {
+    throw new InputError(`${missingStorageConfig.join(', ')} required to store tailored resumes in Cloudflare R2`);
   }
 
   const jobDescription = buildTailorJobDescription(job);
@@ -121,9 +123,9 @@ export async function generateTailoredResume({ job, profile }) {
     generatedResume,
     cvData: resumeFile.cvData,
     filename: resumeFile.filename,
-    s3Key: resumeFile.s3Key,
-    s3Bucket: ENV.AWS_S3_BUCKET,
-    s3: resumeFile.s3,
+    r2Key: resumeFile.r2Key,
+    r2Bucket: ENV.R2_BUCKET,
+    r2: resumeFile.r2,
   };
 }
 
@@ -315,12 +317,12 @@ async function generateDocxAndUpload({ generatedResume, profile }) {
   }
   validateGeneratedWorkExperienceProjects(data);
 
-  const { s3Key, filename } = buildResumeS3Key(profile, data, '.docx');
+  const { r2Key, filename } = buildResumeR2Key(profile, data, '.docx');
   const docxBuffer = await renderResumeDocx(data, profile || {});
-  const uploadResult = await uploadResumeToS3(docxBuffer, s3Key, filename);
+  const uploadResult = await uploadResumeToR2(docxBuffer, r2Key, filename);
 
   console.info('resume_timing stage=docx_and_upload_total elapsed_ms=%s filename=%s', elapsedMs(startedAt), filename);
-  return { filename, s3Key, s3: uploadResult, cvData: data };
+  return { filename, r2Key, r2: uploadResult, cvData: data };
 }
 
 async function renderResumeDocx(data, profile) {
@@ -762,32 +764,37 @@ function workExperienceEntries(data) {
   return Array.isArray(data.work_experience) ? data.work_experience : data.experience || [];
 }
 
-function buildResumeS3Key(profile, generatedData, extension) {
+function buildResumeR2Key(profile, generatedData, extension) {
   const profileFolder = compactPathPart(profile?.name, 'Profile');
   const dateFolder = new Date().toISOString().slice(0, 10).replaceAll('-', '');
   const role = generatedData.role || 'Resume';
   const company = generatedData.target_company || inferCompanyFromGeneratedName(generatedData.name, role);
   const filename = `${filenamePathPart(company, 'Company')}_${filenamePathPart(role, 'Job_Title')}_resume${extension}`;
-  return { s3Key: `${profileFolder}/${dateFolder}/${filename}`, filename };
+  return { r2Key: `${profileFolder}/${dateFolder}/${filename}`, filename };
 }
 
-async function uploadResumeToS3(buffer, s3Key, filename) {
+export async function uploadResumeToR2(
+  buffer,
+  r2Key,
+  filename,
+  { client = getR2Client(), bucket = ENV.R2_BUCKET } = {},
+) {
   const startedAt = performance.now();
-  await getS3Client().send(
+  await client.send(
     new PutObjectCommand({
-      Bucket: ENV.AWS_S3_BUCKET,
-      Key: s3Key,
+      Bucket: bucket,
+      Key: r2Key,
       Body: buffer,
       ContentType: DOCX_CONTENT_TYPE,
       ContentDisposition: `attachment; filename="${filename}"`,
     }),
   );
-  const head = await getS3Client().send(new HeadObjectCommand({ Bucket: ENV.AWS_S3_BUCKET, Key: s3Key }));
-  console.info('resume_timing stage=s3_upload elapsed_ms=%s size=%s', elapsedMs(startedAt), head.ContentLength);
+  const head = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: r2Key }));
+  console.info('resume_timing stage=r2_upload elapsed_ms=%s size=%s', elapsedMs(startedAt), head.ContentLength);
   return {
-    bucket: ENV.AWS_S3_BUCKET,
-    key: s3Key,
-    uri: `s3://${ENV.AWS_S3_BUCKET}/${s3Key}`,
+    bucket,
+    key: r2Key,
+    uri: `r2://${bucket}/${r2Key}`,
     size: head.ContentLength,
     etag: String(head.ETag || '').replaceAll('"', ''),
   };
@@ -802,10 +809,10 @@ function getOpenAIClient() {
   return openaiClient;
 }
 
-function getS3Client() {
-  if (s3Client) return s3Client;
-  s3Client = new S3Client({ region: ENV.AWS_REGION });
-  return s3Client;
+function getR2Client() {
+  if (r2Client) return r2Client;
+  r2Client = createR2Client(ENV);
+  return r2Client;
 }
 
 const compactPathPart = (value, fallback) => String(value || '').replace(/[^A-Za-z0-9]+/g, '') || fallback;

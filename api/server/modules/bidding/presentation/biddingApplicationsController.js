@@ -15,7 +15,7 @@ import {
 } from '../../../../db.js';
 import { Readable } from 'node:stream';
 import { Op, QueryTypes } from 'sequelize';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { ENV } from '../../../../env.js';
 import { hashPassword, publicUser } from '../../../../auth.js';
 import {
@@ -56,6 +56,7 @@ import { userAttributesFromBody } from '../../admin/application/usersService.js'
 import { deleteProfileHubRecords } from './profileIntelligenceController.js';
 import { clean } from '../../../utils/index.js';
 import { handleInputError, handleUserWriteError, InputError, NotFoundError } from '../../../utils/errors.js';
+import { createR2Client, missingR2Configuration } from '../../../utils/r2Client.js';
 import {
   ADMIN_MANAGED_PROFILE_OWNER_ROLES,
   BIDDER_ROLES,
@@ -363,10 +364,10 @@ export async function logTailoredResumeDownloadRow(id, tailoredResume) {
 
 export async function fetchTailoredResumeFile(tailoredResume) {
   const filePath = String(tailoredResume.filePath);
-  const candidates = getTailoredResumeS3Candidates(filePath);
+  const candidates = getTailoredResumeStorageCandidates(filePath);
 
   console.log(
-    'Resolved tailored resume S3 candidates:',
+    'Resolved tailored resume object storage candidates:',
     JSON.stringify({
       tailoredResumeId: tailoredResume.id,
       filePath,
@@ -374,30 +375,31 @@ export async function fetchTailoredResumeFile(tailoredResume) {
     }),
   );
 
-  for (const s3Details of candidates) {
+  for (const storageDetails of candidates) {
     try {
-      return await fetchTailoredResumeFromS3(s3Details.bucket, s3Details.key, tailoredResume);
+      return await fetchTailoredResumeFromR2(storageDetails.bucket, storageDetails.key);
     } catch (error) {
       if (!isMissingStorageObjectError(error)) throw error;
       console.warn(
-        'Tailored resume S3 candidate was not found:',
+        'Tailored resume R2 candidate was not found:',
         JSON.stringify({
           tailoredResumeId: tailoredResume.id,
-          bucket: s3Details.bucket,
-          key: s3Details.key,
+          bucket: storageDetails.bucket,
+          key: storageDetails.key,
         }),
       );
     }
   }
 
-  throw new NotFoundError('Resume file is not stored in S3');
+  throw new NotFoundError('Resume file is not stored in Cloudflare R2');
 }
 
-export function getTailoredResumeS3Candidates(filePath) {
+export function getTailoredResumeStorageCandidates(filePath) {
   const candidates = [
+    getExplicitR2Details(filePath),
     getExplicitS3Details(filePath),
     getS3UrlDetails(filePath),
-    ...getConfiguredS3Details(filePath),
+    ...getConfiguredR2Details(filePath),
   ].filter(Boolean);
   const seen = new Set();
 
@@ -407,6 +409,19 @@ export function getTailoredResumeS3Candidates(filePath) {
     seen.add(candidateKey);
     return true;
   });
+}
+
+export function getExplicitR2Details(filePath) {
+  if (!filePath || !filePath.startsWith('r2://')) return null;
+
+  try {
+    const url = new URL(filePath);
+    const bucket = url.hostname;
+    const key = url.pathname.replace(/^\//, '');
+    return bucket && key ? { bucket, key } : null;
+  } catch {
+    return null;
+  }
 }
 
 export function getExplicitS3Details(filePath) {
@@ -446,16 +461,25 @@ export function getS3UrlDetails(filePath) {
   return null;
 }
 
-export function getConfiguredS3Details(filePath) {
-  if (!filePath || !ENV.AWS_S3_BUCKET) return [];
-  const key = String(filePath).trim().replace(/^\/+/, '');
-  return key ? [{ bucket: ENV.AWS_S3_BUCKET, key }] : [];
+export function getConfiguredR2Details(filePath, bucket = ENV.R2_BUCKET) {
+  if (!filePath || !bucket) return [];
+  let key = String(filePath).trim().replace(/^\/+/, '');
+  if (/^(?:https?|s3|r2):\/\//i.test(key)) {
+    try {
+      const url = new URL(key);
+      key = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+      if (key.startsWith(`${bucket}/`)) key = key.slice(bucket.length + 1);
+    } catch {
+      return [];
+    }
+  }
+  return key ? [{ bucket, key }] : [];
 }
 
-export async function fetchTailoredResumeFromS3(bucket, key, tailoredResume) {
+export async function fetchTailoredResumeFromR2(bucket, key, { client = getR2Client() } = {}) {
   let response;
   try {
-    response = await getS3Client().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    response = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   } catch (error) {
     if (isMissingStorageObjectError(error)) throw new NotFoundError('Resume file not found');
     throw error;
@@ -499,11 +523,15 @@ export async function streamToBuffer(body) {
   return Buffer.concat(chunks);
 }
 
-let s3Client;
-export function getS3Client() {
-  if (s3Client) return s3Client;
-  s3Client = new S3Client({ region: ENV.AWS_REGION });
-  return s3Client;
+let r2Client;
+export function getR2Client() {
+  if (r2Client) return r2Client;
+  const missingStorageConfig = missingR2Configuration(ENV);
+  if (missingStorageConfig.length) {
+    throw new Error(`${missingStorageConfig.join(', ')} required to download tailored resumes from Cloudflare R2`);
+  }
+  r2Client = createR2Client(ENV);
+  return r2Client;
 }
 
 export function filenameFromPath(filePath) {

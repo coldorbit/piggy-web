@@ -53,8 +53,11 @@ WEB_SESSION_SECRET=change-me
 WEB_USERNAME=admin@example.com
 WEB_PASSWORD=change-me
 
-AWS_REGION=us-east-1
-AWS_S3_BUCKET=your-private-resume-bucket
+R2_ENDPOINT=https://your-cloudflare-account-id.r2.cloudflarestorage.com
+R2_REGION=auto
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
+R2_BUCKET=your-private-resume-bucket
 RABBITMQ_URL=amqp://applypilot:change-me@localhost:5672
 TAILORING_QUEUE_NAME=applypilot.tailoring
 
@@ -100,7 +103,7 @@ docker compose up --build
 The compose file runs `api`, `worker`, and `client` as separate services.
 It also starts a local Postgres service using `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from `.env`.
 
-Tailored resume generation runs in the separate RabbitMQ worker using OpenAI, and resume downloads use private S3 through the API. Set `RABBITMQ_URL`, `TAILORING_QUEUE_NAME`, and `AWS_S3_BUCKET` for both API and worker. Set `OPENAI_API_KEY` only on the worker host. Docker Compose starts RabbitMQ locally, including its management UI on `http://localhost:15672` by default.
+Tailored resume generation runs in the separate RabbitMQ worker using OpenAI, and generated files are stored in a private Cloudflare R2 bucket. Set `RABBITMQ_URL`, `TAILORING_QUEUE_NAME`, and all `R2_*` storage variables for both API and worker. The worker needs R2 Object Read & Write access; the API only needs Object Read access. Set `OPENAI_API_KEY` only on the worker host. Docker Compose starts RabbitMQ locally, including its management UI on `http://localhost:15672` by default.
 
 ## Split Repository Notes
 

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 
 validateOptionalRabbitMqUrl('RABBITMQ_URL', process.env.RABBITMQ_URL);
+validateOptionalUrl('R2_ENDPOINT', process.env.R2_ENDPOINT);
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const WEB_SESSION_SECRET = process.env.WEB_SESSION_SECRET || 'dev-only-change-me';
@@ -21,8 +22,11 @@ export const ENV = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_TIMEOUT_SECONDS: Number(process.env.OPENAI_TIMEOUT_SECONDS || 300),
   OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-5-mini',
-  AWS_REGION: process.env.AWS_REGION || 'us-east-1',
-  AWS_S3_BUCKET: process.env.AWS_S3_BUCKET,
+  R2_ENDPOINT: process.env.R2_ENDPOINT,
+  R2_REGION: process.env.R2_REGION || 'auto',
+  R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+  R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+  R2_BUCKET: process.env.R2_BUCKET,
   RABBITMQ_URL: process.env.RABBITMQ_URL,
   TAILORING_QUEUE_NAME: process.env.TAILORING_QUEUE_NAME || 'applypilot.tailoring',
   MAILBOX_EMAIL: process.env.MAILBOX_EMAIL,

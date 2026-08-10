@@ -41,8 +41,11 @@ WEB_SESSION_SECRET=change-me
 WEB_USERNAME=admin@example.com
 WEB_PASSWORD=change-me
 
-AWS_REGION=us-east-1
-AWS_S3_BUCKET=your-private-resume-bucket
+R2_ENDPOINT=https://your-cloudflare-account-id.r2.cloudflarestorage.com
+R2_REGION=auto
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
+R2_BUCKET=your-private-resume-bucket
 RABBITMQ_URL=amqp://applypilot:change-me@localhost:5672
 TAILORING_QUEUE_NAME=applypilot.tailoring
 
@@ -78,8 +81,10 @@ When mailbox sync is enabled, the API also scans recent forwarded email in the b
 - `DATABASE_EXPLAIN_ALLOW_PRODUCTION`: explicit second opt-in required when `NODE_ENV=production`.
 - `WEB_SESSION_SECRET`: session signing secret.
 - `WEB_USERS` or `WEB_USERNAME` / `WEB_PASSWORD`: first-run admin seed users, created only when `web_users` is empty.
-- `AWS_REGION`: AWS region for S3, defaults to `us-east-1`.
-- `AWS_S3_BUCKET`: private S3 bucket used to download generated tailored resumes. `tailored_resumes.file_path` should contain the object key inside this bucket, not a public URL.
+- `R2_ENDPOINT`: account S3 API endpoint, such as `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`.
+- `R2_REGION`: R2 signing region, defaults to `auto`.
+- `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`: R2 S3 API credentials with Object Read permission.
+- `R2_BUCKET`: private R2 bucket used to download generated tailored resumes. `tailored_resumes.file_path` should contain the object key inside this bucket, not a public URL.
 - `RABBITMQ_URL`: AMQP connection URL for the RabbitMQ broker.
 - `TAILORING_QUEUE_NAME`: durable queue used for tailored resume requests, defaults to `applypilot.tailoring`.
 - `MAILBOX_EMAIL`: central mailbox that receives forwarded profile email, for example `service@co-bounce.com`.

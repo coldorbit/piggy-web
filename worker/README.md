@@ -2,7 +2,7 @@
 
 Dedicated RabbitMQ worker for tailored resume generation.
 
-The API creates `tailored_resumes` rows and publishes durable request messages to RabbitMQ. This worker receives those messages with manual acknowledgements, generates the tailored resume, uploads the DOCX to S3, and updates the row status to `ready` or `dead_letter`.
+The API creates `tailored_resumes` rows and publishes durable request messages to RabbitMQ. This worker receives those messages with manual acknowledgements, generates the tailored resume, uploads the DOCX to Cloudflare R2, and updates the row status to `ready` or `dead_letter`.
 
 The worker is intentionally standalone: it has its own env loader, DB connection, Sequelize models, package dependencies, lockfile, and Dockerfile.
 
@@ -20,8 +20,10 @@ Required environment:
 - `RABBITMQ_URL`: AMQP connection URL for the RabbitMQ broker.
 - `TAILORING_QUEUE_NAME`: queue used by the API publisher, defaults to `applypilot.tailoring`.
 - `OPENAI_API_KEY`: OpenAI API key for resume generation.
-- `AWS_REGION`: AWS region for S3.
-- `AWS_S3_BUCKET`: private bucket for generated DOCX resumes.
+- `R2_ENDPOINT`: account S3 API endpoint, such as `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`.
+- `R2_REGION`: R2 signing region, defaults to `auto`.
+- `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`: R2 S3 API credentials with Object Read & Write permission.
+- `R2_BUCKET`: private R2 bucket for generated DOCX resumes.
 
 Optional environment:
 
