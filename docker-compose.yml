@@ -5,8 +5,8 @@ services:
     environment:
       NODE_ENV: production
       WEB_PORT: 4000
-      CLIENT_ORIGIN: http://localhost:${CLIENT_PORT:-3000}
-      CORS_ORIGINS: http://localhost:${CLIENT_PORT:-3000}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_SSL: ${DATABASE_SSL:-false}
       WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-dev-only-change-me}

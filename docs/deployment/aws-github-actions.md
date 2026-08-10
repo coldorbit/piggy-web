@@ -24,8 +24,8 @@ Required:
 
 - `NODE_ENV=production`
 - `WEB_PORT=4000`
-- `CLIENT_ORIGIN`: public client origin.
-- `CORS_ORIGINS`: comma-separated allowed origins.
+- `CLIENT_ORIGIN`: public client origin. For production, set `CLIENT_ORIGIN=https://app.co-bounce.com`.
+- `CORS_ORIGINS`: comma-separated allowed origins. For production, set `CORS_ORIGINS=https://app.co-bounce.com` with no trailing slash.
 - `DATABASE_URL`: production database URL for the API.
 - `WEB_SESSION_SECRET`: production session signing secret.
 
