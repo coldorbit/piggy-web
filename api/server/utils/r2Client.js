@@ -16,7 +16,7 @@ export function missingR2Configuration(config) {
     ['R2_ENDPOINT', config.R2_ENDPOINT],
     ['R2_ACCESS_KEY_ID', config.R2_ACCESS_KEY_ID],
     ['R2_SECRET_ACCESS_KEY', config.R2_SECRET_ACCESS_KEY],
-    ['R2_BUCKET', config.R2_BUCKET],
+    ['R2_BUCKET', config.R2_BUCKET || config.AWS_S3_BUCKET],
   ].filter(([, value]) => !String(value || '').trim()).map(([name]) => name);
 }
 

@@ -363,6 +363,7 @@ export async function logTailoredResumeDownloadRow(id, tailoredResume) {
 }
 
 export async function fetchTailoredResumeFile(tailoredResume) {
+  const client = getR2Client();
   const filePath = String(tailoredResume.filePath);
   const candidates = getTailoredResumeStorageCandidates(filePath);
 
@@ -377,7 +378,7 @@ export async function fetchTailoredResumeFile(tailoredResume) {
 
   for (const storageDetails of candidates) {
     try {
-      return await fetchTailoredResumeFromR2(storageDetails.bucket, storageDetails.key);
+      return await fetchTailoredResumeFromR2(storageDetails.bucket, storageDetails.key, { client });
     } catch (error) {
       if (!isMissingStorageObjectError(error)) throw error;
       console.warn(

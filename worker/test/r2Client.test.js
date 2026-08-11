@@ -31,6 +31,15 @@ describe('Cloudflare R2 client configuration', () => {
     ]);
   });
 
+  it('accepts the legacy bucket variable during an R2 env migration', () => {
+    assert.deepEqual(missingR2Configuration({
+      R2_ENDPOINT: 'https://account-id.r2.cloudflarestorage.com',
+      R2_ACCESS_KEY_ID: 'access-key',
+      R2_SECRET_ACCESS_KEY: 'secret-key',
+      AWS_S3_BUCKET: 'resumes',
+    }), []);
+  });
+
   it('uploads a persistent object and verifies it with a head request', async () => {
     const commands = [];
     const client = {

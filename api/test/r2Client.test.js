@@ -33,6 +33,15 @@ describe('Cloudflare R2 storage configuration', () => {
     ]);
   });
 
+  it('accepts the legacy bucket variable during an R2 env migration', () => {
+    assert.deepEqual(missingR2Configuration({
+      R2_ENDPOINT: 'https://account-id.r2.cloudflarestorage.com',
+      R2_ACCESS_KEY_ID: 'access-key',
+      R2_SECRET_ACCESS_KEY: 'secret-key',
+      AWS_S3_BUCKET: 'resumes',
+    }), []);
+  });
+
   it('resolves R2 URIs and migrated legacy object paths', () => {
     assert.deepEqual(getExplicitR2Details('r2://resumes/Profile/resume.docx'), {
       bucket: 'resumes',
