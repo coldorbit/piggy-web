@@ -394,12 +394,12 @@ export async function fetchTailoredResumeFile(tailoredResume) {
   throw new NotFoundError('Resume file is not stored in Cloudflare R2');
 }
 
-export function getTailoredResumeStorageCandidates(filePath) {
+export function getTailoredResumeStorageCandidates(filePath, bucket = ENV.R2_BUCKET) {
+  const explicitR2Details = getExplicitR2Details(filePath);
+  const legacyStorageDetails = getExplicitS3Details(filePath) || getS3UrlDetails(filePath);
   const candidates = [
-    getExplicitR2Details(filePath),
-    getExplicitS3Details(filePath),
-    getS3UrlDetails(filePath),
-    ...getConfiguredR2Details(filePath),
+    explicitR2Details,
+    ...getConfiguredR2Details(legacyStorageDetails?.key || filePath, bucket),
   ].filter(Boolean);
   const seen = new Set();
 

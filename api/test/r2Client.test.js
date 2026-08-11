@@ -4,6 +4,7 @@ import {
   fetchTailoredResumeFromR2,
   getConfiguredR2Details,
   getExplicitR2Details,
+  getTailoredResumeStorageCandidates,
 } from '../server/modules/bidding/presentation/biddingApplicationsController.js';
 import { missingR2Configuration, r2ClientOptions } from '../server/utils/r2Client.js';
 
@@ -45,6 +46,34 @@ describe('Cloudflare R2 storage configuration', () => {
       bucket: 'resumes',
       key: 'Profile/resume.docx',
     }]);
+  });
+
+  it('maps legacy S3 locations directly into the configured R2 bucket', () => {
+    assert.deepEqual(
+      getTailoredResumeStorageCandidates('s3://old-bucket/Profile/resume.docx', 'resumes'),
+      [{ bucket: 'resumes', key: 'Profile/resume.docx' }],
+    );
+    assert.deepEqual(
+      getTailoredResumeStorageCandidates(
+        'https://old-bucket.s3.us-east-1.amazonaws.com/Profile/resume.docx',
+        'resumes',
+      ),
+      [{ bucket: 'resumes', key: 'Profile/resume.docx' }],
+    );
+    assert.deepEqual(
+      getTailoredResumeStorageCandidates(
+        'https://s3.us-east-1.amazonaws.com/old-bucket/Profile/resume.docx',
+        'resumes',
+      ),
+      [{ bucket: 'resumes', key: 'Profile/resume.docx' }],
+    );
+  });
+
+  it('keeps an explicit R2 location while deduplicating the configured candidate', () => {
+    assert.deepEqual(
+      getTailoredResumeStorageCandidates('r2://resumes/Profile/resume.docx', 'resumes'),
+      [{ bucket: 'resumes', key: 'Profile/resume.docx' }],
+    );
   });
 
   it('downloads private R2 objects through the API storage client', async () => {
