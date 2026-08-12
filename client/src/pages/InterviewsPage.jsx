@@ -43,6 +43,7 @@ import {
   INTERVIEW_FILTERS,
   INTERVIEW_DURATION_OPTIONS,
   interviewColumnValue,
+  interviewRequiresAssociatedCall,
   interviewStageForColumn,
   interviewStatusForColumn,
   toDatetimeLocalValue,
@@ -469,6 +470,7 @@ export default function InterviewsPage({ currentUser }) {
   const selectedResumeStatus = selectedJob?.tailoredResume?.status || '';
   const selectedCalls = sortedInterviewCalls(selectedDraft?.calls);
   const selectedHasCall = selectedCalls.length > 0;
+  const selectedRequiresCall = interviewRequiresAssociatedCall(selectedDraft?.status);
   const callerUsers = interviewsData?.callerUsers || [];
   const applicationOptions = useMemo(
     () => (applicationPickerData?.jobs || []).filter((job) => job?.bid?.id && DONE_STATUSES.has(job.bid.status)),
@@ -654,7 +656,7 @@ export default function InterviewsPage({ currentUser }) {
             </DialogTitle>
             <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 280px' }, gap: 2, pt: 2 }}>
               <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start', minWidth: 0 }}>
-                {!selectedHasCall ? (
+                {selectedRequiresCall && !selectedHasCall ? (
                   <Alert severity="warning">
                     Create at least one call for this interview.
                   </Alert>

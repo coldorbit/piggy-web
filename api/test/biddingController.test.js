@@ -268,11 +268,14 @@ describe('interview scheduled occurrences', () => {
     assert.equal(shouldRegisterInterviewCallForStage('screening', 'todo'), false);
     assert.equal(shouldRegisterInterviewCallForStage('screening'), true);
     assert.equal(shouldRegisterInterviewCallForStage('technical_interview', 'lost'), false);
+    assert.equal(shouldRegisterInterviewCallForStage('technical_interview', 'won'), false);
     assert.equal(shouldRegisterInterviewCallForStage('lost'), false);
+    assert.equal(shouldRegisterInterviewCallForStage('won'), false);
     assert.equal(shouldRegisterInterviewCallForStageChange('todo', 'screening'), true);
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'hiring_manager'), true);
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'technical_interview', 'lost'), false);
     assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'technical_interview', 'failed'), false);
+    assert.equal(shouldRegisterInterviewCallForStageChange('screening', 'technical_interview', 'won'), false);
   });
 
   it('does not create an initial call for todo-stage interviews', () => {

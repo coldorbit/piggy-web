@@ -13,6 +13,7 @@ import { INTERVIEW_STAGES } from '../bids/bidConstants.js';
 import { formatDate, formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { downloadAuthenticatedFile } from '../../lib/api.js';
 import { failureFeedbackLabel, isFailedInterviewStatus } from './InterviewFailureFeedback.jsx';
+import { interviewRequiresAssociatedCall } from './interviewUtils.js';
 
 const INTERACTIVE_SELECTOR = 'a, button, input, textarea, [role="combobox"], .MuiSelect-select';
 
@@ -43,6 +44,7 @@ export default function InterviewCard({
   const resumeUrl = resumeDownloadUrl(job.tailoredResume);
   const scheduledStepCount = interviewStepCount(job.bid);
   const hasAssociatedCall = Array.isArray(job.bid?.calls) && job.bid.calls.length > 0;
+  const requiresAssociatedCall = interviewRequiresAssociatedCall(draft.status);
 
   function handlePointerDown(event) {
     if (event.target.closest(INTERACTIVE_SELECTOR)) {
@@ -128,7 +130,7 @@ export default function InterviewCard({
           {isFailedInterviewStatus(draft.status) ? (
             <Chip label={failureFeedbackLabel(draft.failureFeedback)} size="small" sx={{ ...chipSx, bgcolor: '#FEE2E2', color: '#991B1B' }} />
           ) : null}
-          {!hasAssociatedCall ? <Chip label="Missing call" size="small" sx={{ ...chipSx, bgcolor: '#FEF3C7', color: '#92400E' }} /> : null}
+          {requiresAssociatedCall && !hasAssociatedCall ? <Chip label="Missing call" size="small" sx={{ ...chipSx, bgcolor: '#FEF3C7', color: '#92400E' }} /> : null}
           {scheduledStepCount > 1 ? <Chip label={`${scheduledStepCount} interviews`} size="small" sx={{ ...chipSx, bgcolor: '#F5F3FF', color: '#6D28D9' }} /> : null}
           <Chip label={formatDate(job.bid?.updatedAt)} size="small" sx={{ ...chipSx, bgcolor: '#f7ead1', color: '#70400d' }} />
           {currentStageMeetingLink ? (

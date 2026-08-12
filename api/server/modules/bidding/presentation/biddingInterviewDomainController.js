@@ -753,8 +753,8 @@ export function shouldRegisterInterviewCallForStage(stage, status = 'interviewin
   const normalizedStatus = clean(status || 'interviewing');
   return normalizedStage !== 'todo'
     && normalizedStatus !== 'todo'
-    && !['failed', 'lost'].includes(normalizedStage)
-    && !['failed', 'lost'].includes(normalizedStatus);
+    && !['failed', 'hired', 'lost', 'won'].includes(normalizedStage)
+    && !['failed', 'hired', 'lost', 'won'].includes(normalizedStatus);
 }
 
 export function interviewCallSourceKey({ interviewId, stage }) {

@@ -39,6 +39,7 @@ import {
   groupJobsByStage,
   INTERVIEW_FILTERS,
   INTERVIEW_DURATION_OPTIONS,
+  interviewRequiresAssociatedCall,
   interviewColumnValue,
   interviewStageForColumn,
   interviewStatusForColumn,
@@ -119,7 +120,7 @@ export function interviewStepChange(job, bidData) {
 }
 
 export function shouldRegisterCallForStepChange(fromStage, toStage, nextStatus = 'interviewing') {
-  if (['failed', 'lost'].includes(String(nextStatus || '').trim())) return false;
+  if (!interviewRequiresAssociatedCall(nextStatus)) return false;
   if (fromStage === 'todo' && toStage === 'screening') return false;
   return fromStage !== toStage;
 }

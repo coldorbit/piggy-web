@@ -27,6 +27,10 @@ export const INTERVIEW_DURATION_OPTIONS = [
 
 export const DEFAULT_INTERVIEW_DURATION_MINUTES = 60;
 
+export function interviewRequiresAssociatedCall(status) {
+  return !['failed', 'lost', 'hired', 'won'].includes(String(status || '').trim().toLowerCase());
+}
+
 export function groupJobsByStage(jobs, draftFor) {
   return INTERVIEW_KANBAN_COLUMNS.reduce((groups, stage) => {
     groups[stage.value] = jobs.filter((job) => interviewColumnValue(job, draftFor) === stage.value);
