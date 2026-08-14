@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { matchesAiMlArea, matchesJobRole } from './jobClassification.js';
+import { matchesAiMlArea, matchesJobRole, normalizeJobRoleFilter } from './jobClassification.js';
 
 test('the all-AI/ML role filter includes scraper role categories and legacy rows', () => {
   for (const category of [
@@ -30,4 +30,11 @@ test('AI/ML area filters reject non-AI roles with stale area values', () => {
     category: 'software',
     aiMlArea: 'generative_ai',
   }, 'generative_ai'), false);
+});
+
+test('normalizes legacy detailed AI role filters to the AI/ML family', () => {
+  assert.equal(normalizeJobRoleFilter('ml_engineer'), 'ai_ml');
+  assert.equal(normalizeJobRoleFilter('data_scientist'), 'ai_ml');
+  assert.equal(normalizeJobRoleFilter('software'), 'software');
+  assert.equal(normalizeJobRoleFilter('unsupported'), 'all');
 });

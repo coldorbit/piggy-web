@@ -1,6 +1,7 @@
 import { BID_TABS, DEFAULT_BID_FILTERS, DONE_STATUSES, INTERVIEW_STATUSES, REVIEW_STATUSES } from '../../components/bids/bidConstants.js';
 import { hasTailoredResumeActivity } from '../../components/bids/bidJobState.js';
 import { mergeKnownFilters, readPersistedFilters } from '../../lib/persistedFilters.js';
+import { normalizeJobRoleFilter } from '../../lib/jobClassification.js';
 
 export const BID_FILTER_KEYS = [
   'search',
@@ -73,9 +74,15 @@ export function bidFiltersFromParams(params) {
     const value = params.get(key);
     if (value !== null) paramFilters[key] = value;
   });
-  return normalizeBidDateFilter(
+  const filters = normalizeBidDateFilter(
     mergeKnownFilters(persistedFilters, paramFilters, BID_FILTER_KEYS),
   );
+  const roleFamily = normalizeJobRoleFilter(filters.roleFamily);
+  return {
+    ...filters,
+    roleFamily,
+    aiMlArea: roleFamily === 'ai_ml' ? filters.aiMlArea : 'all',
+  };
 }
 
 export function goalDateLabelForFilters(filters) {

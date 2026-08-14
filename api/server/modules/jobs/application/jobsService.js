@@ -54,6 +54,20 @@ const CANADA_LOCATION_PATTERN = [
   '\\mnorthwest territories\\M',
   ',\\s*(can|on|bc|ab|mb|sk|qc|ns|nb|nl|pe|yt|nt|nu)(\\s|,|\\)|/|-|$)',
 ].join('|');
+const UK_LOCATION_PATTERN = [
+  '\\munited kingdom\\M',
+  '\\mgreat britain\\M',
+  '\\mengland\\M',
+  '\\mscotland\\M',
+  '\\mwales\\M',
+  '\\mnorthern ireland\\M',
+  '\\mlondon\\M',
+  '\\medinburgh\\M',
+  '\\mglasgow\\M',
+  '\\mcardiff\\M',
+  '\\mbelfast\\M',
+  '(^|[\\s,(/-])(uk|gb)($|[\\s,)/-])',
+].join('|');
 const US_WORLDWIDE_LOCATION_PATTERN = [
   '\\munited states\\M',
   '\\musa\\M',
@@ -223,6 +237,16 @@ function applyLocationRegionFilter(where, locationRegion) {
     return;
   }
 
+  if (locationRegion === 'uk') {
+    appendAndCondition(where, {
+      [Op.and]: [
+        effectiveLocationRegexpCondition(UK_LOCATION_PATTERN),
+        effectiveLocationNotRegexpCondition(CANADA_LOCATION_PATTERN),
+      ],
+    });
+    return;
+  }
+
   if (locationRegion === 'us_worldwide') {
     appendAndCondition(where, {
       [Op.and]: [
@@ -236,6 +260,12 @@ function applyLocationRegionFilter(where, locationRegion) {
           [Op.or]: [
             effectiveLocationIsBlankCondition(),
             effectiveLocationNotRegexpCondition(CANADA_LOCATION_PATTERN),
+          ],
+        },
+        {
+          [Op.or]: [
+            effectiveLocationIsBlankCondition(),
+            effectiveLocationNotRegexpCondition(UK_LOCATION_PATTERN),
           ],
         },
       ],

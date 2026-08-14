@@ -18,6 +18,7 @@ import { fetchJobDetail, useBulkMarkJobsHidden, useBulkMarkJobsSpam, useDeleteJo
 import { PAGE_SIZE } from '../lib/constants.js';
 import { formatDateTime } from '../lib/formatters.js';
 import { matchesSpamFilter, matchesVisibilityFilter } from '../lib/jobFilters.js';
+import { normalizeJobRoleFilter } from '../lib/jobClassification.js';
 import { copyJobDescription } from '../lib/jobDescription.js';
 import { readPersistedFilters, writePersistedFilters } from '../lib/persistedFilters.js';
 import { ROLES, isAdminRole } from '../lib/roles.js';
@@ -47,9 +48,15 @@ const DEFAULT_FILTERS = {
 
 export default function JobsPage({ currentUser }) {
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState(() =>
-    readPersistedFilters(JOB_FILTERS_STORAGE_KEY, DEFAULT_FILTERS, JOB_FILTER_KEYS),
-  );
+  const [filters, setFilters] = useState(() => {
+    const persisted = readPersistedFilters(JOB_FILTERS_STORAGE_KEY, DEFAULT_FILTERS, JOB_FILTER_KEYS);
+    const roleFamily = normalizeJobRoleFilter(persisted.roleFamily);
+    return {
+      ...persisted,
+      roleFamily,
+      aiMlArea: roleFamily === 'ai_ml' ? persisted.aiMlArea : 'all',
+    };
+  });
   const [selectedId, setSelectedId] = useState(null);
   const [selectedLocationByJobId, setSelectedLocationByJobId] = useState({});
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);

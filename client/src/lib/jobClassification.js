@@ -9,13 +9,8 @@ export const AI_ML_ROLE_CATEGORIES = [
 export const JOB_ROLE_OPTIONS = [
   { value: 'all', label: 'All roles' },
   { value: 'software', label: 'Software engineering' },
-  { value: 'data', label: 'Data engineering' },
-  { value: 'ai_ml', label: 'All AI/ML roles' },
-  { value: 'ml_engineer', label: 'ML engineer' },
-  { value: 'data_scientist', label: 'Data scientist' },
-  { value: 'applied_scientist', label: 'Applied scientist' },
-  { value: 'research_scientist', label: 'Research scientist' },
-  { value: 'other_ai_ml', label: 'Other AI/ML' },
+  { value: 'data', label: 'Data' },
+  { value: 'ai_ml', label: 'AI/ML' },
 ];
 
 export const AI_ML_AREA_OPTIONS = [
@@ -35,9 +30,15 @@ export const AI_ML_AREA_OPTIONS = [
 ];
 
 const AI_ML_ROLE_CATEGORY_SET = new Set(['ai_ml', ...AI_ML_ROLE_CATEGORIES]);
+const JOB_ROLE_FILTER_VALUES = new Set(JOB_ROLE_OPTIONS.map((option) => option.value));
 
 export function isAiMlJobCategory(category) {
   return AI_ML_ROLE_CATEGORY_SET.has(category);
+}
+
+export function normalizeJobRoleFilter(roleFamily) {
+  if (AI_ML_ROLE_CATEGORY_SET.has(roleFamily)) return 'ai_ml';
+  return JOB_ROLE_FILTER_VALUES.has(roleFamily) ? roleFamily : 'all';
 }
 
 export function matchesJobRole(job, roleFamily = 'all') {

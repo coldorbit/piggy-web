@@ -29,6 +29,7 @@ export default function JobFiltersToolbar({ allowRecommendedSort = false, filter
   const customRangeStart = parseDateOnly(filters.dateFrom);
   const customRangeEnd = parseDateOnly(filters.dateTo);
   const maxCustomDate = new Date();
+  const showAiMlArea = filters.roleFamily === 'ai_ml';
 
   function updateSince(value) {
     onFilterChange('since', value);
@@ -43,24 +44,33 @@ export default function JobFiltersToolbar({ allowRecommendedSort = false, filter
     onFilterChange('dateTo', formatDateOnly(end));
   }
 
+  function updateRole(value) {
+    onFilterChange('roleFamily', value);
+    if (value !== 'ai_ml' && filters.aiMlArea !== 'all') {
+      onFilterChange('aiMlArea', 'all');
+    }
+  }
+
   const content = (
     <>
       <FormControl size="small">
         <InputLabel>Role</InputLabel>
-        <Select label="Role" value={filters.roleFamily || 'all'} onChange={(event) => onFilterChange('roleFamily', event.target.value)}>
+        <Select label="Role" value={filters.roleFamily || 'all'} onChange={(event) => updateRole(event.target.value)}>
           {JOB_ROLE_OPTIONS.map((option) => (
             <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
           ))}
         </Select>
       </FormControl>
-      <FormControl size="small">
-        <InputLabel>AI/ML area</InputLabel>
-        <Select label="AI/ML area" value={filters.aiMlArea || 'all'} onChange={(event) => onFilterChange('aiMlArea', event.target.value)}>
-          {AI_ML_AREA_OPTIONS.map((option) => (
-            <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      {showAiMlArea ? (
+        <FormControl size="small">
+          <InputLabel>AI/ML area</InputLabel>
+          <Select label="AI/ML area" value={filters.aiMlArea || 'all'} onChange={(event) => onFilterChange('aiMlArea', event.target.value)}>
+            {AI_ML_AREA_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      ) : null}
       <FormControl size="small">
         <InputLabel>Source</InputLabel>
         <Select
@@ -85,6 +95,7 @@ export default function JobFiltersToolbar({ allowRecommendedSort = false, filter
         <Select label="Location" value={filters.locationRegion || 'all'} onChange={(event) => onFilterChange('locationRegion', event.target.value)}>
           <MenuItem value="all">All locations</MenuItem>
           <MenuItem value="canada">Canada</MenuItem>
+          <MenuItem value="uk">UK</MenuItem>
           <MenuItem value="us_worldwide">US/Worldwide</MenuItem>
         </Select>
       </FormControl>
@@ -223,8 +234,8 @@ export default function JobFiltersToolbar({ allowRecommendedSort = false, filter
         : {
             xs: '1fr',
             lg: showAppliedProfileFilter && appliedProfiles.length
-              ? `145px 175px 145px 145px 130px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`
-              : `155px 175px 150px 145px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`,
+              ? `145px ${showAiMlArea ? '175px ' : ''}145px 145px 130px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`
+              : `155px ${showAiMlArea ? '175px ' : ''}150px 145px 130px ${sinceValue === 'custom' ? '210px ' : ''}130px 130px 130px 140px auto`,
           },
     gap: variant === 'panel' ? 1.25 : 1,
     alignItems: variant === 'panel' ? 'stretch' : 'center',

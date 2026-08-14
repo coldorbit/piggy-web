@@ -161,14 +161,26 @@ describe('job query filters', () => {
     assert.match(locationCondition.val, /raw_job->>'location'/);
   });
 
-  it('adds US and worldwide location conditions while excluding Canada', () => {
+  it('adds a UK location region condition', () => {
+    const query = buildJobQuery({ locationRegion: 'uk', since: 'all', visibility: 'all' });
+    const locationCondition = query.where[Op.and].find((condition) => condition[Op.and]);
+    const [includeCondition, excludeCanadaCondition] = locationCondition[Op.and];
+
+    assert.match(includeCondition.val, /united kingdom/);
+    assert.match(includeCondition.val, /london/);
+    assert.match(includeCondition.val, /raw_job->>'location'/);
+    assert.match(excludeCanadaCondition.val, /british columbia/);
+  });
+
+  it('adds US and worldwide location conditions while excluding Canada and the UK', () => {
     const query = buildJobQuery({ locationRegion: 'us_worldwide', since: 'all', visibility: 'all' });
     const locationCondition = query.where[Op.and].find((condition) => condition[Op.and]);
-    const [includeCondition, excludeCondition] = locationCondition[Op.and];
+    const [includeCondition, excludeCanadaCondition, excludeUkCondition] = locationCondition[Op.and];
 
     assert.ok(includeCondition[Op.or].some((condition) => String(condition.val || '').includes('worldwide')));
     assert.ok(includeCondition[Op.or].some((condition) => String(condition.val || '').includes("raw_job->>'location'")));
-    assert.ok(excludeCondition[Op.or].some((condition) => String(condition.val || '').includes('!~*')));
+    assert.ok(excludeCanadaCondition[Op.or].some((condition) => String(condition.val || '').includes('!~*')));
+    assert.ok(excludeUkCondition[Op.or].some((condition) => String(condition.val || '').includes('united kingdom')));
   });
 });
 

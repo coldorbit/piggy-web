@@ -1,4 +1,5 @@
 const CANADA_PATTERN = /\b(canada|canadian|toronto|vancouver|montreal|ottawa|calgary|edmonton|winnipeg|quebec|ontario|british columbia|alberta|manitoba|saskatchewan|nova scotia|new brunswick|newfoundland|labrador|prince edward island|yukon|nunavut|northwest territories)\b|,\s*(can|on|bc|ab|mb|sk|qc|ns|nb|nl|pe|yt|nt|nu)(?:$|[\s,)/-])/i;
+const UK_PATTERN = /\b(united kingdom|great britain|england|scotland|wales|northern ireland|london|edinburgh|glasgow|cardiff|belfast)\b|(?:^|[\s,(/-])(uk|gb)(?:$|[\s,)/-])/i;
 const US_WORLDWIDE_PATTERN = /\b(united states|usa|u\.s\.a\.|u\.s\.|us only|remote us|worldwide|global|anywhere|americas|north america|new york|san francisco|los angeles|seattle|austin|boston|chicago|denver|atlanta|dallas|miami|washington dc|washington, dc|california|texas|florida|illinois|massachusetts|georgia|colorado|washington state)\b|(?:^|[\s,(/-])(us|ny|sf|ca|tx|fl|wa|ma|il|ga|co|az|pa|nj|nc|va|mi|oh|or|ut|tn)(?:$|[\s,)/-])/i;
 
 export function jobRegion(job) {
@@ -9,6 +10,15 @@ export function jobRegion(job) {
       label: 'Canada',
       color: '#9F1239',
       bgcolor: '#FFE4E6',
+    };
+  }
+
+  if (locations.some((location) => UK_PATTERN.test(location))) {
+    return {
+      value: 'uk',
+      label: 'UK',
+      color: '#3730A3',
+      bgcolor: '#E0E7FF',
     };
   }
 
