@@ -44,6 +44,22 @@ describe('appliedProfileOptionsForActiveProfile', () => {
       [10],
     );
   });
+
+  it('excludes external profiles from applied profile options', () => {
+    const activeProfile = profile({ id: 1, profileBadge: 'DE' });
+    const profiles = [
+      profile({ id: 2, profileBadge: 'DE' }),
+      profile({ id: 3, profileBadge: 'DE', isExternal: true }),
+    ];
+
+    assert.deepEqual(
+      appliedProfileOptionsForActiveProfile({
+        activeProfile,
+        activeProfiles: profiles,
+      }).map((row) => row.id),
+      [2],
+    );
+  });
 });
 
 describe('isAppliedProfileFilterValid', () => {

@@ -84,7 +84,7 @@ export default function BidPage({ currentUser }) {
     { ...(canUseTomorrowDateFilter ? { scope: 'manage' } : {}), progress: 'daily', ...profileGoalFilters },
   );
   const activeProfiles = useMemo(
-    () => profiles.filter((profile) => (profile.profileStatus || 'active') === 'active'),
+    () => profiles.filter((profile) => !profile.isExternal && (profile.profileStatus || 'active') === 'active'),
     [profiles],
   );
   const activeProfilesWithWorkspace = useMemo(

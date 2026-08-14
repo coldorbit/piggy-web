@@ -54,13 +54,20 @@ import {
 } from '../lib/api.js';
 import { ADMIN_MANAGED_PROFILE_OWNER_ROLES, BIDDER_ROLES, PRIVILEGED_USER_ROLES, canAccessProfileHub, canUseWorkspaceLens, isAdminRole, isSuperadmin, roleLabel } from '../lib/roles.js';
 
-const PROFILE_STATUS_ORDER = ['active', 'draft', 'legacy'];
+const PROFILE_STATUS_ORDER = ['active', 'external', 'draft', 'legacy'];
+const PROFILE_LIFECYCLE_STATUSES = new Set(['active', 'draft', 'legacy', 'closed']);
 const PROFILE_STATUS_META = {
   active: {
     label: 'Active',
     emptyTitle: 'No active profiles',
     emptyDetail: 'Profiles ready for bidding and tailoring will appear here.',
     color: { main: '#16a34a', dark: '#166534', soft: '#dcfce7' },
+  },
+  external: {
+    label: 'External',
+    emptyTitle: 'No external profiles',
+    emptyDetail: 'Profiles marked as external will appear here.',
+    color: { main: '#7c3aed', dark: '#5b21b6', soft: '#ede9fe' },
   },
   draft: {
     label: 'Draft',
@@ -338,7 +345,7 @@ export default function ProfilesPage({ currentUser }) {
   const profileStatusSections = useMemo(() => profileStatusSectionsForProfiles(workspaceProfiles), [workspaceProfiles]);
   const activeStatusSection = profileStatusSections.find((section) => section.status === activeStatus) || profileStatusSections[0];
   const visibleProfiles = useMemo(
-    () => workspaceProfiles.filter((profile) => normalizedProfileStatus(profile.profileStatus) === activeStatusSection.status),
+    () => workspaceProfiles.filter((profile) => profileSection(profile) === activeStatusSection.status),
     [activeStatusSection.status, workspaceProfiles],
   );
   const editingProfile = profiles.find((profile) => String(profile.id) === String(editingProfileId)), canSetExternal = dialogMode === 'create' || superadminView || String(editingProfile?.userId || '') === String(currentUser?.id || '');
@@ -352,7 +359,7 @@ export default function ProfilesPage({ currentUser }) {
     if (!highlightedProfileId || !profiles.length) return;
     const highlightedProfile = profiles.find((profile) => String(profile.id) === String(highlightedProfileId));
     if (!highlightedProfile) return;
-    setActiveStatus(normalizedProfileStatus(highlightedProfile.profileStatus));
+    setActiveStatus(profileSection(highlightedProfile));
     if (workspaceLensEnabled) setActiveWorkspaceId(String(highlightedProfile.workspaceId || 'unassigned'));
   }, [highlightedProfileId, profiles, setActiveWorkspaceId, workspaceLensEnabled]);
 
@@ -856,7 +863,7 @@ function ProfileStatusSkeletons() {
 function profileStatusSectionsForProfiles(profiles) {
   const counts = new Map();
   for (const profile of profiles) {
-    const status = normalizedProfileStatus(profile.profileStatus);
+    const status = profileSection(profile);
     counts.set(status, (counts.get(status) || 0) + 1);
   }
 
@@ -870,9 +877,13 @@ function profileStatusSectionsForProfiles(profiles) {
   }));
 }
 
+function profileSection(profile) {
+  return profile?.isExternal ? 'external' : normalizedProfileStatus(profile?.profileStatus);
+}
+
 function normalizedProfileStatus(status) {
   const value = String(status || 'active').toLowerCase();
-  return PROFILE_STATUS_META[value] ? value : 'active';
+  return PROFILE_LIFECYCLE_STATUSES.has(value) ? value : 'active';
 }
 
 function profileStatusColor(status) {

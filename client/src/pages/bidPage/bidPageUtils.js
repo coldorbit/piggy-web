@@ -53,6 +53,7 @@ export function appliedProfileOptionsForActiveProfile({ activeProfile, activePro
   const activeProfileBadge = activeProfile ? profileBadge(activeProfile) : '';
 
   return sourceProfiles
+    .filter((profile) => !profile.isExternal)
     .filter((profile) => (profile.profileStatus || 'active') === 'active')
     .filter((profile) => String(profile.id) !== activeProfileId)
     .filter((profile) => !activeProfileBadge || profileBadge(profile) === activeProfileBadge);
