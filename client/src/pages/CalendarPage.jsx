@@ -371,6 +371,7 @@ function calendarEvents(jobs, profileById, checkedProfileIds, search, conflicts 
         interviewCallId: job.interviewCallId || job.bid?.interviewCallId || null,
         interviewId: job.interviewId || job.bid?.parentInterviewId || null,
         occurrenceLogId: job.occurrenceLogId || job.bid?.occurrenceLogId || null,
+        status: job.bid?.status || '',
         title: job.title || 'Untitled role',
         company: job.company || 'Unknown company',
         location: job.location || '',

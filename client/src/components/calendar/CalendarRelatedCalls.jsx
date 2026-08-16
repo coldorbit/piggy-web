@@ -2,6 +2,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Alert, Box, Button, Chip, LinearProgress, Paper, Typography } from '@mui/material';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { useRelatedCalendarCalls } from '../../lib/api.js';
+import { isLowAttentionCalendarCall, LOW_ATTENTION_CALL_COLOR } from './calendarCallUtils.js';
 
 export default function CalendarRelatedCalls({ event }) {
   const { data, error, isLoading } = useRelatedCalendarCalls(event?.interviewId);
@@ -68,30 +69,31 @@ function CallGroup({ calls, event, label }) {
 function TimelineCallCard({ call, isLast, selected }) {
   const meetingUrl = externalUrl(call.meetingLink);
   const jobUrl = externalUrl(call.jobUrl);
+  const isLowAttention = isLowAttentionCalendarCall(call);
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '14px minmax(0, 1fr)', gap: 1 }}>
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1 }} aria-hidden="true">
-        <Box sx={{ bgcolor: selected ? 'primary.main' : 'text.disabled', borderRadius: '50%', height: 8, width: 8 }} />
+        <Box sx={{ bgcolor: isLowAttention ? LOW_ATTENTION_CALL_COLOR.main : selected ? 'primary.main' : 'text.disabled', borderRadius: '50%', height: 8, width: 8 }} />
         {!isLast ? <Box sx={{ bgcolor: 'divider', flex: 1, minHeight: 20, mt: 0.5, width: 2 }} /> : null}
       </Box>
       <Paper
         variant="outlined"
         sx={{
-          bgcolor: selected ? 'action.selected' : 'background.paper',
-          borderColor: selected ? 'primary.main' : 'divider',
+          bgcolor: isLowAttention ? LOW_ATTENTION_CALL_COLOR.soft : selected ? 'action.selected' : 'background.paper',
+          borderColor: isLowAttention ? LOW_ATTENTION_CALL_COLOR.border : selected ? 'primary.main' : 'divider',
           p: 1.25,
         }}
       >
         <Box sx={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 0.75, justifyContent: 'space-between' }}>
-          <Typography fontWeight={700} variant="body2">
+          <Typography color={isLowAttention ? 'text.secondary' : 'text.primary'} fontWeight={isLowAttention ? 500 : 700} variant="body2">
             {formatDateTimeInDefaultTimezone(call.startsAt)}
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {selected ? <Chip color="primary" label="Selected" size="small" /> : null}
+            {selected ? <Chip color={isLowAttention ? 'default' : 'primary'} label="Selected" size="small" variant={isLowAttention ? 'outlined' : 'filled'} /> : null}
             {call.stage ? <Chip label={stageLabel(call.stage)} size="small" variant="outlined" /> : null}
           </Box>
         </Box>
-        <Typography sx={{ mt: 0.4 }} variant="body2">
+        <Typography color={isLowAttention ? 'text.secondary' : 'text.primary'} sx={{ mt: 0.4 }} variant="body2">
           {call.title}
         </Typography>
         <Typography color="text.secondary" variant="caption">

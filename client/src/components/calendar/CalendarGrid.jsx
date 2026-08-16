@@ -31,6 +31,14 @@ import {
   zonedDateParts,
 } from '../../lib/timezone.js';
 import { PROFILE_COLORS } from '../profiles/profileConstants.js';
+import {
+  calendarCallCountLabel,
+  calendarCallDurationLabel,
+  compactCalendarEventLabel,
+  isLowAttentionCalendarCall,
+  LOW_ATTENTION_CALL_COLOR,
+  lowAttentionCalendarEventAriaLabel,
+} from './calendarCallUtils.js';
 import { CALENDAR_VIEWS } from './CalendarToolbar.jsx';
 import CalendarRelatedCalls from './CalendarRelatedCalls.jsx';
 
@@ -316,7 +324,7 @@ function WeekDayHeader({ day, eventCount }) {
           {dateKeyDay(day)}
         </Typography>
         <Typography variant="caption" color={GOOGLE_CALENDAR_MUTED} sx={{ fontSize: 10, lineHeight: 1.2 }}>
-          {callCountLabel(eventCount)}
+          {calendarCallCountLabel(eventCount)}
         </Typography>
       </Box>
     </Box>
@@ -384,6 +392,8 @@ function WeekDayColumn({ day, column, draggedEventId, events, now, selectedEvent
 
 function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, onDragStart, onEventClick }) {
   const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green, isExternal = Boolean(event.profile?.isExternal);
+  const isLowAttention = isLowAttentionCalendarCall(event);
+  const eventColor = isLowAttention ? LOW_ATTENTION_CALL_COLOR : color;
   const top = eventTop(event.startsAt);
   const height = eventHeight(event.durationMinutes);
   const isCompact = height < 44;
@@ -394,6 +404,7 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
       component="button"
       type="button"
       draggable={Boolean(event.canDrag)}
+      aria-label={isLowAttention ? lowAttentionCalendarEventAriaLabel(event) : undefined}
       aria-pressed={isSelected}
       onDragEnd={onDragEnd}
       onDragStart={(dragEvent) => beginEventDrag(dragEvent, event, onDragStart)}
@@ -406,11 +417,11 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
           width,
           minHeight: 0,
           boxSizing: 'border-box',
-          border: `${isExternal ? 2 : 1}px ${isExternal ? 'dashed' : 'solid'} ${isExternal ? EXTERNAL_PROFILE_BORDER : GOOGLE_CALENDAR_BORDER}`,
-          borderLeft: `${isSelected ? 5 : 3}px solid ${color.main}`,
-          bgcolor: isSelected ? color.main : color.soft,
-          backgroundImage: isExternal && !isSelected ? 'repeating-linear-gradient(135deg, transparent 0, transparent 7px, rgba(124, 58, 237, 0.08) 7px, rgba(124, 58, 237, 0.08) 10px)' : 'none',
-          color: isSelected ? '#FFFFFF' : color.dark,
+          border: `${isExternal ? 2 : 1}px ${isExternal ? 'dashed' : 'solid'} ${isLowAttention ? eventColor.border : isExternal ? EXTERNAL_PROFILE_BORDER : GOOGLE_CALENDAR_BORDER}`,
+          borderLeft: `${isSelected ? 5 : 3}px solid ${isSelected && isLowAttention ? eventColor.selected : eventColor.main}`,
+          bgcolor: isSelected ? (isLowAttention ? eventColor.selected : eventColor.main) : eventColor.soft,
+          backgroundImage: isExternal && !isSelected && !isLowAttention ? 'repeating-linear-gradient(135deg, transparent 0, transparent 7px, rgba(124, 58, 237, 0.08) 7px, rgba(124, 58, 237, 0.08) 10px)' : 'none',
+          color: isSelected ? '#FFFFFF' : eventColor.dark,
           borderRadius: '4px',
           px: 0.75,
           py: 0,
@@ -427,7 +438,7 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
           textAlign: 'left',
           zIndex: isSelected ? 20 : layout?.column + 1 || 1,
           '&:hover': {
-            boxShadow: isSelected ? '0 5px 12px rgba(60, 64, 67, 0.3)' : '0 1px 4px rgba(60, 64, 67, 0.24)',
+            boxShadow: isSelected ? '0 5px 12px rgba(60, 64, 67, 0.3)' : isLowAttention ? '0 1px 2px rgba(60, 64, 67, 0.12)' : '0 1px 4px rgba(60, 64, 67, 0.24)',
             zIndex: isSelected ? 20 : 10,
           },
           '&:active': {
@@ -440,16 +451,16 @@ function WeekCalendarEvent({ event, isDragging, isSelected, layout, onDragEnd, o
       }}
     >
       {isCompact ? (
-        <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.15 }}>
-          {compactEventLabel(event)}
+        <Typography variant="caption" fontWeight={isLowAttention ? 500 : 600} noWrap sx={{ lineHeight: 1.15 }}>
+          {compactCalendarEventLabel(event)}
         </Typography>
       ) : (
         <>
-          <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
+          <Typography variant="caption" fontWeight={isLowAttention ? 500 : 600} noWrap sx={{ lineHeight: 1.25 }}>
             {event.title}
           </Typography>
           <Typography variant="caption" noWrap sx={{ opacity: isSelected ? 1 : 0.9, lineHeight: 1.25 }}>
-            {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)} · {compactEventLabel(event)}
+            {timeLabel(event.startsAt)} · {calendarCallDurationLabel(event.durationMinutes)} · {compactCalendarEventLabel(event)}
           </Typography>
           {event.hasConflict ? (
             <Typography variant="caption" fontWeight={600} noWrap sx={{ opacity: isSelected ? 1 : 0.95, lineHeight: 1.25 }}>
@@ -542,7 +553,7 @@ function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEven
           {dateKeyDay(day)}
         </Typography>
         <Typography variant="caption" color={GOOGLE_CALENDAR_MUTED} sx={{ pr: 0.75, fontSize: 10 }}>
-          {callCountLabel(events.length)}
+          {calendarCallCountLabel(events.length)}
         </Typography>
       </Box>
       <Box sx={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start', gap: 0.25 }}>
@@ -569,11 +580,14 @@ function CalendarDay({ day, draggedEventId, events, isCurrentMonth, selectedEven
 
 function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, onEventClick }) {
   const color = event.profile?.calendarColor || PROFILE_COLORS[event.profile?.colorScheme] || PROFILE_COLORS.green, isExternal = Boolean(event.profile?.isExternal);
+  const isLowAttention = isLowAttentionCalendarCall(event);
+  const eventColor = isLowAttention ? LOW_ATTENTION_CALL_COLOR : color;
   return (
     <Box
       component="button"
       type="button"
       draggable={Boolean(event.canDrag)}
+      aria-label={isLowAttention ? lowAttentionCalendarEventAriaLabel(event) : undefined}
       aria-pressed={isSelected}
       onDragEnd={onDragEnd}
       onDragStart={(dragEvent) => beginEventDrag(dragEvent, event, onDragStart)}
@@ -581,11 +595,11 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
       sx={{
           minWidth: 0,
           boxSizing: 'border-box',
-          border: `${isExternal ? 2 : 1}px ${isExternal ? 'dashed' : 'solid'} ${isExternal ? EXTERNAL_PROFILE_BORDER : GOOGLE_CALENDAR_BORDER}`,
-          borderLeft: `${isSelected ? 5 : 3}px solid ${color.main}`,
-          bgcolor: isSelected ? color.main : color.soft,
-          backgroundImage: isExternal && !isSelected ? 'repeating-linear-gradient(135deg, transparent 0, transparent 7px, rgba(124, 58, 237, 0.08) 7px, rgba(124, 58, 237, 0.08) 10px)' : 'none',
-          color: isSelected ? '#FFFFFF' : color.dark,
+          border: `${isExternal ? 2 : 1}px ${isExternal ? 'dashed' : 'solid'} ${isLowAttention ? eventColor.border : isExternal ? EXTERNAL_PROFILE_BORDER : GOOGLE_CALENDAR_BORDER}`,
+          borderLeft: `${isSelected ? 5 : 3}px solid ${isSelected && isLowAttention ? eventColor.selected : eventColor.main}`,
+          bgcolor: isSelected ? (isLowAttention ? eventColor.selected : eventColor.main) : eventColor.soft,
+          backgroundImage: isExternal && !isSelected && !isLowAttention ? 'repeating-linear-gradient(135deg, transparent 0, transparent 7px, rgba(124, 58, 237, 0.08) 7px, rgba(124, 58, 237, 0.08) 10px)' : 'none',
+          color: isSelected ? '#FFFFFF' : eventColor.dark,
           borderRadius: '4px',
           px: 0.75,
           py: 0,
@@ -599,7 +613,7 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
           outlineOffset: isSelected ? 1 : 0,
           boxShadow: isSelected ? '0 4px 10px rgba(60, 64, 67, 0.28)' : 'none',
           '&:hover': {
-            boxShadow: isSelected ? '0 5px 12px rgba(60, 64, 67, 0.3)' : '0 1px 4px rgba(60, 64, 67, 0.24)',
+            boxShadow: isSelected ? '0 5px 12px rgba(60, 64, 67, 0.3)' : isLowAttention ? '0 1px 2px rgba(60, 64, 67, 0.12)' : '0 1px 4px rgba(60, 64, 67, 0.24)',
           },
           '&:active': {
             cursor: event.canDrag ? 'grabbing' : 'pointer',
@@ -610,11 +624,11 @@ function CalendarEvent({ event, isDragging, isSelected, onDragEnd, onDragStart, 
           },
       }}
     >
-      <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
-        {compactEventLabel(event)}
+      <Typography variant="caption" fontWeight={isLowAttention ? 500 : 600} noWrap sx={{ lineHeight: 1.25 }}>
+        {compactCalendarEventLabel(event)}
       </Typography>
       <Typography variant="caption" noWrap sx={{ opacity: 0.9, lineHeight: 1.25 }}>
-        {timeLabel(event.startsAt)} · {durationLabel(event.durationMinutes)}
+        {timeLabel(event.startsAt)} · {calendarCallDurationLabel(event.durationMinutes)}
       </Typography>
       {event.hasConflict ? (
         <Typography variant="caption" fontWeight={600} noWrap sx={{ lineHeight: 1.25 }}>
@@ -664,10 +678,13 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
                 {event.title}
               </Typography>
               <Typography variant="body2" color="text.secondary" fontWeight={600} noWrap>
-                {compactEventLabel(event)}
+                {compactCalendarEventLabel(event)}
               </Typography>
               {event.hasConflict ? (
                 <Chip label="Schedule conflict" color="error" size="small" sx={{ justifySelf: 'start', borderRadius: 1, fontWeight: 600 }} />
+              ) : null}
+              {isLowAttentionCalendarCall(event) ? (
+                <Chip label="Failed/lost" size="small" variant="outlined" sx={{ justifySelf: 'start', color: 'text.secondary', borderColor: 'divider', borderRadius: 1 }} />
               ) : null}
               {event.profile?.isExternal ? <Chip label="External profile" size="small" variant="outlined" sx={{ justifySelf: 'start', borderColor: EXTERNAL_PROFILE_BORDER, bgcolor: '#F5F3FF', color: '#5B21B6', borderRadius: 1, fontWeight: 600 }} /> : null}
             </Box>
@@ -682,7 +699,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
             }}
           >
             <Box sx={{ display: 'grid', gap: 1.25 }}>
-              <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${durationLabel(event.durationMinutes)}`} />
+              <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${calendarCallDurationLabel(event.durationMinutes)}`} />
               <DetailRow label="Profile" value={event.profile?.name || 'Profile'} />
               {owner.username ? <DetailRow label="User" value={owner.username} /> : null}
               {applicationActor ? <DetailRow label="Applied by" value={[applicationActor.username, applicationActor.label].filter(Boolean).join(' · ')} /> : null}
@@ -931,17 +948,6 @@ function eventHeight(durationMinutes = 60) {
   return Math.max((Number(durationMinutes || 60) / 60) * HOUR_HEIGHT, 1);
 }
 
-function durationLabel(durationMinutes = 60) {
-  const minutes = Number(durationMinutes || 60);
-  if (minutes === 60) return '1 hr';
-  if (minutes === 120) return '2 hrs';
-  return `${minutes} mins`;
-}
-
-function compactEventLabel(event) {
-  return [event.profile?.name || 'Profile', event.company || 'Unknown company', event.profile?.isExternal ? 'External' : null].filter(Boolean).join(' · ');
-}
-
 export function canDeleteCalendarCall(user, event) {
   if (!event?.interviewCallId) return false;
   if (isSuperadmin(user)) return true;
@@ -952,10 +958,6 @@ export function canDeleteCalendarCall(user, event) {
     || event.profile?.userId
     || '';
   return String(ownerUserId) === userId;
-}
-
-function callCountLabel(count) {
-  return `${count} ${count === 1 ? 'call' : 'calls'}`;
 }
 
 function profileOwnerForEvent(event) {
