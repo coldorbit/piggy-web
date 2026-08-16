@@ -1,6 +1,7 @@
 import HeadsetMicIcon from '@mui/icons-material/HeadsetMic';
 import LabelIcon from '@mui/icons-material/Label';
 import PersonIcon from '@mui/icons-material/Person';
+import SwapCallsIcon from '@mui/icons-material/SwapCalls';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import {
   Box,
@@ -37,16 +38,24 @@ const SECTIONS = {
     color: { main: '#5F5F5F', dark: '#334155', soft: '#F1F5F9' },
   },
   classifications: {
-    label: 'Classification',
+    label: 'Application',
     empty: 'No classified meetings in this view.',
     icon: <LabelIcon fontSize="small" />,
     color: { main: '#7C3AED', dark: '#5B21B6', soft: '#EDE9FE' },
+  },
+  callTypes: {
+    label: 'Call type',
+    empty: 'No internal or external calls in this view.',
+    icon: <SwapCallsIcon fontSize="small" />,
+    color: { main: '#0067C0', dark: '#004E8C', soft: 'rgba(0, 103, 192, 0.16)' },
   },
 };
 
 export default function CalendarScheduleLens({
   callerGroups = [],
+  callTypeGroups = [],
   checkedCallerIds = [],
+  checkedCallTypeIds = [],
   checkedClassificationIds = [],
   checkedProfileIds = [],
   checkedUserIds = [],
@@ -56,6 +65,9 @@ export default function CalendarScheduleLens({
   onCallerChange,
   onCallerSelectAll,
   onCallerSelectNone,
+  onCallTypeChange,
+  onCallTypeSelectAll,
+  onCallTypeSelectNone,
   onClassificationChange,
   onClassificationSelectAll,
   onClassificationSelectNone,
@@ -90,6 +102,13 @@ export default function CalendarScheduleLens({
         onSelectAll: onProfileSelectAll,
         onSelectNone: onProfileSelectNone,
       },
+      callTypes: {
+        rows: callTypeGroups,
+        checkedIds: checkedCallTypeIds,
+        onChange: onCallTypeChange,
+        onSelectAll: onCallTypeSelectAll,
+        onSelectNone: onCallTypeSelectNone,
+      },
       classifications: {
         rows: classificationGroups,
         checkedIds: checkedClassificationIds,
@@ -100,7 +119,9 @@ export default function CalendarScheduleLens({
     }),
     [
       callerGroups,
+      callTypeGroups,
       checkedCallerIds,
+      checkedCallTypeIds,
       checkedClassificationIds,
       checkedProfileIds,
       checkedUserIds,
@@ -108,6 +129,9 @@ export default function CalendarScheduleLens({
       onCallerChange,
       onCallerSelectAll,
       onCallerSelectNone,
+      onCallTypeChange,
+      onCallTypeSelectAll,
+      onCallTypeSelectNone,
       onClassificationChange,
       onClassificationSelectAll,
       onClassificationSelectNone,

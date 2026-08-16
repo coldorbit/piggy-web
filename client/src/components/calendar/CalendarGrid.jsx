@@ -687,6 +687,7 @@ function CalendarEventDialog({ callerUsers = [], currentUser = {}, event, isAssi
             <Box sx={{ display: 'grid', gap: 1.25 }}>
               <DetailRow label="Time" value={`${formatDateTimeInDefaultTimezone(event.startsAt)} · ${calendarCallDurationLabel(event.durationMinutes)}`} />
               <DetailRow label="Profile" value={event.profile?.name || 'Profile'} />
+              <DetailRow label="Call type" value={event.profile?.isExternal ? 'External' : 'Internal'} />
               {owner.username ? <DetailRow label="User" value={owner.username} /> : null}
               {applicationActor ? <DetailRow label="Applied by" value={[applicationActor.username, applicationActor.label].filter(Boolean).join(' · ')} /> : null}
               <DetailRow label="Company" value={event.company || 'Unknown company'} />
