@@ -1,16 +1,27 @@
 import { timeLabelInDefaultTimezone } from '../../lib/timezone.js';
 
-export const LOW_ATTENTION_CALL_COLOR = {
-  border: '#E1E4E8',
-  dark: '#5F6368',
-  main: '#9AA0A6',
-  selected: '#5F6368',
-  soft: '#F5F6F7',
-};
-
 export function isLowAttentionCalendarCall(call) {
   const status = call?.status || call?.job?.bid?.status || '';
   return ['failed', 'lost'].includes(String(status).trim().toLowerCase());
+}
+
+export function calendarCallInteractionSx({ canDrag, isDragging, isLowAttention, isSelected, raiseOnHover = false }) {
+  return {
+    boxShadow: isSelected ? '0 4px 10px rgba(60, 64, 67, 0.28)' : 'none',
+    filter: isLowAttention && !isSelected ? 'saturate(0.45)' : 'none',
+    opacity: isDragging ? 0.45 : isLowAttention && !isSelected ? 0.58 : 1,
+    '&:active': { cursor: canDrag ? 'grabbing' : 'pointer' },
+    '&:focus-visible': {
+      filter: 'none',
+      opacity: 1,
+      outline: '3px solid rgba(37, 99, 235, 0.42)',
+      outlineOffset: 2,
+    },
+    '&:hover': {
+      boxShadow: isSelected ? '0 5px 12px rgba(60, 64, 67, 0.3)' : isLowAttention ? 'none' : '0 1px 4px rgba(60, 64, 67, 0.24)',
+      ...(raiseOnHover ? { zIndex: isSelected ? 20 : 10 } : {}),
+    },
+  };
 }
 
 export function calendarCallCountLabel(count) {

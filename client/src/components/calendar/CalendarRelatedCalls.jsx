@@ -1,8 +1,9 @@
+import DoNotDisturbOnOutlinedIcon from '@mui/icons-material/DoNotDisturbOnOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Alert, Box, Button, Chip, LinearProgress, Paper, Typography } from '@mui/material';
 import { formatDateTimeInDefaultTimezone } from '../../lib/formatters.js';
 import { useRelatedCalendarCalls } from '../../lib/api.js';
-import { isLowAttentionCalendarCall, LOW_ATTENTION_CALL_COLOR } from './calendarCallUtils.js';
+import { isLowAttentionCalendarCall } from './calendarCallUtils.js';
 
 export default function CalendarRelatedCalls({ event }) {
   const { data, error, isLoading } = useRelatedCalendarCalls(event?.interviewId);
@@ -73,14 +74,16 @@ function TimelineCallCard({ call, isLast, selected }) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '14px minmax(0, 1fr)', gap: 1 }}>
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1 }} aria-hidden="true">
-        <Box sx={{ bgcolor: isLowAttention ? LOW_ATTENTION_CALL_COLOR.main : selected ? 'primary.main' : 'text.disabled', borderRadius: '50%', height: 8, width: 8 }} />
+        <Box sx={{ bgcolor: selected ? 'primary.main' : 'text.disabled', borderRadius: '50%', height: 8, width: 8 }} />
         {!isLast ? <Box sx={{ bgcolor: 'divider', flex: 1, minHeight: 20, mt: 0.5, width: 2 }} /> : null}
       </Box>
       <Paper
         variant="outlined"
         sx={{
-          bgcolor: isLowAttention ? LOW_ATTENTION_CALL_COLOR.soft : selected ? 'action.selected' : 'background.paper',
-          borderColor: isLowAttention ? LOW_ATTENTION_CALL_COLOR.border : selected ? 'primary.main' : 'divider',
+          bgcolor: selected ? 'action.selected' : 'background.paper',
+          borderColor: selected ? 'primary.main' : 'divider',
+          filter: isLowAttention ? 'saturate(0.45)' : 'none',
+          opacity: isLowAttention ? 0.72 : 1,
           p: 1.25,
         }}
       >
@@ -89,7 +92,8 @@ function TimelineCallCard({ call, isLast, selected }) {
             {formatDateTimeInDefaultTimezone(call.startsAt)}
           </Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {selected ? <Chip color={isLowAttention ? 'default' : 'primary'} label="Selected" size="small" variant={isLowAttention ? 'outlined' : 'filled'} /> : null}
+            {selected ? <Chip color="primary" label="Selected" size="small" /> : null}
+            {isLowAttention ? <Chip icon={<DoNotDisturbOnOutlinedIcon />} label="Lost" size="small" variant="outlined" /> : null}
             {call.stage ? <Chip label={stageLabel(call.stage)} size="small" variant="outlined" /> : null}
           </Box>
         </Box>

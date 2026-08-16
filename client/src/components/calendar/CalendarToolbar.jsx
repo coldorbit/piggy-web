@@ -7,8 +7,10 @@ import {
   Button,
   CircularProgress,
   Divider,
+  FormControlLabel,
   IconButton,
   Paper,
+  Switch,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -22,7 +24,7 @@ export const CALENDAR_VIEWS = {
   week: 'week',
 };
 
-export default function CalendarToolbar({ conflictCount = 0, isLoading, onExportIcs, rangeLabel, scheduledCount, view, onMove, onToday, onViewChange }) {
+export default function CalendarToolbar({ conflictCount = 0, failedLostCount = 0, isLoading, onExportIcs, onShowFailedLostChange, rangeLabel, scheduledCount, showFailedLost = false, view, onMove, onToday, onViewChange }) {
   return (
     <Paper
       variant="outlined"
@@ -71,6 +73,13 @@ export default function CalendarToolbar({ conflictCount = 0, isLoading, onExport
           <Typography variant="caption" color="error" fontWeight={600}>
             {conflictCount.toLocaleString()} conflict{conflictCount === 1 ? '' : 's'}
           </Typography>
+        ) : null}
+        {failedLostCount ? (
+          <FormControlLabel
+            control={<Switch checked={showFailedLost} onChange={(event) => onShowFailedLostChange?.(event.target.checked)} size="small" />}
+            label={<Typography variant="caption">Show failed/lost ({failedLostCount.toLocaleString()})</Typography>}
+            sx={{ m: 0, color: '#5F6368', whiteSpace: 'nowrap' }}
+          />
         ) : null}
         <Button startIcon={<DownloadIcon />} onClick={onExportIcs} variant="outlined" sx={{ whiteSpace: 'nowrap', borderColor: '#DADCE0', color: '#3C4043' }}>
           ICS

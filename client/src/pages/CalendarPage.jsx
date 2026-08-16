@@ -6,6 +6,7 @@ import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.j
 import CalendarGrid from '../components/calendar/CalendarGrid.jsx';
 import CalendarScheduleLens from '../components/calendar/CalendarScheduleLens.jsx';
 import CalendarToolbar, { CALENDAR_VIEWS } from '../components/calendar/CalendarToolbar.jsx';
+import { isLowAttentionCalendarCall } from '../components/calendar/calendarCallUtils.js';
 import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
 import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
 import { api, downloadAuthenticatedFile, useUpdateInterviewCall, useUpdateJobBid } from '../lib/api.js';
@@ -45,6 +46,7 @@ export default function CalendarPage({ currentUser }) {
   const [checkedUserIds, setCheckedUserIds] = useState([]);
   const [checkedCallerIds, setCheckedCallerIds] = useState([]);
   const [checkedClassificationIds, setCheckedClassificationIds] = useState([]);
+  const [showFailedLostCalls, setShowFailedLostCalls] = useState(false);
   const [calendarActionError, setCalendarActionError] = useState('');
   const queryClient = useQueryClient();
   const { setSearch: setHeaderSearch } = useHeaderSearch();
@@ -132,13 +134,23 @@ export default function CalendarPage({ currentUser }) {
     () => filterEventsByVisibleRange(searchableEvents, view, cursorDate, visibleDays),
     [cursorDate, searchableEvents, view, visibleDays],
   );
+  const failedLostCallCount = useMemo(
+    () => rangeFilteredSearchableEvents.filter(isLowAttentionCalendarCall).length,
+    [rangeFilteredSearchableEvents],
+  );
+  const attentionFilteredEvents = useMemo(
+    () => showFailedLostCalls
+      ? rangeFilteredSearchableEvents
+      : rangeFilteredSearchableEvents.filter((event) => !isLowAttentionCalendarCall(event)),
+    [rangeFilteredSearchableEvents, showFailedLostCalls],
+  );
   const profileFilteredEvents = useMemo(
-    () => filterEventsByProfiles(rangeFilteredSearchableEvents, checkedProfileIds),
-    [rangeFilteredSearchableEvents, checkedProfileIds],
+    () => filterEventsByProfiles(attentionFilteredEvents, checkedProfileIds),
+    [attentionFilteredEvents, checkedProfileIds],
   );
   const profileGroups = useMemo(
-    () => profileScheduleGroups(calendarProfiles, rangeFilteredSearchableEvents),
-    [calendarProfiles, rangeFilteredSearchableEvents],
+    () => profileScheduleGroups(calendarProfiles, attentionFilteredEvents),
+    [attentionFilteredEvents, calendarProfiles],
   );
   const profileGroupIds = useMemo(
     () => profileGroups.map((group) => group.id),
@@ -194,7 +206,7 @@ export default function CalendarPage({ currentUser }) {
     [cursorDate, events, view, visibleDays],
   );
   const visibleConflictCount = useMemo(
-    () => events.filter((event) => event.hasConflict).length,
+    () => events.filter((event) => event.hasConflict && !isLowAttentionCalendarCall(event)).length,
     [events],
   );
 
@@ -298,9 +310,12 @@ export default function CalendarPage({ currentUser }) {
       <CalendarToolbar
         isLoading={loading}
         conflictCount={visibleConflictCount}
+        failedLostCount={failedLostCallCount}
         onExportIcs={() => downloadAuthenticatedFile(calendarMeta.icsUrl || '/api/bid/calendar.ics', 'applypilot-interviews.ics')}
+        onShowFailedLostChange={setShowFailedLostCalls}
         rangeLabel={rangeLabel}
         scheduledCount={scheduledCount}
+        showFailedLost={showFailedLostCalls}
         view={view}
         onMove={moveCursor}
         onToday={() => setCursorDate(defaultTimezoneTodayKey())}
