@@ -24,7 +24,7 @@ export const CALENDAR_VIEWS = {
   week: 'week',
 };
 
-export default function CalendarToolbar({ conflictCount = 0, failedLostCount = 0, isLoading, onExportIcs, onShowFailedLostChange, rangeLabel, scheduledCount, showFailedLost = false, view, onMove, onToday, onViewChange }) {
+export default function CalendarToolbar({ conflictCount = 0, failedLostCount = 0, isLoading, onExportIcs, onShowFailedLostChange, rangeLabel, scheduledCount, showFailedLost = true, view, onMove, onToday, onViewChange }) {
   return (
     <Paper
       variant="outlined"

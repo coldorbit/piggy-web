@@ -46,7 +46,7 @@ export default function CalendarPage({ currentUser }) {
   const [checkedUserIds, setCheckedUserIds] = useState([]);
   const [checkedCallerIds, setCheckedCallerIds] = useState([]);
   const [checkedClassificationIds, setCheckedClassificationIds] = useState([]);
-  const [showFailedLostCalls, setShowFailedLostCalls] = useState(false);
+  const [showFailedLostCalls, setShowFailedLostCalls] = useState(true);
   const [calendarActionError, setCalendarActionError] = useState('');
   const queryClient = useQueryClient();
   const { setSearch: setHeaderSearch } = useHeaderSearch();
