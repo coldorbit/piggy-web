@@ -4,6 +4,7 @@ import {
   listConsumptionRecords,
   updateConsumptionRecord,
 } from '../application/consumptionService.js';
+import { createConsumptionExport } from '../application/consumptionExportService.js';
 import { handleInputError } from '../../../utils/errors.js';
 
 export async function listConsumption(_req, res, next) {
@@ -12,6 +13,17 @@ export async function listConsumption(_req, res, next) {
     res.json({ consumption });
   } catch (error) {
     next(error);
+  }
+}
+
+export async function exportConsumption(req, res, next) {
+  try {
+    const { buffer, filename } = await createConsumptionExport(req.query);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    handleInputError(error, res, next);
   }
 }
 

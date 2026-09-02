@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { requireAdmin, requireSuperadmin } from '../server/middleware/authMiddleware.js';
+import { requireAdmin, requireConsumptionAccess, requireSuperadmin } from '../server/middleware/authMiddleware.js';
 import { registerAdminRoutes } from '../server/modules/admin/presentation/adminRoutes.js';
 
 describe('admin routes', () => {
@@ -13,6 +13,11 @@ describe('admin routes', () => {
     const routes = captureRoutes(registerAdminRoutes);
     assert.equal(routes.get.get('/api/admin/workspaces/:id/inbox-settings')[0], requireSuperadmin);
     assert.equal(routes.patch.get('/api/admin/workspaces/:id/inbox-settings')[0], requireSuperadmin);
+  });
+
+  it('protects consumption workbook exports with consumption access', () => {
+    const routes = captureRoutes(registerAdminRoutes);
+    assert.equal(routes.get.get('/api/admin/consumption/export')[0], requireConsumptionAccess);
   });
 });
 

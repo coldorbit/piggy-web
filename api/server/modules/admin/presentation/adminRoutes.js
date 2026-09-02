@@ -7,6 +7,7 @@ import {
   deleteUser,
   deleteWorkspace,
   getDashboard,
+  exportConsumption,
   getWorkspaceInboxSettings,
   listConsumption,
   listUsers,
@@ -21,6 +22,7 @@ import {
 export function registerAdminRoutes(app) {
   app.get('/api/admin/dashboard', requireAdmin, getDashboard);
   app.get('/api/admin/consumption', requireConsumptionAccess, listConsumption);
+  app.get('/api/admin/consumption/export', requireConsumptionAccess, exportConsumption);
   app.post('/api/admin/consumption', requireConsumptionAccess, createConsumption);
   app.patch('/api/admin/consumption/:id', requireConsumptionAccess, updateConsumption);
   app.delete('/api/admin/consumption/:id', requireConsumptionAccess, deleteConsumption);

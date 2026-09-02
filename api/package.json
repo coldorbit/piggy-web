@@ -17,6 +17,7 @@
     "amqplib": "^0.10.8",
     "compression": "^1.8.1",
     "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "imapflow": "^1.4.1",
     "mailparser": "^3.9.10",

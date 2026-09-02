@@ -2,6 +2,7 @@ export { getDashboard } from './dashboardController.js';
 export {
   createConsumption,
   deleteConsumption,
+  exportConsumption,
   listConsumption,
   updateConsumption,
 } from './consumptionController.js';

@@ -5,7 +5,7 @@ import {
   getSequelize,
   getWebUserModel,
 } from '../../../../db.js';
-import { QueryTypes } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import { clean } from '../../../utils/index.js';
 import { InputError, NotFoundError } from '../../../utils/errors.js';
 import { BIDDER_ROLES, ROLES } from '../../../utils/roles.js';
@@ -44,37 +44,45 @@ let defaultConsumptionAccountsPromise;
 export async function listConsumptionRecords() {
   await ensureDefaultConsumptionAccounts();
   const Account = getConsumptionAccountModel();
-  const Transaction = getConsumptionTransactionModel();
-  const LedgerEntry = getConsumptionLedgerEntryModel();
-  const WebUser = getWebUserModel();
 
   const [accounts, transactions, balanceRows, spenderOptions] = await Promise.all([
     Account.findAll({ where: { isActive: true }, order: [['sortOrder', 'ASC'], ['name', 'ASC']] }),
-    Transaction.findAll({
-      include: [
-        { model: WebUser, as: 'createdBy', attributes: ['id', 'username'] },
-        { model: WebUser, as: 'spentByUser', attributes: ['id', 'username', 'role'] },
-        { model: LedgerEntry, as: 'entries', include: [{ model: Account, as: 'account' }] },
-      ],
-      order: [['occurredAt', 'DESC'], ['id', 'DESC']],
-      limit: 500,
-    }),
+    listConsumptionTransactions({ limit: 500 }),
     consumptionBalanceRows(),
     consumptionSpenderOptions(),
   ]);
   const balances = new Map(balanceRows.map((row) => [String(row.account_id), Number(row.balance || 0)]));
   const formattedAccounts = accounts.map((account) => formatAccount(account, balances.get(String(account.id)) || 0));
-  const formattedTransactions = transactions.map(formatTransaction);
 
   return {
     accounts: formattedAccounts,
-    transactions: formattedTransactions,
+    transactions,
     totals: accounts.map((account) => ({ currency: account.currency, amount: balances.get(String(account.id)) || 0, accountName: account.name })),
     transactionTypes: TRANSACTION_TYPES,
     cryptoCurrencies: CRYPTO_CURRENCIES,
     teamWalletDepositCurrencies: TEAM_WALLET_DEPOSIT_CURRENCIES,
     spenderOptions,
   };
+}
+
+export async function listConsumptionTransactions({ from, to, limit } = {}) {
+  await ensureDefaultConsumptionAccounts();
+  const Account = getConsumptionAccountModel();
+  const Transaction = getConsumptionTransactionModel();
+  const LedgerEntry = getConsumptionLedgerEntryModel();
+  const WebUser = getWebUserModel();
+  const where = from && to ? { occurredAt: { [Op.gte]: from, [Op.lt]: to } } : undefined;
+  const transactions = await Transaction.findAll({
+    ...(where ? { where } : {}),
+    include: [
+      { model: WebUser, as: 'createdBy', attributes: ['id', 'username'] },
+      { model: WebUser, as: 'spentByUser', attributes: ['id', 'username', 'role'] },
+      { model: LedgerEntry, as: 'entries', include: [{ model: Account, as: 'account' }] },
+    ],
+    order: [['occurredAt', 'DESC'], ['id', 'DESC']],
+    ...(Number.isInteger(limit) ? { limit } : {}),
+  });
+  return transactions.map(formatTransaction);
 }
 
 export async function createConsumptionRecord(body, user) {

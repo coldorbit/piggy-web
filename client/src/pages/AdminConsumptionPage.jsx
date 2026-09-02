@@ -1,6 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import DownloadIcon from '@mui/icons-material/Download';
 import HelpOutlinedIcon from '@mui/icons-material/HelpOutlined';
 import TodayIcon from '@mui/icons-material/Today';
 import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, IconButton, Paper, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from '@mui/material';
@@ -12,7 +13,7 @@ import ConsumptionHelp from '../components/consumption/ConsumptionHelp.jsx';
 import TransactionLedger from '../components/consumption/TransactionLedger.jsx';
 import { CURRENCY_STYLES, EMPTY_CONSUMPTION_FORM } from '../components/consumption/consumptionConstants.js';
 import { dateFromCalendarValue, formatAmount, normalizeForm } from '../components/consumption/consumptionFormatters.js';
-import { useAdminConsumption, useCreateConsumptionRecord, useDeleteConsumptionRecord } from '../lib/api.js';
+import { downloadAuthenticatedFile, useAdminConsumption, useCreateConsumptionRecord, useDeleteConsumptionRecord } from '../lib/api.js';
 
 const PERIOD_OPTIONS = [
   { value: 'daily', label: 'Day' },
@@ -26,6 +27,7 @@ export default function AdminConsumptionPage() {
   const [error, setError] = useState('');
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
   const [isHelpDrawerOpen, setIsHelpDrawerOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [period, setPeriod] = useState('daily');
   const [periodAnchor, setPeriodAnchor] = useState(() => new Date());
   const { data, isFetching, isLoading, error: queryError, refetch } = useAdminConsumption();
@@ -42,6 +44,7 @@ export default function AdminConsumptionPage() {
   );
   const periodSummary = useMemo(() => summarizeTransactions(periodTransactions), [periodTransactions]);
   const isSaving = isCreating || isDeleting;
+  const canExport = period === 'weekly' || period === 'monthly';
 
   function submitRecord(event) {
     event.preventDefault();
@@ -75,6 +78,24 @@ export default function AdminConsumptionPage() {
     setPeriodAnchor((current) => addPeriod(current, period, direction));
   }
 
+  async function downloadConsumptionExport() {
+    if (!canExport || isExporting) return;
+    setError('');
+    setIsExporting(true);
+    const params = new URLSearchParams({
+      period,
+      from: calendarDateValue(periodRange.from),
+      to: calendarDateValue(periodRange.to),
+    });
+    try {
+      await downloadAuthenticatedFile(`/api/admin/consumption/export?${params}`, `consumption-${period}.xlsx`);
+    } catch (exportError) {
+      setError(exportError.message);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <Box sx={{ display: 'grid', gap: 1.5, alignContent: 'start' }}>
       {error || queryError ? <Alert severity="error">{error || queryError?.message}</Alert> : null}
@@ -82,11 +103,14 @@ export default function AdminConsumptionPage() {
       <BalanceCards accounts={accounts} />
       <ConsumptionPeriodToolbar
         isRefreshing={isFetching}
+        canExport={canExport}
+        isExporting={isExporting}
         period={period}
         periodLabel={periodRange.label}
         onMove={movePeriod}
         onOpenHelp={() => setIsHelpDrawerOpen(true)}
         onAddTransaction={() => setIsTransactionDialogOpen(true)}
+        onExport={downloadConsumptionExport}
         onPeriodChange={changePeriod}
         onRefresh={refetch}
         onToday={() => setPeriodAnchor(new Date())}
@@ -119,7 +143,7 @@ export default function AdminConsumptionPage() {
   );
 }
 
-function ConsumptionPeriodToolbar({ isRefreshing, onAddTransaction, onMove, onOpenHelp, onPeriodChange, onRefresh, onToday, period, periodLabel }) {
+function ConsumptionPeriodToolbar({ canExport, isExporting, isRefreshing, onAddTransaction, onExport, onMove, onOpenHelp, onPeriodChange, onRefresh, onToday, period, periodLabel }) {
   return (
     <Paper
       variant="outlined"
@@ -173,6 +197,20 @@ function ConsumptionPeriodToolbar({ isRefreshing, onAddTransaction, onMove, onOp
         <Button onClick={onToday} startIcon={<TodayIcon fontSize="small" />} size="small" variant="outlined" sx={toolbarButtonSx}>
           Today
         </Button>
+        <Tooltip title={canExport ? `Download this ${period} period as an Excel workbook` : 'Select Week or Month to download an Excel workbook'}>
+          <span>
+            <Button
+              disabled={!canExport || isExporting}
+              onClick={onExport}
+              startIcon={<DownloadIcon fontSize="small" />}
+              size="small"
+              variant="outlined"
+              sx={toolbarButtonSx}
+            >
+              {isExporting ? 'Downloading...' : 'Export Excel'}
+            </Button>
+          </span>
+        </Tooltip>
         <Button onClick={onAddTransaction} startIcon={<AddIcon fontSize="small" />} size="small" variant="contained" sx={primaryToolbarButtonSx}>
           Add transaction
         </Button>
@@ -351,6 +389,13 @@ function addDays(value, days) {
   const date = new Date(value);
   date.setDate(date.getDate() + days);
   return startOfDay(date);
+}
+
+function calendarDateValue(value) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 const periodIconButtonSx = {
