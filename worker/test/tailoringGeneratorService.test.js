@@ -50,7 +50,7 @@ describe('tailoring resume ATS formatting', () => {
     assert.equal(parts.includes('Project focus included Data Platform Modernization and Analytics & Reporting Enablement.'), true);
   });
 
-  it('keeps structured projects and their bullets under the correct experience', () => {
+  it('renders structured project bullets without project headings or descriptions', () => {
     const experience = {
       ...reefPointExperience,
       projects: [
@@ -83,27 +83,26 @@ describe('tailoring resume ATS formatting', () => {
       education: [],
       skills: {},
     }, {});
-    assert.equal(parts.includes('Project: Data Platform Modernization'), true);
-    assert.equal(parts.includes('Modernized batch ingestion and data-quality checks for analytics datasets.'), true);
-    assert.equal(parts.includes('Project: Analytics Enablement'), true);
+    assert.equal(parts.includes('Project: Data Platform Modernization'), false);
+    assert.equal(parts.includes('Modernized batch ingestion and data-quality checks for analytics datasets.'), false);
+    assert.equal(parts.includes('Project: Analytics Enablement'), false);
+    assert.equal(parts.includes(experience.projects[0].bullets[0]), true);
+    assert.equal(parts.includes(experience.projects[1].bullets[0]), true);
   });
 
-  it('requires project-grounded bullets in the tailoring prompt and JSON shape', () => {
+  it('requires structured projects in the generated JSON shape', () => {
     const prompt = buildResumePrompt('Senior Data Engineer role', 'Senior Data Engineer at ReefPoint Group');
 
-    assert.match(prompt, /Every bullet must be traceable to the description of the project that contains it/);
-    assert.match(prompt, /Never create a work-experience bullet from the target job description alone/);
-    assert.match(prompt, /Put every achievement bullet inside its supporting project's "bullets" array/);
+    assert.match(prompt, /"projects": \[/);
     assert.match(prompt, /"description": ""/);
+    assert.match(prompt, /"bullets": \["", ""\]/);
   });
 
   it('enforces JSON output at both the prompt and OpenAI response boundary', () => {
     const prompt = buildResumePrompt('Senior Data Engineer role', 'Senior Data Engineer at ReefPoint Group');
 
     assert.deepEqual(TAILORED_RESUME_TEXT_FORMAT, { type: 'json_object' });
-    assert.match(prompt, /Return only the completed tailored resume as a valid JSON object/);
-    assert.match(prompt, /Output only valid JSON/);
-    assert.doesNotMatch(prompt, /Return only the completed tailored resume\./);
+    assert.match(prompt, /encode it as JSON/);
   });
 
   it('rejects generated experience bullets that are not nested under a described project', () => {

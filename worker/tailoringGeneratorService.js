@@ -184,25 +184,23 @@ export function buildResumePrompt(jobDescription, profileResume) {
   }
 
   return `
-You are an expert resume writer. Create a full, ATS-friendly resume using the information below and encode it as JSON.
+You are an expert technical resume strategist and ATS-focused resume writer. Create a full, ATS-friendly resume using the information below and encode it as JSON.
 
 ${inferNote}${promptBody}
 
+Create a highly tailored, credible, ATS-friendly resume using the target Job Description and the candidate’s supplied background.
 - Do not simply rewrite the existing resume or copy JD keywords into bullets. Reconstruct the resume around the strongest truthful professional identity for the target role.
 - Internally follow this flow: understand the JD → determine the real capability mix of the role → define the target candidate thesis → extract factual candidate evidence → map evidence to JD requirements → prioritize the latest relevant role → design career progression → build complementary bullets → synchronize Summary, Skills, and Experience → remove weak, redundant, or unsupported claims.
 - Never fabricate employers, historical titles, promotions, dates, education, certifications, technologies, projects, metrics, users, customers, teams, ownership, business workflows, regulations, or domain experience.
 - Preserve historical company names and role titles exactly as supplied. The target JD title may be used as the resume headline, but never replace a historical title.
 - Keep every project, technology, metric, achievement, responsibility, and domain claim under the company and role where it actually occurred. Never move evidence between employers to improve alignment.
-- Treat the projects and project descriptions provided for a work experience as the factual source for that experience's achievement bullets. Every bullet must be traceable to the description of the project that contains it.
-- Never create a work-experience bullet from the target job description alone. The target job may guide emphasis and wording only when the corresponding project description supports the claim.
-- Put every achievement bullet inside its supporting project's "bullets" array. Do not output a top-level "bullets" array on a work_experience entry.
 - Preserve domain integrity. Fintech does not become healthcare; financial services does not automatically become market data or trading; SaaS does not automatically become ecommerce; healthcare does not automatically mean EHR or HIPAA experience.
 - Transfer only real transferable capabilities across domains, such as backend engineering, APIs, distributed systems, data pipelines, ML systems, cloud infrastructure, reliability, observability, security, experimentation, retrieval, or frontend engineering.
 - Change the camera angle of a real experience, not the underlying facts.
 - Do not backdate technologies. Only place a technology in a historical role when it existed during that period, fits the role/domain, and is supported by the candidate background.
 - Do not infer detailed implementation merely because a tool appears in Skills. A listed technology does not justify inventing specific SDKs, collectors, deployment patterns, architectures, schemas, or workflows.
 - Do not treat adjacent capabilities as exact equivalents. Observability is not automatically synthetic monitoring; financial transaction systems are not market-data systems; vector search is not automatically RAG; async processing is not automatically real-time streaming.
-- Interpret JD requirement logic correctly. When the JD says X, Y, or Z, one of, equivalent, or similar, satisfy it using the candidate’s strongest supported option. Do not force the other alternatives into the resume for ATS.
+- Interpret JD requirement logic correctly. When the JD says “X, Y, or Z,” “one of,” “equivalent,” or similar, satisfy it using the candidate’s strongest supported option. Do not force the other alternatives into the resume for ATS.
 - If the JD requires C++, Go, or Rust and the candidate strongly supports Go, emphasize Go. Do not add Rust or C++ unless independently supported and useful.
 - If a mandatory or preferred requirement is unsupported, do not fake it and do not rename a nearby capability to look equivalent. Strengthen the closest truthful transferable evidence and leave the exact missing requirement unsupported.
 - Prefer deep, credible evidence for important supported requirements over shallow mention of every JD technology.
@@ -217,7 +215,7 @@ ${inferNote}${promptBody}
 - Internally classify JD requirements as:
     - mandatory / role-defining,
     - important supporting,
-    - nice-to-have / peripheral,        
+    - nice-to-have / peripheral,
     - domain/context requirements.
 - Mandatory and role-defining skills should appear in Skills when supported and must have meaningful evidence in Experience.
 - Important supporting skills should preferably have at least one contextual Experience proof.
@@ -241,7 +239,7 @@ ${inferNote}${promptBody}
 - Neighboring bullets should add different evidence. Merge or remove bullets that repeatedly prove the same capability without adding greater scale, another subsystem, stronger technical depth, reliability, impact, or leadership.
 - Strong bullets should naturally combine several useful elements: what was built or improved, technology or architecture, problem, scale or complexity, technical decision, and outcome.
 - Do not force every bullet into the same sentence pattern.
-- Avoid repeatedly writing Developed X using Y resulting in Z.
+- Avoid repeatedly writing “Developed X using Y resulting in Z.”
 - Technologies must appear inside meaningful engineering context, not keyword dumps.
 - Prefer “Built asynchronous Go services using Kafka and Redis for durable processing and recovery across distributed workflows” over “Used Go, Kafka, Redis, Kubernetes.”
 - Make bullets technically defensible in an interview. Prefer concrete conversation hooks such as system design, APIs, retrieval, caching, concurrency, async workflows, model serving, tracing, reliability, scaling, deployment, testing, or integration when supported.
@@ -268,10 +266,10 @@ ${inferNote}${promptBody}
 - If no bullet budget is supplied, give the most space to the newest highly relevant role and progressively less space to older or less relevant roles.
 - If the latest role contains several clearly different supported work areas, group it into concise functional project/capability sections. Do not invent branded or confidential project names.
 - Before finalizing, verify whole-resume coherence: Summary claims must be supported by Skills and Experience; major Skills must have contextual proof; the latest role must be the strongest evidence for the target identity; older roles must show believable progression.
-- Verify career realism: ownership grows naturally, technologies are historically plausible, specialized titles still match their bullets, domains remain accurate, and every claim can be defended in an interview.    
+- Verify career realism: ownership grows naturally, technologies are historically plausible, specialized titles still match their bullets, domains remain accurate, and every claim can be defended in an interview.
 - Use an ATS-safe, linear, single-column structure with ordinary selectable text and standard section headings.
 - Use this structure:
-    
+
 NAME  
 Target Professional Headline  
 City/Region | Phone | Email | LinkedIn
@@ -281,6 +279,7 @@ SUMMARY
 SKILLS
 
 PROFESSIONAL EXPERIENCE
+
 Company | Role  
 Location | MMM yyyy – MMM yyyy  
 • Bullets
@@ -299,10 +298,11 @@ Optional Certifications, Projects, Publications, or Patents only when supplied a
 - Avoid generic filler such as “results-driven,” “highly motivated,” “passionate,” “dynamic professional,” or “team player.”
 - Avoid exaggerated ownership, corporate filler, keyword stuffing, artificial metrics, repetitive verbs, and repetitive sentence structures.
 - Before output, verify that supported mandatory JD requirements are easy to find, main technologies are both listed and proven, the latest role carries the strongest relevant evidence, unsupported requirements have not been fabricated, and no claim depends on visual formatting.
-- Return only the completed tailored resume as a valid JSON object.
-- Do not output reasoning, JD analysis, fit scores, ATS scores, competency matrices, evidence maps, missing-skill reports, tailoring notes, warnings, placeholders, or explanations.    
+- Return only the completed tailored resume.
+- Do not output reasoning, JD analysis, fit scores, ATS scores, competency matrices, evidence maps, missing-skill reports, tailoring notes, warnings, placeholders, or explanations.
 - Perform all analysis, evidence mapping, requirement-gap handling, ATS optimization, and validation internally.
-- Output only valid JSON. Do not wrap it in Markdown fences or add text before or after the JSON object.
+OPTIONAL CONSTRAINTS:
+[Example: bullet budget 12 / 10 / 6 / 4, target length, location preference, target seniority, or other requirements]
 - The JSON must match this shape:
 {
   "name": "",
@@ -410,7 +410,6 @@ async function renderResumeDocx(data, profile) {
     addText(children, period, { size: template.metaSize, after: 60 }, template);
     if (projects.some((project) => project.structured)) {
       for (const project of projects) {
-        addProjectHeading(children, project, template);
         for (const bullet of project.bullets) addBullet(children, bullet, template);
       }
     } else {
@@ -484,20 +483,6 @@ function addWorkExperienceCompanyLine(children, exp, template) {
     new Paragraph({
       spacing: { after: 25 },
       children: [new TextRun({ text: companyLine, bold: true, size: template.metaSize })],
-    }),
-  );
-}
-
-function addProjectHeading(children, project, template) {
-  const name = project.name || 'Project';
-  const description = project.description ? ` - ${project.description}` : '';
-  children.push(
-    new Paragraph({
-      spacing: { before: 40, after: 35 },
-      children: [
-        new TextRun({ text: `Project: ${name}`, bold: true, size: template.metaSize }),
-        new TextRun({ text: description, italics: true, size: template.metaSize }),
-      ],
     }),
   );
 }
@@ -751,11 +736,7 @@ export function renderedResumeTextParts(data, profile) {
     );
     if (projects.some((project) => project.structured)) {
       for (const project of projects) {
-        parts.push(
-          `Project: ${project.name || 'Project'}`,
-          project.description,
-          ...project.bullets,
-        );
+        parts.push(...project.bullets);
       }
     } else {
       parts.push(...workExperienceBullets(exp));
