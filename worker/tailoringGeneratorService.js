@@ -105,6 +105,10 @@ const RESUME_TEMPLATES = {
 let openaiClient;
 let r2Client;
 
+// Keep the response contract at the API boundary. Prompt instructions alone can
+// regress when the resume-writing guidance is edited.
+export const TAILORED_RESUME_TEXT_FORMAT = Object.freeze({ type: 'json_object' });
+
 export async function generateTailoredResume({ job, profile }) {
   if (!ENV.OPENAI_API_KEY) {
     throw new InputError('OPENAI_API_KEY is required to generate tailored resumes');
@@ -148,6 +152,7 @@ async function generateResumeJson({ jobDescription, profileResume }) {
     const response = await getOpenAIClient().responses.create({
       model: ENV.OPENAI_MODEL,
       input: prompt,
+      text: { format: TAILORED_RESUME_TEXT_FORMAT },
     });
     const outputText = response.output_text || extractOutputText(response);
     console.info('resume_timing stage=openai elapsed_ms=%s output_chars=%s', elapsedMs(startedAt), outputText.length);
@@ -179,7 +184,7 @@ export function buildResumePrompt(jobDescription, profileResume) {
   }
 
   return `
-You are an expert resume writer. Create a full, ATS-friendly resume using the information below.
+You are an expert resume writer. Create a full, ATS-friendly resume using the information below and encode it as JSON.
 
 ${inferNote}${promptBody}
 
@@ -188,6 +193,9 @@ ${inferNote}${promptBody}
 - Never fabricate employers, historical titles, promotions, dates, education, certifications, technologies, projects, metrics, users, customers, teams, ownership, business workflows, regulations, or domain experience.
 - Preserve historical company names and role titles exactly as supplied. The target JD title may be used as the resume headline, but never replace a historical title.
 - Keep every project, technology, metric, achievement, responsibility, and domain claim under the company and role where it actually occurred. Never move evidence between employers to improve alignment.
+- Treat the projects and project descriptions provided for a work experience as the factual source for that experience's achievement bullets. Every bullet must be traceable to the description of the project that contains it.
+- Never create a work-experience bullet from the target job description alone. The target job may guide emphasis and wording only when the corresponding project description supports the claim.
+- Put every achievement bullet inside its supporting project's "bullets" array. Do not output a top-level "bullets" array on a work_experience entry.
 - Preserve domain integrity. Fintech does not become healthcare; financial services does not automatically become market data or trading; SaaS does not automatically become ecommerce; healthcare does not automatically mean EHR or HIPAA experience.
 - Transfer only real transferable capabilities across domains, such as backend engineering, APIs, distributed systems, data pipelines, ML systems, cloud infrastructure, reliability, observability, security, experimentation, retrieval, or frontend engineering.
 - Change the camera angle of a real experience, not the underlying facts.
@@ -291,9 +299,10 @@ Optional Certifications, Projects, Publications, or Patents only when supplied a
 - Avoid generic filler such as “results-driven,” “highly motivated,” “passionate,” “dynamic professional,” or “team player.”
 - Avoid exaggerated ownership, corporate filler, keyword stuffing, artificial metrics, repetitive verbs, and repetitive sentence structures.
 - Before output, verify that supported mandatory JD requirements are easy to find, main technologies are both listed and proven, the latest role carries the strongest relevant evidence, unsupported requirements have not been fabricated, and no claim depends on visual formatting.
-- Return only the completed tailored resume.
+- Return only the completed tailored resume as a valid JSON object.
 - Do not output reasoning, JD analysis, fit scores, ATS scores, competency matrices, evidence maps, missing-skill reports, tailoring notes, warnings, placeholders, or explanations.    
 - Perform all analysis, evidence mapping, requirement-gap handling, ATS optimization, and validation internally.
+- Output only valid JSON. Do not wrap it in Markdown fences or add text before or after the JSON object.
 - The JSON must match this shape:
 {
   "name": "",

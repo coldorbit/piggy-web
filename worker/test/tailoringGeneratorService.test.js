@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 process.env.RABBITMQ_URL ||= 'amqp://rabbitmq.test';
 
 const {
+  TAILORED_RESUME_TEXT_FORMAT,
   buildResumePrompt,
   renderedResumeTextParts,
   workExperienceBullets,
@@ -94,6 +95,15 @@ describe('tailoring resume ATS formatting', () => {
     assert.match(prompt, /Never create a work-experience bullet from the target job description alone/);
     assert.match(prompt, /Put every achievement bullet inside its supporting project's "bullets" array/);
     assert.match(prompt, /"description": ""/);
+  });
+
+  it('enforces JSON output at both the prompt and OpenAI response boundary', () => {
+    const prompt = buildResumePrompt('Senior Data Engineer role', 'Senior Data Engineer at ReefPoint Group');
+
+    assert.deepEqual(TAILORED_RESUME_TEXT_FORMAT, { type: 'json_object' });
+    assert.match(prompt, /Return only the completed tailored resume as a valid JSON object/);
+    assert.match(prompt, /Output only valid JSON/);
+    assert.doesNotMatch(prompt, /Return only the completed tailored resume\./);
   });
 
   it('rejects generated experience bullets that are not nested under a described project', () => {
