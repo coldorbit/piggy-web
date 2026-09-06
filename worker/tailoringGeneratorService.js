@@ -194,7 +194,7 @@ ${inferNote}${promptBody}
 - Do not backdate technologies. Only place a technology in a historical role when it existed during that period, fits the role/domain, and is supported by the candidate background.
 - Do not infer detailed implementation merely because a tool appears in Skills. A listed technology does not justify inventing specific SDKs, collectors, deployment patterns, architectures, schemas, or workflows.
 - Do not treat adjacent capabilities as exact equivalents. Observability is not automatically synthetic monitoring; financial transaction systems are not market-data systems; vector search is not automatically RAG; async processing is not automatically real-time streaming.
-- Interpret JD requirement logic correctly. When the JD says “X, Y, or Z,” “one of,” “equivalent,” or similar, satisfy it using the candidate’s strongest supported option. Do not force the other alternatives into the resume for ATS.
+- Interpret JD requirement logic correctly. When the JD says X, Y, or Z, one of, equivalent, or similar, satisfy it using the candidate’s strongest supported option. Do not force the other alternatives into the resume for ATS.
 - If the JD requires C++, Go, or Rust and the candidate strongly supports Go, emphasize Go. Do not add Rust or C++ unless independently supported and useful.
 - If a mandatory or preferred requirement is unsupported, do not fake it and do not rename a nearby capability to look equivalent. Strengthen the closest truthful transferable evidence and leave the exact missing requirement unsupported.
 - Prefer deep, credible evidence for important supported requirements over shallow mention of every JD technology.
@@ -233,7 +233,7 @@ ${inferNote}${promptBody}
 - Neighboring bullets should add different evidence. Merge or remove bullets that repeatedly prove the same capability without adding greater scale, another subsystem, stronger technical depth, reliability, impact, or leadership.
 - Strong bullets should naturally combine several useful elements: what was built or improved, technology or architecture, problem, scale or complexity, technical decision, and outcome.
 - Do not force every bullet into the same sentence pattern.
-- Avoid repeatedly writing “Developed X using Y resulting in Z.”
+- Avoid repeatedly writing Developed X using Y resulting in Z.
 - Technologies must appear inside meaningful engineering context, not keyword dumps.
 - Prefer “Built asynchronous Go services using Kafka and Redis for durable processing and recovery across distributed workflows” over “Used Go, Kafka, Redis, Kubernetes.”
 - Make bullets technically defensible in an interview. Prefer concrete conversation hooks such as system design, APIs, retrieval, caching, concurrency, async workflows, model serving, tracing, reliability, scaling, deployment, testing, or integration when supported.
