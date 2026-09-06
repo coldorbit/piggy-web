@@ -12,6 +12,10 @@ import OpenAI from 'openai';
 import { ENV } from './env.js';
 import { InputError } from './errors.js';
 import { createR2Client, missingR2Configuration } from './storage/r2Client.js';
+import {
+  DOCX_JSON_DELIVERY_CONTRACT,
+  RESUME_TAILORING_INSTRUCTIONS,
+} from './tailoring/resumePrompt.js';
 
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const RESUME_TEMPLATES = {
@@ -111,180 +115,20 @@ async function generateResumeJson({ jobDescription, profileResume }) {
 }
 
 export function buildResumePrompt(jobDescription, profileResume) {
-  let promptBody;
+  const candidateInput = String(profileResume || '').trim() || 'No candidate profile was supplied.';
+  const targetJobDescription = String(jobDescription || '').trim();
 
-  if (profileResume && profileResume.trim()) {
-    promptBody = `Profile:\n${profileResume}\n\nJob Description:\n${jobDescription || 'N/A'}`;
-  } else {
-    promptBody = `Job Description:\n${jobDescription}`;
-  }
+  return `${RESUME_TAILORING_INSTRUCTIONS}
 
-  return `
-You are an expert technical resume strategist and ATS-focused resume writer. Create a full, ATS-friendly resume using the information below and encode it as JSON.
+CANDIDATE INPUT
 
-${promptBody}
+${candidateInput}
 
-Create a highly tailored, credible, ATS-friendly resume using the target Job Description and the candidate’s supplied background.
-- Do not simply rewrite the existing resume or copy JD keywords into bullets. Reconstruct the resume around the strongest truthful professional identity for the target role.
-- Internally follow this flow: understand the JD → determine the real capability mix of the role → define the target candidate thesis → extract factual candidate evidence → map evidence to JD requirements → prioritize the latest relevant role → design career progression → build complementary bullets → synchronize Summary, Skills, and Experience → remove weak, redundant, or unsupported claims.
-- Never fabricate employers, historical titles, promotions, dates, education, certifications, technologies, projects, metrics, users, customers, teams, ownership, business workflows, regulations, or domain experience.
-- Preserve historical company names and role titles exactly as supplied. The target JD title may be used as the resume headline, but never replace a historical title.
-- Keep every project, technology, metric, achievement, responsibility, and domain claim under the company and role where it actually occurred. Never move evidence between employers to improve alignment.
-- Preserve domain integrity. Fintech does not become healthcare; financial services does not automatically become market data or trading; SaaS does not automatically become ecommerce; healthcare does not automatically mean EHR or HIPAA experience.
-- Transfer only real transferable capabilities across domains, such as backend engineering, APIs, distributed systems, data pipelines, ML systems, cloud infrastructure, reliability, observability, security, experimentation, retrieval, or frontend engineering.
-- Change the camera angle of a real experience, not the underlying facts.
-- Do not backdate technologies. Only place a technology in a historical role when it existed during that period, fits the role/domain, and is supported by the candidate background.
-- Do not infer detailed implementation merely because a tool appears in Skills. A listed technology does not justify inventing specific SDKs, collectors, deployment patterns, architectures, schemas, or workflows.
-- Do not treat adjacent capabilities as exact equivalents. Observability is not automatically synthetic monitoring; financial transaction systems are not market-data systems; vector search is not automatically RAG; async processing is not automatically real-time streaming.
-- Interpret JD requirement logic correctly. When the JD says “X, Y, or Z,” “one of,” “equivalent,” or similar, satisfy it using the candidate’s strongest supported option. Do not force the other alternatives into the resume for ATS.
-- If the JD requires C++, Go, or Rust and the candidate strongly supports Go, emphasize Go. Do not add Rust or C++ unless independently supported and useful.
-- If a mandatory or preferred requirement is unsupported, do not fake it and do not rename a nearby capability to look equivalent. Strengthen the closest truthful transferable evidence and leave the exact missing requirement unsupported.
-- Prefer deep, credible evidence for important supported requirements over shallow mention of every JD technology.
-- Analyze the JD as a job, not as a keyword list. Identify the seniority, core responsibilities, mandatory requirements, important supporting skills, nice-to-haves, architecture expectations, product expectations, technical stack, domain requirements, leadership expectations, scale, reliability, performance, stakeholders, and business context.
-- Infer the functional composition of the role. Determine how much of the job is backend, frontend, full-stack, AI/ML, data, infrastructure, distributed systems, MLOps, research, evaluation, reliability, product engineering, or leadership.
-- Match the resume to the JD’s capability distribution, not merely its keyword distribution.
-- If a Senior AI Engineer JD combines LLM/RAG, backend APIs, React, distributed systems, and cloud deployment, the resume should show that mix rather than becoming an AI-only resume.
-- If a backend role centers on Go, PostgreSQL, Redis, Kubernetes, third-party APIs, microservices, and high-load systems, prioritize those supported backend capabilities instead of unrelated AI work.
-- Internally define one concise target candidate thesis before writing. Summary, Skills, Experience, bullet selection, project grouping, and metrics must all reinforce that same identity.
-- Treat Summary as the candidate identity and capability statement, Skills as technical claims and ATS vocabulary, Experience as proof, and metrics as credibility anchors.
-- Map the JD to candidate evidence before generating bullets.
-- Internally classify JD requirements as:
-    - mandatory / role-defining,
-    - important supporting,
-    - nice-to-have / peripheral,
-    - domain/context requirements.
-- Mandatory and role-defining skills should appear in Skills when supported and must have meaningful evidence in Experience.
-- Important supporting skills should preferably have at least one contextual Experience proof.
-- Peripheral skills may remain in Skills when genuinely supported and when additional bullet space would add little value.
-- Never list unsupported JD technologies merely to increase ATS coverage.
-- Main-stack technologies should be proven inside bullets. If React, Kubernetes, Go, FastAPI, Spring Boot, Angular, PyTorch, Kafka, RAG, AWS, GCP, PostgreSQL, Redis, or another technology is central to the role, show where and how it was used when candidate evidence supports it.
-- Repetition across companies is valuable only when historically true. Do not insert a technology into older roles to create fake years of experience.
-- Recency matters more than artificial repetition.
-- Make the latest relevant company the primary evidence hub. When supported, it should prove most of the JD’s mandatory technologies, architecture, production maturity, ownership, collaboration, scale, and outcomes.
-- The latest role should usually show where the candidate’s previously developed capabilities come together.
-- Do not cram every JD keyword into the latest company. Aim for high-density, believable coverage.
-- Use older roles to show foundations, continuity, technical progression, increasing scope, and evolution of specialization.
-- Do not rewrite every previous company to resemble the target job.
-- Preserve believable seniority progression. Early roles should generally emphasize implementation, debugging, experimentation, testing, data/model/component work, and collaboration. Mid-career roles may show service or feature ownership, productionization, system design, and broader execution. Senior/Staff/Lead roles may show architecture, end-to-end ownership, technical direction, cross-team influence, mentoring, standards, reliability, scale, and business impact when supported.
-- Never make someone architect or own the entire system in an early-career role merely because the target JD asks for architecture experience.
-- Treat generic titles such as Software Engineer, Senior Software Engineer, Staff Software Engineer, Member of Technical Staff, and Application Engineer as broad functional titles. Tailor their factual work toward the JD when supported.
-- Treat specialized titles such as Machine Learning Engineer, AI Engineer, MLOps Engineer, Data Engineer, Frontend Engineer, Applied Scientist, Research Scientist, and Data Scientist more conservatively. Preserve their real functional identity while emphasizing relevant transferable work.
-- Build a role-aligned bullet portfolio rather than generating bullets independently.
-- The full bullet set for a company should collectively resemble the target role’s capability mix.
-- Give each bullet a primary proof objective such as architecture, implementation, backend engineering, frontend engineering, AI/ML, data, infrastructure, scale, performance, reliability, security, evaluation, experimentation, product impact, business impact, ownership, or leadership.
-- Neighboring bullets should add different evidence. Merge or remove bullets that repeatedly prove the same capability without adding greater scale, another subsystem, stronger technical depth, reliability, impact, or leadership.
-- Strong bullets should naturally combine several useful elements: what was built or improved, technology or architecture, problem, scale or complexity, technical decision, and outcome.
-- Do not force every bullet into the same sentence pattern.
-- Avoid repeatedly writing “Developed X using Y resulting in Z.”
-- Technologies must appear inside meaningful engineering context, not keyword dumps.
-- Prefer “Built asynchronous Go services using Kafka and Redis for durable processing and recovery across distributed workflows” over “Used Go, Kafka, Redis, Kubernetes.”
-- Make bullets technically defensible in an interview. Prefer concrete conversation hooks such as system design, APIs, retrieval, caching, concurrency, async workflows, model serving, tracing, reliability, scaling, deployment, testing, or integration when supported.
-- Use metrics selectively, generally around 1–3 meaningful quantitative anchors per company when supported and useful.
-- Metrics may represent users, customers, requests/day, transactions/day, data volume, throughput, latency, uptime, cost, revenue, savings, model quality, number of services/models/pipelines, team size, or time saved.
-- Do not rely only on percentage metrics.
-- Prefer different metric purposes within the same company, such as one scale metric, one performance metric, and one product/business metric.
-- Do not repeat the same metric across multiple bullets unless necessary for context.
-- Never invent metrics and never output placeholders such as [X%], XX users, [ADD METRIC], TODO, or similar markers. If no credible metric exists, write a strong natural bullet without one.
-- Stakeholder emphasis should match the role when supported. Applied ML may emphasize Product, Marketing, Finance, Analytics, or domain experts; MLOps may emphasize Data Science, Data Engineering, Platform, Infrastructure, or SRE; AI Engineering may emphasize Product, Backend, Platform, Security, and ML teams; backend/platform roles may emphasize Product, Infrastructure, SRE, Security, and architecture teams.
-- The Summary should sit one abstraction level above Skills.
-- Use the Summary to establish seniority, years of experience when useful, target identity, major capability areas, architecture/system scope, production experience, relevant domain strengths, and leadership.
-- Do not turn the Summary into a framework list.
-- Keep the Summary concise, usually 3–5 lines.
-- Build Skills dynamically from the JD and candidate evidence.
-- Use categories appropriate to the target role, such as Languages, Backend & APIs, Frontend, Distributed Systems, AI/ML, LLM & Agent Systems, Data & Retrieval, Cloud & Infrastructure, MLOps, Observability, Databases, Testing & Delivery, or Core Competencies.
-- Prioritize supported JD-relevant skills and de-emphasize unrelated legacy technologies.
-- Do not force a fixed number of skills or categories.
-- Optimize for strong ATS coverage using exact JD terminology when it accurately represents real candidate experience.
-- Do not target an arbitrary keyword count. Prioritize supported mandatory skills, role-defining technologies, responsibilities, architecture concepts, and relevant domain terminology.
-- Do not claim or guarantee a specific ATS score.
-- Allocate resume space dynamically using relevance, evidence strength, recency, distinctiveness, tenure, and user-provided bullet limits.
-- If the user specifies a bullet budget such as 12 / 10 / 6 / 4, follow it exactly.
-- If no bullet budget is supplied, give the most space to the newest highly relevant role and progressively less space to older or less relevant roles.
-- If the latest role contains several clearly different supported work areas, group it into concise functional project/capability sections. Do not invent branded or confidential project names.
-- Before finalizing, verify whole-resume coherence: Summary claims must be supported by Skills and Experience; major Skills must have contextual proof; the latest role must be the strongest evidence for the target identity; older roles must show believable progression.
-- Verify career realism: ownership grows naturally, technologies are historically plausible, specialized titles still match their bullets, domains remain accurate, and every claim can be defended in an interview.
-- Use an ATS-safe, linear, single-column structure with ordinary selectable text and standard section headings.
-- Use this structure:
+TARGET JOB DESCRIPTION
 
-NAME  
-Target Professional Headline  
-City/Region | Phone | Email | LinkedIn
+${targetJobDescription}
 
-SUMMARY
-
-SKILLS
-
-PROFESSIONAL EXPERIENCE
-
-Company | Role  
-Location | MMM yyyy – MMM yyyy  
-• Bullets
-
-EDUCATION
-Optional Certifications, Projects, Publications, or Patents only when supplied and useful.
-- Use Company | Role consistently for experience headings.
-- Put Location | Dates on the next line.
-- Preserve each real position separately when the candidate had multiple roles at the same company.
-- Use consistent MMM yyyy – MMM yyyy dates and use Present only for genuinely current roles.
-- Use single-column formatting only.
-- Do not use sidebars, tables for primary resume content, text boxes, floating elements, skill bars, charts, decorative timelines, images containing resume text, icon-only contact information, hidden keywords, or manually spaced pseudo-columns.
-- Keep critical information in normal body text, not only in headers or footers.
-- If all formatting were removed and the resume converted to plain text, it must still read correctly from top to bottom.
-- Use concise, technically credible, professional language.
-- Avoid generic filler such as “results-driven,” “highly motivated,” “passionate,” “dynamic professional,” or “team player.”
-- Avoid exaggerated ownership, corporate filler, keyword stuffing, artificial metrics, repetitive verbs, and repetitive sentence structures.
-- Before output, verify that supported mandatory JD requirements are easy to find, main technologies are both listed and proven, the latest role carries the strongest relevant evidence, unsupported requirements have not been fabricated, and no claim depends on visual formatting.
-- Return only the completed tailored resume.
-- Do not output reasoning, JD analysis, fit scores, ATS scores, competency matrices, evidence maps, missing-skill reports, tailoring notes, warnings, placeholders, or explanations.
-- Perform all analysis, evidence mapping, requirement-gap handling, ATS optimization, and validation internally.
-OPTIONAL CONSTRAINTS:
-[Example: bullet budget 12 / 10 / 6 / 4, target length, location preference, target seniority, or other requirements]
-
-DOCX DELIVERY CONTRACT:
-- The application renders your response into the final DOCX. Return only one valid JSON object, with no Markdown fences or text before or after it.
-- The JSON is a transport representation of the completed resume, not analysis or tailoring notes.
-- Use direct role-level bullets by default. Use capability_sections only when the prompt's grouping rule applies to the latest role; otherwise return an empty array.
-- When capability_sections are needed, each item must match {"name": "", "bullets": [""]}.
-- Do not duplicate a bullet between bullets and capability_sections.
-- Keep skill category names dynamic and relevant to the target role.
-- Omit unsupported optional sections rather than inventing content.
-- The JSON must match this shape:
-{
-  "name": "",
-  "target_company": "",
-  "role": "",
-  "linkedin_profile": "",
-  "summary": "",
-  "work_experience": [
-    {
-      "company": "",
-      "location": "",
-      "position": "",
-      "work_mode": "",
-      "start_date": "",
-      "end_date": "",
-      "bullets": ["", ""],
-      "capability_sections": []
-    }
-  ],
-  "education": [
-    {
-      "degree": "",
-      "area": "",
-      "institution": "",
-      "start_date": "",
-      "end_date": ""
-    }
-  ],
-  "skills": {
-    "<JD-relevant category>": ["", ""]
-  },
-  "certifications": [],
-  "projects": [],
-  "publications": [],
-  "patents": []
-}
-`;
+${DOCX_JSON_DELIVERY_CONTRACT}`;
 }
 
 function buildTailorJobDescription(job) {

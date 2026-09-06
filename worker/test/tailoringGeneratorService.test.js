@@ -100,12 +100,14 @@ describe('tailored resume prompt and DOCX formatting', () => {
     assert.deepEqual(workExperienceBullets(experience), ['Modernized batch ingestion workflows.']);
   });
 
-  it('uses the supplied truthfulness prompt without the old fabrication exception', () => {
+  it('uses the supplied senior technical resume tailoring prompt', () => {
     const prompt = buildResumePrompt('Senior Data Engineer role', 'Brief profile');
 
-    assert.match(prompt, /Create a highly tailored, credible, ATS-friendly resume/);
-    assert.match(prompt, /Never fabricate employers, historical titles, promotions, dates/);
-    assert.doesNotMatch(prompt, /Infer reasonable accomplishment framing, measurable impact, and technologies/);
+    assert.match(prompt, /You are an expert technical resume generator for senior software, AI, ML, platform, SRE/);
+    assert.match(prompt, /Aim for roughly 85 to 90 percent coverage/);
+    assert.match(prompt, /did what, using what, for what, so what\./);
+    assert.match(prompt, /you may draft a conservative, realistic metric/);
+    assert.match(prompt, /approximately 15 bullets for the most recent company, 10 for the second, 8 for the third, and 6 for the fourth/);
   });
 
   it('defines a dynamic JSON transport contract for DOCX rendering', () => {
@@ -114,8 +116,10 @@ describe('tailored resume prompt and DOCX formatting', () => {
     assert.deepEqual(TAILORED_RESUME_TEXT_FORMAT, { type: 'json_object' });
     assert.match(prompt, /DOCX DELIVERY CONTRACT/);
     assert.match(prompt, /Return only one valid JSON object/);
-    assert.match(prompt, /"capability_sections": \[/);
+    assert.match(prompt, /Use direct role-level bullets/);
     assert.match(prompt, /"<JD-relevant category>": \["", ""\]/);
+    assert.equal(prompt.indexOf('CANDIDATE INPUT') < prompt.indexOf('TARGET JOB DESCRIPTION'), true);
+    assert.equal(prompt.indexOf('TARGET JOB DESCRIPTION') < prompt.indexOf('DOCX DELIVERY CONTRACT'), true);
   });
 
   it('accepts direct bullets and rejects duplicated grouped bullets', () => {
