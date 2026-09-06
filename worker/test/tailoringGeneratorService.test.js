@@ -7,114 +7,143 @@ const {
   TAILORED_RESUME_TEXT_FORMAT,
   buildResumePrompt,
   renderedResumeTextParts,
+  renderResumeDocx,
+  validateGeneratedResume,
   workExperienceBullets,
-  workExperienceCompanyLine,
+  workExperienceCapabilitySections,
+  workExperienceHeading,
+  workExperienceMetaLine,
   workExperienceProjects,
-  validateGeneratedWorkExperienceProjects,
 } = await import('../tailoringGeneratorService.js');
 
-describe('tailoring resume ATS formatting', () => {
+describe('tailored resume prompt and DOCX formatting', () => {
   const reefPointExperience = {
     company: 'ReefPoint Group',
+    location: 'Boston, MA',
     work_mode: 'Remote',
     position: 'Senior Data Engineer',
     start_date: 'Aug 2025',
     end_date: 'Jun 2026',
-    projects: ['Data Platform Modernization', 'Analytics & Reporting Enablement'],
     bullets: ['Built reliable data pipelines for reporting and operational analytics.'],
   };
 
-  it('uses a clear company/location separator for company names with spaces', () => {
-    assert.equal(workExperienceCompanyLine(reefPointExperience), 'ReefPoint Group - Remote');
+  it('uses the requested company, role, location, and date line structure', () => {
+    assert.equal(workExperienceHeading(reefPointExperience), 'ReefPoint Group | Senior Data Engineer');
+    assert.equal(workExperienceMetaLine(reefPointExperience), 'Boston, MA (Remote) | Aug 2025 – Jun 2026');
   });
 
-  it('renders project names as bullet content instead of a standalone Projects line', () => {
-    assert.deepEqual(workExperienceBullets(reefPointExperience), [
-      'Project focus included Data Platform Modernization and Analytics & Reporting Enablement.',
-      'Built reliable data pipelines for reporting and operational analytics.',
-    ]);
-  });
-
-  it('keeps rendered resume text ATS-safe around work dates and projects', () => {
+  it('keeps the requested ATS section order in the rendered document text', () => {
     const parts = renderedResumeTextParts({
       name: 'Candidate',
       role: 'Senior Data Engineer',
       summary: 'Data engineer with platform and analytics experience.',
       work_experience: [reefPointExperience],
-      education: [],
-      skills: {},
-    }, {});
+      education: [{ degree: 'BS', area: 'Computer Science', institution: 'State University' }],
+      skills: { Languages: ['Python', 'SQL'] },
+    }, {
+      location: 'Seattle, WA',
+      phone: '555-0100',
+      email: 'candidate@example.com',
+    });
 
-    assert.equal(parts.includes('ReefPoint Group - Remote'), true);
-    assert.equal(parts.includes('Projects: Data Platform Modernization, Analytics & Reporting Enablement'), false);
-    assert.equal(parts.includes('Project focus included Data Platform Modernization and Analytics & Reporting Enablement.'), true);
+    const summaryIndex = parts.indexOf('SUMMARY');
+    const skillsIndex = parts.indexOf('SKILLS');
+    const experienceIndex = parts.indexOf('PROFESSIONAL EXPERIENCE');
+    const educationIndex = parts.indexOf('EDUCATION');
+    assert.equal(summaryIndex < skillsIndex && skillsIndex < experienceIndex && experienceIndex < educationIndex, true);
+    assert.equal(parts.includes('ReefPoint Group | Senior Data Engineer'), true);
+    assert.equal(parts.includes('Boston, MA (Remote) | Aug 2025 – Jun 2026'), true);
+    assert.equal(parts.indexOf('555-0100') < parts.indexOf('candidate@example.com'), true);
   });
 
-  it('renders structured project bullets without project headings or descriptions', () => {
+  it('renders optional capability groups only when supplied', () => {
     const experience = {
       ...reefPointExperience,
-      projects: [
+      bullets: [],
+      capability_sections: [
         {
           name: 'Data Platform Modernization',
-          description: 'Modernized batch ingestion and data-quality checks for analytics datasets.',
-          bullets: [
-            'Modernized batch ingestion workflows and strengthened data-quality checks for analytics datasets used by reporting teams.',
-          ],
+          bullets: ['Modernized batch ingestion and data-quality checks.'],
         },
         {
           name: 'Analytics Enablement',
-          description: 'Improved governed reporting datasets and stakeholder delivery.',
-          bullets: [
-            'Improved governed reporting datasets and delivery practices for stakeholders consuming operational analytics.',
-          ],
+          bullets: ['Improved governed reporting datasets for stakeholders.'],
         },
       ],
-      bullets: undefined,
     };
 
-    assert.deepEqual(workExperienceProjects(experience).map(({ name, description, bullets }) => ({ name, description, bullets })), experience.projects);
-    assert.deepEqual(workExperienceBullets(experience), [
-      'Modernized batch ingestion workflows and strengthened data-quality checks for analytics datasets used by reporting teams.',
-      'Improved governed reporting datasets and delivery practices for stakeholders consuming operational analytics.',
-    ]);
-
+    assert.deepEqual(workExperienceCapabilitySections(experience), experience.capability_sections);
     const parts = renderedResumeTextParts({
       work_experience: [experience],
       education: [],
       skills: {},
     }, {});
-    assert.equal(parts.includes('Project: Data Platform Modernization'), false);
-    assert.equal(parts.includes('Modernized batch ingestion and data-quality checks for analytics datasets.'), false);
-    assert.equal(parts.includes('Project: Analytics Enablement'), false);
-    assert.equal(parts.includes(experience.projects[0].bullets[0]), true);
-    assert.equal(parts.includes(experience.projects[1].bullets[0]), true);
+    assert.equal(parts.includes('Data Platform Modernization'), true);
+    assert.equal(parts.includes(experience.capability_sections[0].bullets[0]), true);
   });
 
-  it('requires structured projects in the generated JSON shape', () => {
-    const prompt = buildResumePrompt('Senior Data Engineer role', 'Senior Data Engineer at ReefPoint Group');
+  it('continues to flatten legacy structured projects into ATS-safe bullets', () => {
+    const experience = {
+      ...reefPointExperience,
+      projects: [{
+        name: 'Data Platform Modernization',
+        description: 'Modernized data workflows.',
+        bullets: ['Modernized batch ingestion workflows.'],
+      }],
+      bullets: undefined,
+    };
 
-    assert.match(prompt, /"projects": \[/);
-    assert.match(prompt, /"description": ""/);
-    assert.match(prompt, /"bullets": \["", ""\]/);
+    assert.deepEqual(
+      workExperienceProjects(experience).map(({ name, description, bullets }) => ({ name, description, bullets })),
+      experience.projects,
+    );
+    assert.deepEqual(workExperienceBullets(experience), ['Modernized batch ingestion workflows.']);
   });
 
-  it('enforces JSON output at both the prompt and OpenAI response boundary', () => {
+  it('uses the supplied truthfulness prompt without the old fabrication exception', () => {
+    const prompt = buildResumePrompt('Senior Data Engineer role', 'Brief profile');
+
+    assert.match(prompt, /Create a highly tailored, credible, ATS-friendly resume/);
+    assert.match(prompt, /Never fabricate employers, historical titles, promotions, dates/);
+    assert.doesNotMatch(prompt, /Infer reasonable accomplishment framing, measurable impact, and technologies/);
+  });
+
+  it('defines a dynamic JSON transport contract for DOCX rendering', () => {
     const prompt = buildResumePrompt('Senior Data Engineer role', 'Senior Data Engineer at ReefPoint Group');
 
     assert.deepEqual(TAILORED_RESUME_TEXT_FORMAT, { type: 'json_object' });
-    assert.match(prompt, /encode it as JSON/);
+    assert.match(prompt, /DOCX DELIVERY CONTRACT/);
+    assert.match(prompt, /Return only one valid JSON object/);
+    assert.match(prompt, /"capability_sections": \[/);
+    assert.match(prompt, /"<JD-relevant category>": \["", ""\]/);
   });
 
-  it('rejects generated experience bullets that are not nested under a described project', () => {
+  it('accepts direct bullets and rejects duplicated grouped bullets', () => {
+    assert.doesNotThrow(() => validateGeneratedResume({
+      work_experience: [reefPointExperience],
+    }));
     assert.throws(
-      () => validateGeneratedWorkExperienceProjects({
+      () => validateGeneratedResume({
         work_experience: [{
-          company: 'ReefPoint Group',
-          projects: ['Data Platform Modernization'],
-          bullets: ['A role-level bullet without a supporting project description.'],
+          ...reefPointExperience,
+          capability_sections: [{ name: 'Data Platform', bullets: ['Improved ingestion.'] }],
         }],
       }),
-      /must contain structured projects/,
+      /cannot duplicate content across bullets and capability sections/,
     );
+  });
+
+  it('creates a DOCX package from the structured resume', async () => {
+    const buffer = await renderResumeDocx({
+      name: 'Candidate',
+      role: 'Senior Data Engineer',
+      summary: 'Data engineer with platform experience.',
+      work_experience: [reefPointExperience],
+      education: [],
+      skills: { Languages: ['Python', 'SQL'] },
+    }, {});
+
+    assert.equal(Buffer.isBuffer(buffer), true);
+    assert.equal(buffer.subarray(0, 2).toString('ascii'), 'PK');
   });
 });

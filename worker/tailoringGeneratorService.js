@@ -14,59 +14,6 @@ import { InputError } from './errors.js';
 import { createR2Client, missingR2Configuration } from './storage/r2Client.js';
 
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-const US_STATE_ABBREVIATIONS = new Map([
-  ['alabama', 'AL'],
-  ['alaska', 'AK'],
-  ['arizona', 'AZ'],
-  ['arkansas', 'AR'],
-  ['california', 'CA'],
-  ['colorado', 'CO'],
-  ['connecticut', 'CT'],
-  ['delaware', 'DE'],
-  ['florida', 'FL'],
-  ['georgia', 'GA'],
-  ['hawaii', 'HI'],
-  ['idaho', 'ID'],
-  ['illinois', 'IL'],
-  ['indiana', 'IN'],
-  ['iowa', 'IA'],
-  ['kansas', 'KS'],
-  ['kentucky', 'KY'],
-  ['louisiana', 'LA'],
-  ['maine', 'ME'],
-  ['maryland', 'MD'],
-  ['massachusetts', 'MA'],
-  ['michigan', 'MI'],
-  ['minnesota', 'MN'],
-  ['mississippi', 'MS'],
-  ['missouri', 'MO'],
-  ['montana', 'MT'],
-  ['nebraska', 'NE'],
-  ['nevada', 'NV'],
-  ['new hampshire', 'NH'],
-  ['new jersey', 'NJ'],
-  ['new mexico', 'NM'],
-  ['new york', 'NY'],
-  ['north carolina', 'NC'],
-  ['north dakota', 'ND'],
-  ['ohio', 'OH'],
-  ['oklahoma', 'OK'],
-  ['oregon', 'OR'],
-  ['pennsylvania', 'PA'],
-  ['rhode island', 'RI'],
-  ['south carolina', 'SC'],
-  ['south dakota', 'SD'],
-  ['tennessee', 'TN'],
-  ['texas', 'TX'],
-  ['utah', 'UT'],
-  ['vermont', 'VT'],
-  ['virginia', 'VA'],
-  ['washington', 'WA'],
-  ['west virginia', 'WV'],
-  ['wisconsin', 'WI'],
-  ['wyoming', 'WY'],
-  ['district of columbia', 'DC'],
-]);
 const RESUME_TEMPLATES = {
   classic: {
     headingColor: '111827',
@@ -74,7 +21,6 @@ const RESUME_TEMPLATES = {
     roleSize: 24,
     bodySize: 22,
     metaSize: 22,
-    techSize: 22,
     sectionSize: 24,
     margin: 720,
     sectionBefore: 180,
@@ -90,7 +36,6 @@ const RESUME_TEMPLATES = {
     roleSize: 24,
     bodySize: 22,
     metaSize: 22,
-    techSize: 22,
     sectionSize: 24,
     margin: 720,
     sectionBefore: 160,
@@ -166,18 +111,9 @@ async function generateResumeJson({ jobDescription, profileResume }) {
 }
 
 export function buildResumePrompt(jobDescription, profileResume) {
-  let inferNote = '';
   let promptBody;
 
   if (profileResume && profileResume.trim()) {
-    if (profileResume.trim().length < 400) {
-      inferNote = [
-        'The provided profile is brief (likely only name, years of experience, companies, and education).',
-        'Infer reasonable accomplishment framing, measurable impact, and technologies only from these seeds.',
-        'Never infer, invent, rewrite, upgrade, or embellish previous role titles or positions.',
-        'Do not invent unverifiable company facts; keep achievements plausible and aligned with the job description.\n\n',
-      ].join(' ');
-    }
     promptBody = `Profile:\n${profileResume}\n\nJob Description:\n${jobDescription || 'N/A'}`;
   } else {
     promptBody = `Job Description:\n${jobDescription}`;
@@ -186,7 +122,7 @@ export function buildResumePrompt(jobDescription, profileResume) {
   return `
 You are an expert technical resume strategist and ATS-focused resume writer. Create a full, ATS-friendly resume using the information below and encode it as JSON.
 
-${inferNote}${promptBody}
+${promptBody}
 
 Create a highly tailored, credible, ATS-friendly resume using the target Job Description and the candidate’s supplied background.
 - Do not simply rewrite the existing resume or copy JD keywords into bullets. Reconstruct the resume around the strongest truthful professional identity for the target role.
@@ -303,6 +239,15 @@ Optional Certifications, Projects, Publications, or Patents only when supplied a
 - Perform all analysis, evidence mapping, requirement-gap handling, ATS optimization, and validation internally.
 OPTIONAL CONSTRAINTS:
 [Example: bullet budget 12 / 10 / 6 / 4, target length, location preference, target seniority, or other requirements]
+
+DOCX DELIVERY CONTRACT:
+- The application renders your response into the final DOCX. Return only one valid JSON object, with no Markdown fences or text before or after it.
+- The JSON is a transport representation of the completed resume, not analysis or tailoring notes.
+- Use direct role-level bullets by default. Use capability_sections only when the prompt's grouping rule applies to the latest role; otherwise return an empty array.
+- When capability_sections are needed, each item must match {"name": "", "bullets": [""]}.
+- Do not duplicate a bullet between bullets and capability_sections.
+- Keep skill category names dynamic and relevant to the target role.
+- Omit unsupported optional sections rather than inventing content.
 - The JSON must match this shape:
 {
   "name": "",
@@ -314,18 +259,12 @@ OPTIONAL CONSTRAINTS:
     {
       "company": "",
       "location": "",
-      "headquarters_location": "",
       "position": "",
       "work_mode": "",
       "start_date": "",
       "end_date": "",
-      "projects": [
-        {
-          "name": "",
-          "description": "",
-          "bullets": ["", ""]
-        }
-      ]
+      "bullets": ["", ""],
+      "capability_sections": []
     }
   ],
   "education": [
@@ -338,15 +277,12 @@ OPTIONAL CONSTRAINTS:
     }
   ],
   "skills": {
-    "Languages": ["", ""],
-    "Frameworks": ["", ""],
-    "Cloud Platforms": ["", ""],
-    "Messaging/Queueing": ["", ""],
-    "Orchestration": ["", ""],
-    "VCS/Project Management": ["", ""],
-    "Leadership & Collaboration": ["", ""],
-    "Core Competencies": ["", ""]
-  }
+    "<JD-relevant category>": ["", ""]
+  },
+  "certifications": [],
+  "projects": [],
+  "publications": [],
+  "patents": []
 }
 `;
 }
@@ -372,7 +308,7 @@ async function generateDocxAndUpload({ generatedResume, profile }) {
   } catch (error) {
     throw new InputError(`Generated resume was not valid JSON: ${error.message}`);
   }
-  validateGeneratedWorkExperienceProjects(data);
+  validateGeneratedResume(data);
 
   const { r2Key, filename } = buildResumeR2Key(profile, data, '.docx');
   const docxBuffer = await renderResumeDocx(data, profile || {});
@@ -382,7 +318,7 @@ async function generateDocxAndUpload({ generatedResume, profile }) {
   return { filename, r2Key, r2: uploadResult, cvData: data };
 }
 
-async function renderResumeDocx(data, profile) {
+export async function renderResumeDocx(data, profile) {
   const children = [];
   const template = resumeTemplateForContent(data, profile);
 
@@ -393,24 +329,24 @@ async function renderResumeDocx(data, profile) {
       children: [new TextRun({ text: profile.name || data.name || 'Resume', bold: true, size: template.nameSize })],
     }),
   );
+  if (data.role) children.push(centeredText(data.role, template, { bold: true, size: template.roleSize }));
   const contact = contactParagraph(profile, data, template);
   if (contact) children.push(contact);
-  if (data.role) children.push(centeredText(data.role, template, { bold: true, size: template.roleSize, after: 160 }));
 
-  addSection(children, 'Summary', template);
+  addSection(children, 'SUMMARY', template);
   addText(children, data.summary, {}, template);
 
-  addSection(children, 'Work Experience', template);
-  for (const exp of workExperienceEntries(data)) {
-    const period = workExperienceDateRange(exp);
-    const projects = workExperienceProjects(exp);
+  addSkillsSection(children, data.skills, template);
 
-    addText(children, workExperienceTitle(exp), { bold: true, before: template.experienceBefore, after: 30 }, template);
-    addWorkExperienceCompanyLine(children, exp, template);
-    addText(children, period, { size: template.metaSize, after: 60 }, template);
-    if (projects.some((project) => project.structured)) {
-      for (const project of projects) {
-        for (const bullet of project.bullets) addBullet(children, bullet, template);
+  addSection(children, 'PROFESSIONAL EXPERIENCE', template);
+  for (const exp of workExperienceEntries(data)) {
+    addText(children, workExperienceHeading(exp), { bold: true, before: template.experienceBefore, after: 30 }, template);
+    addText(children, workExperienceMetaLine(exp), { size: template.metaSize, after: 60 }, template);
+    const capabilitySections = workExperienceCapabilitySections(exp);
+    if (capabilitySections.length) {
+      for (const section of capabilitySections) {
+        addCapabilityHeading(children, section.name, template);
+        for (const bullet of section.bullets) addBullet(children, bullet, template);
       }
     } else {
       for (const bullet of workExperienceBullets(exp)) addBullet(children, bullet, template);
@@ -418,27 +354,16 @@ async function renderResumeDocx(data, profile) {
     addSpacer(children, template.experienceAfter);
   }
 
-  addSection(children, 'Education', template);
+  addSection(children, 'EDUCATION', template);
   for (const ed of data.education || []) {
     addText(children, [ed.degree, ed.area].filter(Boolean).join(', '), { bold: true, after: 40 }, template);
-    addText(children, [ed.institution, [ed.start_date, ed.end_date].filter(Boolean).join(' - ')].filter(Boolean).join(' | '), {
+    addText(children, [ed.institution, [ed.start_date, ed.end_date].filter(Boolean).join(' – ')].filter(Boolean).join(' | '), {
       size: template.metaSize,
       after: 80,
     }, template);
   }
 
-  addSection(children, 'Skills', template);
-  for (const [label, items] of Object.entries(data.skills || {})) {
-    children.push(
-      new Paragraph({
-        spacing: { after: 60 },
-        children: [
-          new TextRun({ text: `${label}: `, bold: true, size: template.metaSize }),
-          new TextRun({ text: Array.isArray(items) ? items.join(', ') : String(items || ''), size: template.metaSize }),
-        ],
-      }),
-    );
-  }
+  addOptionalResumeSections(children, data, template);
 
   const document = new Document({
     sections: [
@@ -465,24 +390,52 @@ function addSection(children, title, template) {
   );
 }
 
+function addSkillsSection(children, skills, template) {
+  const entries = Object.entries(skills || {}).filter(([, items]) => normalizedList(items).length);
+  addSection(children, 'SKILLS', template);
+  for (const [label, items] of entries) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 60 },
+        children: [
+          new TextRun({ text: `${label}: `, bold: true, size: template.metaSize }),
+          new TextRun({ text: normalizedList(items).join(', '), size: template.metaSize }),
+        ],
+      }),
+    );
+  }
+}
+
+function addOptionalResumeSections(children, data, template) {
+  const sections = [
+    ['CERTIFICATIONS', data.certifications],
+    ['PROJECTS', data.projects],
+    ['PUBLICATIONS', data.publications],
+    ['PATENTS', data.patents],
+  ];
+
+  for (const [title, items] of sections) {
+    const renderedItems = normalizedList(items).map(optionalResumeItemText).filter(Boolean);
+    if (!renderedItems.length) continue;
+    addSection(children, title, template);
+    for (const item of renderedItems) addBullet(children, item, template);
+  }
+}
+
+function optionalResumeItemText(item) {
+  if (typeof item !== 'object' || item === null) return String(item || '').trim();
+  return [item.name || item.title, item.issuer || item.publisher || item.organization, item.date, item.description]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(' | ');
+}
+
 function addText(children, value, { after, before = 0, bold = false, italics = false, size } = {}, template = RESUME_TEMPLATES.classic) {
   if (!value) return;
   children.push(
     new Paragraph({
       spacing: { before, after: after ?? template.paragraphAfter },
       children: [new TextRun({ text: String(value), bold, italics, size: size ?? template.bodySize })],
-    }),
-  );
-}
-
-function addWorkExperienceCompanyLine(children, exp, template) {
-  const companyLine = workExperienceCompanyLine(exp);
-  if (!companyLine) return;
-
-  children.push(
-    new Paragraph({
-      spacing: { after: 25 },
-      children: [new TextRun({ text: companyLine, bold: true, size: template.metaSize })],
     }),
   );
 }
@@ -497,10 +450,17 @@ function addBullet(children, bullet, template) {
   );
 }
 
-export function workExperienceCompanyLine(exp) {
+function addCapabilityHeading(children, value, template) {
+  addText(children, value, { bold: true, before: 40, after: 35, size: template.metaSize }, template);
+}
+
+export function workExperienceHeading(exp) {
   const company = String(exp.company || '').trim();
-  const workPlace = workExperienceDisplayPlace(exp);
-  return [company, workPlace].filter(Boolean).join(' - ');
+  return [company, workExperienceTitle(exp)].filter(Boolean).join(' | ');
+}
+
+export function workExperienceMetaLine(exp) {
+  return [workExperienceDisplayPlace(exp), workExperienceDateRange(exp)].filter(Boolean).join(' | ');
 }
 
 function addSpacer(children, after) {
@@ -520,34 +480,6 @@ function centeredText(value, template, { after = 80, bold = false, size } = {}) 
   });
 }
 
-function formatHeadquartersLocation(value) {
-  const parts = String(value || '')
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .filter((part) => !isCountryLocationPart(part));
-  if (!parts.length) return '';
-
-  if (parts.length >= 2) {
-    const city = parts[0];
-    const state = normalizeStateLocationPart(parts[1]);
-    return [city, state].filter(Boolean).join(', ');
-  }
-
-  return normalizeStateLocationPart(parts[0]);
-}
-
-function isCountryLocationPart(value) {
-  const normalized = String(value || '').toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
-  return ['united states', 'united states of america', 'usa', 'us', 'u s', 'canada'].includes(normalized);
-}
-
-function normalizeStateLocationPart(value) {
-  const trimmed = String(value || '').trim();
-  const normalized = trimmed.toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ');
-  return US_STATE_ABBREVIATIONS.get(normalized) || trimmed;
-}
-
 function normalizedWorkMode(value) {
   const raw = String(value || '').trim().toLowerCase();
   if (raw === 'remote') return 'Remote';
@@ -557,21 +489,15 @@ function normalizedWorkMode(value) {
 }
 
 function workExperienceTitle(exp) {
-  return String(exp.position || '').trim() || 'Role not provided';
+  return String(exp.position || '').trim();
 }
 
 function workExperienceDisplayPlace(exp) {
-  const workMode = normalizedWorkMode(exp.work_mode);
-  if (workMode) return workMode;
-
   const location = String(exp.location || '').trim();
-  if (!location) return '';
-
-  const formattedLocation = formatHeadquartersLocation(location);
-  const formattedHeadquarters = formatHeadquartersLocation(exp.headquarters_location || '');
-  if (formattedHeadquarters && formattedLocation.toLowerCase() === formattedHeadquarters.toLowerCase()) return '';
-
-  return location;
+  const workMode = normalizedWorkMode(exp.work_mode);
+  if (!location) return workMode;
+  if (!workMode || location.toLowerCase().includes(workMode.toLowerCase())) return location;
+  return `${location} (${workMode})`;
 }
 
 function workExperienceDateRange(exp) {
@@ -589,26 +515,40 @@ export function workExperienceProjects(exp) {
     .slice(0, 3);
 }
 
-export function validateGeneratedWorkExperienceProjects(data) {
+export function workExperienceCapabilitySections(exp) {
+  if (!Array.isArray(exp.capability_sections)) return [];
+  return exp.capability_sections
+    .filter((section) => section && typeof section === 'object' && !Array.isArray(section))
+    .map((section) => ({
+      name: String(section.name || '').trim(),
+      bullets: normalizedList(section.bullets),
+    }))
+    .filter((section) => section.name && section.bullets.length);
+}
+
+export function validateGeneratedResume(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new InputError('Generated resume must be a JSON object');
+  }
+
   for (const [experienceIndex, experience] of workExperienceEntries(data).entries()) {
-    const projects = Array.isArray(experience.projects) ? experience.projects : [];
     const roleLabel = String(experience.company || experience.position || `#${experienceIndex + 1}`).trim();
-
-    if (!projects.length || projects.some((project) => !project || typeof project !== 'object' || Array.isArray(project))) {
-      throw new InputError(`Generated work experience ${roleLabel} must contain structured projects`);
+    const bullets = roleBullets(experience);
+    const sections = Array.isArray(experience.capability_sections) ? experience.capability_sections : [];
+    if (bullets.length && sections.length) {
+      throw new InputError(`Generated work experience ${roleLabel} cannot duplicate content across bullets and capability sections`);
     }
-    if (Array.isArray(experience.bullets) && experience.bullets.length) {
-      throw new InputError(`Generated work experience ${roleLabel} must keep bullets inside projects`);
+    if (!bullets.length && !sections.length) {
+      throw new InputError(`Generated work experience ${roleLabel} requires bullets or capability sections`);
     }
-
-    for (const [projectIndex, project] of projects.entries()) {
-      const name = String(project.name || '').trim();
-      const description = String(project.description || '').trim();
-      const bullets = Array.isArray(project.bullets)
-        ? project.bullets.map((bullet) => String(bullet || '').trim()).filter(Boolean)
-        : [];
-      if (!name || !description || !bullets.length) {
-        throw new InputError(`Generated project #${projectIndex + 1} for ${roleLabel} requires a name, description, and bullets`);
+    for (const [sectionIndex, section] of sections.entries()) {
+      const validSection = section
+        && typeof section === 'object'
+        && !Array.isArray(section)
+        && String(section.name || '').trim()
+        && normalizedList(section.bullets).length;
+      if (!validSection) {
+        throw new InputError(`Generated capability section #${sectionIndex + 1} for ${roleLabel} requires a name and bullets`);
       }
     }
   }
@@ -651,16 +591,13 @@ function roleBullets(exp) {
 }
 
 export function workExperienceBullets(exp) {
-  const projects = workExperienceProjects(exp);
-  if (projects.some((project) => project.structured)) {
-    return projects.flatMap((project) => project.bullets);
-  }
+  const bullets = roleBullets(exp);
+  if (bullets.length) return bullets;
 
+  const projects = workExperienceProjects(exp);
+  if (projects.some((project) => project.structured)) return projects.flatMap((project) => project.bullets);
   const projectBullet = workExperienceProjectBullet(exp);
-  return [
-    projectBullet,
-    ...roleBullets(exp),
-  ].filter(Boolean);
+  return [projectBullet].filter(Boolean);
 }
 
 function workExperienceProjectBullet(exp) {
@@ -677,7 +614,7 @@ function sentenceList(values) {
 
 function contactParagraph(profile, data, template) {
   const runs = [];
-  for (const value of [profile.location, profile.email, profile.phone].filter(Boolean)) {
+  for (const value of [profile.location, profile.phone, profile.email].filter(Boolean)) {
     addContactSeparator(runs, template);
     runs.push(new TextRun({ text: String(value), size: template.bodySize }));
   }
@@ -702,6 +639,11 @@ function contactParagraph(profile, data, template) {
     : null;
 }
 
+function normalizedList(value) {
+  if (!Array.isArray(value)) return value === undefined || value === null || value === '' ? [] : [value];
+  return value.map((item) => typeof item === 'string' ? item.trim() : item).filter(Boolean);
+}
+
 function addContactSeparator(runs, template = RESUME_TEMPLATES.classic) {
   if (runs.length) runs.push(new TextRun({ text: ' | ', size: template.bodySize }));
 }
@@ -710,47 +652,54 @@ function resumeTemplateForContent(data, profile) {
   return randomTemplate(['classic', 'modern']);
 }
 
-function renderedResumeTextLength(data, profile) {
-  return renderedResumeTextParts(data, profile).join(' ').length;
-}
-
 export function renderedResumeTextParts(data, profile) {
   const parts = [
     profile.name || data.name || 'Resume',
-    profile.location,
-    profile.email,
-    profile.phone,
-    profile.linkedin || data.linkedin_profile,
     data.role,
-    'Summary',
+    profile.location,
+    profile.phone,
+    profile.email,
+    profile.linkedin || data.linkedin_profile,
+    'SUMMARY',
     data.summary,
-    'Work Experience',
   ];
 
+  parts.push('SKILLS');
+  for (const [label, items] of Object.entries(data.skills || {})) {
+    parts.push(label, normalizedList(items).join(', '));
+  }
+
+  parts.push('PROFESSIONAL EXPERIENCE');
   for (const exp of workExperienceEntries(data)) {
-    const projects = workExperienceProjects(exp);
     parts.push(
-      workExperienceTitle(exp),
-      workExperienceCompanyLine(exp),
-      workExperienceDateRange(exp),
+      workExperienceHeading(exp),
+      workExperienceMetaLine(exp),
     );
-    if (projects.some((project) => project.structured)) {
-      for (const project of projects) {
-        parts.push(...project.bullets);
+    const capabilitySections = workExperienceCapabilitySections(exp);
+    if (capabilitySections.length) {
+      for (const section of capabilitySections) {
+        parts.push(section.name, ...section.bullets);
       }
     } else {
       parts.push(...workExperienceBullets(exp));
     }
   }
 
-  parts.push('Education');
+  parts.push('EDUCATION');
   for (const ed of data.education || []) {
-    parts.push(ed.degree, ed.area, ed.institution, ed.start_date, ed.end_date);
+    const degree = [ed.degree, ed.area].filter(Boolean).join(', ');
+    const dates = [ed.start_date, ed.end_date].filter(Boolean).join(' – ');
+    parts.push(degree, [ed.institution, dates].filter(Boolean).join(' | '));
   }
 
-  parts.push('Skills');
-  for (const [label, items] of Object.entries(data.skills || {})) {
-    parts.push(label, Array.isArray(items) ? items.join(', ') : items);
+  for (const [title, items] of [
+    ['CERTIFICATIONS', data.certifications],
+    ['PROJECTS', data.projects],
+    ['PUBLICATIONS', data.publications],
+    ['PATENTS', data.patents],
+  ]) {
+    const renderedItems = normalizedList(items).map(optionalResumeItemText).filter(Boolean);
+    if (renderedItems.length) parts.push(title, ...renderedItems);
   }
 
   return parts.filter(Boolean).map(String);
