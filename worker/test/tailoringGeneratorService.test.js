@@ -108,6 +108,8 @@ describe('tailored resume prompt and DOCX formatting', () => {
     assert.match(prompt, /did what, using what, for what, so what\./);
     assert.match(prompt, /you may draft a conservative, realistic metric/);
     assert.match(prompt, /approximately 15 bullets for the most recent company, 10 for the second, 8 for the third, and 6 for the fourth/);
+    assert.match(prompt, /Never use em dashes, long dashes, semicolons, arrows, or decorative GPT-style symbols/);
+    assert.match(prompt, /The Skills section should look like the candidate's real technical toolkit/);
   });
 
   it('defines a dynamic JSON transport contract for DOCX rendering', () => {
