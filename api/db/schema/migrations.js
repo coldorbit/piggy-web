@@ -290,18 +290,12 @@ export async function ensureInterviewIndexes() {
     ON interview_calls (scheduled_at)
   `);
   await sequelize.query(`
-    DELETE FROM interview_calls loser
-    USING interview_calls keeper
-    WHERE loser.interview_id = keeper.interview_id
-      AND loser.interview_stage = keeper.interview_stage
-      AND (
-        loser.updated_at < keeper.updated_at
-        OR (loser.updated_at = keeper.updated_at AND loser.id < keeper.id)
-      )
+    DROP INDEX IF EXISTS interview_calls_interview_stage_unique
   `);
   await sequelize.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS interview_calls_interview_stage_unique
+    CREATE UNIQUE INDEX IF NOT EXISTS interview_calls_non_panel_stage_unique
     ON interview_calls (interview_id, interview_stage)
+    WHERE interview_stage <> 'panel'
   `);
   await sequelize.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS interview_calls_source_key_unique

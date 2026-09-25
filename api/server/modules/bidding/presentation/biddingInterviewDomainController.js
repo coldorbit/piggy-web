@@ -14,6 +14,7 @@ import {
   repositories,
 } from '../../../../db.js';
 import { Readable } from 'node:stream';
+import { randomUUID } from 'node:crypto';
 import { Op, QueryTypes } from 'sequelize';
 import { ENV } from '../../../../env.js';
 import { hashPassword, publicUser } from '../../../../auth.js';
@@ -712,9 +713,14 @@ export async function upsertInterviewCallForStage(interview, attrs, { sourceType
   const scheduledAt = dateValue(attrs.scheduledAt);
   if (!scheduledAt) throw new InputError('Call date is required');
   if (!shouldRegisterInterviewCallForStage(stage, interview?.status)) throw new InputError('Choose a scheduled interview stage');
-  const sourceKey = interviewCallSourceKey({ interviewId: interview.id, stage });
+  const isAdditionalPanelCall = sourceType === 'manual' && allowsMultipleInterviewCallsForStage(stage);
+  const sourceKey = interviewCallSourceKey({
+    interviewId: interview.id,
+    stage,
+    occurrenceId: isAdditionalPanelCall ? randomUUID() : null,
+  });
   const existing = await getInterviewCallModel().findOne({
-    where: { interviewId: interview.id, interviewStage: stage },
+    where: { sourceKey },
   });
   const keepExplicitCaller = existing?.metadata?.callerUserIdManuallyAssigned && !metadata.callerUserIdManuallyAssigned;
   const values = {
@@ -757,8 +763,13 @@ export function shouldRegisterInterviewCallForStage(stage, status = 'interviewin
     && !['failed', 'hired', 'lost', 'won'].includes(normalizedStatus);
 }
 
-export function interviewCallSourceKey({ interviewId, stage }) {
-  return `interview:${interviewId}:call:${stage || 'todo'}`;
+export function allowsMultipleInterviewCallsForStage(stage) {
+  return clean(stage) === 'panel';
+}
+
+export function interviewCallSourceKey({ interviewId, stage, occurrenceId = null }) {
+  const baseKey = `interview:${interviewId}:call:${stage || 'todo'}`;
+  return occurrenceId ? `${baseKey}:${occurrenceId}` : baseKey;
 }
 
 export function interviewOccurrenceLogFromSnapshot(previous, interview) {

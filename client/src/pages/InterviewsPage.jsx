@@ -305,7 +305,7 @@ export default function InterviewsPage({ currentUser }) {
     const draft = draftFor(job);
     const draftStage = canonicalInterviewStage(draft.interviewStage);
     const stage = call?.interviewStage || (draftStage === 'todo' ? 'screening' : draftStage);
-    const existingCall = callForStage(job, stage);
+    const existingCall = call || (stage === 'panel' ? null : callForStage(job, stage));
     const stageNotes = draft.stageNotes || {};
     const stageMeetingLinks = draft.stageMeetingLinks || {};
     const callDraft = call || existingCall;
@@ -324,20 +324,25 @@ export default function InterviewsPage({ currentUser }) {
 
   function updateManualCallStage(stage) {
     const normalizedStage = canonicalInterviewStage(stage);
-    const existingCall = callForStage(selectedJob, normalizedStage);
     const draft = selectedJob ? draftFor(selectedJob) : {};
     const stageNotes = draft.stageNotes || {};
     const stageMeetingLinks = draft.stageMeetingLinks || {};
-    setManualCall((current) => ({
-      ...current,
-      id: existingCall?.id || '',
-      interviewStage: normalizedStage,
-      scheduledAt: toDatetimeLocalValue(existingCall?.scheduledAt || current.scheduledAt),
-      durationMinutes: existingCall?.durationMinutes || current.durationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
-      callerUserId: existingCall?.callerUserId || current.callerUserId || '',
-      meetingLink: existingCall?.meetingLink || stageMeetingLinks[normalizedStage] || '',
-      notes: existingCall?.notes || stageNotes[normalizedStage] || '',
-    }));
+    setManualCall((current) => {
+      const shouldUseExistingCall = !current.id && normalizedStage !== 'panel';
+      const existingCall = !shouldUseExistingCall
+        ? null
+        : callForStage(selectedJob, normalizedStage);
+      return {
+        ...current,
+        id: current.id || existingCall?.id || '',
+        interviewStage: normalizedStage,
+        scheduledAt: toDatetimeLocalValue(existingCall?.scheduledAt || current.scheduledAt),
+        durationMinutes: existingCall?.durationMinutes || current.durationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
+        callerUserId: existingCall?.callerUserId || current.callerUserId || '',
+        meetingLink: existingCall?.meetingLink || stageMeetingLinks[normalizedStage] || '',
+        notes: existingCall?.notes || stageNotes[normalizedStage] || '',
+      };
+    });
   }
 
   function closeManualCallDialog() {
@@ -408,7 +413,9 @@ export default function InterviewsPage({ currentUser }) {
     event.preventDefault();
     if (!selectedJob?.bid?.parentInterviewId) return;
     setError('');
-    const existingCall = manualCall.id ? selectedDraft?.calls?.find((call) => String(call.id) === String(manualCall.id)) : callForStage(selectedJob, manualCall.interviewStage);
+    const existingCall = manualCall.id
+      ? selectedDraft?.calls?.find((call) => String(call.id) === String(manualCall.id))
+      : manualCall.interviewStage === 'panel' ? null : callForStage(selectedJob, manualCall.interviewStage);
     const defaultCallerUserId = String(existingCall?.callerUserId ?? selectedDraft?.callerUserId ?? '');
     const callData = {
       interviewStage: manualCall.interviewStage,
@@ -419,7 +426,8 @@ export default function InterviewsPage({ currentUser }) {
       ...(linkedApplicationJob?.bid?.id ? { jobBidId: linkedApplicationJob.bid.id } : {}),
       ...(String(manualCall.callerUserId || '') !== defaultCallerUserId ? { callerUserId: manualCall.callerUserId } : {}),
     };
-    const existingCallId = manualCall.id || callForStage(selectedJob, manualCall.interviewStage)?.id || '';
+    const existingCallId = manualCall.id
+      || (manualCall.interviewStage === 'panel' ? '' : callForStage(selectedJob, manualCall.interviewStage)?.id || '');
     const mutationOptions = {
       onSuccess: closeManualCallDialog,
       onError: (callError) => setError(callError.message),

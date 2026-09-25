@@ -384,6 +384,7 @@ export function InterviewRegistrationDialogs({
                   label="Step"
                   value={manualCall.interviewStage}
                   onChange={(event) => updateManualCallStage(event.target.value)}
+                  disabled={Boolean(manualCall.id)}
                 >
                   {INTERVIEW_STAGES.filter((stage) => stage.value !== 'todo').map((stage) => (
                     <MenuItem key={stage.value} value={stage.value}>

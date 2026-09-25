@@ -22,6 +22,7 @@ import {
   interviewCallJobBidId,
   interviewJobLinkValues,
   linkedBidInterviewValues,
+  allowsMultipleInterviewCallsForStage,
   shouldRegisterInitialInterviewCall,
   shouldRegisterInterviewCallForStage,
   shouldRegisterInterviewCallForStageChange,
@@ -433,6 +434,12 @@ describe('interview call job relinking', () => {
     assert.equal(interviewCallJobBidId({}), null);
     assert.equal(interviewCallJobBidId({ jobBidId: '42' }), 42);
     assert.throws(() => interviewCallJobBidId({ jobBidId: 'job' }), /valid linked application/);
+  });
+
+  it('allows multiple registered calls for the panel stage only', () => {
+    assert.equal(allowsMultipleInterviewCallsForStage('panel'), true);
+    assert.equal(allowsMultipleInterviewCallsForStage('screening'), false);
+    assert.equal(allowsMultipleInterviewCallsForStage('final'), false);
   });
 
   it('moves interview metadata and state between linked applications', () => {
