@@ -311,7 +311,8 @@ export default function InterviewsPage({ currentUser }) {
     const callDraft = call || existingCall;
     setError('');
     setManualCall({
-      id: callDraft?.id || '',
+      // Only an explicitly selected call enters edit mode and locks the step.
+      id: call?.id || '',
       interviewStage: stage,
       scheduledAt: toDatetimeLocalValue(callDraft?.scheduledAt || draft.interviewNextAt),
       durationMinutes: callDraft?.durationMinutes || draft.interviewDurationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
@@ -334,7 +335,6 @@ export default function InterviewsPage({ currentUser }) {
         : callForStage(selectedJob, normalizedStage);
       return {
         ...current,
-        id: current.id || existingCall?.id || '',
         interviewStage: normalizedStage,
         scheduledAt: toDatetimeLocalValue(existingCall?.scheduledAt || current.scheduledAt),
         durationMinutes: existingCall?.durationMinutes || current.durationMinutes || DEFAULT_INTERVIEW_DURATION_MINUTES,
