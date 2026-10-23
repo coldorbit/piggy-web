@@ -109,7 +109,7 @@ export default function InterviewsPage({ currentUser }) {
   const { activeWorkspaceId, workspaceError, workspaces } = useWorkspaceFilter();
   const workspaceLensEnabled = canUseWorkspaceLens(currentUser);
   const { data: profiles = [], isLoading: profilesLoading, error: profilesError } = useBidProfiles(
-    isAdminRole(currentUser) ? { scope: 'manage' } : {},
+    { scope: 'interviews' },
   );
   const interviewProfiles = useMemo(
     () => profiles.filter((profile) => ['active', 'legacy'].includes(profile.profileStatus || 'active')),
@@ -489,8 +489,8 @@ export default function InterviewsPage({ currentUser }) {
   const isActiveProfileOwner = String(activeProfile?.userId || '') === String(effectiveCurrentUser?.id || currentUser?.id || '');
   const activeInterviewCount = Number(activeProfile?.progress?.activeInterviews || 0);
   const totalInterviewCount = Number(activeProfile?.progress?.totalInterviews || interviewsData?.total || 0);
-  const canRegisterCalls = canRegisterManualInterviewCalls(currentUser);
   const canEditInterviews = currentUser?.role !== 'caller' && (isAdminRole(currentUser) || isActiveProfileOwner);
+  const canRegisterCalls = canEditInterviews && canRegisterManualInterviewCalls(currentUser);
   const canDeleteSelectedInterview =
     selectedJob &&
     canEditInterviews &&

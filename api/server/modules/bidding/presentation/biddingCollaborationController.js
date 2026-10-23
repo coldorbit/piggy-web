@@ -43,6 +43,7 @@ import {
   profileStatusAttributesFromBody,
   sortProfilesForDisplay,
   profilesVisibleToUser,
+  profilesVisibleForInterviews,
   profilesWithProgress,
   profilesWithSharing,
   isDraftProfile,
@@ -100,6 +101,8 @@ export async function listProfiles(req, res, next) {
         profileBadge: activeProfile?.profileBadge,
         workspaceId: activeProfile ? activeProfile.workspaceId : user.workspaceId,
       });
+    } else if (scope === 'interviews') {
+      profiles = await profilesVisibleForInterviews(user);
     } else if (scope === 'manage' && isAdminRole(user)) {
       profiles = await profilesManagedByUser(user);
     } else {

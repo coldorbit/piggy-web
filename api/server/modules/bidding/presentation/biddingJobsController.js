@@ -41,6 +41,7 @@ import {
 } from '../application/jobProfileRankingService.js';
 import {
   accessibleProfile,
+  accessibleInterviewProfile,
   accessibleAppliedProfile,
   currentDbUser,
   formatProfile,
@@ -100,7 +101,9 @@ export async function listBidJobs(req, res, next) {
     const query = jobDateFiltersForUser(req.query, user);
     const profile = user.role === 'caller' && bidTab === 'interviews'
       ? await assignedCallerProfile(user, query.profileId)
-      : await accessibleProfile(req, query.profileId);
+      : bidTab === 'interviews'
+        ? await accessibleInterviewProfile(req, query.profileId)
+        : await accessibleProfile(req, query.profileId);
     const canViewInternalData = isInternalUser(user);
     if (bidTab === 'interviews') {
       requireInterviewAccessUser(user, res);

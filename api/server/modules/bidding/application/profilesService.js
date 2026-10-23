@@ -15,6 +15,7 @@ import {
   APPLIED_PROFILE_FILTER_ROLES,
   BIDDER_ROLES,
   PRIVILEGED_USER_ROLES,
+  STAFF_WORKSPACE_ROLES,
   isAdminRole,
   isSuperadmin,
 } from '../../../utils/roles.js';
@@ -61,6 +62,25 @@ export async function accessibleProfile(req, profileId) {
 
   profile.setDataValue('shareStatus', 'accepted');
   return profile;
+}
+
+export async function accessibleInterviewProfile(req, profileId) {
+  const user = await currentDbUser(req);
+  if (!STAFF_WORKSPACE_ROLES.includes(user.role)) return accessibleProfile(req, profileId);
+  const id = clean(profileId);
+  if (!id) throw new InputError('Profile is required');
+  const profile = await getBidProfileModel().findByPk(id, { attributes: profileListAttributes() });
+  if (!profile || !isProfileInUserWorkspace(profile, user)) throw new NotFoundError('Profile not found');
+  return profile;
+}
+
+export async function profilesVisibleForInterviews(user) {
+  if (!STAFF_WORKSPACE_ROLES.includes(user.role)) return profilesVisibleToUser(user);
+  return getBidProfileModel().findAll({
+    attributes: profileListAttributes(),
+    where: workspaceProfileWhereForUser(user),
+    order: [['createdAt', 'ASC']],
+  });
 }
 
 export async function accessibleAppliedProfile(req, profileId, activeProfileId) {
