@@ -70,7 +70,7 @@ export async function accessibleInterviewProfile(req, profileId) {
   const id = clean(profileId);
   if (!id) throw new InputError('Profile is required');
   const profile = await getBidProfileModel().findByPk(id, { attributes: profileListAttributes() });
-  if (!profile || !isProfileInUserWorkspace(profile, user)) throw new NotFoundError('Profile not found');
+  if (!profile) throw new NotFoundError('Profile not found');
   return profile;
 }
 
@@ -78,9 +78,13 @@ export async function profilesVisibleForInterviews(user) {
   if (!STAFF_WORKSPACE_ROLES.includes(user.role)) return profilesVisibleToUser(user);
   return getBidProfileModel().findAll({
     attributes: profileListAttributes(),
-    where: workspaceProfileWhereForUser(user),
+    where: interviewWorkspaceWhereForUser(user),
     order: [['createdAt', 'ASC']],
   });
+}
+
+export function interviewWorkspaceWhereForUser(user) {
+  return STAFF_WORKSPACE_ROLES.includes(user?.role) ? undefined : workspaceProfileWhereForUser(user);
 }
 
 export async function accessibleAppliedProfile(req, profileId, activeProfileId) {

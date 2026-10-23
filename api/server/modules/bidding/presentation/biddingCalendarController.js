@@ -49,6 +49,7 @@ import {
   isProfileInUserWorkspace,
   canUserAccessWorkspace,
   workspaceProfileWhereForUser,
+  interviewWorkspaceWhereForUser,
 } from '../application/profilesService.js';
 import { enqueueTailoredResumeRequest } from '../application/tailoringQueueService.js';
 import { userAttributesFromBody } from '../../admin/application/usersService.js';
@@ -95,7 +96,7 @@ export async function listCalendarInterviews(req, res, next) {
     const range = calendarRangeFromQuery(req.query);
     const workspaceId = calendarWorkspaceIdFromQuery(req.query, user);
     const userWorkspaceWhere = {
-      ...workspaceFilterForUser(user),
+      ...interviewWorkspaceWhereForUser(user),
       ...(workspaceId === undefined ? {} : { workspaceId }),
     };
     const interviews = calendarEventsInRange(
@@ -117,7 +118,7 @@ export async function listCalendarInterviews(req, res, next) {
     const [ownerUsers, applicationUsers] = await Promise.all([
       ownerUserIds.length
         ? getWebUserModel().findAll({
-          where: { id: { [Op.in]: ownerUserIds }, ...workspaceFilterForUser(user) },
+          where: { id: { [Op.in]: ownerUserIds }, ...interviewWorkspaceWhereForUser(user) },
           order: [['username', 'ASC']],
         })
         : [],
@@ -263,7 +264,7 @@ export async function calendarInterviewsForUser(user, {
       }
     : {};
   const profileWhere = {
-    ...workspaceFilterForUser(user),
+    ...interviewWorkspaceWhereForUser(user),
     ...(workspaceId === undefined ? {} : { workspaceId }),
     ...(profileId ? { id: profileId } : {}),
   };

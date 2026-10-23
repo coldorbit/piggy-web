@@ -50,6 +50,7 @@ import {
   isProfileInUserWorkspace,
   canUserAccessWorkspace,
   workspaceProfileWhereForUser,
+  interviewWorkspaceWhereForUser,
 } from '../application/profilesService.js';
 import { enqueueTailoredResumeRequest } from '../application/tailoringQueueService.js';
 import { userAttributesFromBody } from '../../admin/application/usersService.js';
@@ -267,7 +268,7 @@ export async function listInterviewJobs(req, res, { user, profile }) {
     Interview.count({ where: { profileId: profile.id, ...(user.role === 'caller' ? { callerUserId: user.id } : {}) } }),
     bidUsersForProfile(profile),
     canRegisterManualInterviewCalls(user)
-      ? WebUser.findAll({ where: { role: 'caller', ...workspaceFilterForUser(user) }, order: [['username', 'ASC']] })
+      ? WebUser.findAll({ where: { role: 'caller', ...interviewWorkspaceWhereForUser(user) }, order: [['username', 'ASC']] })
       : Promise.resolve([]),
   ]);
   const [logsByInterviewId, callsByInterviewId] = await Promise.all([
