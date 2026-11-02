@@ -61,7 +61,7 @@ import {
 } from '../lib/api.js';
 import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
 import { canAccessProfileHub, canRegisterManualInterviewCalls, canUseWorkspaceLens, isAdminRole } from '../lib/roles.js';
-import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
+import { defaultTimezoneAbbreviation, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
 const EMPTY_MANUAL_INTERVIEW = {
   title: '',
@@ -854,7 +854,7 @@ export default function InterviewsPage({ currentUser }) {
                   />
                 ) : null}
                 <TextField
-                  label={`Next interview (${DEFAULT_TIME_ZONE_LABEL})`}
+                  label={`Next interview (${defaultTimezoneAbbreviation(selectedDraft.interviewNextAt || undefined)})`}
                   size="small"
                   type="datetime-local"
                   value={toDatetimeLocalValue(selectedDraft.interviewNextAt)}

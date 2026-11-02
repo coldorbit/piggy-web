@@ -327,6 +327,7 @@ export default function CalendarPage({ currentUser }) {
       {pageError ? <Alert severity="error">{pageError}</Alert> : null}
 
       <CalendarToolbar
+        visibleDays={visibleDays}
         isLoading={loading}
         conflictCount={visibleConflictCount}
         failedLostCount={failedLostCallCount}

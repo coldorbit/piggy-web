@@ -16,7 +16,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { DEFAULT_TIME_ZONE_LABEL } from '../../lib/timezone.js';
+import { defaultTimezoneRangeLabel } from '../../lib/timezone.js';
 
 export const CALENDAR_VIEWS = {
   day: 'day',
@@ -24,7 +24,7 @@ export const CALENDAR_VIEWS = {
   week: 'week',
 };
 
-export default function CalendarToolbar({ conflictCount = 0, failedLostCount = 0, isLoading, onExportIcs, onShowFailedLostChange, rangeLabel, scheduledCount, showFailedLost = true, view, onMove, onToday, onViewChange }) {
+export default function CalendarToolbar({ visibleDays = [], conflictCount = 0, failedLostCount = 0, isLoading, onExportIcs, onShowFailedLostChange, rangeLabel, scheduledCount, showFailedLost = true, view, onMove, onToday, onViewChange }) {
   return (
     <Paper
       variant="outlined"
@@ -62,7 +62,7 @@ export default function CalendarToolbar({ conflictCount = 0, failedLostCount = 0
             {rangeLabel}
           </Typography>
           <Typography variant="caption" sx={{ color: '#5F6368' }}>
-            {scheduledCount.toLocaleString()} scheduled interviews · {DEFAULT_TIME_ZONE_LABEL}
+            {scheduledCount.toLocaleString()} scheduled interviews · {defaultTimezoneRangeLabel(visibleDays)}
           </Typography>
         </Box>
       </Box>

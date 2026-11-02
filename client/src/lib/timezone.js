@@ -39,16 +39,9 @@ export function fromDefaultTimezoneDatetimeLocal(value) {
   const match = String(value || '').match(DATETIME_LOCAL_PATTERN);
   if (!match) return '';
   const [, year, month, day, hour, minute] = match.map(Number);
-  const localAsUtcMs = Date.UTC(year, month - 1, day, hour, minute);
-  let utcMs = localAsUtcMs - defaultTimezoneOffsetMinutes(new Date(localAsUtcMs)) * 60_000;
-
-  for (let index = 0; index < 3; index += 1) {
-    const nextUtcMs = localAsUtcMs - defaultTimezoneOffsetMinutes(new Date(utcMs)) * 60_000;
-    if (nextUtcMs === utcMs) break;
-    utcMs = nextUtcMs;
-  }
-
-  return new Date(utcMs).toISOString();
+  // Native local construction follows the browser timezone's rules for the
+  // scheduled date: earlier occurrence for repeated times, forward for gaps.
+  return new Date(year, month - 1, day, hour, minute).toISOString();
 }
 
 export function defaultTimezoneDateKey(value) {
@@ -130,18 +123,16 @@ export function timeLabelInDefaultTimezone(value) {
 }
 
 export function defaultTimezoneAbbreviation(value = new Date()) {
-  const date = value instanceof Date ? value : new Date(value);
+  const instant = typeof value === 'string' && DATETIME_LOCAL_PATTERN.test(value)
+    ? fromDefaultTimezoneDatetimeLocal(value)
+    : value;
+  const date = instant instanceof Date ? instant : new Date(instant);
+  if (Number.isNaN(date.getTime())) return DEFAULT_TIME_ZONE;
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: DEFAULT_TIME_ZONE,
     timeZoneName: 'short',
   }).formatToParts(date);
-  return parts.find((part) => part.type === 'timeZoneName')?.value || DEFAULT_TIME_ZONE_LABEL;
-}
-
-function defaultTimezoneOffsetMinutes(date) {
-  const parts = zonedDateParts(date);
-  const zonedAsUtcMs = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
-  return Math.round((zonedAsUtcMs - date.getTime()) / 60_000);
+  return parts.find((part) => part.type === 'timeZoneName')?.value || DEFAULT_TIME_ZONE;
 }
 
 function utcDateKey(date) {
@@ -150,4 +141,9 @@ function utcDateKey(date) {
 
 function pad(value) {
   return String(value).padStart(2, '0');
+}
+
+export function defaultTimezoneRangeLabel(dateKeys = []) {
+  const labels = dateKeys.map((day) => defaultTimezoneAbbreviation(`${day}T12:00`));
+  return [...new Set(labels)].join(' / ') || defaultTimezoneAbbreviation();
 }

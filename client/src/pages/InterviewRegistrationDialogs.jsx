@@ -57,7 +57,7 @@ import {
 } from '../lib/api.js';
 import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
 import { canAccessProfileHub, canRegisterManualInterviewCalls, isAdminRole, isSuperadmin } from '../lib/roles.js';
-import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
+import { defaultTimezoneAbbreviation, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
 import { applicationOptionLabel, formatShortDate, stageLabel, statusLabel } from './InterviewPageUtils.js';
 
@@ -239,7 +239,7 @@ export function InterviewRegistrationDialogs({
             )}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
               <TextField
-                label={`Next interview (${DEFAULT_TIME_ZONE_LABEL})`}
+                label={`Next interview (${defaultTimezoneAbbreviation(manualInterview.interviewNextAt || undefined)})`}
                 type="datetime-local"
                 required
                 value={toDatetimeLocalValue(manualInterview.interviewNextAt)}
@@ -371,7 +371,7 @@ export function InterviewRegistrationDialogs({
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
               <TextField
                 autoFocus
-                label={`Call time (${DEFAULT_TIME_ZONE_LABEL})`}
+                label={`Call time (${defaultTimezoneAbbreviation(manualCall.scheduledAt || undefined)})`}
                 required
                 type="datetime-local"
                 value={toDatetimeLocalValue(manualCall.scheduledAt)}
