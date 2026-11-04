@@ -200,8 +200,9 @@ export async function updateInterview(req, res, next) {
       if (!canAssignInterviewCaller(user)) delete attrs.callerUserId;
     }
     const previous = interviewSnapshot(interview);
+    const companyUpdates = interviewCompanyUpdates(req.body);
     const now = new Date();
-    await interview.update({ ...interviewValuesFromAttrs(attrs, interview), updatedAt: now });
+    await interview.update({ ...interviewValuesFromAttrs(attrs, interview), ...companyUpdates, updatedAt: now });
     await logInterviewChanges({ interview, previous, attrs, userId: user.id });
     await syncInterviewCallForCurrentSchedule(interview, { sourceType: 'schedule_update' });
     if (String(previous.callerUserId || '') !== String(interview.callerUserId || '')) {
@@ -274,6 +275,7 @@ export async function updateInterviewCall(req, res, next) {
       await interviewWriteProfileForUser(user, interview.profileId, 'Interview not found');
     }
 
+    const companyUpdates = interviewCompanyUpdates(req.body);
     const requestedJobBidId = interviewCallJobBidId(req.body);
     const relinkTarget = requestedJobBidId && String(requestedJobBidId) !== String(interview.jobBidId || '')
       ? await interviewCallRelinkTarget(interview, requestedJobBidId)
@@ -309,9 +311,10 @@ export async function updateInterviewCall(req, res, next) {
           ? { interviewNextAt: attrs.scheduledAt, interviewDurationMinutes: durationMinutes }
           : {}),
         ...(relinkTarget ? interviewJobLinkValues(relinkTarget.bid, relinkTarget.job) : {}),
+        ...companyUpdates,
         updatedAt: now,
       };
-      if (syncCurrentSchedule || relinkTarget) await interview.update(interviewUpdates, { transaction });
+      if (syncCurrentSchedule || relinkTarget || Object.hasOwn(companyUpdates, 'company')) await interview.update(interviewUpdates, { transaction });
 
       if (relinkTarget) {
         if (currentBid) await currentBid.update(unlinkedBidInterviewValues(now), { transaction });
@@ -329,6 +332,14 @@ export async function updateInterviewCall(req, res, next) {
   } catch (error) {
     handleInputError(error, res, next);
   }
+}
+
+export function interviewCompanyUpdates(body = {}) {
+  if (!Object.prototype.hasOwnProperty.call(body || {}, 'company')) return {};
+  if (typeof body.company !== 'string' || !body.company.trim()) {
+    throw new InputError('Company name is required');
+  }
+  return { company: body.company.trim() };
 }
 
 export async function deleteInterviewCall(req, res, next) {

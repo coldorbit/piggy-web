@@ -332,6 +332,16 @@ export function InterviewRegistrationDialogs({
               </Paper>
             ) : null}
             {manualCall.id ? (
+              <TextField
+                label="Company name"
+                required
+                value={manualCall.company || ''}
+                onChange={(event) => setManualCall((current) => ({ ...current, company: event.target.value }))}
+                error={!String(manualCall.company || '').trim()}
+                helperText={!String(manualCall.company || '').trim() ? 'Company name is required' : ''}
+              />
+            ) : null}
+            {manualCall.id ? (
               <Autocomplete
                 clearOnBlur={false}
                 filterOptions={(options) => options}

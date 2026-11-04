@@ -217,6 +217,7 @@ export default function InterviewsPage({ currentUser }) {
   function draftFor(job) {
     return {
       ...(job.bid || {}),
+      company: job.company || '',
       ...(drafts[job.bid?.id] || {}),
       status: drafts[job.bid?.id]?.status || job.bid?.status || 'interviewing',
       interviewStage: canonicalInterviewStage(drafts[job.bid?.id]?.interviewStage || job.bid?.interviewStage),
@@ -328,6 +329,7 @@ export default function InterviewsPage({ currentUser }) {
     const callDraft = call || existingCall;
     setError('');
     setManualCall({
+      company: job.company || '',
       // Only an explicitly selected call enters edit mode and locks the step.
       id: call?.id || '',
       interviewStage: stage,
@@ -441,6 +443,7 @@ export default function InterviewsPage({ currentUser }) {
       meetingLink: manualCall.meetingLink,
       notes: manualCall.notes,
       ...(linkedApplicationJob?.bid?.id ? { jobBidId: linkedApplicationJob.bid.id } : {}),
+      ...(manualCall.id && manualCall.company !== (selectedJob.company || '') ? { company: manualCall.company } : {}),
       ...(String(manualCall.callerUserId || '') !== defaultCallerUserId ? { callerUserId: manualCall.callerUserId } : {}),
     };
     const existingCallId = manualCall.id
@@ -704,6 +707,15 @@ export default function InterviewsPage({ currentUser }) {
                     Create at least one call for this interview.
                   </Alert>
                 ) : null}
+                <TextField
+                  label="Company name"
+                  required
+                  value={selectedDraft.company}
+                  onChange={(event) => updateDraft(selectedJob, 'company', event.target.value)}
+                  disabled={updatingBid || !canEditInterviews}
+                  error={!selectedDraft.company.trim()}
+                  helperText={!selectedDraft.company.trim() ? 'Company name is required' : ''}
+                />
                 <TextField
                   label={`${stageLabel(selectedStage)} notes`}
                   minRows={8}
@@ -996,7 +1008,7 @@ export default function InterviewsPage({ currentUser }) {
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button onClick={closeInterviewDialog}>Close</Button>
                 <Button
-                  disabled={updatingBid || !canEditInterviews || (isFailedInterviewStatus(selectedDraft.status) && !selectedDraft.failureFeedback)}
+                  disabled={updatingBid || !canEditInterviews || !selectedDraft.company.trim() || (isFailedInterviewStatus(selectedDraft.status) && !selectedDraft.failureFeedback)}
                   onClick={() => saveInterview(selectedJob)}
                   variant="contained"
                 >
