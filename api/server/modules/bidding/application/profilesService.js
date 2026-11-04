@@ -285,6 +285,11 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
       attributes: [
         'profileId',
         [getSequelize().fn('COUNT', getSequelize().col('id')), 'totalInterviews'],
+        [getSequelize().literal(`MAX(GREATEST(
+          "Interview"."updated_at",
+          (SELECT MAX(interview_call.updated_at) FROM interview_calls AS interview_call
+           WHERE interview_call.interview_id = "Interview"."id")
+        ))`), 'latestInterviewActivityAt'],
         [
           getSequelize().fn(
             'SUM',
@@ -385,6 +390,7 @@ export async function profilesWithProgress(profiles, { user, dailyGoalFilters, d
     if (!progress) continue;
     progress.totalInterviews = Number(row.totalInterviews || 0);
     progress.activeInterviews = Number(row.activeInterviews || 0);
+    progress.latestInterviewActivityAt = row.latestInterviewActivityAt || null;
   }
 
   for (const profile of profiles) {

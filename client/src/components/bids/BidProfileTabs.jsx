@@ -8,6 +8,9 @@ import { dayProgressPercent, localDayProgressPercent } from '../../lib/timezone.
 
 export default function BidProfileTabs({
   activeColor,
+  headerControls,
+  emptyTitle = 'No profiles yet',
+  emptyDetail = 'Profiles will appear here once they are active and available.',
   activeProfile,
   dailyGoalLabel = 'today',
   isDailyGoalCurrent = true,
@@ -37,11 +40,12 @@ export default function BidProfileTabs({
         <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase' }}>
           Profiles
         </Typography>
+        {headerControls}
       </Box>
       {profiles.length ? (
         <Tabs
           orientation={isDesktop ? 'vertical' : 'horizontal'}
-          value={activeProfile ? String(activeProfile.id) : false}
+          value={profiles.some((profile) => String(profile.id) === String(activeProfile?.id)) ? String(activeProfile.id) : false}
           onChange={(_event, value) => onProfileChange(value)}
           variant="scrollable"
           scrollButtons="auto"
@@ -102,8 +106,8 @@ export default function BidProfileTabs({
         <ProfileTabSkeletons />
       ) : (
         <EmptyState
-          title="No profiles yet"
-          detail="Profiles will appear here once they are active and available."
+          title={emptyTitle}
+          detail={emptyDetail}
           variant="plain"
           sx={{ flex: 1, p: 1.5, justifyItems: 'start', textAlign: 'left', bgcolor: 'transparent' }}
         />

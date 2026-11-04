@@ -1,5 +1,3 @@
-import { InterviewRegistrationDialogs } from './InterviewRegistrationDialogs.jsx';
-import { callAssigneeLabel, callForStage, callSourceLabel, externalJobUrl, externalUrl, formatDuration, formatJourneyLog, hasMeetingLink, interviewColumnLabel, interviewStepChange, resumeDownloadUrl, resumeFileName, sortedInterviewCalls, stageLabel } from './InterviewPageUtils.js';
 import AddIcon from '@mui/icons-material/Add';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -7,10 +5,11 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Chip,
+  Checkbox,
+  FormControlLabel,
   CircularProgress,
   Collapse,
   Dialog,
@@ -28,7 +27,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
-import { APPLICATION_WORKFLOW_STATUSES, BID_TABS, DONE_STATUSES, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
+import { BID_TABS, DONE_STATUSES, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
 import { filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
 import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
@@ -63,6 +62,9 @@ import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
 import { canAccessProfileHub, canRegisterManualInterviewCalls, canUseWorkspaceLens, isAdminRole } from '../lib/roles.js';
 import { defaultTimezoneAbbreviation, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
 
+import { InterviewRegistrationDialogs } from './InterviewRegistrationDialogs.jsx';
+import { callAssigneeLabel, callForStage, callSourceLabel, compareProfilesByInterviewActivity, externalJobUrl, externalUrl, formatDuration, formatJourneyLog, hasMeetingLink, interviewColumnLabel, interviewStepChange, resumeDownloadUrl, resumeFileName, sortedInterviewCalls, stageLabel } from './InterviewPageUtils.js';
+
 const EMPTY_MANUAL_INTERVIEW = {
   title: '',
   company: '',
@@ -92,6 +94,8 @@ export default function InterviewsPage({ currentUser }) {
   const [activeProfileId, setActiveProfileId] = useState(() => searchParams.get('profileId') || '');
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [needsLinksOnly, setNeedsLinksOnly] = useState(() => searchParams.get('needsLinks') === '1');
+  const [profileSearch, setProfileSearch] = useState('');
+  const [showLegacyProfiles, setShowLegacyProfiles] = useState(false);
   const [drafts, setDrafts] = useState({});
   const [activeDropStage, setActiveDropStage] = useState('');
   const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
@@ -126,9 +130,22 @@ export default function InterviewsPage({ currentUser }) {
     () => (workspaceLensEnabled ? filterRowsByWorkspace(interviewProfilesWithWorkspace, activeWorkspaceId) : interviewProfilesWithWorkspace),
     [activeWorkspaceId, interviewProfilesWithWorkspace, workspaceLensEnabled],
   );
+  const eligibleInterviewProfiles = useMemo(
+    () => workspaceInterviewProfiles
+      .filter((profile) => showLegacyProfiles || profile.profileStatus !== 'legacy')
+      .sort(compareProfilesByInterviewActivity),
+    [workspaceInterviewProfiles, showLegacyProfiles],
+  );
+  const visibleInterviewProfiles = useMemo(
+    () => {
+      const query = profileSearch.trim().toLowerCase();
+      return eligibleInterviewProfiles.filter((profile) => String(profile.name || '').toLowerCase().includes(query));
+    },
+    [eligibleInterviewProfiles, profileSearch],
+  );
   const activeProfile = useMemo(
-    () => workspaceInterviewProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || workspaceInterviewProfiles[0] || null,
-    [activeProfileId, workspaceInterviewProfiles],
+    () => eligibleInterviewProfiles.find((profile) => String(profile.id) === String(activeProfileId)) || eligibleInterviewProfiles[0] || null,
+    [activeProfileId, eligibleInterviewProfiles],
   );
   const filters = useMemo(
     () => ({
@@ -164,10 +181,10 @@ export default function InterviewsPage({ currentUser }) {
   const { mutate: deleteInterview, isPending: deletingInterview } = useDeleteInterview();
 
   useEffect(() => {
-    if (!workspaceInterviewProfiles[0]) return;
-    const hasActiveProfile = workspaceInterviewProfiles.some((profile) => String(profile.id) === String(activeProfileId));
-    if (!activeProfileId || !hasActiveProfile) setActiveProfileId(workspaceInterviewProfiles[0].id);
-  }, [activeProfileId, workspaceInterviewProfiles]);
+    if (profilesLoading) return;
+    const hasActiveProfile = eligibleInterviewProfiles.some((profile) => String(profile.id) === String(activeProfileId));
+    if (!hasActiveProfile) setActiveProfileId(eligibleInterviewProfiles[0]?.id || '');
+  }, [activeProfileId, eligibleInterviewProfiles, profilesLoading]);
 
   useEffect(() => {
     setSelectedInterviewId('');
@@ -524,7 +541,25 @@ export default function InterviewsPage({ currentUser }) {
             activeColor={activeColor}
             activeProfile={activeProfile}
             isLoading={profilesLoading}
-            profiles={workspaceInterviewProfiles}
+            profiles={visibleInterviewProfiles}
+            emptyTitle="No matching profiles"
+            emptyDetail="Try another name or enable Show legacy profiles."
+            headerControls={
+              <Box sx={{ display: 'grid', gap: 0.5, mt: 1 }}>
+                <TextField
+                  label="Search profiles"
+                  size="small"
+                  value={profileSearch}
+                  onChange={(event) => setProfileSearch(event.target.value)}
+                  fullWidth
+                />
+                <FormControlLabel
+                  sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: 12 } }}
+                  control={<Checkbox size="small" checked={showLegacyProfiles} onChange={(event) => setShowLegacyProfiles(event.target.checked)} />}
+                  label="Show legacy profiles"
+                />
+              </Box>
+            }
             showDailyGoal={false}
             showInterviewCounts
             onProfileChange={setActiveProfileId}

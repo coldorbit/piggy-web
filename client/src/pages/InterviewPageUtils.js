@@ -1,66 +1,13 @@
-import AddIcon from '@mui/icons-material/Add';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import DeleteIcon from '@mui/icons-material/Delete';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
-import {
-  Alert,
-  Autocomplete,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { useEffect, useMemo, useState } from 'react';
-import { Link as RouterLink, useSearchParams } from 'react-router-dom';
-import BidProfileTabs from '../components/bids/BidProfileTabs.jsx';
-import { APPLICATION_WORKFLOW_STATUSES, BID_TABS, DONE_STATUSES, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
-import { filterRowsByWorkspace, workspaceLabel } from '../components/admin/SuperadminWorkspaceLens.jsx';
-import { useWorkspaceFilter } from '../components/admin/WorkspaceFilterContext.jsx';
-import EmptyState from '../components/common/EmptyState.jsx';
-import { EMPTY_HEADER_SEARCH, useHeaderSearch } from '../components/HeaderSearchContext.jsx';
-import InterviewKanbanBoard from '../components/interviews/InterviewKanbanBoard.jsx';
-import InterviewLoadingState from '../components/interviews/InterviewLoadingState.jsx';
-import {
-  canonicalInterviewStage,
-  DEFAULT_INTERVIEW_DURATION_MINUTES,
-  groupJobsByStage,
-  INTERVIEW_FILTERS,
-  INTERVIEW_DURATION_OPTIONS,
-  interviewRequiresAssociatedCall,
-  interviewColumnValue,
-  interviewStageForColumn,
-  interviewStatusForColumn,
-  toDatetimeLocalValue,
-} from '../components/interviews/interviewUtils.js';
-import { PROFILE_COLORS } from '../components/profiles/profileConstants.js';
-import {
-  downloadAuthenticatedFile,
-  useBidJobs,
-  useBidProfiles,
-  useCreateInterviewCall,
-  useCreateManualInterview,
-  useDeleteInterview,
-  useUpdateInterviewCall,
-  useUpdateJobBid,
-} from '../lib/api.js';
-import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
-import { canAccessProfileHub, canRegisterManualInterviewCalls, isAdminRole, isSuperadmin } from '../lib/roles.js';
-import { DEFAULT_TIME_ZONE_LABEL, fromDefaultTimezoneDatetimeLocal } from '../lib/timezone.js';
+import { APPLICATION_WORKFLOW_STATUSES, INTERVIEW_KANBAN_COLUMNS, INTERVIEW_STAGES } from '../components/bids/bidConstants.js';
+import { canonicalInterviewStage, interviewRequiresAssociatedCall } from '../components/interviews/interviewUtils.js';
 import { failureFeedbackLabel } from '../components/interviews/InterviewFailureFeedback.jsx';
+import { formatDateTimeInDefaultTimezone } from '../lib/formatters.js';
 
+export function compareProfilesByInterviewActivity(left, right) {
+  const leftTime = Date.parse(left.progress?.latestInterviewActivityAt) || 0;
+  const rightTime = Date.parse(right.progress?.latestInterviewActivityAt) || 0;
+  return rightTime - leftTime || String(left.name || '').localeCompare(String(right.name || ''));
+}
 
 export function externalJobUrl(job) {
   const url = job?.rawJob?.originalUrl || job?.url || '';
